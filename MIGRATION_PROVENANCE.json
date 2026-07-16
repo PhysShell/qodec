@@ -1,0 +1,83 @@
+{
+  "authoritative_source_head_sha": "662adf6ea6ba7438f1a31e9faf95554b4b14eedf",
+  "authoritative_source_pr": 56,
+  "commit_map_path": "docs/migration/007-commit-map.tsv",
+  "commit_map_sha256": "c37535363dc00576279a7843e87b4ae5fb27e69d41aef80070349da19ac426b6",
+  "excluded_components": [
+    "o7 application source",
+    "o7 invoke",
+    "Codex CLI integration",
+    "Demand Radar source",
+    "unrelated 007 experiments"
+  ],
+  "filtered_commit_count": 189,
+  "filtered_history_tip_before_adaptation": "38d98a0df50b3bcfd45bc3af885aad9e2b885a33",
+  "history_transform": "git-filter-repo",
+  "included_paths": [
+    "qodec/ (whole subtree, renamed to repository root)",
+    ".github/workflows/qodec*.yml",
+    ".github/workflows/qodec*.yaml",
+    "flake.nix",
+    "flake.lock",
+    "rust-toolchain.toml",
+    ".gitignore",
+    ".editorconfig (glob matched nothing at the source commit)",
+    "LICENSE* (glob matched nothing at the source commit)",
+    "NOTICE* (glob matched nothing at the source commit)"
+  ],
+  "included_workflows": [
+    "qodec-n2-miner-canary.yml",
+    "qodec-n2-miner-framework.yml",
+    "qodec-n2-source-freeze.yml",
+    "qodec-n2d0-durable-evidence-rescue.yml",
+    "qodec-n2d1b-miner-pilot.yml",
+    "qodec-v2.yml",
+    "qodec-v2-corpus.yml",
+    "qodec-v2-public-log-pilot.yml"
+  ],
+  "legacy_assets_remain_external": true,
+  "legacy_prs_remain_external": true,
+  "legacy_release_repository": "PhysShell/007",
+  "legacy_release_tag": "n2d0-durable-evidence-v1",
+  "migration_content_commit_sha": "78ee9380fe4b7c2f741f48e1f964be050a5c4f58",
+  "old_evidence_paths_preserved": true,
+  "path_rename": "qodec/ -> repository root",
+  "record_sha256": "sha256:93ffbbb6c44d58f9b47d546d7b167a039cf5f1462c20a3e9409fa82991af2feb",
+  "record_type": "qodec-repository-migration-v1",
+  "ref_map_path": "docs/migration/007-ref-map.tsv",
+  "ref_map_sha256": "278778792f21644565deba5675bc79ba6a29b533c22ffc48641aa90e5448858d",
+  "schema_version": 1,
+  "source_mode": "stacked_unmerged_pr_tip",
+  "source_pull_request_chain": [
+    {
+      "base_branch": "main",
+      "head_branch": "claude/qodec-benchmark-v2-source-freeze-n2c",
+      "head_sha": "acb57379e2d0b9ed6fe79fd45e7540d7d00d7490",
+      "historical_directive": "DO NOT MERGE",
+      "merged": false,
+      "number": 54,
+      "url": "https://github.com/PhysShell/007/pull/54"
+    },
+    {
+      "base_branch": "claude/qodec-benchmark-v2-source-freeze-n2c",
+      "head_branch": "claude/n2d0-durable-evidence-rescue",
+      "head_sha": "4e40b6f393cbdaf1bfcc36b8c422f7e17ae41dee",
+      "historical_directive": "DO NOT MERGE",
+      "merged": false,
+      "number": 55,
+      "url": "https://github.com/PhysShell/007/pull/55"
+    },
+    {
+      "base_branch": "claude/n2d0-durable-evidence-rescue",
+      "head_branch": "claude/qodec-benchmark-v2-n2d-identity-lock",
+      "head_sha": "662adf6ea6ba7438f1a31e9faf95554b4b14eedf",
+      "historical_directive": "DO NOT MERGE",
+      "merged": false,
+      "number": 56,
+      "url": "https://github.com/PhysShell/007/pull/56"
+    }
+  ],
+  "source_repository": "PhysShell/007",
+  "stack_ancestry_verified": true,
+  "target_repository": "PhysShell/qodec"
+}
