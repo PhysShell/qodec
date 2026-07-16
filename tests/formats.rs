@@ -10,11 +10,7 @@ use qodec::{decode, encode, CodecKind};
 fn roundtrip(text: &str, kind: CodecKind, meter: &dyn TokenMeter) -> Result<String> {
     let encoded = encode(text, kind, meter, Alphabet::Auto);
     let back = decode(&encoded)?;
-    anyhow::ensure!(
-        back == text,
-        "byte roundtrip failed for {:?}",
-        kind.label()
-    );
+    anyhow::ensure!(back == text, "byte roundtrip failed for {:?}", kind.label());
     Ok(encoded)
 }
 
@@ -22,7 +18,10 @@ fn roundtrip(text: &str, kind: CodecKind, meter: &dyn TokenMeter) -> Result<Stri
 fn grep_groups_rg_output() -> Result<()> {
     let meter = Bpe::o200k()?;
     let mut text = String::new();
-    for file in ["src/Broker/Transport/Session.cs", "src/Broker/Handlers/Inbox.cs"] {
+    for file in [
+        "src/Broker/Transport/Session.cs",
+        "src/Broker/Handlers/Inbox.cs",
+    ] {
         for line in [14, 88, 129, 245, 310] {
             text.push_str(&format!(
                 "{file}:{line}:        obj.PropertyChanged += new PropertyChangedEventHandler(OnChanged);\n"
@@ -54,10 +53,7 @@ fn grep_windows_paths_and_mixed_lines() -> Result<()> {
     }
     let encoded = roundtrip(&text, CodecKind::Grep, &meter)?;
     anyhow::ensure!(encoded.starts_with("%q1 grep"), "expected grep container");
-    let decoded_head = encoded
-        .lines()
-        .nth(2)
-        .unwrap_or_default();
+    let decoded_head = encoded.lines().nth(2).unwrap_or_default();
     anyhow::ensure!(
         decoded_head.ends_with("A.xaml.cs"),
         "group header must carry the whole Windows path, got {decoded_head:?}"
@@ -84,10 +80,30 @@ fn diag_templates_quoted_identifiers() -> Result<()> {
     let meter = Bpe::o200k()?;
     let mut text = String::new();
     for (file, line, ev, host) in [
-        ("Broker/AmountWindow.xaml.cs", 72, "fGoods.PropertyChanged", "AmountWindow"),
-        ("Broker/eDeclarant.xaml.cs", 69, "data.PropertyChanged", "eDeclarant"),
-        ("Broker/eDeclarant.xaml.cs", 236, "fThis.DataSource.PropertyChanged", "eDeclarant"),
-        ("Broker/Estimate.xaml.cs", 41, "model.PropertyChanged", "Estimate"),
+        (
+            "Broker/AmountWindow.xaml.cs",
+            72,
+            "fGoods.PropertyChanged",
+            "AmountWindow",
+        ),
+        (
+            "Broker/eDeclarant.xaml.cs",
+            69,
+            "data.PropertyChanged",
+            "eDeclarant",
+        ),
+        (
+            "Broker/eDeclarant.xaml.cs",
+            236,
+            "fThis.DataSource.PropertyChanged",
+            "eDeclarant",
+        ),
+        (
+            "Broker/Estimate.xaml.cs",
+            41,
+            "model.PropertyChanged",
+            "Estimate",
+        ),
     ] {
         text.push_str(&format!(
             "../STS_new/SectorTS/{file}:{line}: warning: [OWN001] event '{ev}' is subscribed but never unsubscribed; it may keep '{host}' alive (possible leak) [resource: subscription token]\n"
@@ -106,7 +122,11 @@ fn diag_templates_quoted_identifiers() -> Result<()> {
 fn diag_msbuild_heads_and_passthrough() -> Result<()> {
     let meter = Bpe::o200k()?;
     let mut text = String::from("Build started 12.07.2026\n");
-    for (file, l, c) in [("Views\\Main.xaml.cs", 88, 13), ("Views\\Edit.xaml.cs", 41, 9), ("Core\\Db.cs", 7, 22)] {
+    for (file, l, c) in [
+        ("Views\\Main.xaml.cs", 88, 13),
+        ("Views\\Edit.xaml.cs", 41, 9),
+        ("Core\\Db.cs", 7, 22),
+    ] {
         text.push_str(&format!(
             "  C:\\Repos\\STS_new\\{file}({l},{c}): warning CS8618: Non-nullable field 'fBroker' must contain a non-null value [C:\\Repos\\STS_new\\STS.csproj]\n"
         ));
@@ -161,11 +181,16 @@ fn grep_crlf_roundtrips() -> Result<()> {
     let mut text = String::new();
     for file in ["A", "B"] {
         for i in 0..10 {
-            text.push_str(&format!("src/Broker/{file}.cs:{i}:obj.PropertyChanged += handler;\r\n"));
+            text.push_str(&format!(
+                "src/Broker/{file}.cs:{i}:obj.PropertyChanged += handler;\r\n"
+            ));
         }
     }
     let encoded = roundtrip(&text, CodecKind::Grep, &meter)?;
-    anyhow::ensure!(encoded.starts_with("%q1 grep"), "CRLF rg output must still commit");
+    anyhow::ensure!(
+        encoded.starts_with("%q1 grep"),
+        "CRLF rg output must still commit"
+    );
     Ok(())
 }
 
@@ -201,7 +226,9 @@ fn tmpl_crlf_and_identical_lines() -> Result<()> {
     let mut text = String::new();
     for i in 0..6 {
         text.push_str(&format!("  CSC : warning CS8618: Non-nullable property must contain a value. [C:\\b\\P{}.csproj]\r\n", i % 2));
-        text.push_str("  ValidateSolutionConfiguration: building solution configuration Release|AnyCPU\r\n");
+        text.push_str(
+            "  ValidateSolutionConfiguration: building solution configuration Release|AnyCPU\r\n",
+        );
     }
     let encoded = roundtrip(&text, CodecKind::Tmpl, &meter)?;
     anyhow::ensure!(encoded.starts_with("%q1 tmpl"), "expected tmpl container");
@@ -242,8 +269,14 @@ fn tmpl_seed_carrying_a_slot_glyph_shifts_the_slot_choice() -> Result<()> {
     let seeds = Seeds {
         templates: vec![
             vec!["¿ junk marker ".to_string(), String::new()],
-            vec!["worker thread pool delta ".to_string(), " spawned".to_string()],
-            vec!["worker thread pool epsilon ".to_string(), " spawned".to_string()],
+            vec![
+                "worker thread pool delta ".to_string(),
+                " spawned".to_string(),
+            ],
+            vec![
+                "worker thread pool epsilon ".to_string(),
+                " spawned".to_string(),
+            ],
         ],
         ..Seeds::default()
     };
@@ -260,7 +293,10 @@ fn tmpl_seed_carrying_a_slot_glyph_shifts_the_slot_choice() -> Result<()> {
         "slot must shift to '«' and both templates must pin: {encoded:?}"
     );
     let back = decode(&encoded)?;
-    anyhow::ensure!(back == text, "slot-shifted seeded artifact stays byte-exact");
+    anyhow::ensure!(
+        back == text,
+        "slot-shifted seeded artifact stays byte-exact"
+    );
     Ok(())
 }
 
@@ -321,7 +357,9 @@ fn tmpl_subword_slots_respect_multibyte_boundaries() -> Result<()> {
     let meter = Bpe::o200k()?;
     let mut text = String::new();
     for i in 0..10 {
-        text.push_str(&format!("запись файл{i}.данные обработана успешно строка\n"));
+        text.push_str(&format!(
+            "запись файл{i}.данные обработана успешно строка\n"
+        ));
     }
     let encoded = roundtrip(&text, CodecKind::Tmpl, &meter)?;
     anyhow::ensure!(encoded.starts_with("%q1 tmpl"), "expected tmpl container");

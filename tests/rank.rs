@@ -112,7 +112,10 @@ fn ranked_encode_still_roundtrips_and_passes_acceptance() -> Result<()> {
         ));
     }
     let observed = qodec::mine::train_pass(&corpus, &meter, profile.ranker_stats_mut(), 400);
-    anyhow::ensure!(observed >= 64, "corpus must yield 64+ probes, got {observed}");
+    anyhow::ensure!(
+        observed >= 64,
+        "corpus must yield 64+ probes, got {observed}"
+    );
     let ranker = profile.fitted_ranker();
     anyhow::ensure!(ranker.is_some(), "observed probes must be enough to fit");
 

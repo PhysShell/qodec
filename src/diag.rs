@@ -24,7 +24,7 @@ use std::collections::HashMap;
 
 use anyhow::{bail, Context, Result};
 
-use crate::alias::{Alphabet, AliasPool};
+use crate::alias::{AliasPool, Alphabet};
 use crate::container::{self, Container};
 use crate::meter::TokenMeter;
 
@@ -33,7 +33,12 @@ const SEPS: &[(&str, char)] = &[("pipe", '|'), ("tab", '\t'), ("broke", '¦'), (
 /// Placeholder marking a slot inside a legend template. Kept disjoint from
 /// the alias alphabets (`alias::GLYPHS` / `alias::SIGILS`) so a template
 /// can never be confused with alias material.
-const SLOTS: &[(&str, char)] = &[("quest", '¿'), ("laquo", '«'), ("langle", '‹'), ("degree", '°')];
+const SLOTS: &[(&str, char)] = &[
+    ("quest", '¿'),
+    ("laquo", '«'),
+    ("langle", '‹'),
+    ("degree", '°'),
+];
 /// Same bound as the miner's default: legends beyond this stop paying.
 const MAX_TEMPLATES: usize = 64;
 
@@ -67,8 +72,7 @@ fn head_len(line: &str) -> Option<usize> {
                 while bytes.get(j).is_some_and(u8::is_ascii_digit) {
                     j += 1;
                 }
-                if j > col_start && bytes.get(j) == Some(&b')') && bytes.get(j + 1) == Some(&b':')
-                {
+                if j > col_start && bytes.get(j) == Some(&b')') && bytes.get(j + 1) == Some(&b':') {
                     return Some(j + 2);
                 }
             }
@@ -178,7 +182,10 @@ pub fn encode(text: &str, meter: &dyn TokenMeter) -> String {
         .filter(|&(_, count)| count >= 2)
         .collect();
     repeated.sort_by_key(|&(template, count)| {
-        (std::cmp::Reverse(count.saturating_sub(1) * template.len()), template.to_string())
+        (
+            std::cmp::Reverse(count.saturating_sub(1) * template.len()),
+            template.to_string(),
+        )
     });
 
     let mut aliases: HashMap<&str, String> = HashMap::new();
@@ -201,7 +208,10 @@ pub fn encode(text: &str, meter: &dyn TokenMeter) -> String {
                 template,
                 slots,
             } if aliases.contains_key(template.as_str()) => {
-                let alias = aliases.get(template.as_str()).map(String::as_str).unwrap_or_default();
+                let alias = aliases
+                    .get(template.as_str())
+                    .map(String::as_str)
+                    .unwrap_or_default();
                 body.push_str(alias);
                 body.push_str(head);
                 for s in slots {

@@ -102,7 +102,10 @@ fn seeds_transfer_what_the_word_miner_cannot_see() -> Result<()> {
     anyhow::ensure!(seeded.starts_with("%q1 mine"), "seeded encode must commit");
     let stem = "the quick brown fox jumps over the lazy dog while the sleepy cat watches";
     anyhow::ensure!(
-        seeded.lines().take(30).any(|l| l.ends_with(&format!("={stem}"))),
+        seeded
+            .lines()
+            .take(30)
+            .any(|l| l.ends_with(&format!("={stem}"))),
         "the transferred stem must land in the legend as one entry"
     );
     anyhow::ensure!(
@@ -113,7 +116,10 @@ fn seeds_transfer_what_the_word_miner_cannot_see() -> Result<()> {
     anyhow::ensure!(back == other, "seeded encode stays byte-lossless");
     // Plain mine still works alongside for comparison runs.
     let plain = encode(&other, CodecKind::Mine, &meter, Alphabet::Auto);
-    anyhow::ensure!(plain.starts_with("%q1 mine"), "plain baseline still commits");
+    anyhow::ensure!(
+        plain.starts_with("%q1 mine"),
+        "plain baseline still commits"
+    );
     Ok(())
 }
 
@@ -166,7 +172,10 @@ fn tmpl_seeds_rescue_misrouted_templates_and_pin_legend_bytes() -> Result<()> {
         .collect();
 
     let plain = encode(&mixed, CodecKind::Tmpl, &meter, Alphabet::Auto);
-    anyhow::ensure!(plain.starts_with("%q1 tmpl"), "plain must commit: {plain:?}");
+    anyhow::ensure!(
+        plain.starts_with("%q1 tmpl"),
+        "plain must commit: {plain:?}"
+    );
     anyhow::ensure!(
         plain.contains("=worker thread pool ¿ ¿ spawned"),
         "plain first-fit must produce the merged two-slot template"
@@ -207,7 +216,10 @@ fn unrelated_template_seeds_change_nothing() -> Result<()> {
         .repeat(4);
     let plain = encode(&prose, CodecKind::Tmpl, &meter, Alphabet::Auto);
     let seeded = encode_seeded(&prose, CodecKind::Tmpl, &meter, Alphabet::Auto, &seeds);
-    anyhow::ensure!(seeded == plain, "unmatched seeds must not change the artifact");
+    anyhow::ensure!(
+        seeded == plain,
+        "unmatched seeds must not change the artifact"
+    );
     Ok(())
 }
 
@@ -228,7 +240,10 @@ fn read_capped_bounds_the_read_and_respects_char_boundaries() -> Result<()> {
     std::fs::write(&multi, "abcd码码码")?;
     let (text, capped) = read_capped(&multi, 6)?;
     std::fs::remove_file(&multi).ok();
-    anyhow::ensure!(capped && text == "abcd", "sliced char must be dropped, got {text:?}");
+    anyhow::ensure!(
+        capped && text == "abcd",
+        "sliced char must be dropped, got {text:?}"
+    );
 
     // Binary content is refused (same semantics as the uncapped read had).
     let bin = dir.join("qodec-readcap-binary-test.bin");

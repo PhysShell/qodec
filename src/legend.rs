@@ -107,7 +107,9 @@ pub fn generate(profile: &Profile, meter: &dyn TokenMeter, top: usize) -> Result
         if phrase.contains('\n') {
             continue;
         }
-        let Some((alias, alias_cost)) = pool.take() else { break };
+        let Some((alias, alias_cost)) = pool.take() else {
+            break;
+        };
         // Only freeze entries that actually pay standalone; the encode-time
         // substitution re-measures on the real payload anyway.
         if alias_cost >= meter.count(&phrase) {
@@ -308,19 +310,11 @@ impl TemplateLegend {
 /// parse back into different parts, and while encode and decode would
 /// still agree (both read the file), it would silently stop matching the
 /// lines it was learned from.
-pub fn generate_templates(
-    profile: &Profile,
-    meter: &dyn TokenMeter,
-    top: usize,
-) -> Result<String> {
+pub fn generate_templates(profile: &Profile, meter: &dyn TokenMeter, top: usize) -> Result<String> {
     let templates: Vec<Vec<String>> = profile
         .seed_templates(top)
         .into_iter()
-        .filter(|parts| {
-            parts
-                .iter()
-                .all(|p| !p.contains('\n') && !p.contains('\r'))
-        })
+        .filter(|parts| parts.iter().all(|p| !p.contains('\n') && !p.contains('\r')))
         .collect();
     if templates.is_empty() {
         bail!("profile has no templates to freeze — run `qodec learn` first");
@@ -358,7 +352,9 @@ pub fn generate_templates(
     out.push_str("# artifacts pin its checksum and fail closed on drift.\n");
     let mut emitted = 0usize;
     for parts in kept {
-        let Some((alias, alias_cost)) = pool.take() else { break };
+        let Some((alias, alias_cost)) = pool.take() else {
+            break;
+        };
         let display = parts.join(&slot.to_string());
         if alias_cost >= meter.count(&display) {
             continue;
