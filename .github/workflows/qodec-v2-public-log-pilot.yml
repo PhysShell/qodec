@@ -17,8 +17,6 @@ name: qodec-v2-public-log-pilot
 on:
   pull_request:
   workflow_dispatch:
-  push:
-    branches: [main]
 permissions:
   contents: read
   actions: write
