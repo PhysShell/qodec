@@ -809,11 +809,16 @@ class TestVstestCanonicalizationWiring(unittest.TestCase):
 
 class TestGradleCanonicalizationWiring(unittest.TestCase):
     """repo-moshi's canonical benchmark input must be the GRADLE-canonicalized
-    stream, dispatched to gradle_canonicalizer.py -- authorized only AFTER
-    the deterministic scheduling profile made every task line byte-identical
-    and same-order, leaving the build-completion duration as the sole
-    remaining raw difference (D1b, 2026-07-16, real evidence run
-    29474204715)."""
+    stream, dispatched to gradle_canonicalizer_v2.py (N2-D1b Stage 1
+    reacceptance, 2026-07-16) -- v1 (gradle_canonicalizer.py) required a
+    mandatory trailing seconds component and was superseded after a real
+    build genuinely produced "BUILD SUCCESSFUL in 2m" (a zero-valued,
+    omitted seconds component); v2's grammar is independently derived from
+    Gradle 9.5.1's own TimeFormatting.formatDurationTerse source. Originally
+    authorized (v1) only AFTER the deterministic scheduling profile made
+    every task line byte-identical and same-order, leaving the
+    build-completion duration as the sole remaining raw difference (D1b,
+    2026-07-16, real evidence run 29474204715)."""
 
     def _make_source_artifact_dir(self, tmp_path):
         import hashlib
@@ -902,9 +907,23 @@ class TestGradleCanonicalizationWiring(unittest.TestCase):
             self.assertEqual(canonical_a, canonical_b)
 
     def test_uses_gradle_module_not_maven_or_vstest_module(self):
-        self.assertIs(gc.CANONICALIZATION_MODULE_BY_CASE_ID["repo-moshi"], gc.gradle_canonicalizer)
+        self.assertIs(gc.CANONICALIZATION_MODULE_BY_CASE_ID["repo-moshi"], gc.gradle_canonicalizer_v2)
         self.assertIsNot(gc.CANONICALIZATION_MODULE_BY_CASE_ID["repo-moshi"], gc.maven_canonicalizer)
         self.assertIsNot(gc.CANONICALIZATION_MODULE_BY_CASE_ID["repo-moshi"], gc.vstest_canonicalizer)
+
+    def test_previously_unsupported_2m_form_now_canonicalizes(self):
+        """The real, observed raw line v1's grammar rejected (mandatory
+        trailing seconds component) -- v2 accepts it."""
+        import tempfile
+
+        with tempfile.TemporaryDirectory() as tmp:
+            tmp_path = Path(tmp)
+            stdout = b"BUILD SUCCESSFUL in 2m\n42 actionable tasks: 42 executed\n"
+            receipt, out_dir = self._run(tmp_path, job_name="capture-a", stdout=stdout)
+            self.assertEqual(receipt["canonical_input_derivation"], "case-specific-deterministic-canonicalization")
+            canonical_bytes = (out_dir / "canonical-raw-input.bin").read_bytes()
+            self.assertNotIn(b"2m", canonical_bytes)
+            self.assertIn(b"<ELAPSED>", canonical_bytes)
 
 
 if __name__ == "__main__":

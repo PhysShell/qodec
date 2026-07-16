@@ -45,26 +45,30 @@ MINER_TOOLS = TOOLS_DIR.parents[1] / "miner" / "tools"
 for p in (MINER_TOOLS, TOOLS_DIR):
     sys.path.insert(0, str(p))
 
-import gradle_canonicalizer  # noqa: E402
+import gradle_canonicalizer_v2  # noqa: E402
 import maven_canonicalizer  # noqa: E402
 import receipt_contract  # noqa: E402
 import vstest_canonicalizer  # noqa: E402
 
 POLICY_PATH = TOOLS_DIR.parent / "capture-canonicalization-policy.json"
 VSTEST_POLICY_PATH = TOOLS_DIR.parent / "vstest-capture-canonicalization-policy.json"
-GRADLE_POLICY_PATH = TOOLS_DIR.parent / "gradle-capture-canonicalization-policy.json"
+# N2-D1b Stage 1 reacceptance (2026-07-16): repo-moshi is verified against
+# v2 (gradle_canonicalizer_v2.py / *-policy-v2.json) -- see
+# generic_capture.py's identical comment. v1's files remain untouched,
+# historical evidence, no longer dispatched here.
+GRADLE_POLICY_V2_PATH = TOOLS_DIR.parent / "gradle-capture-canonicalization-policy-v2.json"
 
 # Case-id-scoped dispatch -- mirrors generic_capture.py's own
 # CANONICALIZATION_MODULE_BY_CASE_ID single source of truth. Each profile is
 # independently self-hash-locked and verified against its OWN canonicalizer
 # module's RULES; Maven's, VSTest's, and Gradle's profiles are never
-# merged. Reads POLICY_PATH/VSTEST_POLICY_PATH/GRADLE_POLICY_PATH fresh
+# merged. Reads POLICY_PATH/VSTEST_POLICY_PATH/GRADLE_POLICY_V2_PATH fresh
 # (module globals, not baked into a dict at import time) so tests can
 # mock.patch.object any path to exercise tamper-detection.
 _CANONICALIZER_MODULES_BY_CASE_ID = {
     "repo-docker-java-parser": maven_canonicalizer,
     "repo-kubeops-generator": vstest_canonicalizer,
-    "repo-moshi": gradle_canonicalizer,
+    "repo-moshi": gradle_canonicalizer_v2,
 }
 
 
@@ -74,8 +78,8 @@ def _canonicalizer_for_case_id(case_id: str):
         return module, POLICY_PATH
     if module is vstest_canonicalizer:
         return module, VSTEST_POLICY_PATH
-    if module is gradle_canonicalizer:
-        return module, GRADLE_POLICY_PATH
+    if module is gradle_canonicalizer_v2:
+        return module, GRADLE_POLICY_V2_PATH
     return None, None
 
 # Dotted paths, not whole nested dicts -- sandbox_identity.policy_sha256 in
