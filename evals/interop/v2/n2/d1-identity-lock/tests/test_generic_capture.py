@@ -99,7 +99,11 @@ class TestRunOneCaptureContentGate(unittest.TestCase):
 
         with tempfile.TemporaryDirectory() as tmp:
             tmp_path = Path(tmp)
-            valid_stdout = b"running 3 tests\ntest result: ok. 3 passed; 0 failed; 0 ignored\n"
+            valid_stdout = (
+                b"running 3 tests\n"
+                b"test result: ok. 3 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; "
+                b"finished in 0.02s\n"
+            )
             receipt, out_dir = self._run(tmp_path, raw_stdout=valid_stdout, raw_stderr=b"", exit_code=0)
             self.assertTrue((out_dir / "receipt.json").exists())
             report = json.loads((out_dir / "content-validation-report.json").read_text())
@@ -661,13 +665,18 @@ class TestMavenCanonicalizationWiring(unittest.TestCase):
             source_artifact_dir = self._make_source_artifact_dir(tmp_path)
             work_dir = tmp_path / "work"
             out_dir = tmp_path / "out"
-            raw = b"running 3 tests\ntest result: ok. 3 passed; 0 failed; 0 ignored\n"
+            # repo-hyperfine, NOT repo-rustlings: repo-rustlings now has its
+            # own cargo-test canonicalization profile (D1b Stage 2) --
+            # repo-hyperfine's own frozen argv (cargo run -- --version)
+            # remains genuinely uncanonicalized and is this test's actual
+            # subject.
+            raw = b"hyperfine 1.19.0\n"
             fake_result = {"raw_stdout": raw, "raw_stderr": b"", "exit_code": 0, "wall_time_s": 1.0, "peak_rss_kb": 1024}
             with mock.patch.object(gc.capture_build, "run_real_build", return_value=fake_result):
                 receipt = gc.run_one_capture(
-                    case_id="repo-rustlings", ecosystem="rust", job_name="capture-a",
+                    case_id="repo-hyperfine", ecosystem="rust", job_name="capture-a",
                     source_artifact_dir=source_artifact_dir, work_dir=work_dir, out_dir=out_dir,
-                    frozen_argv=["cargo", "test"], errata_path=REAL_ERRATA_PATH,
+                    frozen_argv=["cargo", "run", "--", "--version"], errata_path=REAL_ERRATA_PATH,
                     sandboy_bin=Path("/nonexistent/sandboy"), sandboy_commit_sha="e" * 40,
                     toolchain_capture_fn=lambda source_root: {
                         "resolved_version": "1.97.0", "runtime_identifier": "x86_64-unknown-linux-gnu",
@@ -1043,6 +1052,36 @@ class TestGradleHelmValuesCanonicalizationWiring(unittest.TestCase):
             gc.CANONICALIZATION_POLICY_SHA256_BY_CASE_ID["repo-helm-values"],
             gc.CANONICALIZATION_POLICY_SHA256_BY_CASE_ID["repo-moshi"],
         )
+
+
+class TestCargoTestCanonicalizationWiring(unittest.TestCase):
+    """repo-rustlings and repo-dockerfile-parser-rs (N2-D1b Stage 2, real CI
+    evidence: cargo test's own summary-line duration was the sole remaining
+    raw difference after RUST_TEST_THREADS=1 made ordering deterministic)
+    must both dispatch to cargo_test_canonicalizer.py, sharing ONE identity
+    (unlike the Gradle 9.5.0/9.5.1 replacement scenario, there is no
+    separate replacement-selection concern here), never to maven/vstest/
+    gradle modules."""
+
+    def test_both_cases_use_the_cargo_test_module(self):
+        for case_id in ("repo-rustlings", "repo-dockerfile-parser-rs"):
+            module = gc.CANONICALIZATION_MODULE_BY_CASE_ID[case_id]
+            self.assertIs(module, gc.cargo_test_canonicalizer)
+            self.assertIsNot(module, gc.maven_canonicalizer)
+            self.assertIsNot(module, gc.vstest_canonicalizer)
+            self.assertIsNot(module, gc.gradle_canonicalizer_v2)
+            self.assertIsNot(module, gc.gradle_canonicalizer_helm_values_v1)
+
+    def test_both_cases_share_the_same_policy_identity(self):
+        self.assertEqual(
+            gc.CANONICALIZATION_POLICY_SHA256_BY_CASE_ID["repo-rustlings"],
+            gc.CANONICALIZATION_POLICY_SHA256_BY_CASE_ID["repo-dockerfile-parser-rs"],
+        )
+
+    def test_repo_hyperfine_is_not_canonicalized(self):
+        # Same rust ecosystem, different frozen argv (cargo run -- --version,
+        # not cargo test) -- never silently broadened to the whole ecosystem.
+        self.assertNotIn("repo-hyperfine", gc.CANONICALIZED_CASE_IDS)
 
 
 if __name__ == "__main__":

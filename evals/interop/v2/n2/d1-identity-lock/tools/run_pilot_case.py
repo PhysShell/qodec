@@ -229,8 +229,16 @@ CASES = {
         # size_estimation_basis). Every subproject's build dir must be
         # writable for configuration to succeed, regardless of which one is
         # actually tested.
+        # Real CI evidence (Stage 2, second full 9-case run, after the four
+        # subproject build dirs above resolved the first "Cannot create
+        # directory .../generateManifest" finding): the SAME plugin also
+        # needs its own root-level cache directory, ".intellijPlatform"
+        # (sibling to helm-values-intellij-plugin, not nested under any
+        # subproject's own build dir) -- the build failed a second time with
+        # a bare "/.../repo-helm-values/work/source/.intellijPlatform" error
+        # until this exact directory was writable too.
         "project_writable_dirs_relative": [
-            "build", ".gradle", ".kotlin",
+            "build", ".gradle", ".kotlin", ".intellijPlatform",
             "helm-values-gradle-plugin/build",
             "helm-values-intellij-plugin/build",
             "helm-values-shared/build",

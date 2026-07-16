@@ -75,6 +75,20 @@ ECOSYSTEM_POLICY_HINTS = {
         # outside the baseline system paths needs its own explicit grant.
         "extra_fs_ro_from_env": ["VIRTUAL_ENV", "PYTHON_BASE_INTERPRETER_ROOT"],
         "extra_fs_rw_from_env": [],
+        # Real capture (repo-requests, Stage 2 second full run): pytest's own
+        # output-capture manager (_pytest.capture.FDCapture) calls stdlib
+        # tempfile.TemporaryFile(), which -- even with TMPDIR correctly set
+        # to this job's own dedicated, already-fs_rw tmp_dir -- raised
+        # "FileNotFoundError: No usable temporary directory found in
+        # ['/tmp', '/var/tmp', '/usr/tmp', <source_root>]" (TMPDIR/TEMP/TMP
+        # values are only ever prepended to that list if actually usable
+        # writable dirs; their absence from the reported list is itself the
+        # evidence TMPDIR wasn't reaching this specific confined process).
+        # Same class of gap as rust's linker, Maven/scala-maven-plugin's
+        # compiler-bridge unpack, and Gradle's Kotlin-compiler-daemon lock
+        # file: some transitive dependency hardcodes the real system /tmp
+        # regardless of TMPDIR.
+        "extra_fs_rw_fixed": [Path("/tmp")],
     },
     "jvm-maven": {
         "env_allow": ["PATH", "HOME", "TMPDIR", "JAVA_HOME", "MAVEN_OPTS"],

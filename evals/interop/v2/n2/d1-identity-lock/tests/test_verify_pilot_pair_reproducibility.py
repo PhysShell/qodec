@@ -95,6 +95,12 @@ def _run_real_maven_capture(tmp_path, *, job_name: str, stdout: bytes, source_ar
 
 
 def _run_real_rust_capture(tmp_path, *, job_name: str, stdout: bytes, source_artifact_dir=None) -> Path:
+    # repo-hyperfine, NOT repo-rustlings/repo-dockerfile-parser-rs: those two
+    # now have their own cargo-test summary-line canonicalization profile
+    # (cargo_test_canonicalizer.py, D1b Stage 2) -- repo-hyperfine's own
+    # frozen argv (cargo run -- --version) is genuinely uncanonicalized and
+    # is this test's actual subject: a case with NO canonicalization profile
+    # requires exact raw byte equality.
     if source_artifact_dir is None:
         source_artifact_dir = _make_source_artifact_dir(tmp_path)
     work_dir = tmp_path / f"work-{job_name}"
@@ -102,9 +108,9 @@ def _run_real_rust_capture(tmp_path, *, job_name: str, stdout: bytes, source_art
     fake_result = {"raw_stdout": stdout, "raw_stderr": b"", "exit_code": 0, "wall_time_s": 1.0, "peak_rss_kb": 1024}
     with mock.patch.object(gc.capture_build, "run_real_build", return_value=fake_result):
         gc.run_one_capture(
-            case_id="repo-rustlings", ecosystem="rust", job_name=job_name,
+            case_id="repo-hyperfine", ecosystem="rust", job_name=job_name,
             source_artifact_dir=source_artifact_dir, work_dir=work_dir, out_dir=out_dir,
-            frozen_argv=["cargo", "test"], errata_path=REAL_ERRATA_PATH,
+            frozen_argv=["cargo", "run", "--", "--version"], errata_path=REAL_ERRATA_PATH,
             sandboy_bin=Path("/nonexistent/sandboy"), sandboy_commit_sha="e" * 40,
             toolchain_capture_fn=lambda source_root: {
                 "resolved_version": "1.97.0", "runtime_identifier": "x86_64-unknown-linux-gnu",
@@ -207,7 +213,7 @@ class TestVerifyPairHappyPath(unittest.TestCase):
     def test_non_canonicalized_case_requires_exact_raw_equality(self):
         with tempfile.TemporaryDirectory() as tmp:
             tmp_path = Path(tmp)
-            raw = b"running 3 tests\ntest result: ok. 3 passed; 0 failed; 0 ignored\n"
+            raw = b"hyperfine 1.19.0\n"
             shared_source = _make_source_artifact_dir(tmp_path)
             dir_a = _run_real_rust_capture(tmp_path, job_name="capture-a", stdout=raw,
                                             source_artifact_dir=shared_source)

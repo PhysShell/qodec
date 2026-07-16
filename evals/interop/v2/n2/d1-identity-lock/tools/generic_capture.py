@@ -35,6 +35,7 @@ for p in (CANARY_TOOLS, MINER_TOOLS, CORPUS_TOOLS, TOOLS_DIR):
     sys.path.insert(0, str(p))
 
 import capture_build  # noqa: E402
+import cargo_test_canonicalizer  # noqa: E402
 import content_acceptance  # noqa: E402
 import generic_sandbox_policy as gsp  # noqa: E402
 import gradle_canonicalizer_helm_values_v1  # noqa: E402
@@ -68,6 +69,15 @@ GRADLE_CANONICALIZATION_POLICY_V2_PATH = TOOLS_DIR.parent / "gradle-capture-cano
 GRADLE_CANONICALIZATION_POLICY_HELM_VALUES_V1_PATH = (
     TOOLS_DIR.parent / "gradle-capture-canonicalization-policy-helm-values-v1.json"
 )
+# N2-D1b Stage 2 (2026-07-16): repo-rustlings and repo-dockerfile-parser-rs
+# share a single cargo-test canonicalization identity -- both invoke the
+# identical frozen ["cargo", "test"] argv against the identical rustup
+# "stable" toolchain, so (unlike the Gradle 9.5.0/9.5.1 replacement
+# scenario) there is no separate replacement-selection identity to keep
+# isolated here.
+CARGO_TEST_CANONICALIZATION_POLICY_PATH = (
+    TOOLS_DIR.parent / "cargo-test-capture-canonicalization-policy.json"
+)
 
 # D1b decision (2026-07-16): for the case_id(s) each policy below names, the
 # canonical benchmark input is a deterministic derivation of the raw,
@@ -90,11 +100,15 @@ _GRADLE_CANONICALIZATION_POLICY_V2 = gradle_canonicalizer_v2.load_and_verify_pol
 _GRADLE_CANONICALIZATION_POLICY_HELM_VALUES_V1 = gradle_canonicalizer_helm_values_v1.load_and_verify_policy(
     GRADLE_CANONICALIZATION_POLICY_HELM_VALUES_V1_PATH
 )
+_CARGO_TEST_CANONICALIZATION_POLICY = cargo_test_canonicalizer.load_and_verify_policy(
+    CARGO_TEST_CANONICALIZATION_POLICY_PATH
+)
 _CANONICALIZATION_PROFILES = [
     (_CANONICALIZATION_POLICY, maven_canonicalizer),
     (_VSTEST_CANONICALIZATION_POLICY, vstest_canonicalizer),
     (_GRADLE_CANONICALIZATION_POLICY_V2, gradle_canonicalizer_v2),
     (_GRADLE_CANONICALIZATION_POLICY_HELM_VALUES_V1, gradle_canonicalizer_helm_values_v1),
+    (_CARGO_TEST_CANONICALIZATION_POLICY, cargo_test_canonicalizer),
 ]
 _all_canonicalized_case_ids = [
     cid for policy, _module in _CANONICALIZATION_PROFILES for cid in policy["applicable_case_ids"]

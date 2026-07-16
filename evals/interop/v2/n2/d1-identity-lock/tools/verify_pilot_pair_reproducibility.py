@@ -45,6 +45,7 @@ MINER_TOOLS = TOOLS_DIR.parents[1] / "miner" / "tools"
 for p in (MINER_TOOLS, TOOLS_DIR):
     sys.path.insert(0, str(p))
 
+import cargo_test_canonicalizer  # noqa: E402
 import gradle_canonicalizer_helm_values_v1  # noqa: E402
 import gradle_canonicalizer_v2  # noqa: E402
 import maven_canonicalizer  # noqa: E402
@@ -64,6 +65,10 @@ GRADLE_POLICY_V2_PATH = TOOLS_DIR.parent / "gradle-capture-canonicalization-poli
 # repo-moshi v2 profile above, even though the underlying Gradle grammar is
 # confirmed byte-for-byte identical. See generic_capture.py's identical comment.
 GRADLE_POLICY_HELM_VALUES_V1_PATH = TOOLS_DIR.parent / "gradle-capture-canonicalization-policy-helm-values-v1.json"
+# N2-D1b Stage 2 (2026-07-16): repo-rustlings and repo-dockerfile-parser-rs
+# share a single cargo-test canonicalization identity -- see
+# generic_capture.py's identical comment.
+CARGO_TEST_POLICY_PATH = TOOLS_DIR.parent / "cargo-test-capture-canonicalization-policy.json"
 
 # Case-id-scoped dispatch -- mirrors generic_capture.py's own
 # CANONICALIZATION_MODULE_BY_CASE_ID single source of truth. Each profile is
@@ -77,6 +82,8 @@ _CANONICALIZER_MODULES_BY_CASE_ID = {
     "repo-kubeops-generator": vstest_canonicalizer,
     "repo-moshi": gradle_canonicalizer_v2,
     "repo-helm-values": gradle_canonicalizer_helm_values_v1,
+    "repo-rustlings": cargo_test_canonicalizer,
+    "repo-dockerfile-parser-rs": cargo_test_canonicalizer,
 }
 
 
@@ -90,6 +97,8 @@ def _canonicalizer_for_case_id(case_id: str):
         return module, GRADLE_POLICY_V2_PATH
     if module is gradle_canonicalizer_helm_values_v1:
         return module, GRADLE_POLICY_HELM_VALUES_V1_PATH
+    if module is cargo_test_canonicalizer:
+        return module, CARGO_TEST_POLICY_PATH
     return None, None
 
 # Dotted paths, not whole nested dicts -- sandbox_identity.policy_sha256 in
