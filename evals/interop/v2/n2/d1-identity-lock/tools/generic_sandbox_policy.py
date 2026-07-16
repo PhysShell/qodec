@@ -40,7 +40,7 @@ ECOSYSTEM_POLICY_HINTS = {
     "rust": {
         "env_allow": [
             "PATH", "HOME", "TMPDIR", "CARGO_HOME", "RUSTUP_HOME", "CARGO_NET_OFFLINE",
-            "RUSTUP_TOOLCHAIN",
+            "RUSTUP_TOOLCHAIN", "RUST_TEST_THREADS",
         ],
         "extra_fs_ro_from_env": ["RUSTUP_HOME"],
         "extra_fs_rw_from_env": ["CARGO_HOME"],
