@@ -18,7 +18,7 @@ TOOLS = Path(__file__).resolve().parents[1] / "tools"
 REPO_ROOT = Path(__file__).resolve().parents[6]
 sys.path.insert(0, str(TOOLS))
 import generic_capture as gc  # noqa: E402
-import gradle_canonicalizer as gcz  # noqa: E402
+import gradle_canonicalizer_v2 as gcz  # noqa: E402
 import maven_canonicalizer as mc  # noqa: E402
 import verify_pilot_pair_reproducibility as verifier  # noqa: E402
 import vstest_canonicalizer as vc  # noqa: E402
@@ -387,6 +387,27 @@ class TestGradleCanonicalizedPairVerification(unittest.TestCase):
             tmp_path = Path(tmp)
             stdout_a = self._stdout(duration="1m 50s")
             stdout_b = self._stdout(duration="1m 11s")
+            self.assertNotEqual(stdout_a, stdout_b)
+            shared_source = _make_gradle_source_artifact_dir(tmp_path)
+            dir_a = _run_real_moshi_capture(tmp_path, job_name="capture-a", stdout=stdout_a,
+                                             source_artifact_dir=shared_source)
+            dir_b = _run_real_moshi_capture(tmp_path, job_name="capture-b", stdout=stdout_b,
+                                             source_artifact_dir=shared_source)
+            report = verifier.verify_pair(dir_a, dir_b)
+            self.assertTrue(report["passed"], report)
+            self.assertTrue(report["canonical_bytes_equal"])
+            self.assertEqual(report["identity_mismatches"], [])
+
+    def test_previously_unsupported_2m_form_now_passes_end_to_end(self):
+        """v1's grammar required a mandatory seconds component and would
+        have raised CanonicalizerError on a real "BUILD SUCCESSFUL in 2m"
+        capture -- v2 (wired in as repo-moshi's active profile) accepts it.
+        Exercises the REAL capture + pair-verify pipeline, not just the
+        canonicalizer module in isolation."""
+        with tempfile.TemporaryDirectory() as tmp:
+            tmp_path = Path(tmp)
+            stdout_a = self._stdout(duration="2m")
+            stdout_b = self._stdout(duration="1m 59s")
             self.assertNotEqual(stdout_a, stdout_b)
             shared_source = _make_gradle_source_artifact_dir(tmp_path)
             dir_a = _run_real_moshi_capture(tmp_path, job_name="capture-a", stdout=stdout_a,

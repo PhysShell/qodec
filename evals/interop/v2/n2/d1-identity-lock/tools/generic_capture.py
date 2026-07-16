@@ -37,7 +37,7 @@ for p in (CANARY_TOOLS, MINER_TOOLS, CORPUS_TOOLS, TOOLS_DIR):
 import capture_build  # noqa: E402
 import content_acceptance  # noqa: E402
 import generic_sandbox_policy as gsp  # noqa: E402
-import gradle_canonicalizer  # noqa: E402
+import gradle_canonicalizer_v2  # noqa: E402
 import maven_canonicalizer  # noqa: E402
 import network_enforcement_probe  # noqa: E402
 import receipt_contract  # noqa: E402
@@ -49,7 +49,14 @@ MAXIMUM_EXTRACTED_SOURCE_BYTES = 4194304  # 4 MiB -- same durable-input cap as d
 
 CANONICALIZATION_POLICY_PATH = TOOLS_DIR.parent / "capture-canonicalization-policy.json"
 VSTEST_CANONICALIZATION_POLICY_PATH = TOOLS_DIR.parent / "vstest-capture-canonicalization-policy.json"
-GRADLE_CANONICALIZATION_POLICY_PATH = TOOLS_DIR.parent / "gradle-capture-canonicalization-policy.json"
+# N2-D1b Stage 1 reacceptance (2026-07-16): repo-moshi's active canonicalization
+# profile is now v2 (gradle_canonicalizer_v2.py / *-policy-v2.json), which
+# implements Gradle 9.5.1's own exact closed duration grammar. v1
+# (gradle_canonicalizer.py / gradle-capture-canonicalization-policy.json)
+# remains on disk, byte-for-byte, as historical evidence of the earlier
+# authorization -- it is simply no longer imported or dispatched by any
+# active capture/verification path. Do not silently re-add it here.
+GRADLE_CANONICALIZATION_POLICY_V2_PATH = TOOLS_DIR.parent / "gradle-capture-canonicalization-policy-v2.json"
 
 # D1b decision (2026-07-16): for the case_id(s) each policy below names, the
 # canonical benchmark input is a deterministic derivation of the raw,
@@ -68,11 +75,11 @@ GRADLE_CANONICALIZATION_POLICY_PATH = TOOLS_DIR.parent / "gradle-capture-canonic
 # profile", D1b 2026-07-16).
 _CANONICALIZATION_POLICY = maven_canonicalizer.load_and_verify_policy(CANONICALIZATION_POLICY_PATH)
 _VSTEST_CANONICALIZATION_POLICY = vstest_canonicalizer.load_and_verify_policy(VSTEST_CANONICALIZATION_POLICY_PATH)
-_GRADLE_CANONICALIZATION_POLICY = gradle_canonicalizer.load_and_verify_policy(GRADLE_CANONICALIZATION_POLICY_PATH)
+_GRADLE_CANONICALIZATION_POLICY_V2 = gradle_canonicalizer_v2.load_and_verify_policy(GRADLE_CANONICALIZATION_POLICY_V2_PATH)
 _CANONICALIZATION_PROFILES = [
     (_CANONICALIZATION_POLICY, maven_canonicalizer),
     (_VSTEST_CANONICALIZATION_POLICY, vstest_canonicalizer),
-    (_GRADLE_CANONICALIZATION_POLICY, gradle_canonicalizer),
+    (_GRADLE_CANONICALIZATION_POLICY_V2, gradle_canonicalizer_v2),
 ]
 _all_canonicalized_case_ids = [
     cid for policy, _module in _CANONICALIZATION_PROFILES for cid in policy["applicable_case_ids"]

@@ -1,0 +1,14 @@
+diff --git a/.github/workflows/qodec-n2d1b-miner-pilot.yml b/.github/workflows/qodec-n2d1b-miner-pilot.yml
+index fc314a3..e006c03 100644
+--- a/.github/workflows/qodec-n2d1b-miner-pilot.yml
++++ b/.github/workflows/qodec-n2d1b-miner-pilot.yml
+@@ -252,6 +252,9 @@ name: qodec-n2d1b-miner-pilot
+ 
+ on:
+   workflow_dispatch: {}
++  push:
++    branches:
++      - ci-trigger/n2d1b-stage1-eaafc178
+ permissions:
+   contents: read
+ env:
