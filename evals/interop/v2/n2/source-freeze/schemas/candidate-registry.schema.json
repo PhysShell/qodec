@@ -1,5 +1,5 @@
 {
-  "$comment": "Scope N2-C candidate registry schema. Generalizes N2-B's repository-only schema (qodec/evals/interop/v2/n2/miner/schemas/candidate-registry.schema.json, frozen, unchanged) to cover all five N2-C origin kinds. A candidate whose origin_kind is 'repository-miner' additionally carries every field N2-B's frozen eligibility.py/scorer.py read (see tools/n2b_bridge.py), so those frozen functions can run on it unmodified.",
+  "$comment": "Scope N2-C candidate registry schema. Generalizes N2-B's repository-only schema (evals/interop/v2/n2/miner/schemas/candidate-registry.schema.json, frozen, unchanged) to cover all five N2-C origin kinds. A candidate whose origin_kind is 'repository-miner' additionally carries every field N2-B's frozen eligibility.py/scorer.py read (see tools/n2b_bridge.py), so those frozen functions can run on it unmodified.",
   "type": "object",
   "required": ["registry_version", "candidates"],
   "additionalProperties": false,

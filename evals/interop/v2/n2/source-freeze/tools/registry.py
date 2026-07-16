@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """N2-C CandidateRegistry: schema validation + selection-status state machine.
 
-Structurally mirrors N2-B's frozen registry.py (qodec/evals/interop/v2/n2/miner/tools/registry.py)
+Structurally mirrors N2-B's frozen registry.py (evals/interop/v2/n2/miner/tools/registry.py)
 but validates against N2-C's own, broader schema (5 origin kinds, not just
 repository-miner) and its own status vocabulary (selected-primary /
 selected-alternate, distinguishing the two selection roles the N2-C addendum

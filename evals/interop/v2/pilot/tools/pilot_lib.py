@@ -32,7 +32,7 @@ SCHEMAS_DIR = PILOT_DIR / "schemas"
 MANIFEST_PATH = PILOT_DIR / "pilot-manifest.json"
 V2_DIR = PILOT_DIR.parent
 CORPUS_TOOLS = V2_DIR / "corpus" / "tools"
-REPO_ROOT = V2_DIR.parents[3]
+REPO_ROOT = V2_DIR.parents[2]
 
 # Reuse the frozen N0 corpus tools as a library.
 sys.path.insert(0, str(CORPUS_TOOLS))

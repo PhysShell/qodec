@@ -1,7 +1,7 @@
 """N2-D1 tokenizer identity: positive/negative conformance fixtures.
 
-Pins qodec's o200k meter (qodec/src/meter.rs -> tiktoken_rs::o200k_base(),
-tiktoken-rs 0.7.0 per qodec/Cargo.lock) against committed expected token
+Pins qodec's o200k meter (src/meter.rs -> tiktoken_rs::o200k_base(),
+tiktoken-rs 0.7.0 per Cargo.lock) against committed expected token
 counts, independent of any N2 case content. Every expected count here was
 derived by actually running the real qodec binary (built ad hoc via
 `cargo build --release` for this verification only -- N2-D's canonical build
@@ -18,8 +18,8 @@ import subprocess
 import unittest
 from pathlib import Path
 
-REPO_ROOT = Path(__file__).resolve().parents[7]
-QODEC_DIR = REPO_ROOT / "qodec"
+REPO_ROOT = Path(__file__).resolve().parents[6]
+QODEC_DIR = REPO_ROOT
 
 ENCODE_ARGV_TAIL = [
     "encode", "--codec", "fold-grep-guarded", "--meter", "o200k",

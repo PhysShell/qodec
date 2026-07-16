@@ -1,8 +1,8 @@
 {
-  description = "007 (o7) — private agent harness dev environment";
+  description = "qodec — token-aware lossless context codec and reproducible interop benchmark";
 
   inputs = {
-    # Matches the pin used across the other Rust projects here.
+    # Matches the pin used across the other Rust projects this was extracted from.
     # crane warns it wants nixpkgs >= 25.11; bump when the store cache is cold.
     nixpkgs.url = "github:NixOS/nixpkgs/nixos-25.05";
     flake-utils.url = "github:numtide/flake-utils";
@@ -11,10 +11,6 @@
       url = "github:oxalica/rust-overlay";
       inputs.nixpkgs.follows = "nixpkgs";
     };
-    # codex — OpenAI's Rust CLI, the `--provider codex` backend for `o7 judge`.
-    # Deliberately NOT `follows`-ing our nixpkgs: codex is built/tested against its
-    # own nixpkgs-unstable pin; forcing it onto 25.05 risks a broken rebuild.
-    codex-cli.url = "github:PhysShell/codex-cli-nix";
 
     # RTK — pinned to an EXACT commit (never a branch/tag), source-only so
     # `packages.rtk-pinned` builds it from source instead of pulling a mutable
@@ -25,7 +21,7 @@
     };
   };
 
-  outputs = { self, nixpkgs, flake-utils, crane, rust-overlay, codex-cli, rtk-src }:
+  outputs = { self, nixpkgs, flake-utils, crane, rust-overlay, rtk-src }:
     flake-utils.lib.eachDefaultSystem (system:
       let
         pkgs = import nixpkgs {
@@ -38,30 +34,13 @@
 
         craneLib = (crane.mkLib pkgs).overrideToolchain rustToolchain;
 
-        commonArgs = {
-          src = craneLib.cleanCargoSource ./.;
-          strictDeps = true;
-          # o7 is pure Rust (clap / serde / toml / anyhow) — no native or -sys deps.
-          buildInputs = [ ];
-          nativeBuildInputs = [ ];
-        };
-
-        cargoArtifacts = craneLib.buildDepsOnly commonArgs;
-
-        o7 = craneLib.buildPackage (commonArgs // {
-          inherit cargoArtifacts;
-          pname = "o7";
-          doCheck = false;
-          meta = {
-            description = "007 — private agent harness";
-            mainProgram = "o7";
-          };
-        });
-
-        # ---- qodec: separate crate from ./qodec with its own Cargo identity ---- #
+        # ---- qodec: the repository-root crate ---------------------------- #
         # Named so the exact source that builds the binary is also the source the
-        # smoke runner hashes for qodec_tree_sha (QODEC_SRC_DIR).
-        qodecSrc = craneLib.cleanCargoSource ./qodec;
+        # smoke runner hashes for qodec_tree_sha (QODEC_SRC_DIR). Pre-migration
+        # (PhysShell/007) this cleaned only the `./qodec` subdirectory, since it
+        # shared a repo with an unrelated `o7` crate at the root; now that qodec
+        # IS the repository root, cleaning `./.` is the equivalent, correct source.
+        qodecSrc = craneLib.cleanCargoSource ./.;
         qodecArgs = {
           src = qodecSrc;
           strictDeps = true;
@@ -84,7 +63,7 @@
         # ---- rtk-pinned: built from the pinned source, never a release binary --
         # RTK declares rust-version = "1.91"; nixpkgs-25.05's default rustPlatform
         # is Rust 1.86 and would fail Cargo's minimum-version check. Build it with
-        # the rust-overlay stable toolchain (same one o7/qodec use) via
+        # the rust-overlay stable toolchain (same one qodec uses) via
         # makeRustPlatform. `src = rtk-src` is UNFILTERED on purpose: build.rs
         # reads src/filters/*.toml, so a cargo-source clean would break it. RTK's
         # own complete Cargo.lock (203 packages) is vendored offline — no network,
@@ -110,8 +89,8 @@
 
         # A store copy of just the files the contract tests need to read.
         v2Root = pkgs.runCommand "qodec-v2-root" { } ''
-          mkdir -p $out/qodec/evals/interop $out/.github/workflows
-          cp -r ${./qodec/evals/interop/v2} $out/qodec/evals/interop/v2
+          mkdir -p $out/evals/interop $out/.github/workflows
+          cp -r ${./evals/interop/v2} $out/evals/interop/v2
           cp ${./flake.nix} $out/flake.nix
           cp ${./flake.lock} $out/flake.lock
           cp ${./.github/workflows/qodec-v2.yml} $out/.github/workflows/qodec-v2.yml
@@ -133,6 +112,7 @@
           export RUST_TOOLCHAIN_IDENTITY=${builtins.hashFile "sha256" ./rust-toolchain.toml}
           export RTK_SOURCE_SHA=5d32d0736f686b69d1e8b9dc45c007d4eb77a0a2
           # Exact qodec source tree used to build the binary -> qodec_tree_sha.
+          # Now the cleaned repository root itself (see qodecSrc above).
           export QODEC_SRC_DIR=${qodecSrc}
         '';
 
@@ -143,7 +123,7 @@
           chmod -R u+w "$root"
           export V2_REPO_ROOT="$root"
           export PYTHONDONTWRITEBYTECODE=1
-          cd "$root/qodec/evals/interop/v2"
+          cd "$root/evals/interop/v2"
           exec ${pyEnv}/bin/python -m unittest discover -s tests -v
         '';
 
@@ -152,7 +132,7 @@
           ${identityExports}
           out=''${SMOKE_OUT:-$(mktemp -d)/smoke}
           export PYTHONDONTWRITEBYTECODE=1
-          exec ${pyEnv}/bin/python ${./qodec/evals/interop/v2/smoke}/run_smoke.py \
+          exec ${pyEnv}/bin/python ${./evals/interop/v2/smoke}/run_smoke.py \
             --qodec ${qodec}/bin/qodec \
             --rtk ${rtk-pinned}/bin/rtk \
             --meter o200k \
@@ -162,8 +142,8 @@
 
         # ---- Scope N0 corpus compiler (compiler-only; zero benchmark cases) --- #
         corpusRoot = pkgs.runCommand "qodec-v2-corpus-root" { } ''
-          mkdir -p $out/qodec/evals/interop/v2
-          cp -r ${./qodec/evals/interop/v2/corpus} $out/qodec/evals/interop/v2/corpus
+          mkdir -p $out/evals/interop/v2
+          cp -r ${./evals/interop/v2/corpus} $out/evals/interop/v2/corpus
           cp ${./flake.lock} $out/flake.lock
         '';
 
@@ -175,7 +155,7 @@
           export RTK_BIN=${rtk-pinned}/bin/rtk
           export PYTHONDONTWRITEBYTECODE=1
           root=$(mktemp -d); cp -r ${corpusRoot}/. "$root"; chmod -R u+w "$root"
-          cd "$root/qodec/evals/interop/v2/corpus"
+          cd "$root/evals/interop/v2/corpus"
           export PYTHONPATH="$PWD/tools:$PWD/tests"
         '';
 
@@ -192,9 +172,9 @@
         # ---- Scope N1 public-log pilot (public-development only; non-gating) --- #
         # Stages the pilot AND the N0 corpus tools it imports as a library.
         pilotRoot = pkgs.runCommand "qodec-v2-pilot-root" { } ''
-          mkdir -p $out/qodec/evals/interop/v2
-          cp -r ${./qodec/evals/interop/v2/pilot} $out/qodec/evals/interop/v2/pilot
-          cp -r ${./qodec/evals/interop/v2/corpus} $out/qodec/evals/interop/v2/corpus
+          mkdir -p $out/evals/interop/v2
+          cp -r ${./evals/interop/v2/pilot} $out/evals/interop/v2/pilot
+          cp -r ${./evals/interop/v2/corpus} $out/evals/interop/v2/corpus
           cp ${./flake.lock} $out/flake.lock
         '';
         # Real, pinned tools the capture recipes invoke (rustc has no rustup here).
@@ -209,20 +189,19 @@
           export PYTHONDONTWRITEBYTECODE=1
           export PATH=${pilotToolsPath}:$PATH
           root=$(mktemp -d); cp -r ${pilotRoot}/. "$root"; chmod -R u+w "$root"
-          cd "$root/qodec/evals/interop/v2/pilot"
+          cd "$root/evals/interop/v2/pilot"
           export PYTHONPATH="$PWD/tools:$PWD/tests"
         '';
       in
       {
         packages = {
-          default = o7;
-          o7 = o7;
+          default = qodec;
           qodec = qodec;
           rtk-pinned = rtk-pinned;
         };
 
         apps = {
-          default = flake-utils.lib.mkApp { drv = o7; };
+          default = flake-utils.lib.mkApp { drv = qodec; };
           qodec-v2-contract-test = {
             type = "app";
             program = "${runContractTests}";
@@ -246,21 +225,25 @@
 
         devShells = {
           default = pkgs.mkShell {
-            packages = (with pkgs; [
+            packages = [
+              qodec
+              rtk-pinned
+              pyEnv
+            ] ++ (with pkgs; [
               rustToolchain
               cargo-deny
               cargo-audit
               git
+              ripgrep
+              gnugrep
               jq
-            ]) ++ [
-              # Native `bin/codex` from github:PhysShell/codex-cli-nix.
-              codex-cli.packages.${system}.default
-            ];
-            # `claude` is external (npm + Claude Max). `codex` is provided above but
-            # still needs `codex login` once (ChatGPT subscription, no API key).
+              hyperfine
+              actionlint
+            ]);
           };
 
-          # Interop Benchmark v2 bench shell: pinned tools, no mutable PATH RTK.
+          # Kept as an explicit alias: prior documentation and CI notes refer to
+          # `nix develop .#qodec-bench` by name.
           qodec-bench = pkgs.mkShell {
             packages = [
               qodec
@@ -278,15 +261,13 @@
         };
 
         checks = {
-          inherit o7;
-
-          clippy = craneLib.cargoClippy (commonArgs // {
-            inherit cargoArtifacts;
+          clippy = craneLib.cargoClippy (qodecArgs // {
+            cargoArtifacts = qodecDeps;
             cargoClippyExtraArgs = "--all-targets -- --deny warnings";
           });
 
           fmt = craneLib.cargoFmt {
-            src = commonArgs.src;
+            src = qodecArgs.src;
           };
 
           # ---- Interop Benchmark v2 substrate checks (no model/tokenizer net) -- #
@@ -306,7 +287,7 @@
             export SMOKE_OUT=$out/smoke
             mkdir -p $out
             # 1) real-RTK smoke: runs a real `rtk pipe` subcommand per fixture.
-            ${pyEnv}/bin/python ${./qodec/evals/interop/v2/smoke}/run_smoke.py \
+            ${pyEnv}/bin/python ${./evals/interop/v2/smoke}/run_smoke.py \
               --qodec ${qodec}/bin/qodec --rtk ${rtk-pinned}/bin/rtk \
               --meter o200k --out "$SMOKE_OUT"
             # 2) real RTK integration unittests (execute the pinned RTK binary).
@@ -314,7 +295,7 @@
             export V2_REPO_ROOT="$root" QODEC_BIN=${qodec}/bin/qodec RTK_BIN=${rtk-pinned}/bin/rtk
             # test_rtk_comparison.py lives under tests/ — run from that directory
             # so the module resolves (a bare module name from v2/ would not).
-            cd "$root/qodec/evals/interop/v2/tests"
+            cd "$root/evals/interop/v2/tests"
             ${pyEnv}/bin/python -m unittest test_rtk_comparison.TestRealRtkIntegration -v
           '';
 

@@ -1,7 +1,7 @@
 # Scope N2-D1b — repository-miner raw-input capture (stage 1: five-ecosystem
 # pilot, now fully green across CI runs #1-4; stage 2: the full 9-case x
 # capture-a/capture-b matrix below). See
-# qodec/evals/interop/v2/n2/d1-identity-lock/.
+# evals/interop/v2/n2/d1-identity-lock/.
 #
 # Never reacquires source from upstream: every case's source.tar comes from
 # the already-durable, already-verified n2d0-durable-evidence-v1 release
@@ -124,7 +124,7 @@
 # the same /tmp fs_rw grant, now added for jvm-maven too.
 #
 # Side note (not part of this scope): this push, like every push touching
-# qodec/evals/interop/v2/n2/canary/**, also re-triggers N2-A's own frozen
+# evals/interop/v2/n2/canary/**, also re-triggers N2-A's own frozen
 # canary workflow via its pull_request path filter (run 29426023565). It
 # failed on captured_twice_reproducibly -- every compared field matched
 # byte-for-byte (argv, environment_allowlist, canonical_policy_sha256,
@@ -252,22 +252,8 @@ name: qodec-n2d1b-miner-pilot
 
 on:
   workflow_dispatch: {}
-  push:
-    branches:
-      - claude/qodec-benchmark-v2-n2d-identity-lock
-    paths:
-      - ".github/workflows/qodec-n2d1b-miner-pilot.yml"
-      # A prior push (2ef3923, the Maven canonicalization authorization)
-      # touched only tools/tests under d1-identity-lock and canary/tools --
-      # none of which matched this filter, so the pilot silently did NOT
-      # re-run despite the commit message claiming "awaiting a fresh CI
-      # run". Fixed: this workflow's own code lives under these two trees.
-      - "qodec/evals/interop/v2/n2/d1-identity-lock/**"
-      - "qodec/evals/interop/v2/n2/canary/tools/**"
-
 permissions:
   contents: read
-
 env:
   LC_ALL: C.UTF-8
   LANG: C.UTF-8
@@ -585,7 +571,7 @@ jobs:
               --setup-python-action-commit "a26af69be951a213d495a4c3e4e4022e16d87065"
             )
           fi
-          python3 qodec/evals/interop/v2/n2/d1-identity-lock/tools/run_pilot_case.py \
+          python3 evals/interop/v2/n2/d1-identity-lock/tools/run_pilot_case.py \
             --case-id "${{ matrix.case.case_id }}" \
             --ecosystem "${{ matrix.case.ecosystem }}" \
             --job-name "${{ matrix.job }}" \
@@ -594,7 +580,7 @@ jobs:
             --out-dir "$RUNNER_TEMP/out-${{ matrix.case.case_id }}-${{ matrix.job }}" \
             --sandboy-bin "$GITHUB_WORKSPACE/own-net/sandboy/target/release/sandboy" \
             --sandboy-commit-sha "$SANDBOY_COMMIT_SHA" \
-            --errata-path qodec/evals/interop/v2/n2/d1-identity-lock/execution-plan-errata.json \
+            --errata-path evals/interop/v2/n2/d1-identity-lock/execution-plan-errata.json \
             --venv-python "$RUNNER_TEMP/venv-${{ matrix.case.case_id }}/bin/python" \
             --java-home-11 /usr/lib/jvm/java-11-openjdk-amd64 \
             --java-home-21 /usr/lib/jvm/java-21-openjdk-amd64 \
@@ -652,7 +638,7 @@ jobs:
       - name: Run pairwise reproducibility verifier
         run: |
           mkdir -p "$RUNNER_TEMP/pair-report"
-          python3 qodec/evals/interop/v2/n2/d1-identity-lock/tools/verify_pilot_pair_reproducibility.py \
+          python3 evals/interop/v2/n2/d1-identity-lock/tools/verify_pilot_pair_reproducibility.py \
             "$RUNNER_TEMP/pair/${{ matrix.case_id }}/capture-a" \
             "$RUNNER_TEMP/pair/${{ matrix.case_id }}/capture-b" \
             > "$RUNNER_TEMP/pair-report/pair-reproducibility-report.json"

@@ -15,16 +15,9 @@
 name: qodec-v2-public-log-pilot
 
 on:
-  pull_request:
-  workflow_dispatch:
-  push:
-    branches:
-      - claude/qodec-benchmark-v2-public-log-pilot-n1
-
+  workflow_dispatch: {}
 permissions:
   contents: read
-  actions: write
-
 concurrency:
   group: qodec-v2-pilot-${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: true
@@ -58,7 +51,7 @@ jobs:
             --no-update-lock-file --print-build-logs
       - name: Frozen-base guard (Scope M / M1 / N0 byte-identical)
         run: |
-          python3 qodec/evals/interop/v2/pilot/tests/test_frozen.py
+          python3 evals/interop/v2/pilot/tests/test_frozen.py
 
   capture-reproducibility:
     if: github.event_name == 'pull_request'

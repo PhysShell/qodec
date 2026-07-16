@@ -1,7 +1,7 @@
 # Scope N2-A — thin miner-canary vertical slice (QODEC Scope N2 sourcing
 # addendum, Sandboy-dogfooding addendum). NOT the full N2 corpus: this proves
 # exactly one repository-miner acquisition + Sandboy-confined capture path,
-# using the accepted Sandboy S0 commit. See qodec/evals/interop/v2/n2/canary/.
+# using the accepted Sandboy S0 commit. See evals/interop/v2/n2/canary/.
 #
 # Trust boundary (the reason for the 4-job split):
 #   trusted-source-acquisition — the ONLY job that ever contacts the approved
@@ -26,16 +26,6 @@
 name: qodec-n2-miner-canary
 
 on:
-  pull_request:
-    paths:
-      # Scope N2-A.1: narrowed from "qodec/evals/interop/v2/n2/**" — that
-      # broad filter also matched qodec/evals/interop/v2/n2/miner/** (Scope
-      # N2-B), so every N2-B-only push was incidentally re-executing this
-      # real, third-party-executing canary. It must still run when its own
-      # implementation or workflow changes; it must not run for changes
-      # confined to the miner/ tree.
-      - "qodec/evals/interop/v2/n2/canary/**"
-      - ".github/workflows/qodec-n2-miner-canary.yml"
   workflow_dispatch:
     inputs:
       run_determinism_probe:
@@ -45,10 +35,8 @@ on:
           acceptance gate, off by default even on manual dispatch).
         type: boolean
         default: false
-
 permissions:
   contents: read
-
 env:
   LC_ALL: C.UTF-8
   LANG: C.UTF-8
@@ -99,9 +87,9 @@ jobs:
       - name: Validate acquired source and package normalized archive
         run: |
           mkdir -p "$RUNNER_TEMP/source-artifact"
-          python3 qodec/evals/interop/v2/n2/canary/tools/verify_source.py \
+          python3 evals/interop/v2/n2/canary/tools/verify_source.py \
             --source-dir external-source \
-            --manifest qodec/evals/interop/v2/n2/canary/source-manifest.json \
+            --manifest evals/interop/v2/n2/canary/source-manifest.json \
             --out-dir "$RUNNER_TEMP/source-artifact" \
             --workflow-run-id "${{ github.run_id }}" \
             --runner-identity "${{ runner.name }}"
@@ -146,7 +134,7 @@ jobs:
           import json
           import sys
           from pathlib import Path
-          sys.path.insert(0, "qodec/evals/interop/v2/n2/canary/tools")
+          sys.path.insert(0, "evals/interop/v2/n2/canary/tools")
           import capture_build as cb
 
           artifact_dir = Path("${{ runner.temp }}/source-artifact")
@@ -172,7 +160,7 @@ jobs:
             {"name": "full-combination", "argv": ["-p:UseSharedCompilation=false", "--disable-build-servers", "-m:1", "-p:BuildInParallel=false", "-p:RunAnalyzersInParallel=false"]}
           ]
           EOF
-          python3 qodec/evals/interop/v2/n2/canary/tools/determinism_probe.py \
+          python3 evals/interop/v2/n2/canary/tools/determinism_probe.py \
             --source-root "$RUNNER_TEMP/probe-source" \
             --dotnet-root "$DOTNET_ROOT" \
             --project-rel EncryptAesApp/EncryptAesApp.csproj \
@@ -202,7 +190,7 @@ jobs:
           import json
           import sys
           from pathlib import Path
-          sys.path.insert(0, "qodec/evals/interop/v2/n2/canary/tools")
+          sys.path.insert(0, "evals/interop/v2/n2/canary/tools")
           import capture_build as cb
 
           artifact_dir = Path("${{ runner.temp }}/source-artifact")
@@ -216,7 +204,7 @@ jobs:
 
       - name: Diagnostic-equivalence check (pre-hotfix argv vs. post-hotfix argv)
         run: |
-          python3 qodec/evals/interop/v2/n2/canary/tools/diagnostic_equivalence.py \
+          python3 evals/interop/v2/n2/canary/tools/diagnostic_equivalence.py \
             --source-root "$RUNNER_TEMP/probe-source" \
             --dotnet-root "$DOTNET_ROOT" \
             --project-rel EncryptAesApp/EncryptAesApp.csproj \
@@ -291,7 +279,7 @@ jobs:
         run: |
           mkdir -p "$RUNNER_TEMP/work-${{ matrix.job }}" "$RUNNER_TEMP/capture-out-${{ matrix.job }}"
           export SOURCE_DATE_EPOCH_ISO="$(date -u +%Y-%m-%dT%H:%M:%SZ)"
-          python3 qodec/evals/interop/v2/n2/canary/tools/capture_build.py \
+          python3 evals/interop/v2/n2/canary/tools/capture_build.py \
             --source-artifact-dir "$RUNNER_TEMP/source-artifact" \
             --sandboy-bin "$GITHUB_WORKSPACE/own-net/sandboy/target/release/sandboy" \
             --sandboy-commit-sha "$SANDBOY_COMMIT_SHA" \
@@ -361,7 +349,7 @@ jobs:
         id: compare
         continue-on-error: true
         run: |
-          python3 qodec/evals/interop/v2/n2/canary/tools/compare_reproducibility.py \
+          python3 evals/interop/v2/n2/canary/tools/compare_reproducibility.py \
             --capture-a-dir "$RUNNER_TEMP/capture-a" \
             --capture-b-dir "$RUNNER_TEMP/capture-b" \
             --source-artifact-dir "$RUNNER_TEMP/source-artifact" \

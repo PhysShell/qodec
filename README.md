@@ -3,8 +3,8 @@
 Token-aware **lossless** encode/decode experiments for agent context. Q hands
 the agents compact gear; this is the workbench where the gear is measured.
 
-Standalone crate (not part of the `o7` workspace/binary — it's a lab). Design
-record with theory and measured results: [`../docs/token-codec.md`](../docs/token-codec.md).
+Standalone crate, extracted from `PhysShell/007` into its own repository —
+see the "Repository migration" section below for provenance.
 
 **Prereqs:** Rust ≥ 1.82 (`rustup` is enough; no nix required). The first
 `cargo build` fetches dependencies from crates.io like any Rust project;
@@ -15,7 +15,6 @@ talks to the local LM endpoint you point it at).
 ## Quickstart
 
 ```bash
-cd qodec
 ./demo.sh                 # guided tour: aliases → encode → roundtrip →
                           # honest fallback → full bench → probe artifact
 ./demo.sh my-big.log      # same tour + your own file at the end
@@ -264,3 +263,19 @@ has to decompress anything.
    input; decoding is reverse-order substitution, property-tested.
 4. **Fallback is a feature.** Unique prose doesn't compress — the honest
    answer is `raw`, not a worse artifact.
+
+## Repository migration
+
+QODEC was extracted from [`PhysShell/007`](https://github.com/PhysShell/007)
+into this standalone repository. The authoritative migration source is the
+verified tip of the stacked `007` scope-PR chain ending at
+[`PhysShell/007#56`](https://github.com/PhysShell/007/pull/56) — see
+[`docs/migration/README.md`](docs/migration/README.md) for the full
+procedure, included/excluded paths, and provenance verification steps.
+
+Pre-migration releases, GitHub Actions artifacts, PR discussion, and
+historical evidence remain the authoritative record in `PhysShell/007` and
+are not transferred here. Old evidence URLs and hashes recorded in this
+repository's frozen JSON records point at `PhysShell/007` and are
+intentionally not rewritten. New development continues in
+`PhysShell/qodec`.

@@ -2,7 +2,7 @@
 
 Every lane ends by handing its producer/transform output to `encode` through
 the adapter envelope (`encode --json --passthrough-on-no-gain`, see
-`qodec/src/adapter.rs`). We shell the built binary rather than bind the crate:
+`src/adapter.rs`). We shell the built binary rather than bind the crate:
 the binary is what a PostToolUse hook or `o7` would call, so the bench measures
 exactly what ships.
 
@@ -23,7 +23,7 @@ import time
 from dataclasses import dataclass
 from pathlib import Path
 
-# bench/ -> interop/ -> evals/ -> qodec/ (crate root: target/, Cargo.toml)
+# bench/ -> interop/ -> evals/ -> repository root (crate root: target/, Cargo.toml)
 CRATE_ROOT = Path(__file__).resolve().parents[3]
 
 

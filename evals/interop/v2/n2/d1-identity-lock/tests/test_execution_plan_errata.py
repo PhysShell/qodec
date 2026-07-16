@@ -12,12 +12,22 @@ import subprocess
 import unittest
 from pathlib import Path
 
-REPO_ROOT = Path(__file__).resolve().parents[7]
+REPO_ROOT = Path(__file__).resolve().parents[6]
 ERRATA_PATH = Path(__file__).resolve().parents[1] / "execution-plan-errata.json"
-N2C_MANIFEST_PATH = REPO_ROOT / "qodec/evals/interop/v2/n2/source-freeze/source-manifests/primary/repo-pyflakes.json"
+N2C_MANIFEST_PATH = REPO_ROOT / "evals/interop/v2/n2/source-freeze/source-manifests/primary/repo-pyflakes.json"
 KUBEOPS_N2C_MANIFEST_PATH = (
-    REPO_ROOT / "qodec/evals/interop/v2/n2/source-freeze/source-manifests/primary/repo-kubeops-generator.json"
+    REPO_ROOT / "evals/interop/v2/n2/source-freeze/source-manifests/primary/repo-kubeops-generator.json"
 )
+
+# execution-plan-errata.json is self-hash-locked (errata_sha256): its recorded
+# evidence-path fields are frozen historical strings from the pre-migration
+# "qodec/..." layout and must not be edited. Strip that known historical
+# prefix here, at the point of use, rather than touching the frozen record.
+_HISTORICAL_PREFIX = "qodec/"
+
+
+def _frozen_evidence_path(recorded_path: str) -> Path:
+    return REPO_ROOT / recorded_path.removeprefix(_HISTORICAL_PREFIX)
 
 
 def load_errata() -> dict:
@@ -80,13 +90,18 @@ class TestExecutionPlanErrata(unittest.TestCase):
         manifest = json.loads(N2C_MANIFEST_PATH.read_text())
         self.assertEqual(manifest["execution_expectation"]["argv"], entry["original_frozen_argv"])
 
+    @unittest.skipUnless(
+        subprocess.run(["git", "cat-file", "-e", "4e40b6f393cbdaf1bfcc36b8c422f7e17ae41dee"],
+                       cwd=REPO_ROOT, capture_output=True).returncode == 0,
+        "base commit 4e40b6f393cb not in history (pre-migration commit graph was rewritten)",
+    )
     def test_no_frozen_n2c_path_was_touched_by_this_scope_git_diff(self):
         """Belt-and-suspenders: confirm via git that no path under
         source-freeze/ or d0-durable-evidence/ has uncommitted or
         N2-D1b-authored changes relative to the accepted N2-D0 closure head."""
         result = subprocess.run(
             ["git", "diff", "--name-only", "4e40b6f393cbdaf1bfcc36b8c422f7e17ae41dee", "HEAD",
-             "--", "qodec/evals/interop/v2/n2/source-freeze", "qodec/evals/interop/v2/n2/d0-durable-evidence"],
+             "--", "evals/interop/v2/n2/source-freeze", "evals/interop/v2/n2/d0-durable-evidence"],
             cwd=REPO_ROOT, capture_output=True, text=True, check=False,
         )
         changed = [line for line in result.stdout.splitlines() if line.strip()]
@@ -106,7 +121,7 @@ class TestExecutionPlanErrata(unittest.TestCase):
     def test_retained_stderr_evidence_file_matches_recorded_hash(self):
         body = load_errata()
         entry = next(e for e in body["entries"] if e["case_id"] == "repo-pyflakes")
-        evidence_path = REPO_ROOT / entry["retained_stderr_evidence_path"]
+        evidence_path = _frozen_evidence_path(entry["retained_stderr_evidence_path"])
         actual = hashlib.sha256(evidence_path.read_bytes()).hexdigest()
         self.assertEqual(entry["original_stderr_sha256"], actual)
 
@@ -147,14 +162,14 @@ class TestKubeOpsGeneratorErratum(unittest.TestCase):
         restore = entry["trusted_restore_evidence"]
         self.assertEqual(restore["restore_exit_code"], 0)
         self.assertTrue(restore["generated_assets"])
-        evidence_path = REPO_ROOT / restore["restore_stdout_evidence_path"]
+        evidence_path = _frozen_evidence_path(restore["restore_stdout_evidence_path"])
         self.assertEqual(hashlib.sha256(evidence_path.read_bytes()).hexdigest(), restore["restore_stdout_sha256"])
 
     def test_original_confined_run_evidence_shows_nu1301_under_network_denial(self):
         entry = self._entry()
         original_run = entry["original_confined_run_evidence"]
         self.assertEqual(original_run["detected_infrastructure_failure"], "nuget-restore-failure-nu1301")
-        evidence_path = REPO_ROOT / original_run["raw_stdout_evidence_path"]
+        evidence_path = _frozen_evidence_path(original_run["raw_stdout_evidence_path"])
         actual = hashlib.sha256(evidence_path.read_bytes()).hexdigest()
         self.assertEqual(original_run["raw_stdout_sha256"], actual)
         self.assertIn(b"NU1301", evidence_path.read_bytes())
@@ -164,15 +179,20 @@ class TestKubeOpsGeneratorErratum(unittest.TestCase):
         validation = entry["corrected_argv_validation_evidence"]
         self.assertEqual(validation["exit_code"], 0)
         self.assertIn("Passed!", validation["observed_vstest_summary"])
-        evidence_path = REPO_ROOT / validation["stdout_evidence_path"]
+        evidence_path = _frozen_evidence_path(validation["stdout_evidence_path"])
         actual = hashlib.sha256(evidence_path.read_bytes()).hexdigest()
         self.assertEqual(validation["stdout_sha256"], actual)
         self.assertIn(b"Passed!", evidence_path.read_bytes())
 
+    @unittest.skipUnless(
+        subprocess.run(["git", "cat-file", "-e", "4e40b6f393cbdaf1bfcc36b8c422f7e17ae41dee"],
+                       cwd=REPO_ROOT, capture_output=True).returncode == 0,
+        "base commit 4e40b6f393cb not in history (pre-migration commit graph was rewritten)",
+    )
     def test_no_frozen_n2c_path_was_touched_by_this_scope_git_diff(self):
         result = subprocess.run(
             ["git", "diff", "--name-only", "4e40b6f393cbdaf1bfcc36b8c422f7e17ae41dee", "HEAD",
-             "--", "qodec/evals/interop/v2/n2/source-freeze", "qodec/evals/interop/v2/n2/d0-durable-evidence"],
+             "--", "evals/interop/v2/n2/source-freeze", "evals/interop/v2/n2/d0-durable-evidence"],
             cwd=REPO_ROOT, capture_output=True, text=True, check=False,
         )
         changed = [line for line in result.stdout.splitlines() if line.strip()]

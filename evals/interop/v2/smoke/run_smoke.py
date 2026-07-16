@@ -208,11 +208,11 @@ def assemble_identity(qodec_bin: str, rtk_bin: str, meter: str,
     repo_commit = os.environ.get("REPO_COMMIT_SHA") or (_git(root, "rev-parse", "HEAD") if root else None)
     # qodec_tree_sha is a deterministic identity of the EXACT qodec source tree
     # that built the binary: the Nix-cleaned source (QODEC_SRC_DIR) in CI, or the
-    # git tree object of qodec/ locally. It must never be null.
+    # git tree object of the repository root locally. It must never be null.
     src_dir = os.environ.get("QODEC_SRC_DIR")
     qodec_tree = (os.environ.get("QODEC_TREE_SHA")
                   or (tree_sha256(src_dir) if src_dir else None)
-                  or (_git(root, "rev-parse", "HEAD:qodec") if root else None))
+                  or (_git(root, "rev-parse", "HEAD:") if root else None))
     # qodec_source_sha binds BOTH identities; it is only set when both are known,
     # so a missing tree identity fails the mandatory-identity gate.
     qodec_source_sha = None

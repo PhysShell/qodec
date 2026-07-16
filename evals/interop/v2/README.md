@@ -38,7 +38,7 @@ v2/
   private/                      — gitignored; real sealed bundle lives here, never committed
 ```
 
-`qodec/evals/interop/v2/private/` is git-ignored. **No file under `private/`
+`evals/interop/v2/private/` is git-ignored. **No file under `private/`
 ever enters Git.**
 
 ## Frozen corpus target

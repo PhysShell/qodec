@@ -55,7 +55,7 @@ def assemble_identity(repo_root: Path) -> dict:
         "repository_head_sha": os.environ.get("REPO_COMMIT_SHA") or _git(repo_root, "rev-parse", "HEAD"),
         "checked_out_commit_sha": os.environ.get("CHECKED_OUT_COMMIT_SHA")
         or os.environ.get("REPO_COMMIT_SHA") or _git(repo_root, "rev-parse", "HEAD"),
-        "qodec_tree_sha": os.environ.get("QODEC_TREE_SHA") or _git(repo_root, "rev-parse", "HEAD:qodec"),
+        "qodec_tree_sha": os.environ.get("QODEC_TREE_SHA") or _git(repo_root, "rev-parse", "HEAD:"),
     }
 
 

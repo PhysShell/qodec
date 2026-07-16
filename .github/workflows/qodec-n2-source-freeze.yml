@@ -2,7 +2,7 @@
 # Scope N2 sourcing addendum). Forms and freezes a real source set for 18
 # new N2 cases (10 existing N1 cases + 18 new = 28 total) before any QODEC,
 # RTK, token-counting, or reader/model evaluation. See
-# qodec/evals/interop/v2/n2/source-freeze/.
+# evals/interop/v2/n2/source-freeze/.
 #
 # N2-C performs real candidate discovery, static source inspection, license
 # review, deterministic quota-aware selection, and immutable source
@@ -17,15 +17,9 @@
 name: qodec-n2-source-freeze
 
 on:
-  pull_request:
-    paths:
-      - "qodec/evals/interop/v2/n2/source-freeze/**"
-      - ".github/workflows/qodec-n2-source-freeze.yml"
-  workflow_dispatch:
-
+  workflow_dispatch: {}
 permissions:
   contents: read
-
 env:
   LC_ALL: C.UTF-8
   LANG: C.UTF-8
@@ -44,7 +38,7 @@ jobs:
       - name: Verify N2-A/N2-A.1/N2-B frozen paths + Sandboy pin are unchanged
         run: |
           mkdir -p "$RUNNER_TEMP/reports"
-          python3 qodec/evals/interop/v2/n2/source-freeze/tools/generate_ci_reports.py frozen-base \
+          python3 evals/interop/v2/n2/source-freeze/tools/generate_ci_reports.py frozen-base \
             --repo-root . \
             --out "$RUNNER_TEMP/reports/n2c-frozen-base-report.json"
 
@@ -67,15 +61,15 @@ jobs:
       - name: Validate candidate-registry.json against schema + transition state machine
         run: |
           mkdir -p "$RUNNER_TEMP/reports"
-          python3 qodec/evals/interop/v2/n2/source-freeze/tools/generate_ci_reports.py registry-validation \
+          python3 evals/interop/v2/n2/source-freeze/tools/generate_ci_reports.py registry-validation \
             --out "$RUNNER_TEMP/reports/candidate-registry-validation.json"
 
       - uses: actions/upload-artifact@b4b15b8c7c6ac21ea08fcf65892d2ee8f75cf882 # v4.4.3
         with:
           name: candidate-registry
           path: |
-            qodec/evals/interop/v2/n2/source-freeze/candidate-registry.json
-            qodec/evals/interop/v2/n2/source-freeze/schemas/candidate-registry.schema.json
+            evals/interop/v2/n2/source-freeze/candidate-registry.json
+            evals/interop/v2/n2/source-freeze/schemas/candidate-registry.schema.json
             ${{ runner.temp }}/reports/candidate-registry-validation.json
           if-no-files-found: error
           retention-days: 90
@@ -92,7 +86,7 @@ jobs:
       - name: Render candidate-inspection-reports (discovered/inspected/eligible/rejected counts)
         run: |
           mkdir -p "$RUNNER_TEMP/reports"
-          python3 qodec/evals/interop/v2/n2/source-freeze/tools/generate_ci_reports.py candidate-inspection \
+          python3 evals/interop/v2/n2/source-freeze/tools/generate_ci_reports.py candidate-inspection \
             --out "$RUNNER_TEMP/reports/candidate-inspection-reports.json"
 
       - uses: actions/upload-artifact@b4b15b8c7c6ac21ea08fcf65892d2ee8f75cf882 # v4.4.3
@@ -114,7 +108,7 @@ jobs:
       - name: Validate license records + apply hard-reject rules
         run: |
           mkdir -p "$RUNNER_TEMP/reports"
-          python3 qodec/evals/interop/v2/n2/source-freeze/tools/generate_ci_reports.py license-review \
+          python3 evals/interop/v2/n2/source-freeze/tools/generate_ci_reports.py license-review \
             --out "$RUNNER_TEMP/reports/license-review-reports.json"
 
       - uses: actions/upload-artifact@b4b15b8c7c6ac21ea08fcf65892d2ee8f75cf882 # v4.4.3
@@ -123,7 +117,7 @@ jobs:
           name: license-review-reports
           path: |
             ${{ runner.temp }}/reports/license-review-reports.json
-            qodec/evals/interop/v2/n2/source-freeze/license-records
+            evals/interop/v2/n2/source-freeze/license-records
           if-no-files-found: error
           retention-days: 90
 
@@ -139,7 +133,7 @@ jobs:
       - name: Evaluate eligibility (frozen N2-B rules + N2-C extension) and deterministic ranking
         run: |
           mkdir -p "$RUNNER_TEMP/reports"
-          python3 qodec/evals/interop/v2/n2/source-freeze/tools/generate_ci_reports.py eligibility-and-ranking \
+          python3 evals/interop/v2/n2/source-freeze/tools/generate_ci_reports.py eligibility-and-ranking \
             --out "$RUNNER_TEMP/reports/eligibility-and-ranking-report.json"
 
       - uses: actions/upload-artifact@b4b15b8c7c6ac21ea08fcf65892d2ee8f75cf882 # v4.4.3
@@ -164,11 +158,11 @@ jobs:
         id: matrix
         run: |
           mkdir -p "$RUNNER_TEMP/reports"
-          python3 qodec/evals/interop/v2/n2/source-freeze/tools/generate_ci_reports.py quota-selection \
+          python3 evals/interop/v2/n2/source-freeze/tools/generate_ci_reports.py quota-selection \
             --out "$RUNNER_TEMP/reports/quota-selection-report.json"
-          python3 qodec/evals/interop/v2/n2/source-freeze/tools/generate_ci_reports.py generate-manifests \
+          python3 evals/interop/v2/n2/source-freeze/tools/generate_ci_reports.py generate-manifests \
             --out "$RUNNER_TEMP/reports/generate-manifests-report.json"
-          python3 qodec/evals/interop/v2/n2/source-freeze/tools/generate_ci_reports.py acquisition-matrix \
+          python3 evals/interop/v2/n2/source-freeze/tools/generate_ci_reports.py acquisition-matrix \
             --out "$RUNNER_TEMP/reports/acquisition-matrix.json"
           echo "matrix=$(cat "$RUNNER_TEMP/reports/acquisition-matrix.json")" >> "$GITHUB_OUTPUT"
 
@@ -178,7 +172,7 @@ jobs:
           path: |
             ${{ runner.temp }}/reports/quota-selection-report.json
             ${{ runner.temp }}/reports/generate-manifests-report.json
-            qodec/evals/interop/v2/n2/source-freeze/source-manifests
+            evals/interop/v2/n2/source-freeze/source-manifests
           if-no-files-found: error
           retention-days: 90
 
@@ -194,7 +188,7 @@ jobs:
       - name: Assert byte-identical selection across two independent runs
         run: |
           mkdir -p "$RUNNER_TEMP/reports"
-          python3 qodec/evals/interop/v2/n2/source-freeze/tools/generate_ci_reports.py selection-determinism \
+          python3 evals/interop/v2/n2/source-freeze/tools/generate_ci_reports.py selection-determinism \
             --out "$RUNNER_TEMP/reports/selection-determinism-report.json"
 
       - uses: actions/upload-artifact@b4b15b8c7c6ac21ea08fcf65892d2ee8f75cf882 # v4.4.3
@@ -241,8 +235,8 @@ jobs:
           GITHUB_TOKEN: ${{ github.token }}
         run: |
           mkdir -p "$RUNNER_TEMP/acquisition"
-          python3 source-freeze-repo/qodec/evals/interop/v2/n2/source-freeze/tools/run_acquisition.py \
-            --registry source-freeze-repo/qodec/evals/interop/v2/n2/source-freeze/candidate-registry.json \
+          python3 source-freeze-repo/evals/interop/v2/n2/source-freeze/tools/run_acquisition.py \
+            --registry source-freeze-repo/evals/interop/v2/n2/source-freeze/candidate-registry.json \
             --candidate-id "${{ matrix.candidate.candidate_id }}" \
             --checkout-dir candidate-checkout \
             --out-dir "$RUNNER_TEMP/acquisition" \
@@ -277,7 +271,7 @@ jobs:
           python3 - <<'PYEOF'
           import json, sys
           from pathlib import Path
-          sys.path.insert(0, "qodec/evals/interop/v2/n2/source-freeze/tools")
+          sys.path.insert(0, "evals/interop/v2/n2/source-freeze/tools")
           import archive_security
 
           acq_dir = Path("${{ runner.temp }}/acquisition")
@@ -339,7 +333,7 @@ jobs:
       - name: Fold real acquisition identity into currently-null registry fields, or verify a fresh re-acquisition still matches already-committed (identity-locked) values
         run: |
           mkdir -p "$RUNNER_TEMP/reports"
-          python3 qodec/evals/interop/v2/n2/source-freeze/tools/generate_ci_reports.py fold-or-verify-identity \
+          python3 evals/interop/v2/n2/source-freeze/tools/generate_ci_reports.py fold-or-verify-identity \
             --acquisition-dir "${{ runner.temp }}/acquisition" \
             --out "$RUNNER_TEMP/reports/source-identity-report.json"
 
@@ -353,11 +347,11 @@ jobs:
           # everything under $RUNNER_TEMP first so both uploaded paths share
           # one real filesystem ancestor and the artifact layout is exact.
           mkdir -p "$RUNNER_TEMP/updated-source-freeze/source-freeze"
-          cp qodec/evals/interop/v2/n2/source-freeze/candidate-registry.json \
+          cp evals/interop/v2/n2/source-freeze/candidate-registry.json \
             "$RUNNER_TEMP/updated-source-freeze/source-freeze/candidate-registry.json"
-          cp -r qodec/evals/interop/v2/n2/source-freeze/source-manifests \
+          cp -r evals/interop/v2/n2/source-freeze/source-manifests \
             "$RUNNER_TEMP/updated-source-freeze/source-freeze/source-manifests"
-          cp -r qodec/evals/interop/v2/n2/source-freeze/license-records \
+          cp -r evals/interop/v2/n2/source-freeze/license-records \
             "$RUNNER_TEMP/updated-source-freeze/source-freeze/license-records"
 
       - uses: actions/upload-artifact@b4b15b8c7c6ac21ea08fcf65892d2ee8f75cf882 # v4.4.3
@@ -386,23 +380,23 @@ jobs:
       - name: Overwrite checked-out registry/manifests/license-records with the real-hash versions from source-identity
         run: |
           cp "$RUNNER_TEMP/downloaded-source-identity/updated-source-freeze/source-freeze/candidate-registry.json" \
-            qodec/evals/interop/v2/n2/source-freeze/candidate-registry.json
+            evals/interop/v2/n2/source-freeze/candidate-registry.json
           cp -r "$RUNNER_TEMP/downloaded-source-identity/updated-source-freeze/source-freeze/source-manifests/." \
-            qodec/evals/interop/v2/n2/source-freeze/source-manifests/
+            evals/interop/v2/n2/source-freeze/source-manifests/
           cp -r "$RUNNER_TEMP/downloaded-source-identity/updated-source-freeze/source-freeze/license-records/." \
-            qodec/evals/interop/v2/n2/source-freeze/license-records/
+            evals/interop/v2/n2/source-freeze/license-records/
 
       - name: Render final n2-source-freeze.json + summary, run sealing checks
         run: |
           mkdir -p "$RUNNER_TEMP/reports"
-          MAIN_SHA=$(python3 -c "import sys; sys.path.insert(0, 'qodec/evals/interop/v2/n2/source-freeze/tools'); import frozen_base_check; print(frozen_base_check.BASE_MAIN_SHA)")
-          python3 qodec/evals/interop/v2/n2/source-freeze/tools/generate_ci_reports.py freeze-receipt \
+          MAIN_SHA=$(python3 -c "import sys; sys.path.insert(0, 'evals/interop/v2/n2/source-freeze/tools'); import frozen_base_check; print(frozen_base_check.BASE_MAIN_SHA)")
+          python3 evals/interop/v2/n2/source-freeze/tools/generate_ci_reports.py freeze-receipt \
             --main-sha "$MAIN_SHA" \
             --workflow-run-ids "${{ github.run_id }}" \
             --freeze-timestamp "$(date -u +%Y-%m-%dT%H:%M:%SZ)" \
             --out "$RUNNER_TEMP/reports/n2-source-freeze.json" \
             --out-md "$RUNNER_TEMP/reports/n2-source-freeze-summary.md"
-          python3 qodec/evals/interop/v2/n2/source-freeze/tools/generate_ci_reports.py seal-check \
+          python3 evals/interop/v2/n2/source-freeze/tools/generate_ci_reports.py seal-check \
             --repo-root . \
             --out "$RUNNER_TEMP/reports/seal-check-report.json"
           cat "$RUNNER_TEMP/reports/n2-source-freeze-summary.md"
@@ -479,7 +473,7 @@ jobs:
 
       - name: Build n2c-artifact-index (real artifact_id/archive_digest, contained files, per-file SHA256, logical vs execution SHA)
         run: |
-          python3 qodec/evals/interop/v2/n2/source-freeze/tools/generate_ci_reports.py build-artifact-index \
+          python3 evals/interop/v2/n2/source-freeze/tools/generate_ci_reports.py build-artifact-index \
             --all-artifacts-root "${{ runner.temp }}/all-artifacts" \
             --api-artifacts-json "${{ runner.temp }}/reports/api-artifacts.json" \
             --source-workflow-run "${{ github.run_id }}" \

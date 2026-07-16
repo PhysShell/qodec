@@ -1,6 +1,6 @@
 {
   "$schema": "http://json-schema.org/draft-07/schema#",
-  "$id": "qodec/evals/interop/v2/schemas/sealed-manifest.schema.json",
+  "$id": "evals/interop/v2/schemas/sealed-manifest.schema.json",
   "title": "Interop Benchmark v2 — tracked sealed manifest",
   "description": "The ONLY sealed artifact permitted in Git. It describes the sealed bundle without revealing any of its content. Payload, payload paths, gold, question text, content-revealing case ids and tool-output fragments are forbidden and enforced by validate_contract.py.",
   "type": "object",

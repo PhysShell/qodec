@@ -11,10 +11,10 @@ The real sealed bundle is produced in a **later scope** by a local custodian and
 stored **outside Git**:
 
 ```
-qodec/evals/interop/v2/private/heldout-v2.tar.zst
+evals/interop/v2/private/heldout-v2.tar.zst
 ```
 
-`qodec/evals/interop/v2/private/` is git-ignored. Nothing under it is ever
+`evals/interop/v2/private/` is git-ignored. Nothing under it is ever
 committed. This design scope neither creates the bundle nor looks at any future
 sealed evaluation result.
 

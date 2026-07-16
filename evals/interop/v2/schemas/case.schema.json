@@ -1,6 +1,6 @@
 {
   "$schema": "http://json-schema.org/draft-07/schema#",
-  "$id": "qodec/evals/interop/v2/schemas/case.schema.json",
+  "$id": "evals/interop/v2/schemas/case.schema.json",
   "title": "Interop Benchmark v2 — base case",
   "description": "One base corpus case. Sealed-heldout cases MUST omit payload, payload_path and any content-revealing field in the tracked manifest; only coverage metadata is tracked. Gold and question text never live in a tracked sealed case.",
   "type": "object",

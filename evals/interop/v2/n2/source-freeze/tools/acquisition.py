@@ -3,7 +3,7 @@
 executes repository-controlled code.
 
 Generalizes N2-A's frozen single-repo `verify_source.py`
-(qodec/evals/interop/v2/n2/canary/tools/verify_source.py, NOT modified —
+(evals/interop/v2/n2/canary/tools/verify_source.py, NOT modified —
 that script is hardcoded to exactly one dotnet .csproj expectation) into a
 multi-candidate, multi-license, multi-ecosystem inspector. Runs against an
 already-checked-out repository (via actions/checkout at a pinned commit —

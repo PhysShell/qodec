@@ -15,7 +15,7 @@ import unittest.mock as mock
 from pathlib import Path
 
 TOOLS = Path(__file__).resolve().parents[1] / "tools"
-REPO_ROOT = Path(__file__).resolve().parents[7]
+REPO_ROOT = Path(__file__).resolve().parents[6]
 sys.path.insert(0, str(TOOLS))
 import generic_capture as gc  # noqa: E402
 import gradle_canonicalizer as gcz  # noqa: E402
@@ -23,7 +23,7 @@ import maven_canonicalizer as mc  # noqa: E402
 import verify_pilot_pair_reproducibility as verifier  # noqa: E402
 import vstest_canonicalizer as vc  # noqa: E402
 
-REAL_ERRATA_PATH = REPO_ROOT / "qodec/evals/interop/v2/n2/d1-identity-lock/execution-plan-errata.json"
+REAL_ERRATA_PATH = REPO_ROOT / "evals/interop/v2/n2/d1-identity-lock/execution-plan-errata.json"
 ESC = "\x1b"
 
 

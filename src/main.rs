@@ -164,7 +164,7 @@ struct EncodeArgs {
     rules: Option<PathBuf>,
     /// Emit an adapter envelope instead of the bare artifact:
     /// `{"encoded","codec","content","tokens_in","tokens_out","meter"}` on
-    /// one line. This is the contract `qodec/evals/interop/` calls qodec
+    /// one line. This is the contract `evals/interop/` calls qodec
     /// through — the harness reads `content` (and decodes it when `encoded`).
     #[arg(long)]
     json: bool,

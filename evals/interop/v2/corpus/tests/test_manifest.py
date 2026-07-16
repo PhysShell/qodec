@@ -47,11 +47,11 @@ class TestManifest(unittest.TestCase):
         return [l for l in out.getvalue().splitlines() if l and not l.startswith("#")]
 
     def test_changed_files_maps_to_correct_case_id(self):
-        changed = self._changed("qodec/evals/interop/v2/corpus/examples/deterministic-log-demo/fixture/demo_tool.py")
+        changed = self._changed("evals/interop/v2/corpus/examples/deterministic-log-demo/fixture/demo_tool.py")
         self.assertEqual(changed, ["deterministic-log-demo"])
 
     def test_documentation_only_change_selects_no_case(self):
-        changed = self._changed("qodec/evals/interop/v2/corpus/README.md,qodec/evals/interop/v2/README.md")
+        changed = self._changed("evals/interop/v2/corpus/README.md,evals/interop/v2/README.md")
         self.assertEqual(changed, [])
 
 

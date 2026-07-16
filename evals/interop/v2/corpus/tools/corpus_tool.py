@@ -30,7 +30,7 @@ SCHEMAS_DIR = CORPUS_DIR / "schemas"
 EXAMPLES_DIR = CORPUS_DIR / "examples"
 MANIFEST_PATH = CORPUS_DIR / "manifest.json"
 CONTRACT_PATH = CORPUS_DIR / "corpus-contract.json"
-REPO_ROOT = CORPUS_DIR.parents[4]
+REPO_ROOT = CORPUS_DIR.parents[3]
 
 MOVING_REFS = {"main", "master", "latest", "head", "trunk", "develop", "stable"}
 DEMO_MARKERS = {
@@ -495,7 +495,7 @@ def cmd_changed(args) -> int:
                            capture_output=True, text=True)
         files = [f for f in r.stdout.splitlines() if f.strip()]
     affected = set()
-    prefix = "qodec/evals/interop/v2/corpus/examples/"
+    prefix = "evals/interop/v2/corpus/examples/"
     for f in files:
         if f.startswith(prefix):
             rest = f[len(prefix):]

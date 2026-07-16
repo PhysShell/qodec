@@ -19,7 +19,7 @@ import unittest
 from pathlib import Path
 
 V2_DIR = Path(__file__).resolve().parents[1]
-REPO_ROOT = V2_DIR.parents[3]
+REPO_ROOT = V2_DIR.parents[2]
 sys.path.insert(0, str(V2_DIR))
 
 import validate_contract as VC  # noqa: E402
@@ -368,7 +368,7 @@ class TestFailures(ContractTestBase):
 class TestGitignore(unittest.TestCase):
     def test_private_path_is_gitignored(self):
         gi = (REPO_ROOT / ".gitignore").read_text()
-        self.assertIn("qodec/evals/interop/v2/private/", gi,
+        self.assertIn("evals/interop/v2/private/", gi,
                       "private held-out path must be gitignored")
 
 

@@ -16,7 +16,7 @@ import unittest
 from pathlib import Path
 
 V2_DIR = Path(__file__).resolve().parents[1]
-REPO_ROOT = Path(os.environ["V2_REPO_ROOT"]) if os.environ.get("V2_REPO_ROOT") else V2_DIR.parents[3]
+REPO_ROOT = Path(os.environ["V2_REPO_ROOT"]) if os.environ.get("V2_REPO_ROOT") else V2_DIR.parents[2]
 sys.path.insert(0, str(V2_DIR))
 sys.path.insert(0, str(V2_DIR / "smoke"))
 sys.path.insert(0, str(Path(__file__).resolve().parent))
@@ -39,8 +39,7 @@ def is_pinned_commit(ref: str) -> bool:
 
 def find_qodec() -> str | None:
     for cand in (os.environ.get("QODEC_BIN"),
-                 str(REPO_ROOT / "qodec" / "target" / "release" / "qodec"),
-                 str(V2_DIR.parents[2] / "target" / "release" / "qodec")):
+                 str(REPO_ROOT / "target" / "release" / "qodec")):
         if cand and Path(cand).exists():
             return cand
     from shutil import which
@@ -364,11 +363,18 @@ class TestFlakeOutputs(unittest.TestCase):
     def setUp(self):
         self.text = FLAKE.read_text()
 
-    def test_existing_outputs_preserved(self):
-        for token in ("default = o7", "o7 = o7", "flake-utils.lib.mkApp",
-                      "devShells", "default = pkgs.mkShell", "inherit o7",
+    def test_common_scaffolding_preserved(self):
+        # Post-migration (standalone repository, o7 removed): qodec is the
+        # default package, but the surrounding scaffolding (devShells, the
+        # crane clippy/fmt checks, flake-utils app wiring) is unchanged.
+        for token in ("default = qodec", "flake-utils.lib.mkApp",
+                      "devShells", "default = pkgs.mkShell",
                       "clippy = craneLib", "fmt = craneLib"):
             self.assertIn(token, self.text)
+
+    def test_o7_package_removed(self):
+        for token in ("default = o7", "o7 = o7", "inherit o7", "codex-cli"):
+            self.assertNotIn(token, self.text)
 
     def test_new_packages_present(self):
         for token in ("qodec = qodec", "rtk-pinned = rtk-pinned",
@@ -380,7 +386,7 @@ class TestFlakeOutputs(unittest.TestCase):
 
 class TestGitignore(unittest.TestCase):
     def test_private_path_remains_ignored(self):
-        self.assertIn("qodec/evals/interop/v2/private/", GITIGNORE.read_text())
+        self.assertIn("evals/interop/v2/private/", GITIGNORE.read_text())
 
 
 if __name__ == "__main__":

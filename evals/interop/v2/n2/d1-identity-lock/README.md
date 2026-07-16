@@ -34,7 +34,7 @@ contract. Highlights:
   `--filter git-diff`/`--filter cargo-test` have never been tested. See
   `identified_ambiguities.rtk_filter_determinism`.
 - **Tokenizer identity**: locked and confirmed by source inspection —
-  `qodec/src/meter.rs`'s `Bpe::o200k()` really does call
+  `src/meter.rs`'s `Bpe::o200k()` really does call
   `tiktoken_rs::o200k_base()` (tiktoken-rs 0.7.0). No separate tokenizer
   script exists or is needed — N2-D reuses qodec's own
   `encode --meter o200k --json` envelope as the uniform counter for all
@@ -42,7 +42,7 @@ contract. Highlights:
   [`tests/test_tokenizer_conformance.py`](tests/test_tokenizer_conformance.py),
   4/4 passing against a real qodec binary.
 - **Execution policy**: reused wholesale from the pre-existing
-  `qodec/evals/interop/v2/execution-environment.md` contract; N2-D adds no
+  `evals/interop/v2/execution-environment.md` contract; N2-D adds no
   new numeric policy of its own.
 
 ## Two identified, load-bearing ambiguities — stopping here

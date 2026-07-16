@@ -10,7 +10,7 @@ import unittest
 from pathlib import Path
 
 WORKFLOW_PATH = (
-    Path(__file__).resolve().parents[7] / ".github" / "workflows" / "qodec-n2-miner-canary.yml"
+    Path(__file__).resolve().parents[6] / ".github" / "workflows" / "qodec-n2-miner-canary.yml"
 )
 
 EXPECTED_PATHS = [

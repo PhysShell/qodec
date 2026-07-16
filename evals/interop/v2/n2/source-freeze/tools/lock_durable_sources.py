@@ -87,7 +87,7 @@ def stage_durable_sources(acquisition_root: Path, registry: dict, dest_root: Pat
         # Repo-relative path built by direct string join (not relative_to()
         # walking a fixed number of .parent hops) so it can't silently drift
         # if this module ever moves within the tree.
-        rel_repo_path = f"qodec/evals/interop/v2/n2/source-freeze/frozen-sources/{cid}"
+        rel_repo_path = f"evals/interop/v2/n2/source-freeze/frozen-sources/{cid}"
         candidate["source_identity"]["durable_object_identity"] = rel_repo_path
         candidate["source_identity"]["durable_sha256"] = durable_sha256
         staged.append(cid)

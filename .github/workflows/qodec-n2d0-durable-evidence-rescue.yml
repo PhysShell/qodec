@@ -10,11 +10,8 @@ name: qodec-n2d0-durable-evidence-rescue
 
 on:
   workflow_dispatch: {}
-
 permissions:
-  contents: write
-  actions: read
-
+  contents: read
 env:
   N2C_RUN_ID: "29404265568"
   N2C_HEAD_SHA: "acb57379e2d0b9ed6fe79fd45e7540d7d00d7490"
@@ -44,23 +41,23 @@ jobs:
           GITHUB_TOKEN: ${{ github.token }}
         run: |
           mkdir -p "$RUNNER_TEMP/n2c"
-          python3 qodec/evals/interop/v2/n2/d0-durable-evidence/tools/zip_fetch.py \
+          python3 evals/interop/v2/n2/d0-durable-evidence/tools/zip_fetch.py \
             --owner PhysShell --repo 007 --run-id "${{ env.N2C_RUN_ID }}" \
             --artifact-names "n2c-artifact-index,n2-source-freeze,source-identity-reports,archive-security-reports,quota-selection-report,selection-determinism-report" \
             --include-prefix "acquisition-" \
             --out-dir "$RUNNER_TEMP/n2c" \
-            --archive-security-path qodec/evals/interop/v2/n2/source-freeze/tools/archive_security.py
+            --archive-security-path evals/interop/v2/n2/source-freeze/tools/archive_security.py
 
       - name: Fetch N2-A.1 accepted canary evidence (4 artifacts) from run ${{ env.N2A_RUN_ID }}
         env:
           GITHUB_TOKEN: ${{ github.token }}
         run: |
           mkdir -p "$RUNNER_TEMP/n2a"
-          python3 qodec/evals/interop/v2/n2/d0-durable-evidence/tools/zip_fetch.py \
+          python3 evals/interop/v2/n2/d0-durable-evidence/tools/zip_fetch.py \
             --owner PhysShell --repo 007 --run-id "${{ env.N2A_RUN_ID }}" \
             --artifact-names "miner-canary-source,miner-canary-capture-a,miner-canary-capture-b,miner-canary-reports" \
             --out-dir "$RUNNER_TEMP/n2a" \
-            --archive-security-path qodec/evals/interop/v2/n2/source-freeze/tools/archive_security.py
+            --archive-security-path evals/interop/v2/n2/source-freeze/tools/archive_security.py
 
       - name: Verify N2-C evidence against the accepted artifact index, folded identities, and final selection
         run: |
@@ -69,7 +66,7 @@ jobs:
           SOURCE_FREEZE=$(find "$RUNNER_TEMP/n2c/n2-source-freeze" -name "n2-source-freeze.json")
           QUOTA_REPORT=$(find "$RUNNER_TEMP/n2c/quota-selection-report" -name "quota-selection-report.json")
           echo "artifact_index=$ARTIFACT_INDEX source_freeze=$SOURCE_FREEZE quota_report=$QUOTA_REPORT"
-          python3 qodec/evals/interop/v2/n2/d0-durable-evidence/tools/verify_n2c_evidence.py \
+          python3 evals/interop/v2/n2/d0-durable-evidence/tools/verify_n2c_evidence.py \
             --fetch-report "$RUNNER_TEMP/n2c/fetch-report.json" \
             --artifact-index "$ARTIFACT_INDEX" \
             --n2-source-freeze "$SOURCE_FREEZE" \
@@ -79,7 +76,7 @@ jobs:
 
       - name: Verify N2-A.1 evidence (run identity + capture-a/capture-b agreement)
         run: |
-          python3 qodec/evals/interop/v2/n2/d0-durable-evidence/tools/verify_n2a_evidence.py \
+          python3 evals/interop/v2/n2/d0-durable-evidence/tools/verify_n2a_evidence.py \
             --fetch-report "$RUNNER_TEMP/n2a/fetch-report.json" \
             --extract-root "$RUNNER_TEMP/n2a" \
             --out "$RUNNER_TEMP/reports/n2a-verification.json"
@@ -106,7 +103,7 @@ jobs:
             gh release create "${{ env.RELEASE_TAG }}" \
               --repo PhysShell/007 \
               --title "N2-D0 durable evidence: N2-C run ${{ env.N2C_RUN_ID }} + N2-A.1 run ${{ env.N2A_RUN_ID }}" \
-              --notes "Durable, independently-verifiable copies of N2-C's (head ${{ env.N2C_HEAD_SHA }}) and N2-A.1's (head ${{ env.N2A_HEAD_SHA }}) accepted real acquisition/capture evidence, rescued from expiring GitHub Actions artifacts by the N2-D0 scope. See durable-input-manifest.json in qodec/evals/interop/v2/n2/d0-durable-evidence/ for the full, hash-locked inventory. Not a benchmark result; contains no QODEC/RTK output." \
+              --notes "Durable, independently-verifiable copies of N2-C's (head ${{ env.N2C_HEAD_SHA }}) and N2-A.1's (head ${{ env.N2A_HEAD_SHA }}) accepted real acquisition/capture evidence, rescued from expiring GitHub Actions artifacts by the N2-D0 scope. See durable-input-manifest.json in evals/interop/v2/n2/d0-durable-evidence/ for the full, hash-locked inventory. Not a benchmark result; contains no QODEC/RTK output." \
               --target "$(git rev-parse HEAD)"
           fi
           gh release upload "${{ env.RELEASE_TAG }}" "$RUNNER_TEMP/release-assets"/*.zip \

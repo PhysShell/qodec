@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """N2-D1b part 3: RTK filter determinism probe.
 
-Mirrors the proven pattern in qodec/evals/interop/v2/n2/canary/tools/
+Mirrors the proven pattern in evals/interop/v2/n2/canary/tools/
 determinism_probe.py (N2-A.1's MSBuild producer-ordering probe): run the
 SAME frozen invocation N independent times over the SAME frozen input,
 record exit code + stdout/stderr SHA256 + o200k token count for each

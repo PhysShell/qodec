@@ -1,4 +1,4 @@
-//! Adapter envelope — the contract the interop bench (`qodec/evals/interop/`)
+//! Adapter envelope — the contract the interop bench (`evals/interop/`)
 //! calls qodec through.
 //!
 //! `encode` always wraps: even when nothing mines, it returns a `raw`

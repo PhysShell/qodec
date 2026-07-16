@@ -14,13 +14,9 @@
 name: qodec-v2-corpus
 
 on:
-  pull_request:
-  workflow_dispatch:
-
+  workflow_dispatch: {}
 permissions:
   contents: read
-  actions: write
-
 concurrency:
   group: qodec-v2-corpus-${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: true
@@ -90,7 +86,7 @@ jobs:
         run: |
           BASE='${{ github.event.pull_request.base.sha }}'
           HEAD='${{ github.sha }}'
-          CLI=qodec/evals/interop/v2/corpus/tools/corpus_tool.py
+          CLI=evals/interop/v2/corpus/tools/corpus_tool.py
           if [ -n "$BASE" ]; then
             echo "Affected case bundles for $BASE..$HEAD:"
             python3 "$CLI" changed --base "$BASE" --head "$HEAD" || true
@@ -99,4 +95,4 @@ jobs:
           fi
       - name: Always validate manifest, schemas and affected bundles (no rewrite)
         run: |
-          python3 qodec/evals/interop/v2/corpus/tools/corpus_tool.py validate
+          python3 evals/interop/v2/corpus/tools/corpus_tool.py validate

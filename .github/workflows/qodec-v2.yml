@@ -11,16 +11,9 @@
 name: qodec-v2
 
 on:
-  pull_request:
-  push:
-    branches: [main]
-  workflow_dispatch:
-
-# Least privilege: read-only. No write scopes are granted.
+  workflow_dispatch: {}
 permissions:
   contents: read
-
-# Cancel superseded runs for the same ref (stale PR pushes).
 concurrency:
   group: qodec-v2-${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: true

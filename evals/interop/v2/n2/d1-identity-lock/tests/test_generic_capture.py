@@ -9,11 +9,11 @@ import unittest.mock as mock
 from pathlib import Path
 
 TOOLS = Path(__file__).resolve().parents[1] / "tools"
-REPO_ROOT = Path(__file__).resolve().parents[7]
+REPO_ROOT = Path(__file__).resolve().parents[6]
 sys.path.insert(0, str(TOOLS))
 import generic_capture as gc  # noqa: E402
 
-REAL_ERRATA_PATH = REPO_ROOT / "qodec/evals/interop/v2/n2/d1-identity-lock/execution-plan-errata.json"
+REAL_ERRATA_PATH = REPO_ROOT / "evals/interop/v2/n2/d1-identity-lock/execution-plan-errata.json"
 
 
 class TestRunOneCaptureContentGate(unittest.TestCase):

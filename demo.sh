@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# qodec guided tour — run from qodec/: `./demo.sh [your-file]`
+# qodec guided tour — run from the repository root: `./demo.sh [your-file]`
 # Builds the release binary, then walks every lab surface on the bundled
 # corpus. Pass a file of your own as $1 to see it encoded too.
 set -euo pipefail
