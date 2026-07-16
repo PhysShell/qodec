@@ -171,6 +171,102 @@ class TestMutationsAreCaught(unittest.TestCase):
         self.assertFalse(ok)
         self.assertIn("stage2_authorized_next", message)
 
+    def test_another_real_valid_ancestor_as_base_main_sha_fails(self):
+        # 3f8df1786260283f6ef348bfaa86fd3453aaec67 is a REAL commit and IS a
+        # real ancestor of implementation_sha -- internal ancestry alone
+        # would accept it. Only the exact-constant check catches it.
+        def mutate(r):
+            r["base_main_sha"] = "3f8df1786260283f6ef348bfaa86fd3453aaec67"
+
+        ok, message = self._verify_mutated_record(mutate)
+        self.assertFalse(ok)
+        self.assertIn("base_main_sha", message)
+
+    def test_another_real_valid_ancestor_as_implementation_sha_fails(self):
+        # The real base_main_sha value is itself a real, valid ancestor of
+        # HEAD -- but it is not the required implementation_sha.
+        def mutate(r):
+            other_real_ancestor = "4e5691076ca400d27a45044de78f2a95bf46d70b"
+            r["implementation_sha"] = other_real_ancestor
+            r["tested_implementation_sha"] = other_real_ancestor
+
+        ok, message = self._verify_mutated_record(mutate)
+        self.assertFalse(ok)
+        self.assertIn("implementation_sha", message)
+
+    def test_synchronized_workflow_run_id_mutation_fails(self):
+        # Both copies of the run ID are mutated together, so internal
+        # cross-field consistency (record.workflow_run_id ==
+        # workflow.run_id) alone would not catch this.
+        def mutate(r):
+            r["workflow_run_id"] = 1
+            r["workflow"]["run_id"] = 1
+
+        ok, message = self._verify_mutated_record(mutate)
+        self.assertFalse(ok)
+        self.assertIn("workflow_run_id", message)
+
+    def test_synchronized_trigger_sha_mutation_to_fabricated_sha_fails(self):
+        # A syntactically valid but entirely fabricated 40-hex SHA -- not a
+        # real commit in this repository at all. Both copies (top-level and
+        # nested under workflow) are mutated together.
+        def mutate(r):
+            fabricated = "f" * 40
+            r["execution_trigger_sha"] = fabricated
+            r["workflow"]["head_sha"] = fabricated
+
+        ok, message = self._verify_mutated_record(mutate)
+        self.assertFalse(ok)
+        self.assertIn("not a valid commit", message)
+
+    def test_trigger_sha_that_is_a_real_ancestor_of_head_fails(self):
+        # Commit B's real SHA IS a genuine, valid commit and IS an ancestor
+        # of HEAD -- exactly the forbidden shape for a disposable trigger
+        # commit, which must never be merged into the implementation
+        # branch's own history.
+        def mutate(r):
+            real_ancestor_of_head = "6c1b86dd62e6bf2456132f12d8a324ad088e070d"
+            r["execution_trigger_sha"] = real_ancestor_of_head
+            r["workflow"]["head_sha"] = real_ancestor_of_head
+
+        ok, message = self._verify_mutated_record(mutate)
+        self.assertFalse(ok)
+        self.assertIn("IS an ancestor", message)
+
+    def test_removal_of_one_rederivation_case_fails(self):
+        def mutate(r):
+            del r["independent_rederivation_verification"]["repo-pyflakes"]
+
+        ok, message = self._verify_mutated_record(mutate)
+        self.assertFalse(ok)
+        self.assertIn("independent_rederivation_verification", message)
+
+    def test_replacement_of_one_job_name_preserving_count_and_uniqueness_fails(self):
+        # The renamed job stays unique among all job names (so the
+        # uniqueness checks alone would pass) -- only the exact-name-set
+        # check catches a case name that is simply wrong.
+        def mutate(r):
+            r["jobs"][0]["name"] = "pilot-repo-hyperfine-capture-a-RENAMED"
+
+        ok, message = self._verify_mutated_record(mutate)
+        self.assertFalse(ok)
+        self.assertIn("job names", message)
+
+    def test_replacement_of_one_artifact_name_preserving_count_and_uniqueness_fails(self):
+        def mutate(r):
+            r["artifacts"][0]["name"] = "n2d1b-pilot-repo-hyperfine-capture-a-RENAMED"
+
+        ok, message = self._verify_mutated_record(mutate)
+        self.assertFalse(ok)
+        self.assertIn("artifact names", message)
+
+    def test_incorrect_stage1_status_fails(self):
+        ok, message = self._verify_mutated_record(
+            lambda r: r.__setitem__("stage1_status", "accepted")
+        )
+        self.assertFalse(ok)
+        self.assertIn("stage1_status", message)
+
 
 class TestExternalFileMutationsAreCaught(unittest.TestCase):
     def setUp(self):

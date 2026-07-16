@@ -272,11 +272,11 @@
     }
   ],
   "pull_request": {
-    "number": null,
+    "number": 2,
     "repo": "PhysShell/qodec",
-    "state_at_acceptance": "not yet opened -- per the two-commit protocol, this evidence record is finalized in Commit B before the pull request is opened; the PR will contain Commit A and Commit B only, not the trigger commit"
+    "state_at_acceptance": "PR #2 was opened after Commit B. Subsequent evidence-hardening commits may follow Commit B. The disposable trigger commit is not an ancestor of the PR head."
   },
-  "record_sha256": "sha256:768e5e01ad619dd068cb94a67d0c5de6b37362c154e3c809917b030665d22726",
+  "record_sha256": "sha256:db48e87dc36bd41ce1933b0ac316e04c3e177f0156c2539d6e263e96c530e737",
   "record_type": "n2d1b-stage1-current-head-reacceptance-v2",
   "record_version": 1,
   "repository": "PhysShell/qodec",

@@ -40,6 +40,14 @@ EXECUTION_TRIGGER_BRANCH = "ci-trigger/n2d1b-stage1-eaafc178"
 EXECUTION_TRIGGER_PATCH_SHA256 = "01060a7c4ec688c0f531a472f8f0c8d1eadd30f083464e46461905346127efa0"
 WORKFLOW_FILE = ".github/workflows/qodec-n2d1b-miner-pilot.yml"
 WORKFLOW_RUN_ID = 29510992023
+WORKFLOW_NAME = "qodec-n2d1b-miner-pilot"
+STAGE1_STATUS = "accepted_on_current_standalone_repository_lineage"
+PULL_REQUEST_NUMBER = 2
+PULL_REQUEST_STATE_AT_ACCEPTANCE = (
+    "PR #2 was opened after Commit B. Subsequent evidence-hardening commits "
+    "may follow Commit B. The disposable trigger commit is not an ancestor "
+    "of the PR head."
+)
 
 PRIOR_RECORD_SHA256 = "ad71afd35e1af0668277e494c6594040fef21f44b55dc11564450437c72c345e"
 PRIOR_RECORD_TESTED_HEAD_SHA = "c51eacca7edd9b73f58c740f5de31998304cf85c"
@@ -230,7 +238,7 @@ def build_record() -> dict:
         "record_version": 1,
         "schema_version": 1,
         "status": "STAGE_1_REACCEPTED_COMPLETE",
-        "stage1_status": "accepted_on_current_standalone_repository_lineage",
+        "stage1_status": STAGE1_STATUS,
         "repository": "PhysShell/qodec",
         "base_main_sha": BASE_MAIN_SHA,
         "implementation_sha": IMPLEMENTATION_SHA,
@@ -260,10 +268,10 @@ def build_record() -> dict:
             "implementation branch and Commit A left untouched throughout."
         ),
         "workflow": {
-            "name": "qodec-n2d1b-miner-pilot",
-            "run_id": 29510992023,
+            "name": WORKFLOW_NAME,
+            "run_id": WORKFLOW_RUN_ID,
             "run_number": 1,
-            "run_html_url": "https://github.com/PhysShell/qodec/actions/runs/29510992023",
+            "run_html_url": f"https://github.com/PhysShell/qodec/actions/runs/{WORKFLOW_RUN_ID}",
             "event": "push",
             "conclusion": "success",
             "head_branch": EXECUTION_TRIGGER_BRANCH,
@@ -305,13 +313,8 @@ def build_record() -> dict:
         },
         "pull_request": {
             "repo": "PhysShell/qodec",
-            "number": None,
-            "state_at_acceptance": (
-                "not yet opened -- per the two-commit protocol, this evidence "
-                "record is finalized in Commit B before the pull request is "
-                "opened; the PR will contain Commit A and Commit B only, not "
-                "the trigger commit"
-            ),
+            "number": PULL_REQUEST_NUMBER,
+            "state_at_acceptance": PULL_REQUEST_STATE_AT_ACCEPTANCE,
         },
         "superseded_record": {
             "file": "stage1-pilot-evidence.json",

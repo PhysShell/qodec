@@ -38,6 +38,24 @@ REQUIRED_WORKFLOW_FILE = ".github/workflows/qodec-n2d1b-miner-pilot.yml"
 REQUIRED_V1_POLICY_SHA256 = "c968245e3837e2155873a8c8a3623bad9b2522ef163ee79cfbf2461eb8ef3b7c"
 REQUIRED_TRIGGER_BRANCH = "ci-trigger/n2d1b-stage1-eaafc178"
 
+# Exact identity constants -- the record's own fields must match these
+# LITERALLY, not merely agree with each other or with real git ancestry.
+# Internal consistency alone would pass a record that is self-consistent
+# but simply wrong (e.g. describing a different, unauthorized run).
+REQUIRED_BASE_MAIN_SHA = "4e5691076ca400d27a45044de78f2a95bf46d70b"
+REQUIRED_IMPLEMENTATION_SHA = "eaafc1780a01117029833585c5c58b2ac8962b93"
+REQUIRED_EXECUTION_TRIGGER_SHA = "0c6884d35df537dc4226afa709c3148423cec9e2"
+REQUIRED_WORKFLOW_RUN_ID = 29510992023
+REQUIRED_WORKFLOW_NAME = "qodec-n2d1b-miner-pilot"
+REQUIRED_STAGE1_STATUS = "accepted_on_current_standalone_repository_lineage"
+REQUIRED_PULL_REQUEST_NUMBER = 2
+REQUIRED_PULL_REQUEST_STATE = (
+    "PR #2 was opened after Commit B. Subsequent evidence-hardening commits "
+    "may follow Commit B. The disposable trigger commit is not an ancestor "
+    "of the PR head."
+)
+REQUIRED_REDERIVATION_KEYS = {"method"} | REQUIRED_CASE_IDS
+
 
 def compute_record_sha256(body: dict) -> str:
     """Independent re-implementation of the documented self-hash protocol
@@ -171,6 +189,8 @@ def verify(
         return False, f"unexpected repository: {record.get('repository')!r}"
     if record.get("status") != "STAGE_1_REACCEPTED_COMPLETE":
         return False, f"unexpected status: {record.get('status')!r}"
+    if record.get("stage1_status") != REQUIRED_STAGE1_STATUS:
+        return False, f"unexpected stage1_status: {record.get('stage1_status')!r}"
     if set(record.get("accepted_pilot_case_ids", [])) != REQUIRED_CASE_IDS:
         return False, (
             f"accepted_pilot_case_ids mismatch: "
@@ -192,26 +212,20 @@ def verify(
             "implementation commit, it is never the same commit"
         )
 
-    workflow = record.get("workflow", {})
-    if record.get("workflow_file") != REQUIRED_WORKFLOW_FILE:
-        return False, f"unexpected workflow_file: {record.get('workflow_file')!r}"
-    if record.get("workflow_run_id") != workflow.get("run_id"):
-        return False, "workflow_run_id does not match workflow.run_id"
-    if workflow.get("event") != "push" or workflow.get("conclusion") != "success":
-        return False, f"unexpected workflow identity: {workflow!r}"
-    if workflow.get("head_sha") != execution_trigger_sha:
-        return False, "workflow.head_sha does not match execution_trigger_sha"
-
-    if record.get("execution_trigger_changed_paths") != [REQUIRED_WORKFLOW_FILE]:
-        return False, "execution_trigger_changed_paths must be exactly the one workflow file"
-    if record.get("trigger_commit_included_in_pull_request") is not False:
-        return False, "trigger_commit_included_in_pull_request must be false"
-    if record.get("non_workflow_tree_equivalent_to_implementation") is not True:
-        return False, "non_workflow_tree_equivalent_to_implementation must be true"
-
-    # --- git identity ------------------------------------------------------
+    # --- git identity --------------------------------------------------
+    # Deliberately runs BEFORE the exact-value constant checks below, so
+    # that a trigger SHA which is real-but-forbidden (an ancestor of HEAD)
+    # is caught specifically by the ancestor-exclusion gate, and a trigger
+    # SHA that isn't even a real commit is caught specifically by the
+    # cat-file gate -- rather than both being masked by the (also-correct)
+    # generic "does not equal the required constant" failure that ANY wrong
+    # value would trip.
     root = repo_root if repo_root is not None else _repo_root()
-    for sha, label in ((base_main_sha, "base_main_sha"), (implementation_sha, "implementation_sha")):
+    for sha, label in (
+        (base_main_sha, "base_main_sha"),
+        (implementation_sha, "implementation_sha"),
+        (execution_trigger_sha, "execution_trigger_sha"),
+    ):
         result = _git(root, "cat-file", "-e", f"{sha}^{{commit}}")
         if result.returncode != 0:
             return False, f"{label} {sha!r} is not a valid commit in this repository"
@@ -223,6 +237,56 @@ def verify(
     result = _git(root, "merge-base", "--is-ancestor", implementation_sha, "HEAD")
     if result.returncode != 0:
         return False, f"implementation_sha {implementation_sha!r} is not an ancestor of the verifier's current HEAD"
+
+    result = _git(root, "merge-base", "--is-ancestor", execution_trigger_sha, "HEAD")
+    if result.returncode == 0:
+        return False, (
+            f"execution_trigger_sha {execution_trigger_sha!r} IS an ancestor of "
+            "the verifier's current HEAD -- the disposable trigger commit must "
+            "never be merged into the implementation branch's history"
+        )
+
+    # Exact-value identity checks -- a record that is merely internally
+    # consistent (all its own SHA fields agree with each other) could still
+    # describe an entirely different, unauthorized commit or run. These
+    # compare directly against the hardcoded, out-of-band-known identities.
+    if base_main_sha != REQUIRED_BASE_MAIN_SHA:
+        return False, f"base_main_sha {base_main_sha!r} != required {REQUIRED_BASE_MAIN_SHA!r}"
+    if implementation_sha != REQUIRED_IMPLEMENTATION_SHA:
+        return False, f"implementation_sha {implementation_sha!r} != required {REQUIRED_IMPLEMENTATION_SHA!r}"
+    if execution_trigger_sha != REQUIRED_EXECUTION_TRIGGER_SHA:
+        return False, f"execution_trigger_sha {execution_trigger_sha!r} != required {REQUIRED_EXECUTION_TRIGGER_SHA!r}"
+    if record.get("execution_trigger_branch") != REQUIRED_TRIGGER_BRANCH:
+        return False, f"execution_trigger_branch {record.get('execution_trigger_branch')!r} != required {REQUIRED_TRIGGER_BRANCH!r}"
+
+    workflow = record.get("workflow", {})
+    if record.get("workflow_file") != REQUIRED_WORKFLOW_FILE:
+        return False, f"unexpected workflow_file: {record.get('workflow_file')!r}"
+    if record.get("workflow_run_id") != REQUIRED_WORKFLOW_RUN_ID:
+        return False, f"workflow_run_id {record.get('workflow_run_id')!r} != required {REQUIRED_WORKFLOW_RUN_ID!r}"
+    if workflow.get("run_id") != REQUIRED_WORKFLOW_RUN_ID:
+        return False, f"workflow.run_id {workflow.get('run_id')!r} != required {REQUIRED_WORKFLOW_RUN_ID!r}"
+    if workflow.get("name") != REQUIRED_WORKFLOW_NAME:
+        return False, f"workflow.name {workflow.get('name')!r} != required {REQUIRED_WORKFLOW_NAME!r}"
+    if workflow.get("event") != "push" or workflow.get("conclusion") != "success":
+        return False, f"unexpected workflow identity: {workflow!r}"
+    if workflow.get("head_sha") != REQUIRED_EXECUTION_TRIGGER_SHA:
+        return False, f"workflow.head_sha {workflow.get('head_sha')!r} != required {REQUIRED_EXECUTION_TRIGGER_SHA!r}"
+    if workflow.get("head_branch") != REQUIRED_TRIGGER_BRANCH:
+        return False, f"workflow.head_branch {workflow.get('head_branch')!r} != required {REQUIRED_TRIGGER_BRANCH!r}"
+
+    if record.get("execution_trigger_changed_paths") != [REQUIRED_WORKFLOW_FILE]:
+        return False, "execution_trigger_changed_paths must be exactly the one workflow file"
+    if record.get("trigger_commit_included_in_pull_request") is not False:
+        return False, "trigger_commit_included_in_pull_request must be false"
+    if record.get("non_workflow_tree_equivalent_to_implementation") is not True:
+        return False, "non_workflow_tree_equivalent_to_implementation must be true"
+
+    pull_request = record.get("pull_request", {})
+    if pull_request.get("number") != REQUIRED_PULL_REQUEST_NUMBER:
+        return False, f"pull_request.number {pull_request.get('number')!r} != required {REQUIRED_PULL_REQUEST_NUMBER!r}"
+    if pull_request.get("state_at_acceptance") != REQUIRED_PULL_REQUEST_STATE:
+        return False, "pull_request.state_at_acceptance does not match the required historically accurate statement"
 
     # --- job/artifact counts and required matrix ----------------------------
     jobs = record.get("jobs", [])
@@ -242,6 +306,34 @@ def verify(
         if err:
             return False, err
 
+    # Exact job-NAME sets -- uniqueness alone would still pass a record with
+    # the right shape but the wrong (or missing) individual case names.
+    expected_capture_job_names = {
+        f"pilot-{case}-capture-{leg}" for case in REQUIRED_CASE_IDS for leg in ("a", "b")
+    }
+    actual_capture_job_names = {j.get("name") for j in jobs}
+    if actual_capture_job_names != expected_capture_job_names:
+        return False, (
+            f"capture job names {sorted(actual_capture_job_names)} != "
+            f"required {sorted(expected_capture_job_names)}"
+        )
+
+    expected_pair_verify_names = {f"pair-verify-{case}" for case in REQUIRED_CASE_IDS}
+    actual_pair_verify_names = {j.get("name") for j in pair_verify_jobs}
+    if actual_pair_verify_names != expected_pair_verify_names:
+        return False, (
+            f"pair-verify job names {sorted(actual_pair_verify_names)} != "
+            f"required {sorted(expected_pair_verify_names)}"
+        )
+
+    expected_other_job_names = {"dockerfile-parser-rs-lockfile"}
+    actual_other_job_names = {j.get("name") for j in other_jobs}
+    if actual_other_job_names != expected_other_job_names:
+        return False, (
+            f"other job names {sorted(actual_other_job_names)} != "
+            f"required {sorted(expected_other_job_names)}"
+        )
+
     artifacts = record.get("artifacts", [])
     pair_report_artifacts = record.get("pair_report_artifacts", [])
     other_artifacts = record.get("other_artifacts_not_part_of_required_matrix", [])
@@ -260,6 +352,33 @@ def verify(
         err = _check_artifact_group(group, name, seen_art_ids, seen_art_names)
         if err:
             return False, err
+
+    # Exact artifact-NAME sets, mirroring the job-name check above.
+    expected_capture_artifact_names = {
+        f"n2d1b-pilot-{case}-capture-{leg}" for case in REQUIRED_CASE_IDS for leg in ("a", "b")
+    }
+    actual_capture_artifact_names = {a.get("name") for a in artifacts}
+    if actual_capture_artifact_names != expected_capture_artifact_names:
+        return False, (
+            f"capture artifact names {sorted(actual_capture_artifact_names)} != "
+            f"required {sorted(expected_capture_artifact_names)}"
+        )
+
+    expected_pair_report_artifact_names = {f"n2d1b-pair-reproducibility-{case}" for case in REQUIRED_CASE_IDS}
+    actual_pair_report_artifact_names = {a.get("name") for a in pair_report_artifacts}
+    if actual_pair_report_artifact_names != expected_pair_report_artifact_names:
+        return False, (
+            f"pair-report artifact names {sorted(actual_pair_report_artifact_names)} != "
+            f"required {sorted(expected_pair_report_artifact_names)}"
+        )
+
+    expected_other_artifact_names = {"n2d1b-dockerfile-parser-rs-lockfile"}
+    actual_other_artifact_names = {a.get("name") for a in other_artifacts}
+    if actual_other_artifact_names != expected_other_artifact_names:
+        return False, (
+            f"other artifact names {sorted(actual_other_artifact_names)} != "
+            f"required {sorted(expected_other_artifact_names)}"
+        )
 
     if not record.get("all_job_conclusions_success") or not record.get("all_capture_jobs_success"):
         return False, "all_job_conclusions_success / all_capture_jobs_success must be true"
@@ -316,6 +435,11 @@ def verify(
         return False, "unexplained_raw_differences must be an empty list"
 
     rederivation = record.get("independent_rederivation_verification", {})
+    if set(rederivation.keys()) != REQUIRED_REDERIVATION_KEYS:
+        return False, (
+            f"independent_rederivation_verification keys {sorted(rederivation.keys())} != "
+            f"required {sorted(REQUIRED_REDERIVATION_KEYS)}"
+        )
     for case_id, entry in rederivation.items():
         if case_id == "method":
             continue
