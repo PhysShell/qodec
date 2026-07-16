@@ -45,6 +45,7 @@ MINER_TOOLS = TOOLS_DIR.parents[1] / "miner" / "tools"
 for p in (MINER_TOOLS, TOOLS_DIR):
     sys.path.insert(0, str(p))
 
+import gradle_canonicalizer_helm_values_v1  # noqa: E402
 import gradle_canonicalizer_v2  # noqa: E402
 import maven_canonicalizer  # noqa: E402
 import receipt_contract  # noqa: E402
@@ -57,6 +58,12 @@ VSTEST_POLICY_PATH = TOOLS_DIR.parent / "vstest-capture-canonicalization-policy.
 # generic_capture.py's identical comment. v1's files remain untouched,
 # historical evidence, no longer dispatched here.
 GRADLE_POLICY_V2_PATH = TOOLS_DIR.parent / "gradle-capture-canonicalization-policy-v2.json"
+# N2-D1b Stage 2 (2026-07-16): repo-helm-values is verified against its own,
+# wholly separate policy/module identity (gradle_canonicalizer_helm_values_v1.py
+# / gradle-capture-canonicalization-policy-helm-values-v1.json) -- never the
+# repo-moshi v2 profile above, even though the underlying Gradle grammar is
+# confirmed byte-for-byte identical. See generic_capture.py's identical comment.
+GRADLE_POLICY_HELM_VALUES_V1_PATH = TOOLS_DIR.parent / "gradle-capture-canonicalization-policy-helm-values-v1.json"
 
 # Case-id-scoped dispatch -- mirrors generic_capture.py's own
 # CANONICALIZATION_MODULE_BY_CASE_ID single source of truth. Each profile is
@@ -69,6 +76,7 @@ _CANONICALIZER_MODULES_BY_CASE_ID = {
     "repo-docker-java-parser": maven_canonicalizer,
     "repo-kubeops-generator": vstest_canonicalizer,
     "repo-moshi": gradle_canonicalizer_v2,
+    "repo-helm-values": gradle_canonicalizer_helm_values_v1,
 }
 
 
@@ -80,6 +88,8 @@ def _canonicalizer_for_case_id(case_id: str):
         return module, VSTEST_POLICY_PATH
     if module is gradle_canonicalizer_v2:
         return module, GRADLE_POLICY_V2_PATH
+    if module is gradle_canonicalizer_helm_values_v1:
+        return module, GRADLE_POLICY_HELM_VALUES_V1_PATH
     return None, None
 
 # Dotted paths, not whole nested dicts -- sandbox_identity.policy_sha256 in

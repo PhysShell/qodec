@@ -205,6 +205,12 @@ ECOSYSTEM_POLICY_HINTS = {
 NETWORK_ENFORCEMENT_AUTHORIZED_CASES = {
     "repo-kubeops-generator": "outer-netns-loopback-only",
     "repo-moshi": "outer-netns-loopback-only",
+    # Stage 2 authorization: repo-helm-values's Gradle daemon hits the
+    # identical class of loopback-bind requirement as repo-moshi's own
+    # (Sandboy's fully-closed tcp_bind policy otherwise refuses the daemon's
+    # OS-chosen ephemeral client<->daemon port) -- authorized separately
+    # here, never inherited from repo-moshi's own entry.
+    "repo-helm-values": "outer-netns-loopback-only",
 }
 
 

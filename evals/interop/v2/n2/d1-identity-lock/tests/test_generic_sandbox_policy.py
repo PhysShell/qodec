@@ -297,13 +297,13 @@ class TestNetworkEnforcementModeIsCaseIdScoped(unittest.TestCase):
             text = self._build(ecosystem=ecosystem, case_id="repo-totally-unauthorized-case")
             self.assertNotIn("network_enforcement_mode", text, f"ecosystem={ecosystem}")
 
-    def test_only_the_two_authorized_cases_exist(self):
+    def test_only_the_three_authorized_cases_exist(self):
         self.assertEqual(
             set(gsp.NETWORK_ENFORCEMENT_AUTHORIZED_CASES),
-            {"repo-moshi", "repo-kubeops-generator"},
+            {"repo-moshi", "repo-kubeops-generator", "repo-helm-values"},
         )
 
-    def test_both_authorized_cases_grant_read_access_to_probe_script_directories(self):
+    def test_all_authorized_cases_grant_read_access_to_probe_script_directories(self):
         # Real evidence (CI run #14): the network-enforcement probes
         # (canary/tools/network_probe.py, d1-identity-lock/tools/
         # loopback_bind_probe.py) run through the SAME policy as the real
@@ -311,8 +311,14 @@ class TestNetworkEnforcementModeIsCaseIdScoped(unittest.TestCase):
         # checkout's own tools directories -- confined python3 failed with
         # "can't open file '.../network_probe.py': [Errno 13] Permission
         # denied" (exit code 2, Python's own convention for a script it
-        # can't open -- not Sandboy's).
-        for ecosystem, case_id in (("jvm-gradle", "repo-moshi"), ("dotnet", "repo-kubeops-generator")):
+        # can't open -- not Sandboy's). repo-helm-values (Stage 2) shares
+        # repo-moshi's jvm-gradle ecosystem and the same daemon-bind
+        # requirement.
+        for ecosystem, case_id in (
+            ("jvm-gradle", "repo-moshi"),
+            ("dotnet", "repo-kubeops-generator"),
+            ("jvm-gradle", "repo-helm-values"),
+        ):
             text = self._build(ecosystem=ecosystem, case_id=case_id)
             fs_ro_line = next(line for line in text.splitlines() if line.startswith("fs_ro"))
             self.assertIn(str(gsp.CANARY_TOOLS_DIR), fs_ro_line)

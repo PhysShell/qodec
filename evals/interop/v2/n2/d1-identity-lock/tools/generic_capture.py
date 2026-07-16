@@ -37,6 +37,7 @@ for p in (CANARY_TOOLS, MINER_TOOLS, CORPUS_TOOLS, TOOLS_DIR):
 import capture_build  # noqa: E402
 import content_acceptance  # noqa: E402
 import generic_sandbox_policy as gsp  # noqa: E402
+import gradle_canonicalizer_helm_values_v1  # noqa: E402
 import gradle_canonicalizer_v2  # noqa: E402
 import maven_canonicalizer  # noqa: E402
 import network_enforcement_probe  # noqa: E402
@@ -57,6 +58,16 @@ VSTEST_CANONICALIZATION_POLICY_PATH = TOOLS_DIR.parent / "vstest-capture-canonic
 # authorization -- it is simply no longer imported or dispatched by any
 # active capture/verification path. Do not silently re-add it here.
 GRADLE_CANONICALIZATION_POLICY_V2_PATH = TOOLS_DIR.parent / "gradle-capture-canonicalization-policy-v2.json"
+# N2-D1b Stage 2 (2026-07-16): repo-helm-values (the deterministically
+# selected jvm-gradle replacement for the permanently-rejected repo-spotless
+# -- see stage2-replacement-selection-v1.json) runs Gradle 9.5.0, confirmed
+# byte-for-byte identical in its TimeFormatting.java to repo-moshi's
+# authorized 9.5.1. Per this task's explicit requirement, this is its OWN,
+# wholly separate policy/module/approval identity -- never a broadening of
+# repo-moshi's v2 profile, even though the underlying grammar is the same.
+GRADLE_CANONICALIZATION_POLICY_HELM_VALUES_V1_PATH = (
+    TOOLS_DIR.parent / "gradle-capture-canonicalization-policy-helm-values-v1.json"
+)
 
 # D1b decision (2026-07-16): for the case_id(s) each policy below names, the
 # canonical benchmark input is a deterministic derivation of the raw,
@@ -76,10 +87,14 @@ GRADLE_CANONICALIZATION_POLICY_V2_PATH = TOOLS_DIR.parent / "gradle-capture-cano
 _CANONICALIZATION_POLICY = maven_canonicalizer.load_and_verify_policy(CANONICALIZATION_POLICY_PATH)
 _VSTEST_CANONICALIZATION_POLICY = vstest_canonicalizer.load_and_verify_policy(VSTEST_CANONICALIZATION_POLICY_PATH)
 _GRADLE_CANONICALIZATION_POLICY_V2 = gradle_canonicalizer_v2.load_and_verify_policy(GRADLE_CANONICALIZATION_POLICY_V2_PATH)
+_GRADLE_CANONICALIZATION_POLICY_HELM_VALUES_V1 = gradle_canonicalizer_helm_values_v1.load_and_verify_policy(
+    GRADLE_CANONICALIZATION_POLICY_HELM_VALUES_V1_PATH
+)
 _CANONICALIZATION_PROFILES = [
     (_CANONICALIZATION_POLICY, maven_canonicalizer),
     (_VSTEST_CANONICALIZATION_POLICY, vstest_canonicalizer),
     (_GRADLE_CANONICALIZATION_POLICY_V2, gradle_canonicalizer_v2),
+    (_GRADLE_CANONICALIZATION_POLICY_HELM_VALUES_V1, gradle_canonicalizer_helm_values_v1),
 ]
 _all_canonicalized_case_ids = [
     cid for policy, _module in _CANONICALIZATION_PROFILES for cid in policy["applicable_case_ids"]
@@ -404,12 +419,13 @@ def run_one_capture(*, case_id: str, ecosystem: str, job_name: str,
             "executed_venv_interpreter_sha256": toolchain_identity_raw.get("executed_venv_interpreter_sha256"),
             "setup_python_action_commit": toolchain_identity_raw.get("setup_python_action_commit"),
         },
-        # D1b authorization (2026-07-16, repo-moshi only): a deterministic
-        # Gradle scheduling profile (org.gradle.parallel=false,
-        # org.gradle.workers.max=1, plain non-interactive console) forces
-        # single-threaded, deterministic task-log ordering -- present
-        # (non-None) only for the case_id(s) run_pilot_case.py authorizes
-        # this for, never inferred or reconstructed here.
+        # D1b authorization (2026-07-16, repo-moshi; extended 2026-07-16 to
+        # repo-helm-values): a deterministic Gradle scheduling profile
+        # (org.gradle.parallel=false, org.gradle.workers.max=1, plain
+        # non-interactive console) forces single-threaded, deterministic
+        # task-log ordering -- present (non-None) only for the case_id(s)
+        # run_pilot_case.py's DETERMINISTIC_GRADLE_SCHEDULING_CASE_IDS
+        # authorizes this for, never inferred or reconstructed here.
         "gradle_scheduling_profile": (
             {
                 "profile_sha256": toolchain_identity_raw["gradle_scheduling_profile_sha256"],

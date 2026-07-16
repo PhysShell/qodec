@@ -327,20 +327,30 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        # Scoped back down to the original 5 pilot cases only, per the
-        # required re-run discipline after the Stage 1/2 revocation -- see
-        # the REVOKED note above. Re-expand to the full 9-case set (the
-        # commented-out entries below) only after this 5-case run passes
-        # real content-level acceptance, inspected at the byte level.
+        # Stage 2: the full nine-case repository-miner matrix. The original
+        # 5-case pilot passed real content-level acceptance (Stage 1,
+        # reaccepted on the migrated repository under Gradle duration
+        # canonicalization policy v2 -- see stage1-current-head-
+        # reacceptance-v2.json). These 4 additions restore the 3 cases
+        # deferred at the Stage 1/2 revocation (repo-rustlings,
+        # repo-dockerfile-parser-rs, repo-requests -- all already had full
+        # tool support wired below and in run_pilot_case.py/content_
+        # acceptance.py from that earlier era, simply unreachable while the
+        # matrix was narrowed) plus repo-helm-values, the deterministically
+        # selected jvm-gradle repository-miner replacement for the
+        # permanently-rejected repo-spotless (see stage2-replacement-
+        # selection-v1.json) -- never repo-moshi's slot, never a hand-picked
+        # substitute.
         case:
           - { case_id: repo-hyperfine, ecosystem: rust }
           - { case_id: repo-docker-java-parser, ecosystem: jvm-maven }
           - { case_id: repo-kubeops-generator, ecosystem: dotnet }
           - { case_id: repo-pyflakes, ecosystem: python }
           - { case_id: repo-moshi, ecosystem: jvm-gradle }
-          # - { case_id: repo-rustlings, ecosystem: rust }
-          # - { case_id: repo-dockerfile-parser-rs, ecosystem: rust }
-          # - { case_id: repo-requests, ecosystem: python }
+          - { case_id: repo-rustlings, ecosystem: rust }
+          - { case_id: repo-dockerfile-parser-rs, ecosystem: rust }
+          - { case_id: repo-requests, ecosystem: python }
+          - { case_id: repo-helm-values, ecosystem: jvm-gradle }
         job: [capture-a, capture-b]
     runs-on: ubuntu-24.04
     steps:
@@ -550,6 +560,41 @@ jobs:
           EOF
           ./gradlew --no-daemon test || true
 
+      - name: Trusted setup — prime repo-helm-values plugin/dependency resolution (repo-helm-values only)
+        if: matrix.case.case_id == 'repo-helm-values'
+        working-directory: ${{ runner.temp }}/source-artifact/${{ matrix.case.case_id }}/source
+        env:
+          JAVA_HOME: /usr/lib/jvm/java-21-openjdk-amd64
+        run: |
+          # Stage 2 authorization: repo-helm-values's :helm-values-shared:test
+          # task needs Kotlin JVM compilation, Dokka, maven-publish, and GPG
+          # signing plugins (all applied at the root build.gradle.kts, "apply
+          # false" there but resolved for the whole multi-module build) plus
+          # its own module's runtime dependencies (httpclient5, commons-
+          # compress, jackson, json-patch) -- none of which the confined,
+          # loopback-only network policy can reach. Same class of gap as
+          # repo-moshi's plugin-resolution finding above and repo-spotless's
+          # own since-revoked priming step: prime GRADLE_USER_HOME's cache by
+          # running the real frozen task once here, network allowed,
+          # --no-daemon; its own output is discarded, and the confined
+          # capture below always re-extracts a pristine source.tar into its
+          # own separate work_dir/source, so this priming run is not itself
+          # the captured execution.
+          #
+          # The SAME deterministic scheduling profile the confined capture
+          # uses (below, via run_pilot_case.py) is written here too, so any
+          # GRADLE_USER_HOME cache state this priming run populates was
+          # itself produced under the identical serial-scheduling regime.
+          mkdir -p "$HOME/.gradle"
+          cat > "$HOME/.gradle/gradle.properties" <<'EOF'
+          org.gradle.daemon=false
+          org.gradle.parallel=false
+          org.gradle.workers.max=1
+          org.gradle.console=plain
+          org.gradle.console.interactive=false
+          EOF
+          ./gradlew --no-daemon :helm-values-shared:test || true
+
       - name: Run the D1b generic capture (${{ matrix.job }})
         run: |
           # Fixed-visible-path discipline (D1b decision, 2026-07-15): the
@@ -616,6 +661,10 @@ jobs:
           - repo-kubeops-generator
           - repo-pyflakes
           - repo-moshi
+          - repo-rustlings
+          - repo-dockerfile-parser-rs
+          - repo-requests
+          - repo-helm-values
     runs-on: ubuntu-24.04
     steps:
       - name: Checkout 007

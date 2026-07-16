@@ -190,6 +190,24 @@ CASES = {
         "requested_version_or_range": "9.5.1",
         "resolver_mechanism": "gradle wrapper (gradlew) self-managed distribution fetch, JDK 21",
     },
+    "repo-helm-values": {
+        "ecosystem": "jvm-gradle",
+        # Frozen exactly as evals/interop/v2/n2/source-freeze/source-manifests/
+        # alternate/repo-helm-values.json's execution_expectation.argv --
+        # this is the deterministically selected jvm-gradle repository-miner
+        # replacement for the permanently-rejected repo-spotless (see
+        # stage2-replacement-selection-v1.json). A scoped single-module
+        # test task, not the multi-module `test` moshi runs.
+        "frozen_argv": ["./gradlew", ":helm-values-shared:test"],
+        "canonical_stream": "stdout",
+        "canonical_stream_rationale": "Gradle's console output (per-module test task execution and JUnit summary) writes to stdout by documented convention -- same as repo-moshi.",
+        "project_writable_dirs_relative": [
+            "build", ".gradle", ".kotlin",
+            "helm-values-shared/build",
+        ],
+        "requested_version_or_range": "9.5.0",
+        "resolver_mechanism": "gradle wrapper (gradlew) self-managed distribution fetch, JDK 21",
+    },
 }
 
 
@@ -297,21 +315,25 @@ def build_toolchain_fn_and_env(ecosystem: str, args) -> tuple:
         # plain, non-interactive console renderer so task lines print in
         # one deterministic order, rather than building a broad
         # post-capture task-log reordering/multiset comparison. Scoped to
-        # repo-moshi ONLY (case_id-checked, never ecosystem-wide); frozen
-        # "./gradlew test" argv is unchanged.
+        # this exact case_id allowlist ONLY (case_id-checked, never
+        # ecosystem-wide) -- repo-moshi's original authorization, and
+        # repo-helm-values's separate Stage 2 authorization (same class of
+        # scheduling nondeterminism, independently authorized per case, not
+        # inherited); frozen argv for both is unchanged.
+        DETERMINISTIC_GRADLE_SCHEDULING_CASE_IDS = ("repo-moshi", "repo-helm-values")
         gradle_scheduling_profile_sha256 = None
         gradle_properties_text = "org.gradle.daemon=false\n"
-        if args.case_id == "repo-moshi":
+        if args.case_id in DETERMINISTIC_GRADLE_SCHEDULING_CASE_IDS:
             frozen_argv_for_case = CASES[args.case_id]["frozen_argv"]
             if any("--parallel" in tok or "--max-workers" in tok for tok in frozen_argv_for_case):
                 raise SystemExit(
-                    "repo-moshi: frozen argv contains a --parallel/--max-workers override that "
+                    f"{args.case_id}: frozen argv contains a --parallel/--max-workers override that "
                     "would conflict with the authorized deterministic scheduling profile"
                 )
             ambient_gradle_opts = os.environ.get("GRADLE_OPTS", "")
             if "org.gradle.parallel" in ambient_gradle_opts or "org.gradle.workers.max" in ambient_gradle_opts:
                 raise SystemExit(
-                    "repo-moshi: ambient GRADLE_OPTS conflicts with the authorized deterministic "
+                    f"{args.case_id}: ambient GRADLE_OPTS conflicts with the authorized deterministic "
                     f"scheduling profile: {ambient_gradle_opts!r}"
                 )
             gradle_properties_text = (

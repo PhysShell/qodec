@@ -926,5 +926,124 @@ class TestGradleCanonicalizationWiring(unittest.TestCase):
             self.assertIn(b"<ELAPSED>", canonical_bytes)
 
 
+class TestGradleHelmValuesCanonicalizationWiring(unittest.TestCase):
+    """repo-helm-values (N2-D1b Stage 2's deterministically selected
+    jvm-gradle replacement for the permanently-rejected repo-spotless --
+    see stage2-replacement-selection-v1.json) must dispatch to its OWN
+    canonicalizer module (gradle_canonicalizer_helm_values_v1.py /
+    gradle-capture-canonicalization-policy-helm-values-v1.json), never to
+    repo-moshi's v2 module, even though both are independently confirmed to
+    implement the identical closed Gradle duration grammar (Gradle 9.5.0 vs
+    9.5.1's byte-for-byte identical TimeFormatting.java)."""
+
+    def _make_source_artifact_dir(self, tmp_path):
+        import hashlib
+        import tarfile
+
+        source_artifact_dir = tmp_path / "source-artifact"
+        source_artifact_dir.mkdir(exist_ok=True)
+        tar_path = source_artifact_dir / "source.tar"
+        src_file = tmp_path / "hello.txt"
+        src_file.write_text("hello\n")
+        gradlew_file = tmp_path / "gradlew"
+        gradlew_file.write_text("#!/bin/sh\n")
+        with tarfile.open(tar_path, "w") as tar:
+            tar.add(src_file, arcname="hello.txt")
+            tar.add(gradlew_file, arcname="gradlew")
+        archive_sha256 = hashlib.sha256(tar_path.read_bytes()).hexdigest()
+        (source_artifact_dir / "acquisition-receipt.json").write_text(json.dumps({
+            "actual_head_sha": "deadbeef" * 5,
+            "normalized_archive_sha256": archive_sha256,
+            "license_sha256": "cafe" * 16,
+        }))
+        return source_artifact_dir
+
+    def _run(self, tmp_path, *, job_name: str, stdout: bytes, source_artifact_dir=None):
+        probe_report = {
+            "report_type": "n2d1b-network-enforcement-probe-v1",
+            "authorized_case_id": "repo-helm-values",
+            "network_enforcement_mode": "outer-netns-loopback-only",
+            "negative_external_connectivity_probe": {"exit_code": 0},
+            "positive_loopback_bind_connect_probe": {"exit_code": 0},
+            "external_connectivity_confirmed_blocked": True,
+            "loopback_bind_connect_confirmed_allowed": True,
+            "enforcement_exception_verified": True,
+        }
+        if source_artifact_dir is None:
+            source_artifact_dir = self._make_source_artifact_dir(tmp_path)
+        work_dir = tmp_path / f"work-{job_name}"
+        out_dir = tmp_path / f"out-{job_name}"
+        fake_result = {"raw_stdout": stdout, "raw_stderr": b"", "exit_code": 0, "wall_time_s": 1.0, "peak_rss_kb": 1024}
+        with mock.patch.object(gc, "network_enforcement_probe") as fake_probe_module, \
+                mock.patch.object(gc.capture_build, "run_real_build", return_value=fake_result):
+            fake_probe_module.run_network_enforcement_checks.return_value = probe_report
+            receipt = gc.run_one_capture(
+                case_id="repo-helm-values", ecosystem="jvm-gradle", job_name=job_name,
+                source_artifact_dir=source_artifact_dir, work_dir=work_dir, out_dir=out_dir,
+                frozen_argv=["./gradlew", ":helm-values-shared:test"], errata_path=REAL_ERRATA_PATH,
+                sandboy_bin=Path("/nonexistent/sandboy"), sandboy_commit_sha="e" * 40,
+                toolchain_capture_fn=lambda source_root: {
+                    "resolved_version": "9.5.0", "runtime_identifier": "21",
+                    "gradle_binary_path": "/usr/bin/true", "gradle_binary_sha256": "a" * 64,
+                },
+                toolchain_env_values={"JAVA_HOME": "/usr/lib/jvm/java-21"},
+                canonical_stream="stdout", primary_stream_rationale="test",
+                project_writable_dirs_relative=[],
+                requested_version_or_range="9.5.0", resolver_mechanism="test",
+            )
+        return receipt, out_dir
+
+    def test_canonical_benchmark_input_is_the_gradle_canonicalized_stream(self):
+        import tempfile
+
+        with tempfile.TemporaryDirectory() as tmp:
+            tmp_path = Path(tmp)
+            stdout = b"BUILD SUCCESSFUL in 1h 59s\n12 actionable tasks: 12 executed\n"
+            receipt, out_dir = self._run(tmp_path, job_name="capture-a", stdout=stdout)
+            self.assertEqual(receipt["canonical_input_derivation"], "case-specific-deterministic-canonicalization")
+            self.assertIsNotNone(receipt["canonicalization_policy_sha256"])
+            canonical_bytes = (out_dir / "canonical-raw-input.bin").read_bytes()
+            self.assertNotIn(b"1h 59s", canonical_bytes)
+            self.assertIn(b"<ELAPSED>", canonical_bytes)
+            self.assertEqual((out_dir / "raw.stdout").read_bytes(), stdout)
+
+    def test_capture_a_and_capture_b_canonicalize_to_identical_bytes(self):
+        import tempfile
+
+        with tempfile.TemporaryDirectory() as tmp:
+            tmp_path = Path(tmp)
+            stdout_a = b"BUILD SUCCESSFUL in 1m 50s\n12 actionable tasks: 12 executed\n"
+            stdout_b = b"BUILD SUCCESSFUL in 1m 11s\n12 actionable tasks: 12 executed\n"
+            self.assertNotEqual(stdout_a, stdout_b)
+            shared_source = self._make_source_artifact_dir(tmp_path)
+            _, out_dir_a = self._run(tmp_path, job_name="capture-a", stdout=stdout_a, source_artifact_dir=shared_source)
+            _, out_dir_b = self._run(tmp_path, job_name="capture-b", stdout=stdout_b, source_artifact_dir=shared_source)
+            canonical_a = (out_dir_a / "canonical-raw-input.bin").read_bytes()
+            canonical_b = (out_dir_b / "canonical-raw-input.bin").read_bytes()
+            self.assertEqual(canonical_a, canonical_b)
+
+    def test_uses_helm_values_module_not_moshi_maven_or_vstest_module(self):
+        module = gc.CANONICALIZATION_MODULE_BY_CASE_ID["repo-helm-values"]
+        self.assertIs(module, gc.gradle_canonicalizer_helm_values_v1)
+        self.assertIsNot(module, gc.gradle_canonicalizer_v2)
+        self.assertIsNot(module, gc.maven_canonicalizer)
+        self.assertIsNot(module, gc.vstest_canonicalizer)
+
+    def test_repo_moshi_and_repo_helm_values_never_share_a_module_or_policy(self):
+        # Even though the underlying Gradle duration grammar is confirmed
+        # byte-for-byte identical between the two cases' pinned Gradle
+        # versions, the two case_ids must never resolve to the same module
+        # object or the same policy_sha256 -- each is its own separately
+        # authorized identity.
+        self.assertIsNot(
+            gc.CANONICALIZATION_MODULE_BY_CASE_ID["repo-helm-values"],
+            gc.CANONICALIZATION_MODULE_BY_CASE_ID["repo-moshi"],
+        )
+        self.assertNotEqual(
+            gc.CANONICALIZATION_POLICY_SHA256_BY_CASE_ID["repo-helm-values"],
+            gc.CANONICALIZATION_POLICY_SHA256_BY_CASE_ID["repo-moshi"],
+        )
+
+
 if __name__ == "__main__":
     unittest.main()

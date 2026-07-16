@@ -130,6 +130,7 @@ CASE_SEMANTIC_VALIDATORS = {
     "repo-requests": _pytest_semantic_marker,
     "repo-spotless": _gradle_semantic_marker,
     "repo-moshi": _gradle_semantic_marker,
+    "repo-helm-values": _gradle_semantic_marker,
     "repo-pyflakes": _pyflakes_semantic_marker,
 }
 
