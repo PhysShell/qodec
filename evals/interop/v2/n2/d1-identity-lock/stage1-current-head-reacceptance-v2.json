@@ -6,8 +6,13 @@
     "repo-pyflakes",
     "repo-moshi"
   ],
+  "all_artifacts_content_inspected": true,
+  "all_capture_jobs_success": true,
+  "all_cases_content_accepted": true,
   "all_job_conclusions_success": true,
   "all_pair_verify_job_conclusions_success": true,
+  "all_pair_verify_jobs_success": true,
+  "all_pairs_canonically_equal": true,
   "artifact_count": 10,
   "artifacts": [
     {
@@ -61,6 +66,8 @@
       "name": "n2d1b-pilot-repo-pyflakes-capture-b"
     }
   ],
+  "base_main_sha": "4e5691076ca400d27a45044de78f2a95bf46d70b",
+  "capture_job_count": 10,
   "direct_workflow_dispatch_availability": "unavailable to this session -- the GitHub integration returned 403 Resource not accessible by integration on every workflow_dispatch attempt (both filename and numeric workflow-id forms); confirmed via list_workflow_runs that no workflow_dispatch event had ever fired on this repository. The repository owner explicitly authorized the disposable-trigger-branch procedure below as the substitute execution path, with the canonical implementation branch and Commit A left untouched throughout.",
   "execution_event": "push",
   "execution_trigger_branch": "ci-trigger/n2d1b-stage1-eaafc178",
@@ -269,10 +276,14 @@
     "repo": "PhysShell/qodec",
     "state_at_acceptance": "not yet opened -- per the two-commit protocol, this evidence record is finalized in Commit B before the pull request is opened; the PR will contain Commit A and Commit B only, not the trigger commit"
   },
-  "record_sha256": "dee7e702cc143343359b3c134e2eabf7e8787bdcfa57c146f6d0d5a661cd8ecd",
+  "record_sha256": "sha256:768e5e01ad619dd068cb94a67d0c5de6b37362c154e3c809917b030665d22726",
   "record_type": "n2d1b-stage1-current-head-reacceptance-v2",
   "record_version": 1,
   "repository": "PhysShell/qodec",
+  "schema_version": 1,
+  "stage1_status": "accepted_on_current_standalone_repository_lineage",
+  "stage2_authorized_next": true,
+  "stage2_executed": false,
   "status": "STAGE_1_REACCEPTED_COMPLETE",
   "superseded_record": {
     "file": "stage1-pilot-evidence.json",
@@ -282,7 +293,10 @@
     "workflow_run_id": 29474805883
   },
   "tested_head_sha": "eaafc1780a01117029833585c5c58b2ac8962b93",
+  "tested_implementation_sha": "eaafc1780a01117029833585c5c58b2ac8962b93",
+  "token_counts_computed": false,
   "trigger_commit_included_in_pull_request": false,
+  "unexplained_raw_differences": [],
   "workflow": {
     "conclusion": "success",
     "event": "push",
@@ -292,5 +306,7 @@
     "run_html_url": "https://github.com/PhysShell/qodec/actions/runs/29510992023",
     "run_id": 29510992023,
     "run_number": 1
-  }
+  },
+  "workflow_file": ".github/workflows/qodec-n2d1b-miner-pilot.yml",
+  "workflow_run_id": 29510992023
 }

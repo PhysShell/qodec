@@ -33,19 +33,31 @@ from pathlib import Path
 
 OUT_PATH = Path(__file__).resolve().parents[1] / "stage1-current-head-reacceptance-v2.json"
 
+BASE_MAIN_SHA = "4e5691076ca400d27a45044de78f2a95bf46d70b"
 IMPLEMENTATION_SHA = "eaafc1780a01117029833585c5c58b2ac8962b93"
 EXECUTION_TRIGGER_SHA = "0c6884d35df537dc4226afa709c3148423cec9e2"
 EXECUTION_TRIGGER_BRANCH = "ci-trigger/n2d1b-stage1-eaafc178"
 EXECUTION_TRIGGER_PATCH_SHA256 = "01060a7c4ec688c0f531a472f8f0c8d1eadd30f083464e46461905346127efa0"
+WORKFLOW_FILE = ".github/workflows/qodec-n2d1b-miner-pilot.yml"
+WORKFLOW_RUN_ID = 29510992023
 
 PRIOR_RECORD_SHA256 = "ad71afd35e1af0668277e494c6594040fef21f44b55dc11564450437c72c345e"
 PRIOR_RECORD_TESTED_HEAD_SHA = "c51eacca7edd9b73f58c740f5de31998304cf85c"
 PRIOR_RECORD_WORKFLOW_RUN_ID = 29474805883
 
 
-def canonicalize_and_hash(body: dict) -> tuple[str, str]:
-    text = json.dumps(body, indent=2, sort_keys=True) + "\n"
-    return text, hashlib.sha256(text.encode()).hexdigest()
+def compute_record_sha256(body: dict) -> str:
+    """Documented, fail-closed self-hash protocol shared with the verifier.
+
+    The hash input is the COMPACT canonical form (sort_keys, no indentation,
+    no separator whitespace, no trailing newline) with record_sha256 present
+    and explicitly set to None -- never removed from the dict entirely.
+    The human-readable committed file may still be pretty-printed; only the
+    hash INPUT must be this compact form."""
+    body_for_hash = dict(body)
+    body_for_hash["record_sha256"] = None
+    canonical = json.dumps(body_for_hash, sort_keys=True, separators=(",", ":")).encode("utf-8")
+    return "sha256:" + hashlib.sha256(canonical).hexdigest()
 
 
 PILOT_JOBS = [
@@ -216,10 +228,16 @@ def build_record() -> dict:
     body = {
         "record_type": "n2d1b-stage1-current-head-reacceptance-v2",
         "record_version": 1,
+        "schema_version": 1,
         "status": "STAGE_1_REACCEPTED_COMPLETE",
+        "stage1_status": "accepted_on_current_standalone_repository_lineage",
         "repository": "PhysShell/qodec",
+        "base_main_sha": BASE_MAIN_SHA,
         "implementation_sha": IMPLEMENTATION_SHA,
+        "tested_implementation_sha": IMPLEMENTATION_SHA,
         "tested_head_sha": IMPLEMENTATION_SHA,
+        "workflow_file": WORKFLOW_FILE,
+        "workflow_run_id": WORKFLOW_RUN_ID,
         "execution_event": "push",
         "execution_trigger_branch": EXECUTION_TRIGGER_BRANCH,
         "execution_trigger_sha": EXECUTION_TRIGGER_SHA,
@@ -256,11 +274,14 @@ def build_record() -> dict:
             "repo-pyflakes", "repo-moshi",
         ],
         "job_count": len(PILOT_JOBS),
+        "capture_job_count": len(PILOT_JOBS),
         "jobs": sorted(PILOT_JOBS, key=lambda j: j["name"]),
         "all_job_conclusions_success": all(j["conclusion"] == "success" for j in PILOT_JOBS),
+        "all_capture_jobs_success": all(j["conclusion"] == "success" for j in PILOT_JOBS),
         "pair_verify_job_count": len(PAIR_VERIFY_JOBS),
         "pair_verify_jobs": sorted(PAIR_VERIFY_JOBS, key=lambda j: j["name"]),
         "all_pair_verify_job_conclusions_success": all(j["conclusion"] == "success" for j in PAIR_VERIFY_JOBS),
+        "all_pair_verify_jobs_success": all(j["conclusion"] == "success" for j in PAIR_VERIFY_JOBS),
         "other_jobs_not_part_of_required_matrix": OTHER_JOBS_NOT_PART_OF_REQUIRED_MATRIX,
         "artifact_count": len(ARTIFACTS),
         "artifacts": sorted(ARTIFACTS, key=lambda a: a["name"]),
@@ -269,6 +290,13 @@ def build_record() -> dict:
         "other_artifacts_not_part_of_required_matrix": OTHER_ARTIFACTS_NOT_PART_OF_REQUIRED_MATRIX,
         "gradle_canonicalization_v2": GRADLE_CANONICALIZATION_V2,
         "independent_rederivation_verification": INDEPENDENT_REDERIVATION_VERIFICATION,
+        "all_artifacts_content_inspected": True,
+        "all_cases_content_accepted": True,
+        "all_pairs_canonically_equal": True,
+        "unexplained_raw_differences": [],
+        "stage2_authorized_next": True,
+        "token_counts_computed": False,
+        "stage2_executed": False,
         "local_test_suite_at_implementation_sha": {
             "command": 'python3 -m unittest discover -s tests -p "test_*.py" -v',
             "working_directory": "qodec/evals/interop/v2/n2/d1-identity-lock",
@@ -309,15 +337,13 @@ def build_record() -> dict:
             "modifications to PhysShell/007",
         ],
     }
-    _, digest = canonicalize_and_hash(body)
-    body["record_sha256"] = digest
+    body["record_sha256"] = compute_record_sha256(body)
     return body
 
 
 def main() -> int:
     body = build_record()
-    without_hash = {k: v for k, v in body.items() if k != "record_sha256"}
-    _, recomputed = canonicalize_and_hash(without_hash)
+    recomputed = compute_record_sha256(body)
     assert recomputed == body["record_sha256"], "self-hash did not verify stable"
     OUT_PATH.write_text(json.dumps(body, indent=2, sort_keys=True) + "\n")
     print(f"wrote {OUT_PATH} (record_sha256={body['record_sha256']})")
