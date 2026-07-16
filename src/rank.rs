@@ -42,13 +42,13 @@ pub fn features(phrase: &str, count: usize) -> [f64; DIM] {
     let digits = phrase.chars().filter(char::is_ascii_digit).count() as f64;
     let upper = phrase.chars().filter(|c| c.is_uppercase()).count() as f64;
     [
-        1.0,                       // bias
-        len.ln(),                  // size
-        ((count.max(1)) as f64).ln(), // repetition
-        words,                     // span width in words
-        seps / chars,              // path/namespace density
-        digits / chars,            // numeric fraction (volatile content)
-        upper / chars,             // identifier casing
+        1.0,                                                // bias
+        len.ln(),                                           // size
+        ((count.max(1)) as f64).ln(),                       // repetition
+        words,                                              // span width in words
+        seps / chars,                                       // path/namespace density
+        digits / chars,                                     // numeric fraction (volatile content)
+        upper / chars,                                      // identifier casing
         f64::from(phrase.ends_with(['/', '\\', '.', ':'])), // segment prefix
     ]
 }
@@ -169,8 +169,8 @@ impl Stats {
         for col in (0..DIM).rev() {
             let mut acc = b.get(col).copied().unwrap_or(0.0);
             for k in (col + 1)..DIM {
-                acc -= a.get(col * DIM + k).copied().unwrap_or(0.0)
-                    * w.get(k).copied().unwrap_or(0.0);
+                acc -=
+                    a.get(col * DIM + k).copied().unwrap_or(0.0) * w.get(k).copied().unwrap_or(0.0);
             }
             let diag = a.get(col * DIM + col).copied().unwrap_or(1.0);
             if let Some(slot) = w.get_mut(col) {

@@ -29,9 +29,15 @@ fn legend_generates_parses_and_pins_bytes() -> Result<()> {
     profile.learn_from(&corpus_text("alpha"));
     let text = generate(&profile, &meter, 32)?;
     let legend = ExternLegend::parse(&text)?;
-    anyhow::ensure!(!legend.entries.is_empty(), "must freeze at least one phrase");
+    anyhow::ensure!(
+        !legend.entries.is_empty(),
+        "must freeze at least one phrase"
+    );
     let again = ExternLegend::parse(&text)?;
-    anyhow::ensure!(legend.sum == again.sum, "checksum must be a pure function of bytes");
+    anyhow::ensure!(
+        legend.sum == again.sum,
+        "checksum must be a pure function of bytes"
+    );
     Ok(())
 }
 
@@ -56,12 +62,18 @@ fn ext_roundtrip_is_exact_and_fails_closed() -> Result<()> {
 
     // The happy path: exact bytes back with the exact legend.
     let back = decode_with_extern(&artifact, Some(&legend))?;
-    anyhow::ensure!(back == payload, "roundtrip with the right legend is byte-exact");
+    anyhow::ensure!(
+        back == payload,
+        "roundtrip with the right legend is byte-exact"
+    );
 
     // No legend: refuse loudly, never guess.
     let plain = decode(&artifact);
     anyhow::ensure!(
-        plain.as_ref().err().is_some_and(|e| format!("{e:#}").contains("extern legend")),
+        plain
+            .as_ref()
+            .err()
+            .is_some_and(|e| format!("{e:#}").contains("extern legend")),
         "plain decode must name the missing legend: {plain:?}"
     );
 
@@ -69,7 +81,10 @@ fn ext_roundtrip_is_exact_and_fails_closed() -> Result<()> {
     let drifted = ExternLegend::parse(&format!("{legend_text}# drift\n"))?;
     let wrong = decode_with_extern(&artifact, Some(&drifted));
     anyhow::ensure!(
-        wrong.as_ref().err().is_some_and(|e| format!("{e:#}").contains("mismatch")),
+        wrong
+            .as_ref()
+            .err()
+            .is_some_and(|e| format!("{e:#}").contains("mismatch")),
         "checksum drift must refuse: {wrong:?}"
     );
     Ok(())

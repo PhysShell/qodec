@@ -736,8 +736,8 @@ fn cmd_rules_verify(a: &RulesVerifyArgs) -> Result<()> {
     if a.input.is_empty() {
         bail!("pass at least one -i file to verify against");
     }
-    let draft_text = fs::read_to_string(&a.draft)
-        .with_context(|| format!("reading {}", a.draft.display()))?;
+    let draft_text =
+        fs::read_to_string(&a.draft).with_context(|| format!("reading {}", a.draft.display()))?;
     let draft = qodec::rules::RulesKey::parse(&draft_text)?;
     let header = draft_text.lines().next().unwrap_or_default().to_string();
     let meter = by_name(&a.meter)?;
@@ -756,10 +756,14 @@ fn cmd_rules_verify(a: &RulesVerifyArgs) -> Result<()> {
     let mut out = String::new();
     out.push_str(&header);
     out.push('\n');
-    out.push_str("# survivors of `qodec rules verify` — byte-exact inversion on
-");
-    out.push_str("# every file they touched, strict measured token win overall.
-");
+    out.push_str(
+        "# survivors of `qodec rules verify` — byte-exact inversion on
+",
+    );
+    out.push_str(
+        "# every file they touched, strict measured token win overall.
+",
+    );
     let mut kept = 0usize;
     for (alias, parts) in &draft.entries {
         let mini = qodec::rules::RulesKey {
@@ -791,8 +795,7 @@ fn cmd_rules_verify(a: &RulesVerifyArgs) -> Result<()> {
                 failure = Some(format!("inversion mismatch on {}", path.display()));
                 break;
             }
-            total_gain +=
-                meter.count(content) as i64 - meter.count(&applied.text) as i64;
+            total_gain += meter.count(content) as i64 - meter.count(&applied.text) as i64;
             hit_files += 1;
         }
         let template = parts.join(&draft.slot.to_string());
@@ -805,13 +808,15 @@ fn cmd_rules_verify(a: &RulesVerifyArgs) -> Result<()> {
                 eprintln!("rule {alias}: rejected — no net token win ({total_gain:+})");
             }
             None => {
-                eprintln!(
-                    "rule {alias}: KEPT — {total_gain:+} tokens over {hit_files} file(s)"
-                );
-                out.push_str(&format!("# verified: {total_gain:+} tokens, {hit_files} file(s)
-"));
-                out.push_str(&format!("{alias}={template}
-"));
+                eprintln!("rule {alias}: KEPT — {total_gain:+} tokens over {hit_files} file(s)");
+                out.push_str(&format!(
+                    "# verified: {total_gain:+} tokens, {hit_files} file(s)
+"
+                ));
+                out.push_str(&format!(
+                    "{alias}={template}
+"
+                ));
                 kept += 1;
             }
         }
@@ -824,8 +829,8 @@ fn cmd_rules_verify(a: &RulesVerifyArgs) -> Result<()> {
     // invert byte-exactly on every file before the key is written
     // (Codex, PR #39 — nested-span capture is prevented in find_span,
     // and this refuses loudly should anything unforeseen slip through).
-    let survivors = qodec::rules::RulesKey::parse(&out)
-        .context("internal: survivor key must reparse")?;
+    let survivors =
+        qodec::rules::RulesKey::parse(&out).context("internal: survivor key must reparse")?;
     for (path, content) in &files {
         let Some(applied) = qodec::rules::apply(content, &survivors, meter.as_ref()) else {
             bail!("composed check: delimiters exhausted on {}", path.display());
@@ -853,7 +858,10 @@ fn cmd_rules_verify(a: &RulesVerifyArgs) -> Result<()> {
     match &a.output {
         Some(path) => {
             fs::write(path, &out).with_context(|| format!("writing {}", path.display()))?;
-            eprintln!("qodec rules verify: {kept} survivor(s) -> {}", path.display());
+            eprintln!(
+                "qodec rules verify: {kept} survivor(s) -> {}",
+                path.display()
+            );
         }
         None => print!("{out}"),
     }

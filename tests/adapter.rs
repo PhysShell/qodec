@@ -13,7 +13,9 @@ use qodec::{decode, encode, CodecKind};
 
 fn corpus(name: &str) -> Result<String> {
     Ok(std::fs::read_to_string(
-        Path::new(env!("CARGO_MANIFEST_DIR")).join("corpus").join(name),
+        Path::new(env!("CARGO_MANIFEST_DIR"))
+            .join("corpus")
+            .join(name),
     )?)
 }
 
@@ -61,7 +63,10 @@ fn json_content_decodes_value_equal() -> Result<()> {
     let back = decode(&out.content)?;
     let a: serde_json::Value = serde_json::from_str(&back)?;
     let b: serde_json::Value = serde_json::from_str(&text)?;
-    anyhow::ensure!(a == b, "adapter content must decode Value-equal to the input");
+    anyhow::ensure!(
+        a == b,
+        "adapter content must decode Value-equal to the input"
+    );
     Ok(())
 }
 

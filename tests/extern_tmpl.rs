@@ -42,19 +42,22 @@ fn template_legend_generates_parses_and_pins_bytes() -> Result<()> {
         "header must declare the slot by name: {text:?}"
     );
     let legend = TemplateLegend::parse(&text)?;
-    anyhow::ensure!(!legend.entries.is_empty(), "must freeze at least one template");
     anyhow::ensure!(
-        legend
-            .entries
-            .iter()
-            .any(|(_, parts)| parts
-                .first()
-                .is_some_and(|p| p == "worker thread pool delta task")),
+        !legend.entries.is_empty(),
+        "must freeze at least one template"
+    );
+    anyhow::ensure!(
+        legend.entries.iter().any(|(_, parts)| parts
+            .first()
+            .is_some_and(|p| p == "worker thread pool delta task")),
         "the learned template must survive the file roundtrip sub-word refined: {:?}",
         legend.entries,
     );
     let again = TemplateLegend::parse(&text)?;
-    anyhow::ensure!(legend.sum == again.sum, "checksum is a pure function of bytes");
+    anyhow::ensure!(
+        legend.sum == again.sum,
+        "checksum is a pure function of bytes"
+    );
     Ok(())
 }
 
@@ -89,7 +92,10 @@ fn extern_tmpl_roundtrips_beats_plain_and_fails_closed() -> Result<()> {
         ..Keys::default()
     };
     let back = decode_with_keys(&artifact, &keys)?;
-    anyhow::ensure!(back == payload, "roundtrip with the right key is byte-exact");
+    anyhow::ensure!(
+        back == payload,
+        "roundtrip with the right key is byte-exact"
+    );
 
     // No key: refuse loudly, never guess.
     let refused = decode(&artifact);
@@ -112,7 +118,10 @@ fn extern_tmpl_roundtrips_beats_plain_and_fails_closed() -> Result<()> {
         },
     );
     anyhow::ensure!(
-        wrong.as_ref().err().is_some_and(|e| format!("{e:#}").contains("mismatch")),
+        wrong
+            .as_ref()
+            .err()
+            .is_some_and(|e| format!("{e:#}").contains("mismatch")),
         "checksum drift must refuse: {wrong:?}"
     );
     Ok(())
@@ -139,10 +148,7 @@ fn colliding_alias_skips_the_entry_and_stays_plain_or_exact() -> Result<()> {
 
     // The payload naturally contains the first entry's alias glyph — that
     // entry must be skipped; whatever comes out still roundtrips exactly.
-    let payload = format!(
-        "{}nat {first_alias} ural\n",
-        family("delta", "task", 12)
-    );
+    let payload = format!("{}nat {first_alias} ural\n", family("delta", "task", 12));
     let artifact = encode_extern(&payload, &meter, &legend);
     if artifact.contains("ext=") {
         let used = artifact
@@ -251,7 +257,10 @@ fn extern_rows_survive_crlf() -> Result<()> {
         ..Keys::default()
     };
     let back = decode_with_keys(&artifact, &keys)?;
-    anyhow::ensure!(back == payload, "CRLF extern rows must roundtrip byte-exactly");
+    anyhow::ensure!(
+        back == payload,
+        "CRLF extern rows must roundtrip byte-exactly"
+    );
     Ok(())
 }
 

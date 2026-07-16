@@ -271,7 +271,10 @@ pub fn encode_seeded(
 pub fn squeeze_stage1(text: &str, meter: &dyn TokenMeter, templates: &[Vec<String>]) -> String {
     if serde_json::from_str::<serde_json::Value>(text).is_ok() {
         let tooned = toon::encode(text, meter);
-        if container::parse(&tooned).ok().is_none_or(|c| c.codec == "raw") {
+        if container::parse(&tooned)
+            .ok()
+            .is_none_or(|c| c.codec == "raw")
+        {
             best_text_stage(text, meter, templates)
         } else {
             tooned

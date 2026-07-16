@@ -328,8 +328,12 @@ fn alias_pool_picks_the_glyph_that_is_cheapest_in_context() -> Result<()> {
     let ctx = |g: &str| meter.count(&format!("  {g} omega0"));
 
     let mut head_pool = AliasPool::build(Alphabet::Glyph, &meter, "");
-    let (first, _) = head_pool.take().ok_or_else(|| anyhow::anyhow!("empty pool"))?;
-    let (second, _) = head_pool.take().ok_or_else(|| anyhow::anyhow!("one-entry pool"))?;
+    let (first, _) = head_pool
+        .take()
+        .ok_or_else(|| anyhow::anyhow!("empty pool"))?;
+    let (second, _) = head_pool
+        .take()
+        .ok_or_else(|| anyhow::anyhow!("one-entry pool"))?;
 
     let mut pool = AliasPool::build(Alphabet::Glyph, &meter, "");
     let (chosen, _) = pool

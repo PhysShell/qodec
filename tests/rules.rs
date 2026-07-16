@@ -40,15 +40,24 @@ fn container_raw_len_probe(text: &str) -> String {
 #[test]
 fn rules_key_parses_and_guards_its_boundaries() -> Result<()> {
     let key = RulesKey::parse(KEY_TEXT)?;
-    anyhow::ensure!(key.entries.len() == 1 && key.slot == '¿', "one entry, quest slot");
+    anyhow::ensure!(
+        key.entries.len() == 1 && key.slot == '¿',
+        "one entry, quest slot"
+    );
     let again = RulesKey::parse(KEY_TEXT)?;
     anyhow::ensure!(key.sum == again.sum, "checksum is a pure function of bytes");
 
     for (bad, why) in [
         ("# qodec rules v1 slot=quest\n码=¿ tail\n", "wildcard start"),
         ("# qodec rules v1 slot=quest\n码=head ¿\n", "wildcard end"),
-        ("# qodec rules v1 slot=quest\nmy alias=a ¿ b\n", "whitespace alias"),
-        ("# qodec rules v1 slot=quest\n码=a ¿ b\n码=c ¿ d\n", "duplicate alias"),
+        (
+            "# qodec rules v1 slot=quest\nmy alias=a ¿ b\n",
+            "whitespace alias",
+        ),
+        (
+            "# qodec rules v1 slot=quest\n码=a ¿ b\n码=c ¿ d\n",
+            "duplicate alias",
+        ),
         ("# qodec rules v1\n码=a ¿ b\n", "missing slot"),
     ] {
         anyhow::ensure!(RulesKey::parse(bad).is_err(), "{why} must refuse");
@@ -127,7 +136,10 @@ fn rules_artifact_beats_plain_and_fails_closed() -> Result<()> {
         },
     );
     anyhow::ensure!(
-        wrong.as_ref().err().is_some_and(|e| format!("{e:#}").contains("mismatch")),
+        wrong
+            .as_ref()
+            .err()
+            .is_some_and(|e| format!("{e:#}").contains("mismatch")),
         "checksum drift must refuse: {wrong:?}"
     );
     Ok(())
@@ -139,7 +151,10 @@ fn unpaying_or_unmatched_rules_add_no_wrapper() -> Result<()> {
     let key = RulesKey::parse(KEY_TEXT)?;
     let prose = "nothing here resembles the pattern at all\n".repeat(4);
     let applied = apply(&prose, &key, &meter).context("delimiters available")?;
-    anyhow::ensure!(applied.used.is_empty() && applied.text == prose, "no match, no rewrite");
+    anyhow::ensure!(
+        applied.used.is_empty() && applied.text == prose,
+        "no match, no rewrite"
+    );
     let inner = encode(&prose, CodecKind::Squeeze, &meter, Alphabet::Auto);
     let artifact = qodec::rules::wrap_if_used(inner.clone(), &key, &applied, &meter, &prose);
     anyhow::ensure!(artifact == inner, "no used rules -> no key demand");
@@ -155,7 +170,10 @@ fn alias_collision_and_crlf_stay_exact() -> Result<()> {
     // Payload contains the alias glyph — the rule must be skipped whole.
     let colliding = format!("{}natural 码 here\n", cross_shape(4));
     let applied = apply(&colliding, &key, &meter).context("delimiters available")?;
-    anyhow::ensure!(applied.used.is_empty(), "colliding alias must skip the rule");
+    anyhow::ensure!(
+        applied.used.is_empty(),
+        "colliding alias must skip the rule"
+    );
 
     // CRLF: spans sit inside CR-terminated lines untouched by rewriting.
     let crlf = cross_shape(6).replace('\n', "\r\n");
@@ -201,7 +219,10 @@ fn sequential_rules_never_capture_earlier_spans() -> Result<()> {
     );
     let (start, end, sep) = delimiters(&applied)?;
     let back = expand_spans(&applied.text, &key, start, end, sep, &applied.used.concat())?;
-    anyhow::ensure!(back == text, "composed application must invert byte-exactly");
+    anyhow::ensure!(
+        back == text,
+        "composed application must invert byte-exactly"
+    );
     Ok(())
 }
 

@@ -78,12 +78,18 @@ pub struct MineOptions {
 /// from surface form, with no knowledge of the task or gold answer. Purity of
 /// the factor matters more than compression ratio, so this over-guards rather
 /// than risk hiding an identifier inside a glyph.
+// Indexing here is proven safe by construction — the loop range is `1..chars.len()`
+// and the trailing check is guarded by an explicit `i + 1 < chars.len()` — so this
+// gets the same justified exception as `sam::repeated_substrings`.
+#[allow(clippy::indexing_slicing)]
 pub fn is_guarded_lexical(phrase: &str) -> bool {
-    if phrase.contains('`') || phrase.contains('»') || phrase.contains("::") || phrase.contains('/') {
+    if phrase.contains('`') || phrase.contains('»') || phrase.contains("::") || phrase.contains('/')
+    {
         return true; // backtick span, grep marker, `::` path, or any path separator
     }
-    const EXTS: [&str; 10] =
-        [".rs", ".cs", ".md", ".toml", ".json", ".lock", ".jinja", ".py", ".txt", ".yaml"];
+    const EXTS: [&str; 10] = [
+        ".rs", ".cs", ".md", ".toml", ".json", ".lock", ".jinja", ".py", ".txt", ".yaml",
+    ];
     if EXTS.iter().any(|e| phrase.contains(e)) {
         return true; // filename.extension token
     }
@@ -270,12 +276,9 @@ fn candidate_pool(text: &str, miner: MinerKind, want: usize) -> Vec<(String, usi
         // callers truncate to the real budget after merging.
         let half = want.div_ceil(2);
         let mut merged = word_candidates_counted(text, half);
-        for c in crate::sam::repeated_substrings(
-            text,
-            MIN_CANDIDATE_CHARS,
-            MAX_CANDIDATE_CHARS,
-            half,
-        ) {
+        for c in
+            crate::sam::repeated_substrings(text, MIN_CANDIDATE_CHARS, MAX_CANDIDATE_CHARS, half)
+        {
             if !merged.iter().any(|(t, _)| *t == c.text) {
                 merged.push((c.text, c.count));
             }

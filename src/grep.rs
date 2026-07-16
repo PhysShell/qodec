@@ -51,10 +51,7 @@ pub fn encode(text: &str, meter: &dyn TokenMeter) -> String {
     if text.is_empty() {
         return container::raw(text);
     }
-    let Some(&(mark_name, mark)) = MARKS
-        .iter()
-        .find(|(_, ch)| !text.contains(*ch))
-    else {
+    let Some(&(mark_name, mark)) = MARKS.iter().find(|(_, ch)| !text.contains(*ch)) else {
         return container::raw(text);
     };
 

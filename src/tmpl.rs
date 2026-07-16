@@ -19,7 +19,7 @@ use std::collections::HashMap;
 
 use anyhow::{bail, Context, Result};
 
-use crate::alias::{Alphabet, AliasPool};
+use crate::alias::{AliasPool, Alphabet};
 use crate::container::{self, Container};
 use crate::meter::TokenMeter;
 
@@ -27,8 +27,12 @@ use crate::meter::TokenMeter;
 const SEPS: &[(&str, char)] = &[("pipe", '|'), ("tab", '\t'), ("broke", '¦'), ("dot", '·')];
 /// Placeholder for a wildcard position inside a legend template. Shared
 /// with the extern template legend, which declares its own pick by name.
-pub(crate) const SLOTS: &[(&str, char)] =
-    &[("quest", '¿'), ("laquo", '«'), ("langle", '‹'), ("degree", '°')];
+pub(crate) const SLOTS: &[(&str, char)] = &[
+    ("quest", '¿'),
+    ("laquo", '«'),
+    ("langle", '‹'),
+    ("degree", '°'),
+];
 /// Same legend bound as the miners.
 const MAX_TEMPLATES: usize = 64;
 /// Fraction of word positions that must match to join a cluster.
@@ -240,7 +244,10 @@ fn choose_template(
         let (pre, suf) = common_affixes(&words);
         refined_slots.push((pos, pre, suf));
     }
-    if refined_slots.iter().all(|&(_, pre, suf)| pre == 0 && suf == 0) {
+    if refined_slots
+        .iter()
+        .all(|&(_, pre, suf)| pre == 0 && suf == 0)
+    {
         return (bare, bare_slots);
     }
     // Refined template: each wildcard becomes prefix + slot + suffix, the
@@ -479,10 +486,7 @@ fn usable_templates(templates: &[Vec<String>]) -> Vec<Vec<String>> {
     templates
         .iter()
         .filter(|parts| {
-            !parts.is_empty()
-                && parts
-                    .iter()
-                    .all(|p| !p.contains('\n') && !p.contains('\r'))
+            !parts.is_empty() && parts.iter().all(|p| !p.contains('\n') && !p.contains('\r'))
         })
         .take(MAX_TEMPLATES)
         .cloned()
@@ -555,8 +559,7 @@ fn encode_pass(text: &str, meter: &dyn TokenMeter, seeds: &[Vec<String>]) -> Str
     for members in groups.values_mut() {
         members.sort_unstable();
     }
-    let taken: std::collections::HashSet<usize> =
-        groups.values().flatten().copied().collect();
+    let taken: std::collections::HashSet<usize> = groups.values().flatten().copied().collect();
 
     let splits: Vec<Option<Split<'_>>> = raw_lines
         .iter()
@@ -588,7 +591,9 @@ fn encode_pass(text: &str, meter: &dyn TokenMeter, seeds: &[Vec<String>]) -> Str
         let Some((alias, _)) = pool.take() else { break };
         legend.push(format!("{alias}={}", parts.join(&slot.to_string())));
         for &line_idx in members {
-            let Some(claim) = claims.get(&line_idx) else { continue };
+            let Some(claim) = claims.get(&line_idx) else {
+                continue;
+            };
             let mut row = alias.clone();
             for value in &claim.values {
                 row.push(sep);
@@ -602,10 +607,8 @@ fn encode_pass(text: &str, meter: &dyn TokenMeter, seeds: &[Vec<String>]) -> Str
     }
 
     // Rank repeated clusters by saved fixed text, hand out cheap aliases.
-    let mut repeated: Vec<&Cluster<'_>> = clusters
-        .iter()
-        .filter(|c| c.members.len() >= 2)
-        .collect();
+    let mut repeated: Vec<&Cluster<'_>> =
+        clusters.iter().filter(|c| c.members.len() >= 2).collect();
     repeated.sort_by_key(|c| {
         let fixed: usize = c.segs.iter().flatten().map(|s| s.len()).sum();
         (
@@ -703,11 +706,7 @@ pub fn encode_extern(
         if text.contains(alias.as_str()) || alias.contains(sep) || alias.contains(slot) {
             continue;
         }
-        if parts.is_empty()
-            || parts
-                .iter()
-                .any(|p| p.contains('\n') || p.contains('\r'))
-        {
+        if parts.is_empty() || parts.iter().any(|p| p.contains('\n') || p.contains('\r')) {
             continue;
         }
         aliases.push(alias);
@@ -743,8 +742,7 @@ pub fn encode_extern(
     let mut group_ids: Vec<usize> = groups.keys().copied().collect();
     group_ids.sort_unstable();
     for template_idx in group_ids {
-        let (Some(members), Some(alias)) =
-            (groups.get(&template_idx), aliases.get(template_idx))
+        let (Some(members), Some(alias)) = (groups.get(&template_idx), aliases.get(template_idx))
         else {
             continue;
         };
@@ -752,7 +750,9 @@ pub fn encode_extern(
         let mut line_tokens = 0usize;
         let mut group_rows: Vec<(usize, String)> = Vec::new();
         for &line_idx in members {
-            let Some(claim) = claims.get(&line_idx) else { continue };
+            let Some(claim) = claims.get(&line_idx) else {
+                continue;
+            };
             let mut row = (*alias).to_string();
             for value in &claim.values {
                 row.push(sep);
@@ -794,10 +794,8 @@ pub fn encode_extern(
     let clusters = build_clusters(&splits);
 
     // Self-learned clusters commit inline exactly like the plain pass.
-    let mut repeated: Vec<&Cluster<'_>> = clusters
-        .iter()
-        .filter(|c| c.members.len() >= 2)
-        .collect();
+    let mut repeated: Vec<&Cluster<'_>> =
+        clusters.iter().filter(|c| c.members.len() >= 2).collect();
     repeated.sort_by_key(|c| {
         let fixed: usize = c.segs.iter().flatten().map(|s| s.len()).sum();
         (
@@ -935,7 +933,10 @@ pub fn decode(c: &Container, templates: Option<&crate::legend::TemplateLegend>) 
                 .split(sep)
                 .collect();
             if values.len() != want {
-                bail!("tmpl row has {} slots, template wants {want}: {line:?}", values.len());
+                bail!(
+                    "tmpl row has {} slots, template wants {want}: {line:?}",
+                    values.len()
+                );
             }
             values
         };

@@ -94,7 +94,8 @@ impl Profile {
                 .iter()
                 .map(|p| p.as_str().map(str::to_string))
                 .collect();
-            let parts = parts.with_context(|| format!("malformed template part in {}", path.display()))?;
+            let parts =
+                parts.with_context(|| format!("malformed template part in {}", path.display()))?;
             profile.templates.push((parts, count));
         }
         if let Some(stats) = root.get("ranker") {
@@ -162,8 +163,11 @@ impl Profile {
         self.phrases
             .sort_by(|a, b| weight_phrase(b).cmp(&weight_phrase(a)).then(a.0.cmp(&b.0)));
         self.phrases.truncate(MAX_PHRASES);
-        self.templates
-            .sort_by(|a, b| weight_template(b).cmp(&weight_template(a)).then(a.0.cmp(&b.0)));
+        self.templates.sort_by(|a, b| {
+            weight_template(b)
+                .cmp(&weight_template(a))
+                .then(a.0.cmp(&b.0))
+        });
         self.templates.truncate(MAX_TEMPLATES);
     }
 
@@ -207,7 +211,11 @@ impl Profile {
     /// may arrive unsorted, and the cap must still take the heaviest.
     pub fn seed_templates(&self, top: usize) -> Vec<Vec<String>> {
         let mut ranked: Vec<&(Vec<String>, u64)> = self.templates.iter().collect();
-        ranked.sort_by(|a, b| weight_template(b).cmp(&weight_template(a)).then(a.0.cmp(&b.0)));
+        ranked.sort_by(|a, b| {
+            weight_template(b)
+                .cmp(&weight_template(a))
+                .then(a.0.cmp(&b.0))
+        });
         ranked
             .into_iter()
             .take(top)
@@ -246,8 +254,7 @@ impl Profile {
 /// by the cap is dropped; invalid UTF-8 anywhere else is an error — the
 /// same skip semantics the uncapped read had.
 pub fn read_capped(path: &Path, cap: usize) -> Result<(String, bool)> {
-    let file =
-        std::fs::File::open(path).with_context(|| format!("opening {}", path.display()))?;
+    let file = std::fs::File::open(path).with_context(|| format!("opening {}", path.display()))?;
     let mut buf = Vec::new();
     // One extra byte so "exactly cap bytes" and "capped" are distinguishable.
     file.take(cap as u64 + 1)
