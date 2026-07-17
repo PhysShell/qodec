@@ -1,0 +1,214 @@
+{
+  "classification_vocabulary": [
+    "ACCEPTED_PRIMARY",
+    "ACCEPTED_RESERVE",
+    "REJECTED",
+    "DEFERRED"
+  ],
+  "generated_by": "evals/interop/v2/n2/e-rtk-native-corpus/tools/build_n2e_source_registry.py",
+  "mission": "N2-E",
+  "mission_title": "external RTK-native claim-aligned command corpus",
+  "purpose": "External source registry (\u00a72). Immutable identities are resolved live from publishers (HF revision, Zenodo record, OCI digest) so only real content-addressed values are committed; incomplete acquisitions are DEFERRED with typed reasons and never carry fabricated hashes.",
+  "record_sha256": "sha256:d163e5d31c49e99e6a8cb54abb4d0c91343af02c4c15c44fc74b1f4a1b853d40",
+  "record_type": "n2e-source-registry",
+  "record_version": "v1",
+  "resolution_mode": "live",
+  "schema_version": "n2e-record-1",
+  "source_count": 10,
+  "sources": [
+    {
+      "classification": "ACCEPTED_PRIMARY",
+      "identity": {
+        "dataset_id": "SWE-bench/SWE-bench_Multilingual",
+        "gated": false,
+        "immutable_revision": "2b7aced941b4873e9cad3e76abbae93f481d1beb",
+        "kind": "huggingface_dataset",
+        "last_modified": "2025-08-26T00:42:28.000Z",
+        "resolved_via": "huggingface_api",
+        "source_url": "https://huggingface.co/datasets/SWE-bench/SWE-bench_Multilingual"
+      },
+      "license_note": "per-instance upstream repository licenses; dataset card on HF.",
+      "oci_digest_example": {
+        "digest_verified": true,
+        "immutable_digest": "sha256:f3f63bb87d581c0e7b47f900dd82165b71040e1758d3c29e915e2b18da9baf63",
+        "kind": "oci_image",
+        "media_type": "application/vnd.docker.distribution.manifest.v2+json",
+        "platform": "linux/amd64",
+        "reference": "latest",
+        "repository": "swebench/sweb.eval.x86_64.astropy_1776_astropy-12907",
+        "resolved_via": "oci_registry_http_api"
+      },
+      "primary_for": [
+        "rust_cargo",
+        "go",
+        "js_ts",
+        "jvm"
+      ],
+      "source_id": "swe-bench-multilingual",
+      "spec_section": "2.2",
+      "typed_reason": "immutable HF revision resolved; reproducible per-instance Docker environments; native RTK ecosystems (Rust/Go/JS/TS/Java)."
+    },
+    {
+      "classification": "ACCEPTED_PRIMARY",
+      "identity": {
+        "concept_doi": "10.5281/zenodo.8275860",
+        "files": [
+          {
+            "checksum": "md5:0c52d166e5ee118b2d19d8a57cd2d0b4",
+            "key": "Apache.zip",
+            "size": 578629
+          },
+          {
+            "checksum": "md5:fef920579c366462ea7d341af8f533d8",
+            "key": "OpenSSH.zip",
+            "size": 8166947
+          },
+          {
+            "checksum": "md5:2e4b67dc68c3a4f1c18e267c341c52a2",
+            "key": "Proxifier.zip",
+            "size": 380635
+          },
+          {
+            "checksum": "md5:f23880dd4938379a535ab71a8d27a798",
+            "key": "HDFS.zip",
+            "size": 321944794
+          },
+          {
+            "checksum": "md5:a1a1db599519eb6b12b3368f37d274f7",
+            "key": "Linux.zip",
+            "size": 428410
+          },
+          {
+            "checksum": "md5:6b90126e1c78591454aef10ecc1da098",
+            "key": "HealthApp.zip",
+            "size": 3960708
+          },
+          {
+            "checksum": "md5:07d035b50ede61f7850e0453e43f85bb",
+            "key": "HPC.zip",
+            "size": 4792408
+          },
+          {
+            "checksum": "md5:e696a94a9b703eb3fd93a2c78e3050ed",
+            "key": "Zookeeper.zip",
+            "size": 870580
+          },
+          {
+            "checksum": "md5:a8d365d003845c3bef61661375513910",
+            "key": "Thunderbird.zip",
+            "size": 293018641
+          },
+          {
+            "checksum": "md5:707faeedf8b1b9f920c073114139a023",
+            "key": "OpenStack.zip",
+            "size": 7387614
+          },
+          {
+            "checksum": "md5:521ee643375bb6e9d0dd88636ff7ece1",
+            "key": "BGL.zip",
+            "size": 86118141
+          },
+          {
+            "checksum": "md5:e5b392e013be0f10a55b5b009f4b9c9d",
+            "key": "Mac.zip",
+            "size": 3017741
+          },
+          {
+            "checksum": "md5:e8d413f0ea3f3e90956f185da9d635a8",
+            "key": "Hadoop.zip",
+            "size": 4263949
+          },
+          {
+            "checksum": "md5:ca0ef9c6e8ece0df602793bd302e03a6",
+            "key": "Spark.zip",
+            "size": 230699188
+          }
+        ],
+        "kind": "zenodo_record",
+        "license": "cc-by-4.0",
+        "record_id": "8275861",
+        "resolved_via": "zenodo_api",
+        "source_url": "https://zenodo.org/records/8275861",
+        "title": "Loghub-2.0: a collection of large-scale datasets for log parsing",
+        "version_doi": "10.5281/zenodo.8275861"
+      },
+      "license_note": "see Zenodo record metadata.",
+      "primary_for": [
+        "logs",
+        "files_search"
+      ],
+      "source_id": "loghub-2.0",
+      "spec_section": "2.5",
+      "typed_reason": "immutable Zenodo record with publisher checksums; static log files for deterministic slices."
+    },
+    {
+      "classification": "DEFERRED",
+      "image_namespace": "docker.io/bugswarm/images",
+      "intended_primary_for": [
+        "jvm",
+        "python"
+      ],
+      "license_note": "BugSwarm project license (to be recorded at enumeration).",
+      "metadata_source": "https://raw.githubusercontent.com/BugSwarm/BugSwarm/master/",
+      "source_id": "bugswarm-1.3.1",
+      "spec_section": "2.1",
+      "typed_reason": "reachable (metadata via raw.githubusercontent, images on docker.io resolvable via the OCI resolver), but per-artifact reproducible-image digest enumeration and reproducible-only filtering not completed in the bootstrap session; no per-artifact hashes are recorded until resolved."
+    },
+    {
+      "classification": "DEFERRED",
+      "intended_primary_for": [
+        "containers"
+      ],
+      "license_note": "Terminal-Bench task license (to be recorded at enumeration).",
+      "source_id": "terminal-bench-2.0",
+      "spec_section": "2.6",
+      "typed_reason": "environment-only use (no agent, no task success). Task image OCI digests resolvable via the resolver, but the exact task-id -> image-digest table is not enumerated in the bootstrap session; no digests recorded until resolved."
+    },
+    {
+      "classification": "ACCEPTED_RESERVE",
+      "license_note": "BugsJS project license (to be recorded at selection).",
+      "metadata_source": "https://raw.githubusercontent.com/BugsJS/",
+      "reserve_for": [
+        "js_ts"
+      ],
+      "source_id": "bugsjs",
+      "spec_section": "2.3",
+      "typed_reason": "independent JS/Mocha stratum; framework repo + metadata reachable via raw.githubusercontent. Held as reserve behind SWE-bench Multilingual JS/TS."
+    },
+    {
+      "classification": "ACCEPTED_RESERVE",
+      "license_note": "BugsInPy project license (to be recorded at selection).",
+      "metadata_source": "https://raw.githubusercontent.com/soarsmu/BugsInPy/",
+      "reserve_for": [
+        "python"
+      ],
+      "source_id": "bugsinpy",
+      "spec_section": "2.4",
+      "typed_reason": "independent Python/pytest stratum; repo + per-bug metadata reachable via raw.githubusercontent. Reserve behind SWE-bench/BugSwarm Python."
+    },
+    {
+      "classification": "DEFERRED",
+      "source_id": "gobench",
+      "spec_section": "2.7",
+      "typed_reason": "reserve only; concurrency failures may be flaky; not needed while SWE-bench Multilingual supplies reproducible Go."
+    },
+    {
+      "classification": "DEFERRED",
+      "source_id": "panic4r",
+      "spec_section": "2.7",
+      "typed_reason": "research candidate only; no independently verified durable executable artifact source confirmed in bootstrap."
+    },
+    {
+      "classification": "DEFERRED",
+      "source_id": "defects4j",
+      "spec_section": "2.7",
+      "typed_reason": "reserve Java source if BugSwarm cannot fill a declared Maven/Gradle stratum."
+    },
+    {
+      "classification": "DEFERRED",
+      "source_id": "gitbug-java",
+      "spec_section": "2.7",
+      "typed_reason": "reserve source for later freshness expansion."
+    }
+  ]
+}
