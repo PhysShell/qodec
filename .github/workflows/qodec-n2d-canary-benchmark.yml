@@ -24,6 +24,9 @@ name: qodec-n2d-canary-benchmark
 
 on:
   workflow_dispatch:
+  push:
+    branches:
+      - n2d/ci-trigger-full-run
 permissions:
   contents: read
 concurrency:
