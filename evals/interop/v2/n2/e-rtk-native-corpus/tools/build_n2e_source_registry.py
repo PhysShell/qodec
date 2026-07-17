@@ -48,6 +48,9 @@ def build() -> dict:
     hf = _pin(pins, "hf_datasets", "swe-bench-multilingual")
     zen = _pin(pins, "zenodo_records", "loghub-2.0")
     oci = _pin(pins, "oci_images", "swe-bench-eval-image-sample")
+    bugsinpy = _pin(pins, "git_repos", "bugsinpy")
+    container_ids = ["container-redis", "container-nginx", "container-busybox", "container-postgres"]
+    containers = [_pin(pins, "oci_images", cid) for cid in container_ids]
 
     sources = [
         {
@@ -81,6 +84,23 @@ def build() -> dict:
                 "media_type": oci["media_type"],
             },
         },
+        *[{
+            "source_id": ci["source_id"],
+            "spec_section": "6.9",
+            "classification": ACCEPTED_PRIMARY,
+            "typed_reason": "local disposable container image pinned by immutable manifest digest; run locally on the session daemon for docker ps/images/logs states (§6.9).",
+            "primary_for": ["containers"],
+            "license_note": "upstream official image license.",
+            "identity": {
+                "kind": "oci_image",
+                "registry": ci["registry"],
+                "repository": ci["repository"],
+                "platform": ci["platform"],
+                "index_digest": ci["index_digest"],
+                "child_digest": ci["child_digest"],
+                "media_type": ci["media_type"],
+            },
+        } for ci in containers],
         {
             "source_id": "loghub-2.0",
             "spec_section": "2.5",
@@ -128,11 +148,17 @@ def build() -> dict:
         {
             "source_id": "bugsinpy",
             "spec_section": "2.4",
-            "classification": ACCEPTED_RESERVE,
-            "typed_reason": "independent Python/pytest stratum; repo + per-bug metadata reachable via raw.githubusercontent. Reserve behind SWE-bench/BugSwarm Python.",
-            "reserve_for": ["python"],
-            "metadata_source": "https://raw.githubusercontent.com/soarsmu/BugsInPy/",
-            "license_note": "BugsInPy project license (to be recorded at selection).",
+            "classification": ACCEPTED_PRIMARY,
+            "typed_reason": "SWE-bench Multilingual has no Python; BugsInPy is the Python/pytest primary source. Pinned by exact commit over the git transport; per-bug metadata manifest committed (n2e-bugsinpy-bugs-v1.json).",
+            "primary_for": ["python"],
+            "license_note": "BugsInPy project license (recorded at bug-manifest acquisition).",
+            "identity": {
+                "kind": "git_repo",
+                "repository": bugsinpy["repository"],
+                "commit": bugsinpy["commit"],
+                "transport": bugsinpy["transport"],
+                "bugs_manifest": "n2e-bugsinpy-bugs-v1.json",
+            },
         },
     ]
     for sid, reason in [

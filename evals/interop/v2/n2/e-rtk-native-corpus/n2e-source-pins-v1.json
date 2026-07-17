@@ -1,5 +1,14 @@
 {
   "generated_by": "evals/interop/v2/n2/e-rtk-native-corpus/tools/acquire_n2e_source_pins.py",
+  "git_repos": [
+    {
+      "commit": "11c5f1eea954a42132cfd06bf257766a7963e0fd",
+      "kind": "git_repo",
+      "repository": "soarsmu/BugsInPy",
+      "source_id": "bugsinpy",
+      "transport": "git-smart-http"
+    }
+  ],
   "hf_datasets": [
     {
       "dataset_id": "SWE-bench/SWE-bench_Multilingual",
@@ -21,10 +30,50 @@
       "registry": "registry-1.docker.io",
       "repository": "swebench/sweb.eval.x86_64.astropy_1776_astropy-12907",
       "source_id": "swe-bench-eval-image-sample"
+    },
+    {
+      "child_digest": "sha256:395033a36458e5312f5bce401452efe6606705fc8b9a574611af6436ac3ff632",
+      "index_digest": "sha256:c1e88455c85225310bbea54816e9c3f4b5295815e6dbf80c34d40afc6df28275",
+      "kind": "oci_image",
+      "media_type": "application/vnd.oci.image.manifest.v1+json",
+      "platform": "linux/amd64",
+      "registry": "registry-1.docker.io",
+      "repository": "library/redis",
+      "source_id": "container-redis"
+    },
+    {
+      "child_digest": "sha256:679a5fd058f6ca754a561846fe27927e408074431d63556e8fc588fc38be6901",
+      "index_digest": "sha256:814a8e88df978ade80e584cc5b333144b9372a8e3c98872d07137dbf3b44d0e4",
+      "kind": "oci_image",
+      "media_type": "application/vnd.oci.image.manifest.v1+json",
+      "platform": "linux/amd64",
+      "registry": "registry-1.docker.io",
+      "repository": "library/nginx",
+      "source_id": "container-nginx"
+    },
+    {
+      "child_digest": "sha256:7a3ebe5bfd1a4a19797d20b0c0bb39d44393e9a03fd852c0865b0f540d868df0",
+      "index_digest": "sha256:9532d8c39891ca2ecde4d30d7710e01fb739c87a8b9299685c63704296b16028",
+      "kind": "oci_image",
+      "media_type": "application/vnd.oci.image.manifest.v1+json",
+      "platform": "linux/amd64",
+      "registry": "registry-1.docker.io",
+      "repository": "library/busybox",
+      "source_id": "container-busybox"
+    },
+    {
+      "child_digest": "sha256:5d706d5aa3ad311722f373fdc09e6a22b454bec70d34d9786383983fd83c5e46",
+      "index_digest": "sha256:7e5df973a74872482e320dcbdeb055e178d6f42de0558b083892c50cda833c96",
+      "kind": "oci_image",
+      "media_type": "application/vnd.oci.image.manifest.v1+json",
+      "platform": "linux/amd64",
+      "registry": "registry-1.docker.io",
+      "repository": "library/postgres",
+      "source_id": "container-postgres"
     }
   ],
   "purpose": "Explicit immutable source pins (\u00a72 acquisition). Normative fields only; no mutable discovery metadata.",
-  "record_sha256": "sha256:e09629bbcdd547fc6409cca06cb3f3386c47850607cb9564600b2ccce4480c8d",
+  "record_sha256": "sha256:9752ed04d593de04a05011b82f777c872a489962cf9b3ae366c98a89ceeaaa8a",
   "record_type": "n2e-source-pins",
   "record_version": "v1",
   "schema_version": "n2e-record-1",

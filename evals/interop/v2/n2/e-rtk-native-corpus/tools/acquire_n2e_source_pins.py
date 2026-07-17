@@ -24,6 +24,8 @@ from __future__ import annotations
 
 import argparse
 import json
+import os
+import subprocess
 import sys
 import urllib.request
 from pathlib import Path
@@ -51,6 +53,27 @@ OCI_IMAGES = [
      "registry": "registry-1.docker.io",
      "repository": "swebench/sweb.eval.x86_64.astropy_1776_astropy-12907",
      "tag_acquired_from": "latest", "platform_arch": "amd64", "platform_os": "linux"},
+    # Local disposable container images for the §6.9 container stratum
+    # (docker ps / images / logs). Pinned by immutable digest; run locally.
+    {"source_id": "container-redis", "registry": "registry-1.docker.io",
+     "repository": "library/redis", "tag_acquired_from": "7.4.1-alpine",
+     "platform_arch": "amd64", "platform_os": "linux"},
+    {"source_id": "container-nginx", "registry": "registry-1.docker.io",
+     "repository": "library/nginx", "tag_acquired_from": "1.27.3-alpine",
+     "platform_arch": "amd64", "platform_os": "linux"},
+    {"source_id": "container-busybox", "registry": "registry-1.docker.io",
+     "repository": "library/busybox", "tag_acquired_from": "1.37.0",
+     "platform_arch": "amd64", "platform_os": "linux"},
+    {"source_id": "container-postgres", "registry": "registry-1.docker.io",
+     "repository": "library/postgres", "tag_acquired_from": "17.2-alpine",
+     "platform_arch": "amd64", "platform_os": "linux"},
+]
+
+# Git-transport source repos pinned by exact commit (metadata sources whose
+# per-instance manifests are acquired separately).
+GIT_REPOS = [
+    {"source_id": "bugsinpy", "repository": "soarsmu/BugsInPy",
+     "commit": "11c5f1eea954a42132cfd06bf257766a7963e0fd"},
 ]
 
 
@@ -118,6 +141,22 @@ def acquire_oci(entry: dict) -> dict:
     }
 
 
+def acquire_git(entry: dict) -> dict:
+    """Verify the pinned commit is resolvable over git smart-HTTP (by exact SHA)."""
+    url = f"https://github.com/{entry['repository']}.git"
+    # ls-remote confirms the remote is reachable; the exact commit is pinned by SHA.
+    subprocess.run(["git", "ls-remote", "--exit-code", url, "HEAD"],
+                   check=True, capture_output=True,
+                   env={"GIT_TERMINAL_PROMPT": "0", "PATH": os.environ.get("PATH", "/usr/bin:/bin")})
+    return {
+        "source_id": entry["source_id"],
+        "kind": "git_repo",
+        "repository": entry["repository"],
+        "commit": entry["commit"],
+        "transport": "git-smart-http",
+    }
+
+
 def acquire() -> dict:
     body = c.envelope(
         record_type="n2e-source-pins",
@@ -126,6 +165,7 @@ def acquire() -> dict:
         hf_datasets=[acquire_hf(e) for e in HF_DATASETS],
         zenodo_records=[acquire_zenodo(e) for e in ZENODO_RECORDS],
         oci_images=[acquire_oci(e) for e in OCI_IMAGES],
+        git_repos=[acquire_git(e) for e in GIT_REPOS],
     )
     return body
 

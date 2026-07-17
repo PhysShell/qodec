@@ -1,28 +1,34 @@
 #!/usr/bin/env python3
 """Build n2e-candidate-inventory-v1.json (§8) — DETERMINISTIC, OFFLINE, OUTCOME-BLIND.
 
-Enumerates the complete candidate pool from committed, immutable sources BEFORE
+Enumerates the COMPLETE candidate pool from committed, immutable sources BEFORE
 any RTK/QODEC execution. Candidates carry only metadata and RAW-outcome
-expectations derived from the datasets themselves (e.g. FAIL_TO_PASS => the
-buggy snapshot's target tests fail); they carry NO RTK output, NO token counts,
-NO savings of any kind. Selection (§10) consumes this pool.
+expectations derived from the datasets themselves (e.g. FAIL_TO_PASS => the buggy
+snapshot's target tests fail); they carry NO RTK output, NO token counts, NO
+savings of any kind. Selection (§10) consumes this pool.
 
-Sources used here (all ACCEPTED_PRIMARY with resolved identities):
-  - SWE-bench Multilingual instances (test-runner families: rust_cargo, go,
-    js_ts, jvm) via the committed instance manifest;
-  - Loghub-2.0 files (logs + files_search) via the committed source pins.
+Families and their ACCEPTED_PRIMARY sources:
+  - rust_cargo / go / js_ts / jvm test candidates  -> SWE-bench Multilingual
+  - git candidates (dirty states from patches)      -> SWE-bench Multilingual instances
+  - files_search (ls/tree/read) candidates          -> SWE-bench Multilingual repo snapshots
+  - files_search (grep) + logs candidates           -> Loghub-2.0
+  - python (pytest) candidates                       -> BugsInPy
+  - containers (docker ps/images/logs) candidates    -> pinned local disposable images
 
-Statistical unit (§5): cluster_id = external source unit. For SWE-bench that is
-the instance_id; for Loghub that is the log file. Buggy/fixed and per-command
-rows share a cluster_id and are never counted as independent projects.
+Statistical unit (§5): cluster_id = external source unit (SWE-bench instance_id /
+Loghub file / BugsInPy project:bug / container image). Buggy/fixed and per-command
+rows share a cluster_id.
 
-Families not enumerable from currently ACCEPTED_PRIMARY sources (python via
-BugsInPy reserve; containers via Terminal-Bench) are recorded as deferred strata
-with a deterministic reason, not silently dropped.
+Where one source unit maps to several command subfamilies (git, files, docker),
+the subfamily is assigned DETERMINISTICALLY from a stable hash of the source id so
+the pool spreads across subfamilies without any outcome observation. This keeps
+the pool bounded and reproducible while covering every subfamily quota.
 """
 from __future__ import annotations
 
+import hashlib
 import sys
+from collections import Counter
 from pathlib import Path
 
 HERE = Path(__file__).resolve().parent
@@ -33,16 +39,30 @@ import n2e_repo_languages as rl  # noqa: E402
 
 OUT = N2E_DIR / "n2e-candidate-inventory-v1.json"
 INSTANCES = N2E_DIR / "n2e-swebench-instances-v1.json"
+BUGSINPY = N2E_DIR / "n2e-bugsinpy-bugs-v1.json"
+REGISTRY = N2E_DIR / "n2e-source-registry-v1.json"
 PINS = N2E_DIR / "n2e-source-pins-v1.json"
 
-# Family -> the RAW test command per language (the underlying real command the
-# RAW arm runs; RTK-native equivalent lives in the claim surface / scenarios).
 FAMILY_RAW_TEST = {
     "rust_cargo": ["cargo", "test"],
     "go": ["go", "test", "./..."],
     "js_ts": ["npm", "test"],
     "jvm": ["mvn", "test"],
 }
+GIT_SUBFAMILIES = ["status", "diff", "log", "show", "add", "commit", "push"]
+FILES_SUBFAMILIES = ["ls", "tree", "read"]
+DOCKER_SUBFAMILIES = ["ps", "images", "logs"]
+GIT_RAW = {
+    "status": ["git", "status"], "diff": ["git", "diff"], "log": ["git", "log"],
+    "show": ["git", "show"], "add": ["git", "add", "-A"],
+    "commit": ["git", "commit", "-m", "n2e"], "push": ["git", "push", "n2e-local", "HEAD"],
+}
+FILES_RAW = {"ls": ["ls", "-la"], "tree": ["tree"], "read": ["cat", "README.md"]}
+
+
+def _pick(key: str, options: list) -> str:
+    h = int(hashlib.sha256(key.encode()).hexdigest(), 16)
+    return options[h % len(options)]
 
 
 def loghub_files() -> list[dict]:
@@ -53,97 +73,129 @@ def loghub_files() -> list[dict]:
     return []
 
 
+def container_images() -> list[dict]:
+    pins = c.load_record(PINS)
+    return [o for o in pins["oci_images"] if o["source_id"].startswith("container-")]
+
+
 def build() -> dict:
     inst = c.load_record(INSTANCES)
     candidates = []
     excluded = []
 
-    # --- SWE-bench Multilingual test-runner candidates ---
     for row in inst["instances"]:
         repo = row["repo"]
         family = rl.family_of(repo)
         language = rl.language_of(repo)
-        if family not in FAMILY_RAW_TEST:
-            continue  # outside §6 target matrix (recorded via deferred_strata note)
+        instance_id = row["instance_id"]
+        cluster_id = f"swebench:{instance_id}"
         f2p = row["fail_to_pass"]
-        if not f2p:
-            # A test candidate with no failing-test identity cannot satisfy the
-            # semantic oracle (§14: a failing test identity may not be omitted).
-            excluded.append({"instance_id": row["instance_id"], "repo": repo,
-                             "reason": "empty FAIL_TO_PASS — no failing-test identity for the oracle"})
-            continue
-        cluster_id = f"swebench:{row['instance_id']}"
-        # Two snapshot variants per instance: buggy (target tests FAIL) and fixed
-        # (target tests PASS). Outcomes are dataset-derived, not RTK-observed.
-        for variant, outcome in (("buggy", "fail"), ("fixed", "pass")):
-            candidates.append({
-                "candidate_id": f"{row['instance_id']}::{family}::test::{variant}",
-                "cluster_id": cluster_id,
-                "source_id": "swe-bench-multilingual",
-                "repository": repo,
-                "language": language,
-                "command_family": family,
-                "command_subfamily": "test",
-                "snapshot_variant": variant,
-                "raw_command_argv": FAMILY_RAW_TEST[family],
-                "expected_raw_outcome": outcome,
-                "target_test_ids": f2p,
-                "target_test_count": len(f2p),
-                "base_commit": row["base_commit"],
-                "instance_id": row["instance_id"],
-                "image_recipe": {
-                    "kind": "swebench_eval_image",
-                    "repository_pattern": "docker.io/swebench/sweb.eval.x86_64.<instance>",
-                    "note": "exact per-instance image digest resolved+pinned at selection/acquisition (§5).",
-                },
-                "outcome_blind": True,
-            })
 
-    # --- Loghub-2.0 log + files_search candidates ---
+        # test candidates (only for §6 target test-runner families with a real oracle)
+        if family in FAMILY_RAW_TEST:
+            if not f2p:
+                excluded.append({"instance_id": instance_id, "repo": repo,
+                                 "reason": "empty FAIL_TO_PASS — no failing-test identity for the oracle"})
+            else:
+                for variant, outcome in (("buggy", "fail"), ("fixed", "pass")):
+                    candidates.append({
+                        "candidate_id": f"{instance_id}::{family}::test::{variant}",
+                        "cluster_id": cluster_id, "source_id": "swe-bench-multilingual",
+                        "repository": repo, "language": language,
+                        "command_family": family, "command_subfamily": "test",
+                        "snapshot_variant": variant, "raw_command_argv": FAMILY_RAW_TEST[family],
+                        "expected_raw_outcome": outcome, "target_test_ids": f2p,
+                        "target_test_count": len(f2p), "base_commit": row["base_commit"],
+                        "instance_id": instance_id,
+                        "image_recipe": {"kind": "swebench_eval_image_recipe",
+                                         "note": "harness-built per instance; digest pinned at acquisition (§5)."},
+                        "outcome_blind": True,
+                    })
+
+        # git candidate — one deterministically-assigned subfamily per instance
+        git_sub = _pick(f"git:{instance_id}", GIT_SUBFAMILIES)
+        candidates.append({
+            "candidate_id": f"{instance_id}::git::{git_sub}",
+            "cluster_id": cluster_id, "source_id": "swe-bench-multilingual",
+            "repository": repo, "language": language,
+            "command_family": "git", "command_subfamily": git_sub,
+            "snapshot_variant": "dirty" if git_sub in ("status", "diff", "add", "commit") else "clean",
+            "raw_command_argv": GIT_RAW[git_sub],
+            "expected_raw_outcome": "text", "base_commit": row["base_commit"], "instance_id": instance_id,
+            "dirty_state_source": "upstream patch/test_patch applied at base_commit (§6.2)",
+            "outcome_blind": True,
+        })
+
+        # files_search candidate — ls/tree/read on the repo snapshot
+        files_sub = _pick(f"files:{instance_id}", FILES_SUBFAMILIES)
+        candidates.append({
+            "candidate_id": f"{instance_id}::files_search::{files_sub}",
+            "cluster_id": cluster_id, "source_id": "swe-bench-multilingual",
+            "repository": repo, "language": language,
+            "command_family": "files_search", "command_subfamily": files_sub,
+            "snapshot_variant": "snapshot", "raw_command_argv": FILES_RAW[files_sub],
+            "expected_raw_outcome": "text", "base_commit": row["base_commit"], "instance_id": instance_id,
+            "outcome_blind": True,
+        })
+
+    # Loghub logs + grep (files_search)
     for f in loghub_files():
         system = f["key"].removesuffix(".zip")
         cluster_id = f"loghub:{system}"
+        zf = {"key": f["key"], "size": f["size"], "checksum": f["checksum"]}
         candidates.append({
-            "candidate_id": f"loghub::{system}::log",
-            "cluster_id": cluster_id,
-            "source_id": "loghub-2.0",
-            "repository": f"loghub/{system}",
-            "language": "log",
-            "command_family": "logs",
-            "command_subfamily": "log",
-            "snapshot_variant": "prepared",
-            "raw_command_argv": ["cat", f"{system}.log"],
-            "expected_raw_outcome": "text",
-            "zenodo_file": {"key": f["key"], "size": f["size"], "checksum": f["checksum"]},
-            "outcome_blind": True,
+            "candidate_id": f"loghub::{system}::log", "cluster_id": cluster_id,
+            "source_id": "loghub-2.0", "repository": f"loghub/{system}", "language": "log",
+            "command_family": "logs", "command_subfamily": "log", "snapshot_variant": "prepared",
+            "raw_command_argv": ["cat", f"{system}.log"], "expected_raw_outcome": "text",
+            "zenodo_file": zf, "outcome_blind": True,
         })
         candidates.append({
-            "candidate_id": f"loghub::{system}::grep",
-            "cluster_id": cluster_id,
-            "source_id": "loghub-2.0",
-            "repository": f"loghub/{system}",
-            "language": "log",
-            "command_family": "files_search",
-            "command_subfamily": "grep",
-            "snapshot_variant": "prepared",
-            "raw_command_argv": ["grep", "-n", "error", f"{system}.log"],
-            "expected_raw_outcome": "text",
-            "zenodo_file": {"key": f["key"], "size": f["size"], "checksum": f["checksum"]},
-            "outcome_blind": True,
+            "candidate_id": f"loghub::{system}::grep", "cluster_id": cluster_id,
+            "source_id": "loghub-2.0", "repository": f"loghub/{system}", "language": "log",
+            "command_family": "files_search", "command_subfamily": "grep", "snapshot_variant": "prepared",
+            "raw_command_argv": ["grep", "-n", "error", f"{system}.log"], "expected_raw_outcome": "text",
+            "zenodo_file": zf, "outcome_blind": True,
         })
+
+    # BugsInPy python pytest candidates
+    bip = c.load_record(BUGSINPY)
+    for b in bip["bugs"]:
+        cluster_id = f"bugsinpy:{b['project']}:{b['bug_id']}"
+        for variant, outcome in (("buggy", "fail"), ("fixed", "pass")):
+            candidates.append({
+                "candidate_id": f"bugsinpy::{b['project']}-{b['bug_id']}::python::pytest::{variant}",
+                "cluster_id": cluster_id, "source_id": "bugsinpy",
+                "repository": f"bugsinpy/{b['project']}", "language": "python",
+                "command_family": "python", "command_subfamily": "pytest", "snapshot_variant": variant,
+                "raw_command_argv": ["pytest", b.get("test_file") or "."],
+                "expected_raw_outcome": outcome,
+                "target_test_ids": [b["run_test_cmd"]] if b.get("run_test_cmd") else [],
+                "python_version": b.get("python_version"),
+                "buggy_commit": b.get("buggy_commit_id"), "fixed_commit": b.get("fixed_commit_id"),
+                "outcome_blind": True,
+            })
+
+    # Container candidates (docker ps/images/logs) from pinned local images
+    for img in container_images():
+        name = img["source_id"].removeprefix("container-")
+        cluster_id = f"container:{name}"
+        for sub in DOCKER_SUBFAMILIES:
+            candidates.append({
+                "candidate_id": f"container::{name}::docker::{sub}",
+                "cluster_id": cluster_id, "source_id": img["source_id"],
+                "repository": img["repository"], "language": "container",
+                "command_family": "containers", "command_subfamily": sub, "snapshot_variant": "running",
+                "raw_command_argv": ["docker", sub] + ([] if sub != "logs" else [name]),
+                "expected_raw_outcome": "text",
+                "image_identity": {"repository": img["repository"], "platform": img["platform"],
+                                   "index_digest": img["index_digest"], "child_digest": img["child_digest"]},
+                "outcome_blind": True,
+            })
 
     candidates.sort(key=lambda x: x["candidate_id"])
-
-    # Family coverage summary + deferred strata (deterministic reasons).
-    from collections import Counter
-    fam_counts = dict(Counter(c_["command_family"] for c_ in candidates))
-    repo_counts = dict(Counter(c_["repository"] for c_ in candidates))
-
-    deferred_strata = [
-        {"command_family": "python", "reason": "SWE-bench Multilingual contains no Python; sourced from BugsInPy reserve (§2.4), enumeration pending."},
-        {"command_family": "containers", "reason": "no ACCEPTED_PRIMARY source supplies local disposable containers; Terminal-Bench enumeration required (§2.6)."},
-        {"command_family": "git", "reason": "git dirty-state candidates derive from SWE-bench patches/test-patches; enumerated in the scenario phase to keep cluster_id tied to the source instance (§6.2)."},
-    ]
+    fam_counts = dict(Counter(x["command_family"] for x in candidates))
+    repo_counts = dict(Counter(x["repository"] for x in candidates))
 
     return c.envelope(
         record_type="n2e-candidate-inventory",
@@ -151,16 +203,18 @@ def build() -> dict:
         purpose="Complete outcome-blind candidate pool (§8), enumerated before RTK execution.",
         instances_record="n2e-swebench-instances-v1.json",
         instances_sha256=c.sha256_json_file(INSTANCES),
+        bugsinpy_record="n2e-bugsinpy-bugs-v1.json",
+        bugsinpy_sha256=c.sha256_json_file(BUGSINPY),
         source_registry="n2e-source-registry-v1.json",
-        source_registry_sha256=c.sha256_json_file(N2E_DIR / "n2e-source-registry-v1.json"),
-        cluster_unit="external source unit (SWE-bench instance_id / Loghub file)",
+        source_registry_sha256=c.sha256_json_file(REGISTRY),
+        cluster_unit="external source unit (SWE-bench instance / Loghub file / BugsInPy bug / container image)",
+        subfamily_assignment="deterministic sha256(source_id) modulo subfamily list (git/files/docker)",
         excluded_at_enumeration=sorted(excluded, key=lambda e: e["instance_id"]),
         excluded_count=len(excluded),
         candidate_count=len(candidates),
-        distinct_clusters=len({c_["cluster_id"] for c_ in candidates}),
+        distinct_clusters=len({x["cluster_id"] for x in candidates}),
         distinct_repositories=len(repo_counts),
         family_candidate_counts=fam_counts,
-        deferred_strata=deferred_strata,
         candidates=candidates,
     )
 

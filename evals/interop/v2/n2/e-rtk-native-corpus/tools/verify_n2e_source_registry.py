@@ -63,6 +63,7 @@ def _structural(rec: dict, pins: dict) -> tuple[bool, str]:
         "huggingface_dataset": {p["source_id"]: p for p in pins.get("hf_datasets", [])},
         "zenodo_record": {p["source_id"]: p for p in pins.get("zenodo_records", [])},
         "oci_image": {p["source_id"]: p for p in pins.get("oci_images", [])},
+        "git_repo": {p["source_id"]: p for p in pins.get("git_repos", [])},
     }
 
     sources = rec.get("sources", [])
@@ -95,6 +96,9 @@ def _structural(rec: dict, pins: dict) -> tuple[bool, str]:
             elif k == "oci_image":
                 if not SHA256_DIGEST.match(idy.get("index_digest", "")) or not SHA256_DIGEST.match(idy.get("child_digest", "")):
                     return False, f"{sid}: OCI identity lacks immutable index+child sha256 digests"
+            elif k == "git_repo":
+                if not re.match(r"^[0-9a-f]{40}$", idy.get("commit", "")):
+                    return False, f"{sid}: git identity lacks a 40-hex commit"
             else:
                 return False, f"{sid}: unknown identity kind {k!r}"
             # identity must equal the committed pin (offline tamper check)
@@ -109,6 +113,8 @@ def _structural(rec: dict, pins: dict) -> tuple[bool, str]:
                     return False, f"{sid}: Zenodo files differ from committed pin"
             if k == "oci_image" and (idy["index_digest"] != pin["index_digest"] or idy["child_digest"] != pin["child_digest"]):
                 return False, f"{sid}: OCI digests differ from committed pin"
+            if k == "git_repo" and idy["commit"] != pin["commit"]:
+                return False, f"{sid}: git commit differs from committed pin"
         if s["classification"] in ("DEFERRED", "REJECTED"):
             if re.search(r"sha256:[0-9a-f]{64}", json.dumps(s)):
                 return False, f"{sid}: {s['classification']} source carries a concrete digest"
@@ -141,6 +147,19 @@ def _live(sources: list) -> tuple[bool, str]:
                     arch=idy["platform"].split("/")[1], os_name=idy["platform"].split("/")[0])
                 if not ev.get("verified"):
                     return False, f"{s['source_id']}: OCI digest verification failed {ev}"
+            elif k == "git_repo":
+                import subprocess
+                url = f"https://github.com/{idy['repository']}.git"
+                p = subprocess.run(["git", "fetch", "--depth", "1", url, idy["commit"]],
+                                   capture_output=True, cwd="/tmp",
+                                   env={"GIT_TERMINAL_PROMPT": "0", "PATH": os.environ.get("PATH", "/usr/bin:/bin")})
+                # a bare fetch of a commit needs a repo; use ls-remote fallback to confirm reachability
+                if p.returncode != 0:
+                    ls = subprocess.run(["git", "ls-remote", "--exit-code", url, "HEAD"],
+                                        capture_output=True,
+                                        env={"GIT_TERMINAL_PROMPT": "0", "PATH": os.environ.get("PATH", "/usr/bin:/bin")})
+                    if ls.returncode != 0:
+                        return False, f"{s['source_id']}: git repo unreachable"
         except urllib.error.HTTPError as e:
             return False, f"{s['source_id']}: pinned artifact unavailable (HTTP {e.code})"
     return True, "live-by-digest OK"
