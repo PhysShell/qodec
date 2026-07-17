@@ -1,0 +1,520 @@
+{
+  "accepted_case_ids": [
+    "repo-docker-java-parser",
+    "repo-dockerfile-parser-rs",
+    "repo-helm-values",
+    "repo-hyperfine",
+    "repo-kubeops-generator",
+    "repo-moshi",
+    "repo-pyflakes",
+    "repo-requests",
+    "repo-rustlings"
+  ],
+  "all_artifacts_content_inspected": true,
+  "all_capture_jobs_success": true,
+  "all_cases_content_accepted": true,
+  "all_job_conclusions_success": true,
+  "all_pair_verify_job_conclusions_success": true,
+  "all_pair_verify_jobs_success": true,
+  "all_pairs_canonically_equal": true,
+  "artifact_count": 18,
+  "artifacts": [
+    {
+      "artifact_id": 8393576192,
+      "digest_sha256": "7aacd9c70d3089780c1ff736d2f85904c5338b2e23e6bb3c5704b2a6d9da4c54",
+      "name": "n2d1b-pilot-repo-docker-java-parser-capture-a"
+    },
+    {
+      "artifact_id": 8393584241,
+      "digest_sha256": "5939402c80cf0749969f15bc41ae022b06f4b15531666cf7d1fde12eca734966",
+      "name": "n2d1b-pilot-repo-docker-java-parser-capture-b"
+    },
+    {
+      "artifact_id": 8393541796,
+      "digest_sha256": "92f47cf3df8b52e70b71f4630de75eaf248a6e134031aa299e1a43852442474f",
+      "name": "n2d1b-pilot-repo-dockerfile-parser-rs-capture-a"
+    },
+    {
+      "artifact_id": 8393540792,
+      "digest_sha256": "321ddbc4cea2ced69b7904e4de3764d3d5e8ffecb5ec7aead43e253ad39a998c",
+      "name": "n2d1b-pilot-repo-dockerfile-parser-rs-capture-b"
+    },
+    {
+      "artifact_id": 8393579542,
+      "digest_sha256": "670cc1a227b2ab610ab204162fbfa1462eb80374aa845f0386e8e2e81a05b781",
+      "name": "n2d1b-pilot-repo-helm-values-capture-a"
+    },
+    {
+      "artifact_id": 8393581709,
+      "digest_sha256": "b3a4ce9da1cc40f9f43d0ae45e6a320d24c7f2c78282c5afa838e5d1f6eb8714",
+      "name": "n2d1b-pilot-repo-helm-values-capture-b"
+    },
+    {
+      "artifact_id": 8393540239,
+      "digest_sha256": "45669991a29b71b0789a1cecc9c07a55f10c39f3cef0de0381f58bba54b9f514",
+      "name": "n2d1b-pilot-repo-hyperfine-capture-a"
+    },
+    {
+      "artifact_id": 8393541237,
+      "digest_sha256": "5bcbf8433cd1aad183662ec8c58f41684d028311f0f6dcd6fffe1e4d0e352513",
+      "name": "n2d1b-pilot-repo-hyperfine-capture-b"
+    },
+    {
+      "artifact_id": 8393544909,
+      "digest_sha256": "8c84d0245f344ad815f9103cfd0fd885f88ca593cf40624f8d5e5b33e0e62bdd",
+      "name": "n2d1b-pilot-repo-kubeops-generator-capture-a"
+    },
+    {
+      "artifact_id": 8393543983,
+      "digest_sha256": "28e5c33c78c10d1847e787459c6f844206f9acbfabd4d1efac2cfed9e57b10e5",
+      "name": "n2d1b-pilot-repo-kubeops-generator-capture-b"
+    },
+    {
+      "artifact_id": 8393620070,
+      "digest_sha256": "2a3fa442eac53e521b7cc5d72d2391921714761d3d56d97446cf198651c9896c",
+      "name": "n2d1b-pilot-repo-moshi-capture-a"
+    },
+    {
+      "artifact_id": 8393622883,
+      "digest_sha256": "af2ba6055c6454a76f304761eef24c9b845f272c3378a218d604b95404ea152f",
+      "name": "n2d1b-pilot-repo-moshi-capture-b"
+    },
+    {
+      "artifact_id": 8393540495,
+      "digest_sha256": "9ed27f61b0ce45e8fccbd29e611672b09cc4f400ad0453fd3e77288800fb75fe",
+      "name": "n2d1b-pilot-repo-pyflakes-capture-a"
+    },
+    {
+      "artifact_id": 8393540285,
+      "digest_sha256": "641faf38eac50cf1b5f64581635385b7ad2dd3f657f6fb9eea2641644c19bd5d",
+      "name": "n2d1b-pilot-repo-pyflakes-capture-b"
+    },
+    {
+      "artifact_id": 8393544251,
+      "digest_sha256": "dd28d45bf1f4f808ee1320f061590809212b68ccd057e5f0ef6b6d78d4e65dc7",
+      "name": "n2d1b-pilot-repo-requests-capture-a"
+    },
+    {
+      "artifact_id": 8393543976,
+      "digest_sha256": "ff3bd191b2f1b6ad67b1a6f2647a47572f150edd0a06dc053af3f03b5c03564b",
+      "name": "n2d1b-pilot-repo-requests-capture-b"
+    },
+    {
+      "artifact_id": 8393541615,
+      "digest_sha256": "b75c68205605bf4985c67fa91302e8b67c2267eb7c4315f57eb7001af3391d30",
+      "name": "n2d1b-pilot-repo-rustlings-capture-a"
+    },
+    {
+      "artifact_id": 8393541391,
+      "digest_sha256": "eb4b0cb3c138ee98c685cbc1441de3762f5eda07a93a0a7c401547be6186341a",
+      "name": "n2d1b-pilot-repo-rustlings-capture-b"
+    }
+  ],
+  "attempt_history": "This is the fifth real 28-job CI attempt at the exact nine-case matrix below. Runs 1-4 each surfaced genuinely new, previously undiscovered root-cause bugs (Gradle subproject build-dir writability, python argv0 resolution, rustlings state-file writability, cargo-test ordering nondeterminism, a second Gradle root-dir writability gap, pytest TMPDIR/tmp-fs-rw exposure, a python editable-install source-dir exposure gap, and finally three independently-derived pytest_requests_canonicalizer.py rules) -- each fixed via a fresh, never-amended Commit A and a brand-new disposable trigger branch, per the required re-run discipline. No artifact from any of runs 1-4 is reused as evidence anywhere in this record; every job_id, artifact_id, and digest below was independently re-verified from run 29544801640 alone.",
+  "base_main_sha": "e7e6759298e7f5526a751bddac0cdafc3b6c28c3",
+  "canonicalization_policies": {
+    "cargo_test": {
+      "applicable_case_ids": [
+        "repo-dockerfile-parser-rs",
+        "repo-rustlings"
+      ],
+      "canonicalizer_module": "cargo_test_canonicalizer.py",
+      "file": "cargo-test-capture-canonicalization-policy.json",
+      "note": "Single shared identity for both cases -- both invoke the identical frozen ['cargo', 'test'] argv against the identical rustup 'stable' toolchain, unlike the Gradle 9.5.0/9.5.1 replacement scenario above.",
+      "policy_sha256": "adba425839a3cab23874eada88e63d471958f0611e3833d06125605bf696e5d6",
+      "policy_version": 1
+    },
+    "gradle_helm_values_v1": {
+      "applicable_case_ids": [
+        "repo-helm-values"
+      ],
+      "canonicalizer_module": "gradle_canonicalizer_helm_values_v1.py",
+      "file": "gradle-capture-canonicalization-policy-helm-values-v1.json",
+      "note": "repo-helm-values runs Gradle 9.5.0, confirmed byte-for-byte identical in its TimeFormatting.java to repo-moshi's authorized Gradle 9.5.1 -- per this task's explicit requirement, this is its OWN, wholly separate policy/module/approval identity, never a broadening of gradle_v2 above, even though the underlying grammar is the same.",
+      "policy_sha256": "27038e648e4b476dc62c60e1cf4107f4f1dce38dcdbccae4a01da334218ebe09",
+      "policy_version": 1
+    },
+    "gradle_v2": {
+      "applicable_case_ids": [
+        "repo-moshi"
+      ],
+      "canonicalizer_module": "gradle_canonicalizer_v2.py",
+      "file": "gradle-capture-canonicalization-policy-v2.json",
+      "policy_sha256": "ba7f088d56aca7255c274b1b9a17f07fd64d65d77fd24577700f90b82c53e248",
+      "policy_version": 2
+    },
+    "maven": {
+      "applicable_case_ids": [
+        "repo-docker-java-parser"
+      ],
+      "canonicalizer_module": "maven_canonicalizer.py",
+      "file": "capture-canonicalization-policy.json",
+      "policy_sha256": "d633497d6b2e5575bdaeb183ad10b140e2900df98d8299caa57772fd4d8b495c",
+      "policy_version": 1
+    },
+    "pytest_requests": {
+      "applicable_case_ids": [
+        "repo-requests"
+      ],
+      "canonicalizer_module": "pytest_requests_canonicalizer.py",
+      "file": "pytest-requests-capture-canonicalization-policy.json",
+      "note": "Three independently-derived rules: CPython's default object-repr memory address, pytest's own session-summary trailing duration (tag v9.1.1), and threading.Thread's own repr's native thread ident (used by pytest-httpbin's background Server/TLSServer threads).",
+      "policy_sha256": "8670190615b541db18e4ae2e13379f9477f38fa023ae342d30d85bbd1d78f16f",
+      "policy_version": 1
+    },
+    "vstest": {
+      "applicable_case_ids": [
+        "repo-kubeops-generator"
+      ],
+      "canonicalizer_module": "vstest_canonicalizer.py",
+      "file": "vstest-capture-canonicalization-policy.json",
+      "policy_sha256": "c6728ad1447dc9ab328bee526f60fb33b29d3346f0db8d3b617ef4352db7df59",
+      "policy_version": 2
+    }
+  },
+  "capture_job_count": 18,
+  "direct_workflow_dispatch_availability": "unavailable to this session -- the GitHub integration returned 403 Resource not accessible by integration on every workflow_dispatch attempt, identical to the Stage 1 restriction; the repository owner authorized the same disposable-trigger-branch procedure as the substitute execution path, with the canonical implementation branch and its own Commit A history left untouched throughout (re-confirmed additive-only via git diff after every trigger-branch push).",
+  "execution_event": "push",
+  "execution_trigger_branch": "ci-trigger/n2d1b-stage2-1a4c363",
+  "execution_trigger_changed_paths": [
+    ".github/workflows/qodec-n2d1b-miner-pilot.yml"
+  ],
+  "execution_trigger_patch_file": "evidence/stage2-full-matrix-trigger.patch",
+  "execution_trigger_patch_sha256": "sha256:d9f779aa7fe33a2b688b39f854230538931b273a86f28aac81709f345dc4514d",
+  "execution_trigger_scope": "workflow event stanza only",
+  "execution_trigger_sha": "ad628f716c50b042867eac972bb95e1c7f24229c",
+  "gradle_deterministic_scheduling_profile_sha256_by_case_id": {
+    "repo-helm-values": "68c4b4cccc5bb7c7d8862cf09195538a1d9d62e9b0e6229cad2e8b69d8d81aa2",
+    "repo-moshi": "68c4b4cccc5bb7c7d8862cf09195538a1d9d62e9b0e6229cad2e8b69d8d81aa2"
+  },
+  "implementation_sha": "1a4c3635abeaedfc585874c2e375326566d07c78",
+  "independent_rederivation_verification": {
+    "method": "For each of the 9 cases, downloaded every real CI artifact, verified each zip's SHA-256 against the digest GitHub itself reported for that artifact, then re-ran the actual canonicalizer module (not the receipt's recorded hash, not the builder) against the downloaded raw bytes and confirmed the result is byte-identical to the committed canonical-raw-input.bin, for cases with an applicable canonicalization policy; for cases with none, confirmed canonical-raw-input.bin is byte-identical to the raw, capped, selected stream.",
+    "repo-docker-java-parser": {
+      "canonicalizer_module": "maven_canonicalizer.py",
+      "capture_a_rederived_equals_committed": true,
+      "capture_b_rederived_equals_committed": true
+    },
+    "repo-dockerfile-parser-rs": {
+      "canonicalizer_module": "cargo_test_canonicalizer.py",
+      "capture_a_and_b_canonicalize_to_identical_bytes": true,
+      "capture_a_rederived_equals_committed": true,
+      "capture_b_rederived_equals_committed": true,
+      "receipt_canonicalization_policy_sha256_matches_locally_built_policy": true
+    },
+    "repo-helm-values": {
+      "canonicalizer_module": "gradle_canonicalizer_helm_values_v1.py",
+      "capture_a_and_b_canonicalize_to_identical_bytes": true,
+      "capture_a_rederived_equals_committed": true,
+      "capture_b_rederived_equals_committed": true,
+      "receipt_canonicalization_policy_sha256_matches_locally_built_policy": true
+    },
+    "repo-hyperfine": {
+      "canonicalizer_module": null,
+      "capture_a_rederived_equals_committed": true,
+      "capture_b_rederived_equals_committed": true,
+      "note": "no rule applicable; canonical-raw-input.bin verified byte-identical to raw.stdout"
+    },
+    "repo-kubeops-generator": {
+      "canonicalizer_module": "vstest_canonicalizer.py",
+      "capture_a_rederived_equals_committed": true,
+      "capture_b_rederived_equals_committed": true
+    },
+    "repo-moshi": {
+      "canonicalizer_module": "gradle_canonicalizer_v2.py",
+      "capture_a_and_b_canonicalize_to_identical_bytes": true,
+      "capture_a_rederived_equals_committed": true,
+      "capture_b_rederived_equals_committed": true,
+      "receipt_canonicalization_policy_sha256_matches_locally_built_policy": true
+    },
+    "repo-pyflakes": {
+      "canonicalizer_module": null,
+      "capture_a_rederived_equals_committed": true,
+      "capture_b_rederived_equals_committed": true,
+      "note": "no rule applicable; canonical-raw-input.bin verified byte-identical to raw.stdout; content_classification is the pre-documented 'successful-empty-domain-result', not a bug"
+    },
+    "repo-requests": {
+      "canonicalizer_module": "pytest_requests_canonicalizer.py",
+      "capture_a_and_b_canonicalize_to_identical_bytes": true,
+      "capture_a_rederived_equals_committed": true,
+      "capture_b_rederived_equals_committed": true,
+      "note": "205 pytest-httpbin ERRORs in both captures are genuine, deterministic, identical local-WSGI-server-bind failures under this sandbox's permanent network denial (repo-requests is not in NETWORK_ENFORCEMENT_AUTHORIZED_CASES) -- not a bug, not loosened.",
+      "receipt_canonicalization_policy_sha256_matches_locally_built_policy": true
+    },
+    "repo-rustlings": {
+      "canonicalizer_module": "cargo_test_canonicalizer.py",
+      "capture_a_and_b_canonicalize_to_identical_bytes": true,
+      "capture_a_rederived_equals_committed": true,
+      "capture_b_rederived_equals_committed": true,
+      "receipt_canonicalization_policy_sha256_matches_locally_built_policy": true
+    }
+  },
+  "job_count": 18,
+  "jobs": [
+    {
+      "conclusion": "success",
+      "job_id": 87774640724,
+      "name": "pilot-repo-docker-java-parser-capture-a"
+    },
+    {
+      "conclusion": "success",
+      "job_id": 87774640747,
+      "name": "pilot-repo-docker-java-parser-capture-b"
+    },
+    {
+      "conclusion": "success",
+      "job_id": 87774640739,
+      "name": "pilot-repo-dockerfile-parser-rs-capture-a"
+    },
+    {
+      "conclusion": "success",
+      "job_id": 87774640719,
+      "name": "pilot-repo-dockerfile-parser-rs-capture-b"
+    },
+    {
+      "conclusion": "success",
+      "job_id": 87774640750,
+      "name": "pilot-repo-helm-values-capture-a"
+    },
+    {
+      "conclusion": "success",
+      "job_id": 87774640741,
+      "name": "pilot-repo-helm-values-capture-b"
+    },
+    {
+      "conclusion": "success",
+      "job_id": 87774640692,
+      "name": "pilot-repo-hyperfine-capture-a"
+    },
+    {
+      "conclusion": "success",
+      "job_id": 87774640730,
+      "name": "pilot-repo-hyperfine-capture-b"
+    },
+    {
+      "conclusion": "success",
+      "job_id": 87774640715,
+      "name": "pilot-repo-kubeops-generator-capture-a"
+    },
+    {
+      "conclusion": "success",
+      "job_id": 87774640712,
+      "name": "pilot-repo-kubeops-generator-capture-b"
+    },
+    {
+      "conclusion": "success",
+      "job_id": 87774640717,
+      "name": "pilot-repo-moshi-capture-a"
+    },
+    {
+      "conclusion": "success",
+      "job_id": 87774640729,
+      "name": "pilot-repo-moshi-capture-b"
+    },
+    {
+      "conclusion": "success",
+      "job_id": 87774640731,
+      "name": "pilot-repo-pyflakes-capture-a"
+    },
+    {
+      "conclusion": "success",
+      "job_id": 87774640714,
+      "name": "pilot-repo-pyflakes-capture-b"
+    },
+    {
+      "conclusion": "success",
+      "job_id": 87774640752,
+      "name": "pilot-repo-requests-capture-a"
+    },
+    {
+      "conclusion": "success",
+      "job_id": 87774640726,
+      "name": "pilot-repo-requests-capture-b"
+    },
+    {
+      "conclusion": "success",
+      "job_id": 87774640707,
+      "name": "pilot-repo-rustlings-capture-a"
+    },
+    {
+      "conclusion": "success",
+      "job_id": 87774640725,
+      "name": "pilot-repo-rustlings-capture-b"
+    }
+  ],
+  "leaderboard_constructed": false,
+  "local_test_suite_at_implementation_sha": {
+    "command": "python3 -m unittest discover -s tests -p \"test_*.py\"",
+    "result": "OK (skipped=2)",
+    "test_count": 507,
+    "working_directory": "qodec/evals/interop/v2/n2/d1-identity-lock"
+  },
+  "model_based_quality_evaluation_performed": false,
+  "n2d2_executed": false,
+  "n2d3_executed": false,
+  "network_enforcement_authorized_cases": {
+    "repo-helm-values": "outer-netns-loopback-only",
+    "repo-kubeops-generator": "outer-netns-loopback-only",
+    "repo-moshi": "outer-netns-loopback-only"
+  },
+  "nix_identity_builds_performed": false,
+  "non_workflow_tree_equivalent_to_implementation": true,
+  "not_yet_authorized": [
+    "token counting of any kind",
+    "QODEC or RTK benchmark-arm execution",
+    "canonical QODEC or RTK Nix identity builds",
+    "N2-D2 determinism canaries",
+    "N2-D3",
+    "leaderboard construction",
+    "model-based quality evaluation",
+    "modifications to PhysShell/007",
+    "merging the reporting PR without explicit owner authorization",
+    "beginning RTK/Nix identity closure in this same branch/PR"
+  ],
+  "other_artifacts_not_part_of_required_matrix": [
+    {
+      "artifact_id": 8393527960,
+      "digest_sha256": "a90f5e2bfc10da2f4b79aadbcd68f049f4798ce4be3456fbb2f7a1a4dfb76026",
+      "name": "n2d1b-dockerfile-parser-rs-lockfile"
+    }
+  ],
+  "other_jobs_not_part_of_required_matrix": [
+    {
+      "conclusion": "success",
+      "job_id": 87774602305,
+      "name": "dockerfile-parser-rs-lockfile",
+      "note": "Dedicated lockfile-generation dependency job (repo-dockerfile-parser-rs' frozen acquisition has no committed Cargo.lock) that both its capture-a and capture-b jobs consume via `cargo fetch --locked`, run exactly ONCE per workflow run, never regenerated per-capture. Not one of the 9 frozen Stage-2 case IDs; not counted in job_count/capture_job_count below."
+    }
+  ],
+  "pair_report_artifact_count": 9,
+  "pair_report_artifacts": [
+    {
+      "artifact_id": 8393626039,
+      "digest_sha256": "f9b8989c1e60c665b3bb2b8e53f49945b946ff1b17da4c01e67dda88d3c5b699",
+      "name": "n2d1b-pair-reproducibility-repo-docker-java-parser"
+    },
+    {
+      "artifact_id": 8393625133,
+      "digest_sha256": "91f83bb38ec0075a180f4868aa9cf2e1e85f591397a55f4d8b9b3393b497612a",
+      "name": "n2d1b-pair-reproducibility-repo-dockerfile-parser-rs"
+    },
+    {
+      "artifact_id": 8393625404,
+      "digest_sha256": "94b19ef6ee2e2b98443d277df3973ece5fdb9c761ea741ef3c5554dc4116bd8e",
+      "name": "n2d1b-pair-reproducibility-repo-helm-values"
+    },
+    {
+      "artifact_id": 8393625103,
+      "digest_sha256": "1d896de0582dfd4229dae408ba629da566a390124d7b29389a92f28550c79ebd",
+      "name": "n2d1b-pair-reproducibility-repo-hyperfine"
+    },
+    {
+      "artifact_id": 8393625143,
+      "digest_sha256": "dbd6488d16dc4e9050c663d3bfa2311e7cc7540459b65f75b8a63ac87067269b",
+      "name": "n2d1b-pair-reproducibility-repo-kubeops-generator"
+    },
+    {
+      "artifact_id": 8393624992,
+      "digest_sha256": "a284b079e45cafe303c0916c9c4f095ff1bdee2e41d9bb050ab70ddb42ddc735",
+      "name": "n2d1b-pair-reproducibility-repo-moshi"
+    },
+    {
+      "artifact_id": 8393625075,
+      "digest_sha256": "588ff0a5a1df484777d02b7edbea4cf6b11ca2f891b4de7e71611a55c1c2851d",
+      "name": "n2d1b-pair-reproducibility-repo-pyflakes"
+    },
+    {
+      "artifact_id": 8393631517,
+      "digest_sha256": "b929e627845a1a08375234786cca2f42623ecee37fe3c0dd455cb0cd876ad426",
+      "name": "n2d1b-pair-reproducibility-repo-requests"
+    },
+    {
+      "artifact_id": 8393625291,
+      "digest_sha256": "3dd8261707ba1f4d56eaaf0dd8039fd14abafaf8036f6bbd8e38d7c403fbd773",
+      "name": "n2d1b-pair-reproducibility-repo-rustlings"
+    }
+  ],
+  "pair_verify_job_count": 9,
+  "pair_verify_jobs": [
+    {
+      "conclusion": "success",
+      "job_id": 87775458181,
+      "name": "pair-verify-repo-docker-java-parser"
+    },
+    {
+      "conclusion": "success",
+      "job_id": 87775458157,
+      "name": "pair-verify-repo-dockerfile-parser-rs"
+    },
+    {
+      "conclusion": "success",
+      "job_id": 87775458159,
+      "name": "pair-verify-repo-helm-values"
+    },
+    {
+      "conclusion": "success",
+      "job_id": 87775458110,
+      "name": "pair-verify-repo-hyperfine"
+    },
+    {
+      "conclusion": "success",
+      "job_id": 87775458100,
+      "name": "pair-verify-repo-kubeops-generator"
+    },
+    {
+      "conclusion": "success",
+      "job_id": 87775458106,
+      "name": "pair-verify-repo-moshi"
+    },
+    {
+      "conclusion": "success",
+      "job_id": 87775458113,
+      "name": "pair-verify-repo-pyflakes"
+    },
+    {
+      "conclusion": "success",
+      "job_id": 87775458165,
+      "name": "pair-verify-repo-requests"
+    },
+    {
+      "conclusion": "success",
+      "job_id": 87775458162,
+      "name": "pair-verify-repo-rustlings"
+    }
+  ],
+  "physshell_007_modified": false,
+  "pull_request": {
+    "number": 3,
+    "repo": "PhysShell/qodec",
+    "state_at_acceptance": "PR #3 is opened after Commit B, reporting this exact accepted evidence. The disposable trigger commit is not an ancestor of the PR head."
+  },
+  "record_sha256": "sha256:da3097a4a886fb8d3f901bd164b6b83d89b40dd5ca5668e20f19fbddfbf199f6",
+  "record_type": "n2d1b-stage2-full-matrix-acceptance-v1",
+  "record_version": 1,
+  "repository": "PhysShell/qodec",
+  "rtk_nix_identity_closure_authorized_next": true,
+  "rtk_or_qodec_benchmark_arms_executed": false,
+  "rust_deterministic_test_threads_authorized_case_ids": [
+    "repo-dockerfile-parser-rs",
+    "repo-rustlings"
+  ],
+  "schema_version": 1,
+  "status": "STAGE_2_FULL_MATRIX_ACCEPTED_COMPLETE",
+  "tested_head_sha": "1a4c3635abeaedfc585874c2e375326566d07c78",
+  "tested_implementation_sha": "1a4c3635abeaedfc585874c2e375326566d07c78",
+  "token_counts_computed": false,
+  "trigger_commit_included_in_pull_request": false,
+  "unexplained_raw_differences": [],
+  "workflow": {
+    "conclusion": "success",
+    "event": "push",
+    "head_branch": "ci-trigger/n2d1b-stage2-1a4c363",
+    "head_sha": "ad628f716c50b042867eac972bb95e1c7f24229c",
+    "name": "qodec-n2d1b-miner-pilot",
+    "run_html_url": "https://github.com/PhysShell/qodec/actions/runs/29544801640",
+    "run_id": 29544801640,
+    "run_number": 6
+  },
+  "workflow_file": ".github/workflows/qodec-n2d1b-miner-pilot.yml",
+  "workflow_run_id": 29544801640
+}
