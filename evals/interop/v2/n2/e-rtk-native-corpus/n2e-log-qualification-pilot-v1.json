@@ -1,0 +1,51 @@
+{
+  "acceptance_note": "RTK savings are reporting-only and never an acceptance criterion (\u00a715).",
+  "archive_checksum": "md5:2e4b67dc68c3a4f1c18e267c341c52a2",
+  "generated_by": "evals/interop/v2/n2/e-rtk-native-corpus/tools/build_n2e_log_qualification_pilot.py",
+  "loghub_system": "Proxifier",
+  "mission": "N2-E",
+  "mission_title": "external RTK-native claim-aligned command corpus",
+  "purpose": "Reproducible \u00a715 RAW/RTK qualification for one real, checksum-pinned Loghub log case.",
+  "raw_arm": {
+    "byte_deterministic": true,
+    "combined_bytes": 176169,
+    "combined_sha256": "4eac06f1d78ebdf5905489b87242afc87672f8b6407127438533e2a6831491d9",
+    "exit_code": 0,
+    "exit_code_stable": true,
+    "o200k_tokens": 67875
+  },
+  "record_sha256": "sha256:071e3a7c0c0a99351ecf7edcd48f2fd3b3d658f1760f9963407517c0594becae",
+  "record_type": "n2e-log-qualification-pilot",
+  "record_version": "v1",
+  "rtk_arm": {
+    "byte_deterministic": true,
+    "combined_bytes": 102,
+    "combined_sha256": "93364ab5c89a85d298f8e62bafcbe04f9cdfea4e12179ab80041011c27fc984e",
+    "exit_code": 0,
+    "exit_code_stable": true,
+    "o200k_tokens": 34
+  },
+  "rtk_binary_sha256": "41f316adf7b30a568208a0a4f824bffb266ecb6d01bd9de81bed58e1d469dfcf",
+  "rtk_savings_pct_reporting_only": 99.95,
+  "schema_version": "n2e-record-1",
+  "semantic_oracle": {
+    "content_dropped": false,
+    "oracle": "log_severity_counts",
+    "raw_counts": {
+      "error": 0,
+      "info": 0,
+      "total_lines": 1500,
+      "warn": 0
+    },
+    "rtk_reported": {
+      "error": 0,
+      "info": 0,
+      "warn": 0
+    },
+    "severity_counts_preserved": true
+  },
+  "slice_lines": 1500,
+  "slice_sha256": "4eac06f1d78ebdf5905489b87242afc87672f8b6407127438533e2a6831491d9",
+  "source_id": "loghub-2.0",
+  "zenodo_record": "8275861"
+}
