@@ -64,13 +64,21 @@ def _git_env(home: Path | None = None) -> dict:
 # Two mechanisms, tried in order, so it works both under an unprivileged-userns
 # container AND on GitHub-hosted runners (which restrict unprivileged userns but
 # grant passwordless sudo):
-#   unshare-rn     : unprivileged user+net namespace
-#   unshare-n-root : `unshare -n` as root (when already root)
-#   sudo-unshare-n : `sudo -n unshare -n` (passwordless-sudo netns)
+#   unshare-rn     : unprivileged user+net namespace (child already maps to the
+#                    caller's real uid outside the ns -> files stay caller-owned)
+#   unshare-n-root : `unshare -n` as root, then DROP back to the caller's uid/gid
+#   sudo-unshare-n : `sudo -n unshare -n` (passwordless-sudo netns), then DROP
+# The root-based mechanisms MUST drop privileges with setpriv before running the
+# workload: otherwise the measured command runs as root over a runner-owned repo,
+# which (a) makes git abort with "detected dubious ownership" (exit 128, and the
+# message embeds the per-rep tempdir path -> non-deterministic), and (b) leaves
+# root-owned build artifacts that break the per-rep TemporaryDirectory cleanup.
+_UID, _GID = os.getuid(), os.getgid()
+_DROP = ["setpriv", "--reuid", str(_UID), "--regid", str(_GID), "--clear-groups", "--"]
 _ISO_CANDIDATES = [
     ("unshare-rn", ["unshare", "-rn", "--"]),
-    ("unshare-n-root", ["unshare", "-n", "--"]),
-    ("sudo-unshare-n", ["sudo", "-n", "unshare", "-n", "--"]),
+    ("unshare-n-root", ["unshare", "-n", "--"] + _DROP),
+    ("sudo-unshare-n", ["sudo", "-n", "unshare", "-n", "--"] + _DROP),
 ]
 
 
@@ -115,13 +123,18 @@ def denial_probe(prefix: list) -> dict:
 
 def run_isolated(argv, cwd, timeout, wrapper_prefix, env_extra=None):
     """Run argv network-denied via `wrapper_prefix` with an explicit env (env -i),
-    so it is robust to sudo env-sanitization."""
+    so it is robust to sudo env-sanitization. A timeout is a first-class RAW/RTK
+    outcome (recorded, exit 124, timed_out=True) -- never an uncaught crash."""
     env = m.measurement_env(env_extra)
     full = wrapper_prefix + _env_i(env) + list(argv)
-    p = subprocess.run(full, cwd=cwd, stdin=subprocess.DEVNULL,
-                       stdout=subprocess.PIPE, stderr=subprocess.PIPE, timeout=timeout)
-    combined = p.stdout + p.stderr
-    return {"exit_code": p.returncode, "stdout": p.stdout, "stderr": p.stderr, "combined": combined}
+    try:
+        p = subprocess.run(full, cwd=cwd, stdin=subprocess.DEVNULL,
+                           stdout=subprocess.PIPE, stderr=subprocess.PIPE, timeout=timeout)
+        combined = p.stdout + p.stderr
+        return {"exit_code": p.returncode, "combined": combined, "timed_out": False}
+    except subprocess.TimeoutExpired as e:
+        combined = (e.stdout or b"") + (e.stderr or b"")
+        return {"exit_code": 124, "combined": combined, "timed_out": True}
 
 
 def run_arm(argv, frozen_dir: Path, policy_id: str, timeout: int, wrapper_prefix, env_extra=None) -> dict:
@@ -130,11 +143,13 @@ def run_arm(argv, frozen_dir: Path, policy_id: str, timeout: int, wrapper_prefix
     canonical bytes (identical across reps when deterministic)."""
     runs, canon_hashes, raw_hashes = [], [], []
     accepted_canonical = None
+    timed_out_any = False
     for _ in range(REPS):
         with tempfile.TemporaryDirectory(prefix="n2e-rep-") as td:
             work = Path(td) / "w"
             shutil.copytree(frozen_dir, work, symlinks=True)
             r = run_isolated(argv, str(work), timeout, wrapper_prefix, env_extra)
+        timed_out_any = timed_out_any or r.get("timed_out", False)
         cb = canon.canonicalize(r["combined"], policy_id)
         runs.append({"exit_code": r["exit_code"],
                      "raw_combined_sha256": hashlib.sha256(r["combined"]).hexdigest(),
@@ -148,7 +163,7 @@ def run_arm(argv, frozen_dir: Path, policy_id: str, timeout: int, wrapper_prefix
     return {
         "reps_completed": len(runs), "exit_code": runs[0]["exit_code"],
         "exit_code_stable": exit_stable, "canonical_deterministic": deterministic,
-        "canonicalization_policy": policy_id,
+        "canonicalization_policy": policy_id, "timed_out": timed_out_any,
         "canonical_sha256": canon_hashes[0] if deterministic else None,
         "raw_capture_hashes": raw_hashes, "runs": runs,
         "_accepted_canonical": accepted_canonical if deterministic else None,
@@ -313,9 +328,17 @@ def _warm_test_env(fam, sub, scen, repo_dir: Path, home: Path):
     warm = {"steps": []}
 
     def step(cmd, tmo=1200):
-        r = subprocess.run(cmd, cwd=str(repo_dir), env=env, capture_output=True, timeout=tmo)
-        warm["steps"].append({"cmd": cmd, "exit": r.returncode})
-        return r
+        """Run a network-enabled warm step; ALWAYS record a diagnostic output tail
+        and never crash (a timeout is recorded, not raised)."""
+        try:
+            r = subprocess.run(cmd, cwd=str(repo_dir), env=env, capture_output=True, timeout=tmo)
+            tail = (r.stdout[-1200:] + r.stderr[-1200:]).decode("utf-8", "replace")
+            warm["steps"].append({"cmd": cmd, "exit": r.returncode, "tail": tail})
+            return r
+        except subprocess.TimeoutExpired as e:
+            tail = ((e.stdout or b"")[-1200:] + (e.stderr or b"")[-1200:]).decode("utf-8", "replace")
+            warm["steps"].append({"cmd": cmd, "exit": None, "timed_out": True, "tail": tail})
+            return None
 
     if fam == "rust_cargo":
         step(["cargo", "fetch"])
@@ -361,6 +384,8 @@ def _warm_test_env(fam, sub, scen, repo_dir: Path, home: Path):
         policy = canon.policy_for("python", sub)
     else:
         raise SystemExit(f"no warm step for {fam}/{sub}")
+    # Offline measurement is only meaningful if every dep-population step succeeded.
+    warm["ok"] = all(s.get("exit") == 0 for s in warm["steps"])
     return warm, raw, rtk, policy
 
 
@@ -418,6 +443,15 @@ def main() -> int:
         if not acq.get("identity_verified"):
             emit("REJECTED_ACQUISITION", acquisition=acq)
             return 2
+        # Fail closed BEFORE measuring if offline dep-population failed: an offline
+        # build/test over an unpopulated cache can never show the declared outcome,
+        # so reject explicitly (with the warm diagnostic tail) instead of emitting a
+        # confusing downstream oracle failure.
+        warm = acq.get("warm")
+        if warm is not None and not warm.get("ok", True):
+            emit("REJECTED_WARM", acquisition=acq, isolation=iso,
+                 rejection_reasons=["offline dependency preparation (warm) failed"])
+            return 1
         policy = acq["policy"]
         frozen = workroot / acq.get("workdir", ".")
         raw_argv = acq.get("resolved_raw_argv") or scen["original_argv"]
@@ -511,6 +545,8 @@ def _raw_accept(scen, raw, acq, iso):
     reasons = []
     if raw["reps_completed"] != REPS:
         reasons.append("raw reps != 3")
+    if raw.get("timed_out"):
+        reasons.append("raw command timed out")
     if not raw["exit_code_stable"]:
         reasons.append("raw exit unstable")
     if not raw["canonical_deterministic"]:
@@ -531,6 +567,8 @@ def _rtk_accept(scen, raw, rtk, rtk_bin):
     reasons = []
     if rtk["reps_completed"] != REPS:
         reasons.append("rtk reps != 3")
+    if rtk.get("timed_out"):
+        reasons.append("rtk command timed out")
     if not rtk["exit_code_stable"]:
         reasons.append("rtk exit unstable")
     if not rtk["canonical_deterministic"]:

@@ -113,6 +113,26 @@ class TestAcceptance(unittest.TestCase):
         body = self._run(cases)
         self.assertFalse(body["canary_pass"])
 
+    def test_raw_timeout_fails(self):
+        """A RAW arm that timed out must FAIL even if the other primitives look ok."""
+        cases = [good_case(cid) for cid in CASE_IDS]
+        bad = json.loads(json.dumps(cases[0]))
+        bad["raw_arm"]["timed_out"] = True
+        c.finalize(bad)
+        cases[0] = bad
+        body = self._run(cases)
+        self.assertFalse(body["canary_pass"])
+        self.assertEqual(body["verdicts"][CASE_IDS[0]], "FAIL")
+
+    def test_rtk_timeout_fails(self):
+        cases = [good_case(cid) for cid in CASE_IDS]
+        bad = json.loads(json.dumps(cases[0]))
+        bad["rtk_arm"]["timed_out"] = True
+        c.finalize(bad)
+        cases[0] = bad
+        body = self._run(cases)
+        self.assertFalse(body["canary_pass"])
+
     def test_missing_case_fails(self):
         body = self._run([good_case(cid) for cid in CASE_IDS[:-1]])
         self.assertFalse(body["canary_pass"])

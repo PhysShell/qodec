@@ -41,6 +41,8 @@ def rederive_verdict(rec: dict) -> tuple[str, list]:
         reasons.append("rtk_binary_identity")
     if raw.get("reps_completed") != 3:
         reasons.append("raw_reps!=3")
+    if raw.get("timed_out"):
+        reasons.append("raw_timed_out")
     if not raw.get("exit_code_stable"):
         reasons.append("raw_exit_unstable")
     if not raw.get("canonical_deterministic"):
@@ -60,6 +62,8 @@ def rederive_verdict(rec: dict) -> tuple[str, list]:
     else:
         if rtk.get("reps_completed") != 3:
             reasons.append("rtk_reps!=3")
+        if rtk.get("timed_out"):
+            reasons.append("rtk_timed_out")
         if not rtk.get("exit_code_stable"):
             reasons.append("rtk_exit_unstable")
         if not rtk.get("canonical_deterministic"):
