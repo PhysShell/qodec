@@ -90,15 +90,22 @@ def run_repeated(argv: list[str], reps: int, timeout: int, setup=None,
 
 
 def o200k_tokens(data: bytes, qodec_bin: str | None = None) -> int:
-    """Exact o200k token count of `data` via the canonical qodec meter."""
+    """Exact o200k token count of `data` via the canonical qodec meter.
+
+    The meter is a bounded post-processing step over the already-accepted canonical
+    bytes; it never truncates or alters them. Its timeout is tiered by input size so
+    a legitimately large (but valid) stream is metered rather than spuriously timing
+    out -- distinct from a genuinely pathological hang, which still terminates."""
     qodec_bin = qodec_bin or os.environ.get("QODEC_BIN")
     if not qodec_bin:
         raise RuntimeError("QODEC_BIN not set")
+    # ~ generous linear tier: 300s base + 60s per MiB, capped at 1800s.
+    timeout = min(1800, 300 + 60 * (len(data) // (1024 * 1024)))
     with tempfile.NamedTemporaryFile() as tf:
         tf.write(data)
         tf.flush()
         p = subprocess.run([qodec_bin, "encode", "--json", "--meter", "o200k", "-i", tf.name],
-                           capture_output=True, timeout=300)
+                           capture_output=True, timeout=timeout)
     env = json.loads(p.stdout.decode())
     return int(env["tokens_in"])
 

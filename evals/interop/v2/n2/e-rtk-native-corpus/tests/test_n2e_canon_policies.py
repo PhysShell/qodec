@@ -34,6 +34,19 @@ class TestCanonPolicies(unittest.TestCase):
         b = canon.canonicalize(b"===== 3 passed in 5.00s =====", "pytest-v1")
         self.assertEqual(a, b)
 
+    def test_go_zap_ts_and_origins_normalized(self):
+        # a tested server's zap logs: wall-clock ts float + map-ordered origins set
+        a = b'{"ts":1784320522.46,"msg":"x","origins":["//localhost:2019","//[::1]:2019"]}'
+        b = b'{"ts":1784320599.99,"msg":"x","origins":["//[::1]:2019","//localhost:2019"]}'
+        self.assertEqual(canon.canonicalize(a, "go-test-v1"), canon.canonicalize(b, "go-test-v1"))
+        # a dropped/changed origin (semantic multiset change) must remain observable
+        c1 = canon.canonicalize(a, "go-test-v1")
+        c2 = canon.canonicalize(b'{"ts":1.0,"msg":"x","origins":["//[::1]:2019"]}', "go-test-v1")
+        self.assertNotEqual(c1, c2)
+        # a changed msg must remain observable
+        c3 = canon.canonicalize(b'{"ts":1.0,"msg":"y","origins":["//localhost:2019","//[::1]:2019"]}', "go-test-v1")
+        self.assertNotEqual(canon.canonicalize(a, "go-test-v1"), c3)
+
     def test_vitest_per_file_duration_normalized(self):
         # per-file trailing elapsed ("(150 tests) 110ms") is pure duration jitter
         a = canon.canonicalize(b"  \xe2\x9c\x93 parse.spec.ts  (150 tests) 110ms", "vitest-v1")

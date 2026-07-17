@@ -223,9 +223,14 @@ def acquire_loghub(scen, workroot):
             "policy": canon.policy_for("logs", "log")}
 
 
-def _git_fetch_checkout(repo_url, commit, dest, home):
+def _git_fetch_checkout(repo_url, commit, dest, home, depth=2):
+    # depth>=2: `git show`/`git log` need the target commit's PARENT(s) present, else
+    # git treats the tip as a root commit and `git show` emits the ENTIRE tree as a
+    # diff (e.g. a shallow-fetched merge commit -> 12MB instead of its true small
+    # combined diff). depth 2 fetches the tip + its parents, yielding representative
+    # history-relative output without unshallowing the whole repo.
     subprocess.run(["git", "init", "-q", str(dest)], check=True, env=_git_env(home))
-    subprocess.run(["git", "-C", str(dest), "fetch", "-q", "--depth", "1", repo_url, commit],
+    subprocess.run(["git", "-C", str(dest), "fetch", "-q", "--depth", str(depth), repo_url, commit],
                    check=True, env=_git_env(home))
     subprocess.run(["git", "-C", str(dest), "checkout", "-q", "FETCH_HEAD"], check=True, env=_git_env(home))
     head = subprocess.run(["git", "-C", str(dest), "rev-parse", "HEAD"],
@@ -319,11 +324,11 @@ def acquire_swebench(scen, workroot):
         pf.write_bytes(blob)
         subprocess.run(["git", "-C", str(repo_dir), "apply", str(pf)], check=True, env=_git_env(home))
         applied.append({name: hashlib.sha256(blob).hexdigest()})
-    warm, raw_argv, rtk_argv, policy = _warm_test_env(fam, sub, scen, repo_dir, home)
+    warm, policy, offline_env, resolved = _warm_test_env(fam, sub, scen, repo_dir, home)
     return {"identity_verified": True, "repository": repo, "base_commit": base,
             "instance_id": instance_id, "applied_patches": applied, "warm": warm,
-            "resolved_raw_argv": raw_argv, "resolved_rtk_argv": rtk_argv,
-            "workdir": "repo", "home_local": True, "policy": policy}
+            "resolved_raw_argv": resolved.get("raw_argv"), "resolved_rtk_argv": resolved.get("rtk_argv"),
+            "offline_env": offline_env, "workdir": "repo", "home_local": True, "policy": policy}
 
 
 def acquire_bugsinpy(scen, workroot):
@@ -338,22 +343,29 @@ def acquire_bugsinpy(scen, workroot):
     home.mkdir()
     repo_dir = workroot / "repo"
     _git_fetch_checkout(f"{gh}.git", commit, repo_dir, home)
-    warm, raw_argv, rtk_argv, policy = _warm_test_env("python", scen["command_subfamily"], scen, repo_dir, home)
+    warm, policy, offline_env, resolved = _warm_test_env("python", scen["command_subfamily"], scen, repo_dir, home)
     return {"identity_verified": True, "repository": repo, "github_url": gh, "commit": commit,
-            "warm": warm, "resolved_raw_argv": raw_argv, "resolved_rtk_argv": rtk_argv,
-            "workdir": "repo", "home_local": True, "policy": policy}
+            "warm": warm, "resolved_raw_argv": resolved.get("raw_argv"), "resolved_rtk_argv": resolved.get("rtk_argv"),
+            "offline_env": offline_env, "workdir": "repo", "home_local": True, "policy": policy}
 
 
 def _warm_test_env(fam, sub, scen, repo_dir: Path, home: Path):
-    """Install deps + prebuild during the network-enabled acquisition phase so
-    the measurement runs offline. Returns (warm_evidence, raw_argv, rtk_argv, policy)."""
+    """Populate offline caches during the network-enabled acquisition phase. The
+    MEASURED command stays the frozen scenario command (original_argv / explicit_
+    rtk_argv); warm only fills dependency caches and `offline_env` enforces the
+    network-denied execution of that exact command (identical for RAW and RTK).
+
+    Returns (warm, policy, offline_env, resolved). `resolved` overrides argv ONLY
+    where the frozen scenario explicitly intends build-system/runner resolution:
+      - js_ts: rtk_argv_resolution 'test_runner_from_package_json' (explicit RTK
+        argv is null) -> resolve runner for BOTH arms + record scheduler profile;
+      - jvm:   'test' resolves to the repo's actual build system (gradle|maven).
+    Any determinism control (single-thread scheduler) is applied identically to
+    both arms and recorded as environment identity -- never filters/skips tests."""
     warm_extra = {"HOME": str(home), "CARGO_HOME": str(home / ".cargo"),
                   "GOFLAGS": "-mod=mod", "GOPATH": str(home / "go"),
                   "npm_config_cache": str(home / ".npm"),
-                  # HOME override hides rustup's default-toolchain config (~/.rustup);
-                  # pin the toolchain explicitly so cargo can choose one offline.
                   "RUSTUP_TOOLCHAIN": os.environ.get("RUSTUP_TOOLCHAIN", "stable")}
-    # gradle/maven honour JAVA_HOME; forward the CI-selected JDK (lucene needs 21+).
     for k in ("JAVA_HOME", "RUSTUP_HOME"):
         if os.environ.get(k):
             warm_extra[k] = os.environ[k]
@@ -361,8 +373,6 @@ def _warm_test_env(fam, sub, scen, repo_dir: Path, home: Path):
     warm = {"steps": []}
 
     def step(cmd, tmo=1200):
-        """Run a network-enabled warm step; ALWAYS record a diagnostic output tail
-        and never crash (a timeout is recorded, not raised)."""
         try:
             r = subprocess.run(cmd, cwd=str(repo_dir), env=env, capture_output=True, timeout=tmo)
             tail = (r.stdout[-1200:] + r.stderr[-1200:]).decode("utf-8", "replace")
@@ -373,21 +383,19 @@ def _warm_test_env(fam, sub, scen, repo_dir: Path, home: Path):
             warm["steps"].append({"cmd": cmd, "exit": None, "timed_out": True, "tail": tail})
             return None
 
+    offline_env, resolved = {}, {}
     if fam == "rust_cargo":
         step(["cargo", "fetch"])
-        raw = {"test": ["cargo", "test", "--offline"], "build": ["cargo", "build", "--offline"],
-               "check": ["cargo", "check", "--offline"], "clippy": ["cargo", "clippy", "--offline"]}[sub]
-        rtk = ["rtk"] + raw[:-1]  # rtk cargo <sub> (drop --offline for the wrapper; cargo still offline via CARGO_NET_OFFLINE)
+        # frozen `cargo test`: offline via env; single-thread scheduler via env
+        # (RUST_TEST_THREADS) so the command bytes stay the frozen contract.
+        offline_env = {"CARGO_NET_OFFLINE": "true", "RUST_TEST_THREADS": "1"}
+        warm["scheduler"] = "RUST_TEST_THREADS=1 (single-threaded, deterministic order)"
         policy = canon.policy_for("rust_cargo", sub)
     elif fam == "go":
         step(["go", "mod", "download"])
-        raw = {"test": ["go", "test", "./..."], "build": ["go", "build", "./..."],
-               "vet": ["go", "vet", "./..."]}[sub]
-        rtk = ["rtk", "go"] + raw[1:]
+        offline_env = {"GOFLAGS": "-mod=mod", "GOPROXY": "off"}
         policy = canon.policy_for("go", sub)
     elif fam == "js_ts":
-        # pnpm workspaces (vue/core etc.) use `catalog:`/`workspace:` protocols npm
-        # cannot parse; pick the package manager the repo actually declares.
         pj = repo_dir / "package.json"
         pj_txt = pj.read_text(errors="replace") if pj.exists() else ""
         pnpm = (repo_dir / "pnpm-lock.yaml").exists() or "catalog:" in pj_txt or '"workspace:' in pj_txt
@@ -400,34 +408,47 @@ def _warm_test_env(fam, sub, scen, repo_dir: Path, home: Path):
             exec_pfx = ["npx"]
             warm["js_package_manager"] = "npm"
         runner = "jest" if '"jest"' in pj_txt and "vitest" not in pj_txt else ("vitest" if "vitest" in pj_txt else "jest")
+        # deterministic sequential scheduler for the pinned runner (same test set,
+        # no filtering); applied identically to RAW and RTK, recorded as identity.
+        if runner == "vitest":
+            seq = ["--no-file-parallelism", "--sequence.concurrent=false", "--sequence.shuffle=false"]
+        else:  # jest
+            seq = ["--runInBand"]
         if sub == "test":
-            raw, rtk = exec_pfx + [runner, "run"], ["rtk", runner]
+            resolved = {"raw_argv": exec_pfx + [runner, "run", *seq], "rtk_argv": ["rtk", runner, *seq]}
         elif sub == "tsc":
-            raw, rtk = exec_pfx + ["tsc", "--noEmit"], ["rtk", "tsc"]
+            resolved = {"raw_argv": exec_pfx + ["tsc", "--noEmit"], "rtk_argv": ["rtk", "tsc"]}
         else:
-            raw, rtk = exec_pfx + ["eslint", "."], ["rtk", "lint", "."]
-        policy = canon.policy_for("js_ts", sub)
+            resolved = {"raw_argv": exec_pfx + ["eslint", "."], "rtk_argv": ["rtk", "lint", "."]}
         warm["js_test_runner"] = runner
+        warm["scheduler"] = "sequential: " + " ".join(seq)
+        policy = canon.policy_for("js_ts", sub)
     elif fam == "jvm":
         build_sys = "maven" if (repo_dir / "pom.xml").exists() else "gradle"
         if build_sys == "gradle":
-            raw, rtk = ["./gradlew", "test", "--offline"], ["rtk", "gradlew", "test"]
+            # WARM (network on): fetch the gradle distribution + all deps and compile
+            # test classes into the cache, WITHOUT running tests. MEASUREMENT then runs
+            # the frozen `test` offline against that cache under the predeclared limit.
+            step(["./gradlew", "testClasses", "--no-daemon", "--console=plain"], tmo=1800)
+            resolved = {"raw_argv": ["./gradlew", "test", "--offline", "--no-daemon",
+                                     "--console=plain", "--max-workers=1"],
+                        "rtk_argv": ["rtk", "gradlew", "test"]}
         else:
-            raw, rtk = ["mvn", "-o", "test"], ["rtk", "mvn", "test"]
-        step(raw[:1] + (["dependencies"] if build_sys == "maven" else ["dependencies", "--refresh-dependencies"]), tmo=1800)
-        policy = canon.policy_for("jvm", sub, jvm_build=build_sys)
+            step(["mvn", "-B", "-DskipTests", "test-compile"], tmo=1800)  # network: populate ~/.m2
+            resolved = {"raw_argv": ["mvn", "-o", "-B", "test"], "rtk_argv": ["rtk", "mvn", "test"]}
         warm["jvm_build_system"] = build_sys
+        warm["build_system_resolution"] = f"jvm/test resolved to repo build system: {build_sys}"
+        policy = canon.policy_for("jvm", sub, jvm_build=build_sys)
     elif fam == "python":
         step(["python3", "-m", "pip", "install", "-e", "."], tmo=1800)
-        step(["python3", "-m", "pip", "install", "pytest", "ruff"])
-        raw = {"pytest": ["python3", "-m", "pytest", "-q"], "ruff": ["ruff", "check", "."]}[sub]
-        rtk = ["rtk", "pytest"] if sub == "pytest" else ["rtk", "ruff", "check", "."]
+        step(["python3", "-m", "pip", "install", "pytest"])
+        # frozen `pytest <path>` runs verbatim; PYTHONHASHSEED pins hash-order.
+        offline_env = {"PYTHONHASHSEED": "0", "PYTHONDONTWRITEBYTECODE": "1"}
         policy = canon.policy_for("python", sub)
     else:
         raise SystemExit(f"no warm step for {fam}/{sub}")
-    # Offline measurement is only meaningful if every dep-population step succeeded.
     warm["ok"] = all(s.get("exit") == 0 for s in warm["steps"])
-    return warm, raw, rtk, policy
+    return warm, policy, offline_env, resolved
 
 
 ADAPTERS = {"logs": acquire_loghub, "git": acquire_git, "files_search": acquire_git,
@@ -500,12 +521,17 @@ def main() -> int:
         env_extra = {"HOME": str(workroot / ".home")} if acq.get("home_local") else None
         if fam in ("rust_cargo", "go", "jvm", "js_ts", "python"):
             # the offline measurement runs under `env -i`; forward the toolchain
-            # selectors resolved during warm so cargo/gradle can run offline.
+            # selectors resolved during warm plus the per-family offline/determinism
+            # env so the FROZEN command runs network-denied and reproducibly. This
+            # env is identical for the RAW and RTK arms (§ identical execution).
             tc = {"RUSTUP_TOOLCHAIN": os.environ.get("RUSTUP_TOOLCHAIN", "stable"),
-                  "GOFLAGS": "-mod=mod"}
+                  "GOFLAGS": "-mod=mod",
+                  "CARGO_HOME": str(workroot / ".home" / ".cargo"),
+                  "GOPATH": str(workroot / ".home" / "go")}
             for k in ("JAVA_HOME", "RUSTUP_HOME"):
                 if os.environ.get(k):
                     tc[k] = os.environ[k]
+            tc.update(acq.get("offline_env") or {})
             env_extra = {**(env_extra or {}), **tc}
         if fam in ("git", "files_search"):
             # git needs a repository-local, fixed identity in the measurement env

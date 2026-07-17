@@ -15,6 +15,18 @@ from __future__ import annotations
 
 import re
 
+
+def _sort_json_str_array(mobj: "re.Match") -> bytes:
+    """Sort the comma-separated JSON string elements of a matched `"key":[...]`
+    array while preserving the EXACT multiset (a value that changes/appears/
+    disappears still changes the bytes). Used only for keys whose Go source is an
+    unordered map (set semantics), never for ordered output."""
+    prefix, body, suffix = mobj.group(1), mobj.group(2), mobj.group(3)
+    if not body.strip():
+        return mobj.group(0)
+    elems = body.split(b",")
+    return prefix + b",".join(sorted(elems)) + suffix
+
 # Each policy: id -> list of (compiled_pattern, replacement). Patterns must be
 # anchored to the tool's exact duration grammar. Replacements are fixed tokens.
 _POLICIES: dict[str, list[tuple[re.Pattern, bytes]]] = {
@@ -30,11 +42,19 @@ _POLICIES: dict[str, list[tuple[re.Pattern, bytes]]] = {
         (re.compile(rb"in \d+\.\d+s\b"), b"in <dur>"),
         (re.compile(rb"in \d+m \d+\.\d+s\b"), b"in <dur>"),
     ],
-    # go test: "ok  \tpkg\t0.123s" ; "--- FAIL: TestX (0.00s)"
+    # go test: "ok  \tpkg\t0.123s" ; "--- FAIL: TestX (0.00s)". Also bounded rules
+    # for structured (zap) app logs a tested server emits: the wall-clock "ts"
+    # epoch float (metadata the test_oracle never reads) and the "origins" array,
+    # which Go renders from an unordered map -- sorted here preserving the exact
+    # multiset (NOT a general line sort).
     "go-test-v1": [
         (re.compile(rb"\t\d+\.\d+s\b"), b"\t<dur>"),
         (re.compile(rb"\(\d+\.\d+s\)"), b"(<dur>)"),
         (re.compile(rb"\(cached\)"), b"(<dur>)"),
+        (re.compile(rb'("ts":)\d+\.\d+\b'), rb"\1<ts>"),
+        # closing bracket anchored to the JSON boundary (`]` before `,` or `}`) so
+        # `]` chars inside elements (e.g. "//[::1]:2019") do not end the match early.
+        (re.compile(rb'("origins":\[)(.*?)(\](?=[,}]))'), _sort_json_str_array),
     ],
     # go vet: diagnostics only; no durations expected -> identity but declared for clarity
     "go-vet-v1": [],
@@ -115,7 +135,7 @@ def canonicalize(data: bytes, policy_id: str) -> bytes:
         raise KeyError(f"unknown canonicalization policy {policy_id!r}")
     out = data
     for pat, repl in _POLICIES[policy_id]:
-        out = pat.sub(repl, out)
+        out = pat.sub(repl, out)  # repl may be bytes or a callable(match)->bytes
     return out
 
 
