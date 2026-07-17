@@ -1,7 +1,7 @@
 {
   "bugsinpy_record": "n2e-bugsinpy-bugs-v1.json",
   "bugsinpy_sha256": "sha256:2653fd2ba113827ddb56cb0e313eb76047a88913cd72ba31bd04797b7fc258cf",
-  "candidate_count": 1982,
+  "candidate_count": 2127,
   "candidates": [
     {
       "base_commit": "51dfde02840017092486fb75be2b16566aff6a19",
@@ -1304,6 +1304,28 @@
     },
     {
       "base_commit": "75a24bbc67aa31b825b6326cfb6e6afdf3ca90d5",
+      "candidate_id": "astral-sh__ruff-15309::rust_cargo::clippy",
+      "cluster_id": "swebench:astral-sh__ruff-15309",
+      "command_family": "rust_cargo",
+      "command_subfamily": "clippy",
+      "expected_raw_outcome": "text",
+      "image_recipe": {
+        "kind": "swebench_eval_image_recipe",
+        "note": "harness-built per instance; digest pinned at acquisition (\u00a75)."
+      },
+      "instance_id": "astral-sh__ruff-15309",
+      "language": "rust",
+      "outcome_blind": true,
+      "raw_command_argv": [
+        "cargo",
+        "clippy"
+      ],
+      "repository": "astral-sh/ruff",
+      "snapshot_variant": "fixed",
+      "source_id": "swe-bench-multilingual"
+    },
+    {
+      "base_commit": "75a24bbc67aa31b825b6326cfb6e6afdf3ca90d5",
       "candidate_id": "astral-sh__ruff-15309::rust_cargo::test::buggy",
       "cluster_id": "swebench:astral-sh__ruff-15309",
       "command_family": "rust_cargo",
@@ -1389,6 +1411,28 @@
       ],
       "repository": "astral-sh/ruff",
       "snapshot_variant": "clean",
+      "source_id": "swe-bench-multilingual"
+    },
+    {
+      "base_commit": "b2a0d68d70ee690ea871fe9b3317be43075ddb33",
+      "candidate_id": "astral-sh__ruff-15330::rust_cargo::check",
+      "cluster_id": "swebench:astral-sh__ruff-15330",
+      "command_family": "rust_cargo",
+      "command_subfamily": "check",
+      "expected_raw_outcome": "text",
+      "image_recipe": {
+        "kind": "swebench_eval_image_recipe",
+        "note": "harness-built per instance; digest pinned at acquisition (\u00a75)."
+      },
+      "instance_id": "astral-sh__ruff-15330",
+      "language": "rust",
+      "outcome_blind": true,
+      "raw_command_argv": [
+        "cargo",
+        "check"
+      ],
+      "repository": "astral-sh/ruff",
+      "snapshot_variant": "fixed",
       "source_id": "swe-bench-multilingual"
     },
     {
@@ -1482,6 +1526,28 @@
     },
     {
       "base_commit": "ee9a912f47e64de13cad0b525a714b46c5e29293",
+      "candidate_id": "astral-sh__ruff-15356::rust_cargo::check",
+      "cluster_id": "swebench:astral-sh__ruff-15356",
+      "command_family": "rust_cargo",
+      "command_subfamily": "check",
+      "expected_raw_outcome": "text",
+      "image_recipe": {
+        "kind": "swebench_eval_image_recipe",
+        "note": "harness-built per instance; digest pinned at acquisition (\u00a75)."
+      },
+      "instance_id": "astral-sh__ruff-15356",
+      "language": "rust",
+      "outcome_blind": true,
+      "raw_command_argv": [
+        "cargo",
+        "check"
+      ],
+      "repository": "astral-sh/ruff",
+      "snapshot_variant": "fixed",
+      "source_id": "swe-bench-multilingual"
+    },
+    {
+      "base_commit": "ee9a912f47e64de13cad0b525a714b46c5e29293",
       "candidate_id": "astral-sh__ruff-15356::rust_cargo::test::buggy",
       "cluster_id": "swebench:astral-sh__ruff-15356",
       "command_family": "rust_cargo",
@@ -1567,6 +1633,28 @@
       ],
       "repository": "astral-sh/ruff",
       "snapshot_variant": "clean",
+      "source_id": "swe-bench-multilingual"
+    },
+    {
+      "base_commit": "73d424ee5e6963d577e196d71c3b19c82e84e612",
+      "candidate_id": "astral-sh__ruff-15394::rust_cargo::check",
+      "cluster_id": "swebench:astral-sh__ruff-15394",
+      "command_family": "rust_cargo",
+      "command_subfamily": "check",
+      "expected_raw_outcome": "text",
+      "image_recipe": {
+        "kind": "swebench_eval_image_recipe",
+        "note": "harness-built per instance; digest pinned at acquisition (\u00a75)."
+      },
+      "instance_id": "astral-sh__ruff-15394",
+      "language": "rust",
+      "outcome_blind": true,
+      "raw_command_argv": [
+        "cargo",
+        "check"
+      ],
+      "repository": "astral-sh/ruff",
+      "snapshot_variant": "fixed",
       "source_id": "swe-bench-multilingual"
     },
     {
@@ -1660,6 +1748,28 @@
     },
     {
       "base_commit": "d1666fbbeec27fe534f261f388fbd5891546ffcf",
+      "candidate_id": "astral-sh__ruff-15443::rust_cargo::build",
+      "cluster_id": "swebench:astral-sh__ruff-15443",
+      "command_family": "rust_cargo",
+      "command_subfamily": "build",
+      "expected_raw_outcome": "text",
+      "image_recipe": {
+        "kind": "swebench_eval_image_recipe",
+        "note": "harness-built per instance; digest pinned at acquisition (\u00a75)."
+      },
+      "instance_id": "astral-sh__ruff-15443",
+      "language": "rust",
+      "outcome_blind": true,
+      "raw_command_argv": [
+        "cargo",
+        "build"
+      ],
+      "repository": "astral-sh/ruff",
+      "snapshot_variant": "fixed",
+      "source_id": "swe-bench-multilingual"
+    },
+    {
+      "base_commit": "d1666fbbeec27fe534f261f388fbd5891546ffcf",
       "candidate_id": "astral-sh__ruff-15443::rust_cargo::test::buggy",
       "cluster_id": "swebench:astral-sh__ruff-15443",
       "command_family": "rust_cargo",
@@ -1749,6 +1859,28 @@
     },
     {
       "base_commit": "3950b00ee410754913122e8104cbc39353b62c0b",
+      "candidate_id": "astral-sh__ruff-15543::rust_cargo::build",
+      "cluster_id": "swebench:astral-sh__ruff-15543",
+      "command_family": "rust_cargo",
+      "command_subfamily": "build",
+      "expected_raw_outcome": "text",
+      "image_recipe": {
+        "kind": "swebench_eval_image_recipe",
+        "note": "harness-built per instance; digest pinned at acquisition (\u00a75)."
+      },
+      "instance_id": "astral-sh__ruff-15543",
+      "language": "rust",
+      "outcome_blind": true,
+      "raw_command_argv": [
+        "cargo",
+        "build"
+      ],
+      "repository": "astral-sh/ruff",
+      "snapshot_variant": "fixed",
+      "source_id": "swe-bench-multilingual"
+    },
+    {
+      "base_commit": "3950b00ee410754913122e8104cbc39353b62c0b",
       "candidate_id": "astral-sh__ruff-15543::rust_cargo::test::buggy",
       "cluster_id": "swebench:astral-sh__ruff-15543",
       "command_family": "rust_cargo",
@@ -1833,6 +1965,28 @@
       ],
       "repository": "astral-sh/ruff",
       "snapshot_variant": "clean",
+      "source_id": "swe-bench-multilingual"
+    },
+    {
+      "base_commit": "13a6b5600b47489ca6af0b5a13d916bda8e50662",
+      "candidate_id": "astral-sh__ruff-15626::rust_cargo::clippy",
+      "cluster_id": "swebench:astral-sh__ruff-15626",
+      "command_family": "rust_cargo",
+      "command_subfamily": "clippy",
+      "expected_raw_outcome": "text",
+      "image_recipe": {
+        "kind": "swebench_eval_image_recipe",
+        "note": "harness-built per instance; digest pinned at acquisition (\u00a75)."
+      },
+      "instance_id": "astral-sh__ruff-15626",
+      "language": "rust",
+      "outcome_blind": true,
+      "raw_command_argv": [
+        "cargo",
+        "clippy"
+      ],
+      "repository": "astral-sh/ruff",
+      "snapshot_variant": "fixed",
       "source_id": "swe-bench-multilingual"
     },
     {
@@ -1979,6 +2133,27 @@
       ]
     },
     {
+      "base_commit": "c30252f685e8f4326722de84923fcbc8cf557f06",
+      "candidate_id": "axios__axios-4731::js_ts::tsc",
+      "cluster_id": "swebench:axios__axios-4731",
+      "command_family": "js_ts",
+      "command_subfamily": "tsc",
+      "expected_raw_outcome": "text",
+      "image_recipe": {
+        "kind": "swebench_eval_image_recipe",
+        "note": "harness-built per instance; digest pinned at acquisition (\u00a75)."
+      },
+      "instance_id": "axios__axios-4731",
+      "language": "javascript",
+      "outcome_blind": true,
+      "raw_command_argv": [
+        "tsc"
+      ],
+      "repository": "axios/axios",
+      "snapshot_variant": "fixed",
+      "source_id": "swe-bench-multilingual"
+    },
+    {
       "base_commit": "9bb016f95e6de871a44f3276fd06562704a0abb0",
       "candidate_id": "axios__axios-4738::files_search::tree",
       "cluster_id": "swebench:axios__axios-4738",
@@ -2014,6 +2189,28 @@
       ],
       "repository": "axios/axios",
       "snapshot_variant": "dirty",
+      "source_id": "swe-bench-multilingual"
+    },
+    {
+      "base_commit": "9bb016f95e6de871a44f3276fd06562704a0abb0",
+      "candidate_id": "axios__axios-4738::js_ts::lint",
+      "cluster_id": "swebench:axios__axios-4738",
+      "command_family": "js_ts",
+      "command_subfamily": "lint",
+      "expected_raw_outcome": "text",
+      "image_recipe": {
+        "kind": "swebench_eval_image_recipe",
+        "note": "harness-built per instance; digest pinned at acquisition (\u00a75)."
+      },
+      "instance_id": "axios__axios-4738",
+      "language": "javascript",
+      "outcome_blind": true,
+      "raw_command_argv": [
+        "eslint",
+        "."
+      ],
+      "repository": "axios/axios",
+      "snapshot_variant": "fixed",
       "source_id": "swe-bench-multilingual"
     },
     {
@@ -2158,6 +2355,27 @@
       ]
     },
     {
+      "base_commit": "85740c3e7a1fa48346dfcbd4497f463ccb1c1b05",
+      "candidate_id": "axios__axios-5085::js_ts::tsc",
+      "cluster_id": "swebench:axios__axios-5085",
+      "command_family": "js_ts",
+      "command_subfamily": "tsc",
+      "expected_raw_outcome": "text",
+      "image_recipe": {
+        "kind": "swebench_eval_image_recipe",
+        "note": "harness-built per instance; digest pinned at acquisition (\u00a75)."
+      },
+      "instance_id": "axios__axios-5085",
+      "language": "javascript",
+      "outcome_blind": true,
+      "raw_command_argv": [
+        "tsc"
+      ],
+      "repository": "axios/axios",
+      "snapshot_variant": "fixed",
+      "source_id": "swe-bench-multilingual"
+    },
+    {
       "base_commit": "65e8d1e28ce829f47a837e45129730e541950d3c",
       "candidate_id": "axios__axios-5316::files_search::tree",
       "cluster_id": "swebench:axios__axios-5316",
@@ -2247,6 +2465,27 @@
       ]
     },
     {
+      "base_commit": "65e8d1e28ce829f47a837e45129730e541950d3c",
+      "candidate_id": "axios__axios-5316::js_ts::tsc",
+      "cluster_id": "swebench:axios__axios-5316",
+      "command_family": "js_ts",
+      "command_subfamily": "tsc",
+      "expected_raw_outcome": "text",
+      "image_recipe": {
+        "kind": "swebench_eval_image_recipe",
+        "note": "harness-built per instance; digest pinned at acquisition (\u00a75)."
+      },
+      "instance_id": "axios__axios-5316",
+      "language": "javascript",
+      "outcome_blind": true,
+      "raw_command_argv": [
+        "tsc"
+      ],
+      "repository": "axios/axios",
+      "snapshot_variant": "fixed",
+      "source_id": "swe-bench-multilingual"
+    },
+    {
       "base_commit": "ae003913a39f3bdf9bbbd8f71a1ed681fd044d8b",
       "candidate_id": "axios__axios-5892::files_search::tree",
       "cluster_id": "swebench:axios__axios-5892",
@@ -2280,6 +2519,28 @@
       ],
       "repository": "axios/axios",
       "snapshot_variant": "clean",
+      "source_id": "swe-bench-multilingual"
+    },
+    {
+      "base_commit": "ae003913a39f3bdf9bbbd8f71a1ed681fd044d8b",
+      "candidate_id": "axios__axios-5892::js_ts::lint",
+      "cluster_id": "swebench:axios__axios-5892",
+      "command_family": "js_ts",
+      "command_subfamily": "lint",
+      "expected_raw_outcome": "text",
+      "image_recipe": {
+        "kind": "swebench_eval_image_recipe",
+        "note": "harness-built per instance; digest pinned at acquisition (\u00a75)."
+      },
+      "instance_id": "axios__axios-5892",
+      "language": "javascript",
+      "outcome_blind": true,
+      "raw_command_argv": [
+        "eslint",
+        "."
+      ],
+      "repository": "axios/axios",
+      "snapshot_variant": "fixed",
       "source_id": "swe-bench-multilingual"
     },
     {
@@ -2428,6 +2689,27 @@
       ]
     },
     {
+      "base_commit": "c6cce43cd94489f655f4488c5a50ecaf781c94f2",
+      "candidate_id": "axios__axios-6539::js_ts::tsc",
+      "cluster_id": "swebench:axios__axios-6539",
+      "command_family": "js_ts",
+      "command_subfamily": "tsc",
+      "expected_raw_outcome": "text",
+      "image_recipe": {
+        "kind": "swebench_eval_image_recipe",
+        "note": "harness-built per instance; digest pinned at acquisition (\u00a75)."
+      },
+      "instance_id": "axios__axios-6539",
+      "language": "javascript",
+      "outcome_blind": true,
+      "raw_command_argv": [
+        "tsc"
+      ],
+      "repository": "axios/axios",
+      "snapshot_variant": "fixed",
+      "source_id": "swe-bench-multilingual"
+    },
+    {
       "base_commit": "5134505bf93013c5fa7df66704df8d04becb7f7d",
       "candidate_id": "babel__babel-13928::files_search::ls",
       "cluster_id": "swebench:babel__babel-13928",
@@ -2519,6 +2801,27 @@
       ]
     },
     {
+      "base_commit": "5134505bf93013c5fa7df66704df8d04becb7f7d",
+      "candidate_id": "babel__babel-13928::js_ts::tsc",
+      "cluster_id": "swebench:babel__babel-13928",
+      "command_family": "js_ts",
+      "command_subfamily": "tsc",
+      "expected_raw_outcome": "text",
+      "image_recipe": {
+        "kind": "swebench_eval_image_recipe",
+        "note": "harness-built per instance; digest pinned at acquisition (\u00a75)."
+      },
+      "instance_id": "babel__babel-13928",
+      "language": "javascript",
+      "outcome_blind": true,
+      "raw_command_argv": [
+        "tsc"
+      ],
+      "repository": "babel/babel",
+      "snapshot_variant": "fixed",
+      "source_id": "swe-bench-multilingual"
+    },
+    {
       "base_commit": "fbd065256ca00d68089293ad48ea9aeba5481914",
       "candidate_id": "babel__babel-14532::files_search::read",
       "cluster_id": "swebench:babel__babel-14532",
@@ -2608,6 +2911,27 @@
       ]
     },
     {
+      "base_commit": "fbd065256ca00d68089293ad48ea9aeba5481914",
+      "candidate_id": "babel__babel-14532::js_ts::tsc",
+      "cluster_id": "swebench:babel__babel-14532",
+      "command_family": "js_ts",
+      "command_subfamily": "tsc",
+      "expected_raw_outcome": "text",
+      "image_recipe": {
+        "kind": "swebench_eval_image_recipe",
+        "note": "harness-built per instance; digest pinned at acquisition (\u00a75)."
+      },
+      "instance_id": "babel__babel-14532",
+      "language": "javascript",
+      "outcome_blind": true,
+      "raw_command_argv": [
+        "tsc"
+      ],
+      "repository": "babel/babel",
+      "snapshot_variant": "fixed",
+      "source_id": "swe-bench-multilingual"
+    },
+    {
       "base_commit": "49e4855c10d8f76faf477f2ceb5ecbdbe2c849a3",
       "candidate_id": "babel__babel-15445::files_search::read",
       "cluster_id": "swebench:babel__babel-15445",
@@ -2644,6 +2968,28 @@
       ],
       "repository": "babel/babel",
       "snapshot_variant": "clean",
+      "source_id": "swe-bench-multilingual"
+    },
+    {
+      "base_commit": "49e4855c10d8f76faf477f2ceb5ecbdbe2c849a3",
+      "candidate_id": "babel__babel-15445::js_ts::lint",
+      "cluster_id": "swebench:babel__babel-15445",
+      "command_family": "js_ts",
+      "command_subfamily": "lint",
+      "expected_raw_outcome": "text",
+      "image_recipe": {
+        "kind": "swebench_eval_image_recipe",
+        "note": "harness-built per instance; digest pinned at acquisition (\u00a75)."
+      },
+      "instance_id": "babel__babel-15445",
+      "language": "javascript",
+      "outcome_blind": true,
+      "raw_command_argv": [
+        "eslint",
+        "."
+      ],
+      "repository": "babel/babel",
+      "snapshot_variant": "fixed",
       "source_id": "swe-bench-multilingual"
     },
     {
@@ -2733,6 +3079,28 @@
       ],
       "repository": "babel/babel",
       "snapshot_variant": "clean",
+      "source_id": "swe-bench-multilingual"
+    },
+    {
+      "base_commit": "35116224d21e16fb863293f9011d1d6c97ed0bf4",
+      "candidate_id": "babel__babel-15649::js_ts::lint",
+      "cluster_id": "swebench:babel__babel-15649",
+      "command_family": "js_ts",
+      "command_subfamily": "lint",
+      "expected_raw_outcome": "text",
+      "image_recipe": {
+        "kind": "swebench_eval_image_recipe",
+        "note": "harness-built per instance; digest pinned at acquisition (\u00a75)."
+      },
+      "instance_id": "babel__babel-15649",
+      "language": "javascript",
+      "outcome_blind": true,
+      "raw_command_argv": [
+        "eslint",
+        "."
+      ],
+      "repository": "babel/babel",
+      "snapshot_variant": "fixed",
       "source_id": "swe-bench-multilingual"
     },
     {
@@ -2877,6 +3245,27 @@
       "target_test_ids": [
         "declaration name conflict helper entrypoint"
       ]
+    },
+    {
+      "base_commit": "4e6e3cf1395cafd27f28f113918034232c6c1db5",
+      "candidate_id": "babel__babel-16130::js_ts::tsc",
+      "cluster_id": "swebench:babel__babel-16130",
+      "command_family": "js_ts",
+      "command_subfamily": "tsc",
+      "expected_raw_outcome": "text",
+      "image_recipe": {
+        "kind": "swebench_eval_image_recipe",
+        "note": "harness-built per instance; digest pinned at acquisition (\u00a75)."
+      },
+      "instance_id": "babel__babel-16130",
+      "language": "javascript",
+      "outcome_blind": true,
+      "raw_command_argv": [
+        "tsc"
+      ],
+      "repository": "babel/babel",
+      "snapshot_variant": "fixed",
+      "source_id": "swe-bench-multilingual"
     },
     {
       "base_commit": "01bc4cdefe98ef58d1f9cb31bdbbddddf2a88f7a",
@@ -3378,6 +3767,24 @@
       "target_test_ids": [
         "pytest -q -s tests/test_pysnooper.py::test_file_output"
       ]
+    },
+    {
+      "candidate_id": "bugsinpy::PySnooper::python::ruff",
+      "cluster_id": "bugsinpy:PySnooper",
+      "command_family": "python",
+      "command_subfamily": "ruff",
+      "expected_raw_outcome": "text",
+      "language": "python",
+      "outcome_blind": true,
+      "python_version": "3.8.1",
+      "raw_command_argv": [
+        "ruff",
+        "check",
+        "."
+      ],
+      "repository": "bugsinpy/PySnooper",
+      "snapshot_variant": "fixed",
+      "source_id": "bugsinpy"
     },
     {
       "buggy_commit": "e368f788f71c338cd3f049d5d6bdc643a51c0514",
@@ -4170,6 +4577,24 @@
       "target_test_ids": [
         "pytest test/units/modules/packaging/os/test_redhat_subscription.py::test_redhat_subscribtion"
       ]
+    },
+    {
+      "candidate_id": "bugsinpy::ansible::python::ruff",
+      "cluster_id": "bugsinpy:ansible",
+      "command_family": "python",
+      "command_subfamily": "ruff",
+      "expected_raw_outcome": "text",
+      "language": "python",
+      "outcome_blind": true,
+      "python_version": "3.6.9",
+      "raw_command_argv": [
+        "ruff",
+        "check",
+        "."
+      ],
+      "repository": "bugsinpy/ansible",
+      "snapshot_variant": "fixed",
+      "source_id": "bugsinpy"
     },
     {
       "buggy_commit": "f6643c4f0cfbae1f2493fdfce46cfbae3d26f46b",
@@ -5184,6 +5609,24 @@
       ]
     },
     {
+      "candidate_id": "bugsinpy::black::python::ruff",
+      "cluster_id": "bugsinpy:black",
+      "command_family": "python",
+      "command_subfamily": "ruff",
+      "expected_raw_outcome": "text",
+      "language": "python",
+      "outcome_blind": true,
+      "python_version": "3.8.3",
+      "raw_command_argv": [
+        "ruff",
+        "check",
+        "."
+      ],
+      "repository": "bugsinpy/black",
+      "snapshot_variant": "fixed",
+      "source_id": "bugsinpy"
+    },
+    {
       "buggy_commit": "c15633745df6abdb24e02746b82aadb20b8cdf8c",
       "candidate_id": "bugsinpy::cookiecutter-1::python::pytest::buggy",
       "cluster_id": "bugsinpy:cookiecutter:1",
@@ -5358,6 +5801,24 @@
       "target_test_ids": [
         "tox tests/test_hooks.py::TestExternalHooks::test_run_failing_hook"
       ]
+    },
+    {
+      "candidate_id": "bugsinpy::cookiecutter::python::ruff",
+      "cluster_id": "bugsinpy:cookiecutter",
+      "command_family": "python",
+      "command_subfamily": "ruff",
+      "expected_raw_outcome": "text",
+      "language": "python",
+      "outcome_blind": true,
+      "python_version": "3.6.9",
+      "raw_command_argv": [
+        "ruff",
+        "check",
+        "."
+      ],
+      "repository": "bugsinpy/cookiecutter",
+      "snapshot_variant": "fixed",
+      "source_id": "bugsinpy"
     },
     {
       "buggy_commit": "b77a43bcac3ec8e7edbe82543e777c60ae85c178",
@@ -6064,6 +6525,24 @@
       ]
     },
     {
+      "candidate_id": "bugsinpy::fastapi::python::ruff",
+      "cluster_id": "bugsinpy:fastapi",
+      "command_family": "python",
+      "command_subfamily": "ruff",
+      "expected_raw_outcome": "text",
+      "language": "python",
+      "outcome_blind": true,
+      "python_version": "3.8.3",
+      "raw_command_argv": [
+        "ruff",
+        "check",
+        "."
+      ],
+      "repository": "bugsinpy/fastapi",
+      "snapshot_variant": "fixed",
+      "source_id": "bugsinpy"
+    },
+    {
       "buggy_commit": "001bda19450ad85c91345eea3cfa3991e1d492ba",
       "candidate_id": "bugsinpy::httpie-1::python::pytest::buggy",
       "cluster_id": "bugsinpy:httpie:1",
@@ -6282,6 +6761,24 @@
       "target_test_ids": [
         "pytest tests/tests.py::TestItemParsing::test_escape_longsep"
       ]
+    },
+    {
+      "candidate_id": "bugsinpy::httpie::python::ruff",
+      "cluster_id": "bugsinpy:httpie",
+      "command_family": "python",
+      "command_subfamily": "ruff",
+      "expected_raw_outcome": "text",
+      "language": "python",
+      "outcome_blind": true,
+      "python_version": "3.7.3",
+      "raw_command_argv": [
+        "ruff",
+        "check",
+        "."
+      ],
+      "repository": "bugsinpy/httpie",
+      "snapshot_variant": "fixed",
+      "source_id": "bugsinpy"
     },
     {
       "buggy_commit": "8f41e41eda6e8ea96403cae5798a5a89c8bb5605",
@@ -8264,6 +8761,24 @@
       ]
     },
     {
+      "candidate_id": "bugsinpy::keras::python::ruff",
+      "cluster_id": "bugsinpy:keras",
+      "command_family": "python",
+      "command_subfamily": "ruff",
+      "expected_raw_outcome": "text",
+      "language": "python",
+      "outcome_blind": true,
+      "python_version": "3.7.3",
+      "raw_command_argv": [
+        "ruff",
+        "check",
+        "."
+      ],
+      "repository": "bugsinpy/keras",
+      "snapshot_variant": "fixed",
+      "source_id": "bugsinpy"
+    },
+    {
       "buggy_commit": "f538d1b3d473d542a19d508e5f7e0809b1dfe5ef",
       "candidate_id": "bugsinpy::luigi-10::python::pytest::buggy",
       "cluster_id": "bugsinpy:luigi:10",
@@ -9716,6 +10231,24 @@
       ]
     },
     {
+      "candidate_id": "bugsinpy::luigi::python::ruff",
+      "cluster_id": "bugsinpy:luigi",
+      "command_family": "python",
+      "command_subfamily": "ruff",
+      "expected_raw_outcome": "text",
+      "language": "python",
+      "outcome_blind": true,
+      "python_version": "3.8.3",
+      "raw_command_argv": [
+        "ruff",
+        "check",
+        "."
+      ],
+      "repository": "bugsinpy/luigi",
+      "snapshot_variant": "fixed",
+      "source_id": "bugsinpy"
+    },
+    {
       "buggy_commit": "b31d64ce3910e8d297d8300690e459587f77181f",
       "candidate_id": "bugsinpy::matplotlib-10::python::pytest::buggy",
       "cluster_id": "bugsinpy:matplotlib:10",
@@ -11034,6 +11567,24 @@
       "target_test_ids": [
         "pytest lib/matplotlib/tests/test_polar.py::test_polar_invertedylim_rorigin"
       ]
+    },
+    {
+      "candidate_id": "bugsinpy::matplotlib::python::ruff",
+      "cluster_id": "bugsinpy:matplotlib",
+      "command_family": "python",
+      "command_subfamily": "ruff",
+      "expected_raw_outcome": "text",
+      "language": "python",
+      "outcome_blind": true,
+      "python_version": "3.8.1",
+      "raw_command_argv": [
+        "ruff",
+        "check",
+        "."
+      ],
+      "repository": "bugsinpy/matplotlib",
+      "snapshot_variant": "fixed",
+      "source_id": "bugsinpy"
     },
     {
       "buggy_commit": "8806ed7",
@@ -18472,6 +19023,24 @@
       ]
     },
     {
+      "candidate_id": "bugsinpy::pandas::python::ruff",
+      "cluster_id": "bugsinpy:pandas",
+      "command_family": "python",
+      "command_subfamily": "ruff",
+      "expected_raw_outcome": "text",
+      "language": "python",
+      "outcome_blind": true,
+      "python_version": "3.8.3",
+      "raw_command_argv": [
+        "ruff",
+        "check",
+        "."
+      ],
+      "repository": "bugsinpy/pandas",
+      "snapshot_variant": "fixed",
+      "source_id": "bugsinpy"
+    },
+    {
       "buggy_commit": "e7001b00747b659f7042b0534802b936ee8a53e0",
       "candidate_id": "bugsinpy::sanic-1::python::pytest::buggy",
       "cluster_id": "bugsinpy:sanic:1",
@@ -18690,6 +19259,24 @@
       "target_test_ids": [
         "pytest tests/test_logging.py::test_logging_modified_root_logger_config"
       ]
+    },
+    {
+      "candidate_id": "bugsinpy::sanic::python::ruff",
+      "cluster_id": "bugsinpy:sanic",
+      "command_family": "python",
+      "command_subfamily": "ruff",
+      "expected_raw_outcome": "text",
+      "language": "python",
+      "outcome_blind": true,
+      "python_version": "3.8.3",
+      "raw_command_argv": [
+        "ruff",
+        "check",
+        "."
+      ],
+      "repository": "bugsinpy/sanic",
+      "snapshot_variant": "fixed",
+      "source_id": "bugsinpy"
     },
     {
       "buggy_commit": "6cc83c041eac36e7688dbd9c4c55487a43b622e0",
@@ -20452,6 +21039,24 @@
       ]
     },
     {
+      "candidate_id": "bugsinpy::scrapy::python::ruff",
+      "cluster_id": "bugsinpy:scrapy",
+      "command_family": "python",
+      "command_subfamily": "ruff",
+      "expected_raw_outcome": "text",
+      "language": "python",
+      "outcome_blind": true,
+      "python_version": "3.8.3",
+      "raw_command_argv": [
+        "ruff",
+        "check",
+        "."
+      ],
+      "repository": "bugsinpy/scrapy",
+      "snapshot_variant": "fixed",
+      "source_id": "bugsinpy"
+    },
+    {
       "buggy_commit": "38de08c7a99d5d8c490223126071afe7dd4f4b67",
       "candidate_id": "bugsinpy::spacy-10::python::pytest::buggy",
       "cluster_id": "bugsinpy:spacy:10",
@@ -20890,6 +21495,24 @@
       "target_test_ids": [
         "py.test spacy/tests/pipeline/test_tagger.py::test_tagger_warns_no_lemma_lookups"
       ]
+    },
+    {
+      "candidate_id": "bugsinpy::spacy::python::ruff",
+      "cluster_id": "bugsinpy:spacy",
+      "command_family": "python",
+      "command_subfamily": "ruff",
+      "expected_raw_outcome": "text",
+      "language": "python",
+      "outcome_blind": true,
+      "python_version": "3.7.7",
+      "raw_command_argv": [
+        "ruff",
+        "check",
+        "."
+      ],
+      "repository": "bugsinpy/spacy",
+      "snapshot_variant": "fixed",
+      "source_id": "bugsinpy"
     },
     {
       "buggy_commit": "8bd6c5da67e55c64257345efa4e3cc454c42475c",
@@ -22300,6 +22923,24 @@
       ]
     },
     {
+      "candidate_id": "bugsinpy::thefuck::python::ruff",
+      "cluster_id": "bugsinpy:thefuck",
+      "command_family": "python",
+      "command_subfamily": "ruff",
+      "expected_raw_outcome": "text",
+      "language": "python",
+      "outcome_blind": true,
+      "python_version": "3.7.0",
+      "raw_command_argv": [
+        "ruff",
+        "check",
+        "."
+      ],
+      "repository": "bugsinpy/thefuck",
+      "snapshot_variant": "fixed",
+      "source_id": "bugsinpy"
+    },
+    {
       "buggy_commit": "ecd8968c5135b810cd607b5902dda2cd32122b39",
       "candidate_id": "bugsinpy::tornado-10::python::pytest::buggy",
       "cluster_id": "bugsinpy:tornado:10",
@@ -23004,6 +23645,24 @@
       ]
     },
     {
+      "candidate_id": "bugsinpy::tornado::python::ruff",
+      "cluster_id": "bugsinpy:tornado",
+      "command_family": "python",
+      "command_subfamily": "ruff",
+      "expected_raw_outcome": "text",
+      "language": "python",
+      "outcome_blind": true,
+      "python_version": "3.7.0",
+      "raw_command_argv": [
+        "ruff",
+        "check",
+        "."
+      ],
+      "repository": "bugsinpy/tornado",
+      "snapshot_variant": "fixed",
+      "source_id": "bugsinpy"
+    },
+    {
       "buggy_commit": "8cc777fe8401a05d07f2c97e65d15e4460feab88",
       "candidate_id": "bugsinpy::tqdm-1::python::pytest::buggy",
       "cluster_id": "bugsinpy:tqdm:1",
@@ -23398,6 +24057,24 @@
       "target_test_ids": [
         "python3 -m pytest tqdm/tests/tests_tqdm.py::test_si_format\npython3 -m pytest tqdm/tests/tests_tqdm.py::test_update"
       ]
+    },
+    {
+      "candidate_id": "bugsinpy::tqdm::python::ruff",
+      "cluster_id": "bugsinpy:tqdm",
+      "command_family": "python",
+      "command_subfamily": "ruff",
+      "expected_raw_outcome": "text",
+      "language": "python",
+      "outcome_blind": true,
+      "python_version": "3.6.9",
+      "raw_command_argv": [
+        "ruff",
+        "check",
+        "."
+      ],
+      "repository": "bugsinpy/tqdm",
+      "snapshot_variant": "fixed",
+      "source_id": "bugsinpy"
     },
     {
       "buggy_commit": "85d586617750d38d742a24f141b099f6b898d269",
@@ -25292,6 +25969,24 @@
       ]
     },
     {
+      "candidate_id": "bugsinpy::youtube-dl::python::ruff",
+      "cluster_id": "bugsinpy:youtube-dl",
+      "command_family": "python",
+      "command_subfamily": "ruff",
+      "expected_raw_outcome": "text",
+      "language": "python",
+      "outcome_blind": true,
+      "python_version": "3.7.0",
+      "raw_command_argv": [
+        "ruff",
+        "check",
+        "."
+      ],
+      "repository": "bugsinpy/youtube-dl",
+      "snapshot_variant": "fixed",
+      "source_id": "bugsinpy"
+    },
+    {
       "base_commit": "4dc6c73c5a9203c5a8a89ce2161feca542329812",
       "candidate_id": "burntsushi__ripgrep-2209::files_search::tree",
       "cluster_id": "swebench:burntsushi__ripgrep-2209",
@@ -25325,6 +26020,28 @@
       ],
       "repository": "burntsushi/ripgrep",
       "snapshot_variant": "clean",
+      "source_id": "swe-bench-multilingual"
+    },
+    {
+      "base_commit": "4dc6c73c5a9203c5a8a89ce2161feca542329812",
+      "candidate_id": "burntsushi__ripgrep-2209::rust_cargo::clippy",
+      "cluster_id": "swebench:burntsushi__ripgrep-2209",
+      "command_family": "rust_cargo",
+      "command_subfamily": "clippy",
+      "expected_raw_outcome": "text",
+      "image_recipe": {
+        "kind": "swebench_eval_image_recipe",
+        "note": "harness-built per instance; digest pinned at acquisition (\u00a75)."
+      },
+      "instance_id": "burntsushi__ripgrep-2209",
+      "language": "rust",
+      "outcome_blind": true,
+      "raw_command_argv": [
+        "cargo",
+        "clippy"
+      ],
+      "repository": "burntsushi/ripgrep",
+      "snapshot_variant": "fixed",
       "source_id": "swe-bench-multilingual"
     },
     {
@@ -25418,6 +26135,28 @@
     },
     {
       "base_commit": "fed4fea217abbc502f2e823465de903c8f2b623d",
+      "candidate_id": "burntsushi__ripgrep-2576::rust_cargo::build",
+      "cluster_id": "swebench:burntsushi__ripgrep-2576",
+      "command_family": "rust_cargo",
+      "command_subfamily": "build",
+      "expected_raw_outcome": "text",
+      "image_recipe": {
+        "kind": "swebench_eval_image_recipe",
+        "note": "harness-built per instance; digest pinned at acquisition (\u00a75)."
+      },
+      "instance_id": "burntsushi__ripgrep-2576",
+      "language": "rust",
+      "outcome_blind": true,
+      "raw_command_argv": [
+        "cargo",
+        "build"
+      ],
+      "repository": "burntsushi/ripgrep",
+      "snapshot_variant": "fixed",
+      "source_id": "swe-bench-multilingual"
+    },
+    {
+      "base_commit": "fed4fea217abbc502f2e823465de903c8f2b623d",
       "candidate_id": "burntsushi__ripgrep-2576::rust_cargo::test::buggy",
       "cluster_id": "swebench:burntsushi__ripgrep-2576",
       "command_family": "rust_cargo",
@@ -25504,6 +26243,29 @@
       ],
       "repository": "caddyserver/caddy",
       "snapshot_variant": "clean",
+      "source_id": "swe-bench-multilingual"
+    },
+    {
+      "base_commit": "f7be0ee10131f25620a2f64af7e3ded43eae2049",
+      "candidate_id": "caddyserver__caddy-4774::go::build",
+      "cluster_id": "swebench:caddyserver__caddy-4774",
+      "command_family": "go",
+      "command_subfamily": "build",
+      "expected_raw_outcome": "text",
+      "image_recipe": {
+        "kind": "swebench_eval_image_recipe",
+        "note": "harness-built per instance; digest pinned at acquisition (\u00a75)."
+      },
+      "instance_id": "caddyserver__caddy-4774",
+      "language": "go",
+      "outcome_blind": true,
+      "raw_command_argv": [
+        "go",
+        "build",
+        "./..."
+      ],
+      "repository": "caddyserver/caddy",
+      "snapshot_variant": "fixed",
       "source_id": "swe-bench-multilingual"
     },
     {
@@ -25652,6 +26414,29 @@
       ]
     },
     {
+      "base_commit": "7f6a328b4744bbdd5ee07c5eccb3f897390ff982",
+      "candidate_id": "caddyserver__caddy-4943::go::vet",
+      "cluster_id": "swebench:caddyserver__caddy-4943",
+      "command_family": "go",
+      "command_subfamily": "vet",
+      "expected_raw_outcome": "text",
+      "image_recipe": {
+        "kind": "swebench_eval_image_recipe",
+        "note": "harness-built per instance; digest pinned at acquisition (\u00a75)."
+      },
+      "instance_id": "caddyserver__caddy-4943",
+      "language": "go",
+      "outcome_blind": true,
+      "raw_command_argv": [
+        "go",
+        "vet",
+        "./..."
+      ],
+      "repository": "caddyserver/caddy",
+      "snapshot_variant": "fixed",
+      "source_id": "swe-bench-multilingual"
+    },
+    {
       "base_commit": "960150bb034dc9a549ee7289b1a4eb4abafeb30a",
       "candidate_id": "caddyserver__caddy-5404::files_search::read",
       "cluster_id": "swebench:caddyserver__caddy-5404",
@@ -25742,6 +26527,29 @@
       "target_test_ids": [
         "TestLexer"
       ]
+    },
+    {
+      "base_commit": "960150bb034dc9a549ee7289b1a4eb4abafeb30a",
+      "candidate_id": "caddyserver__caddy-5404::go::vet",
+      "cluster_id": "swebench:caddyserver__caddy-5404",
+      "command_family": "go",
+      "command_subfamily": "vet",
+      "expected_raw_outcome": "text",
+      "image_recipe": {
+        "kind": "swebench_eval_image_recipe",
+        "note": "harness-built per instance; digest pinned at acquisition (\u00a75)."
+      },
+      "instance_id": "caddyserver__caddy-5404",
+      "language": "go",
+      "outcome_blind": true,
+      "raw_command_argv": [
+        "go",
+        "vet",
+        "./..."
+      ],
+      "repository": "caddyserver/caddy",
+      "snapshot_variant": "fixed",
+      "source_id": "swe-bench-multilingual"
     },
     {
       "base_commit": "0e2c7e1d35b287fc0e56d6db2951f791e09b5a37",
@@ -25835,6 +26643,29 @@
       ]
     },
     {
+      "base_commit": "0e2c7e1d35b287fc0e56d6db2951f791e09b5a37",
+      "candidate_id": "caddyserver__caddy-5626::go::vet",
+      "cluster_id": "swebench:caddyserver__caddy-5626",
+      "command_family": "go",
+      "command_subfamily": "vet",
+      "expected_raw_outcome": "text",
+      "image_recipe": {
+        "kind": "swebench_eval_image_recipe",
+        "note": "harness-built per instance; digest pinned at acquisition (\u00a75)."
+      },
+      "instance_id": "caddyserver__caddy-5626",
+      "language": "go",
+      "outcome_blind": true,
+      "raw_command_argv": [
+        "go",
+        "vet",
+        "./..."
+      ],
+      "repository": "caddyserver/caddy",
+      "snapshot_variant": "fixed",
+      "source_id": "swe-bench-multilingual"
+    },
+    {
       "base_commit": "0a6d3333b2c92553e66c93c14d3258a790aac639",
       "candidate_id": "caddyserver__caddy-5761::files_search::tree",
       "cluster_id": "swebench:caddyserver__caddy-5761",
@@ -25868,6 +26699,29 @@
       ],
       "repository": "caddyserver/caddy",
       "snapshot_variant": "clean",
+      "source_id": "swe-bench-multilingual"
+    },
+    {
+      "base_commit": "0a6d3333b2c92553e66c93c14d3258a790aac639",
+      "candidate_id": "caddyserver__caddy-5761::go::build",
+      "cluster_id": "swebench:caddyserver__caddy-5761",
+      "command_family": "go",
+      "command_subfamily": "build",
+      "expected_raw_outcome": "text",
+      "image_recipe": {
+        "kind": "swebench_eval_image_recipe",
+        "note": "harness-built per instance; digest pinned at acquisition (\u00a75)."
+      },
+      "instance_id": "caddyserver__caddy-5761",
+      "language": "go",
+      "outcome_blind": true,
+      "raw_command_argv": [
+        "go",
+        "build",
+        "./..."
+      ],
+      "repository": "caddyserver/caddy",
+      "snapshot_variant": "fixed",
       "source_id": "swe-bench-multilingual"
     },
     {
@@ -25964,6 +26818,29 @@
     },
     {
       "base_commit": "fae195ac7eb9f4b0e9436384cd0529a11355e367",
+      "candidate_id": "caddyserver__caddy-5870::go::build",
+      "cluster_id": "swebench:caddyserver__caddy-5870",
+      "command_family": "go",
+      "command_subfamily": "build",
+      "expected_raw_outcome": "text",
+      "image_recipe": {
+        "kind": "swebench_eval_image_recipe",
+        "note": "harness-built per instance; digest pinned at acquisition (\u00a75)."
+      },
+      "instance_id": "caddyserver__caddy-5870",
+      "language": "go",
+      "outcome_blind": true,
+      "raw_command_argv": [
+        "go",
+        "build",
+        "./..."
+      ],
+      "repository": "caddyserver/caddy",
+      "snapshot_variant": "fixed",
+      "source_id": "swe-bench-multilingual"
+    },
+    {
+      "base_commit": "fae195ac7eb9f4b0e9436384cd0529a11355e367",
       "candidate_id": "caddyserver__caddy-5870::go::test::buggy",
       "cluster_id": "swebench:caddyserver__caddy-5870",
       "command_family": "go",
@@ -26052,6 +26929,29 @@
       ],
       "repository": "caddyserver/caddy",
       "snapshot_variant": "dirty",
+      "source_id": "swe-bench-multilingual"
+    },
+    {
+      "base_commit": "c839a98ff527932fd14460829142c486f4531a7b",
+      "candidate_id": "caddyserver__caddy-5995::go::build",
+      "cluster_id": "swebench:caddyserver__caddy-5995",
+      "command_family": "go",
+      "command_subfamily": "build",
+      "expected_raw_outcome": "text",
+      "image_recipe": {
+        "kind": "swebench_eval_image_recipe",
+        "note": "harness-built per instance; digest pinned at acquisition (\u00a75)."
+      },
+      "instance_id": "caddyserver__caddy-5995",
+      "language": "go",
+      "outcome_blind": true,
+      "raw_command_argv": [
+        "go",
+        "build",
+        "./..."
+      ],
+      "repository": "caddyserver/caddy",
+      "snapshot_variant": "fixed",
       "source_id": "swe-bench-multilingual"
     },
     {
@@ -26199,6 +27099,29 @@
       ]
     },
     {
+      "base_commit": "4181c79a8130a59c40c76437e15265452422ccb1",
+      "candidate_id": "caddyserver__caddy-6051::go::vet",
+      "cluster_id": "swebench:caddyserver__caddy-6051",
+      "command_family": "go",
+      "command_subfamily": "vet",
+      "expected_raw_outcome": "text",
+      "image_recipe": {
+        "kind": "swebench_eval_image_recipe",
+        "note": "harness-built per instance; digest pinned at acquisition (\u00a75)."
+      },
+      "instance_id": "caddyserver__caddy-6051",
+      "language": "go",
+      "outcome_blind": true,
+      "raw_command_argv": [
+        "go",
+        "vet",
+        "./..."
+      ],
+      "repository": "caddyserver/caddy",
+      "snapshot_variant": "fixed",
+      "source_id": "swe-bench-multilingual"
+    },
+    {
       "base_commit": "4512be49a9fa55270e9afa632be9ff6c9560c455",
       "candidate_id": "caddyserver__caddy-6115::files_search::tree",
       "cluster_id": "swebench:caddyserver__caddy-6115",
@@ -26233,6 +27156,29 @@
       ],
       "repository": "caddyserver/caddy",
       "snapshot_variant": "dirty",
+      "source_id": "swe-bench-multilingual"
+    },
+    {
+      "base_commit": "4512be49a9fa55270e9afa632be9ff6c9560c455",
+      "candidate_id": "caddyserver__caddy-6115::go::build",
+      "cluster_id": "swebench:caddyserver__caddy-6115",
+      "command_family": "go",
+      "command_subfamily": "build",
+      "expected_raw_outcome": "text",
+      "image_recipe": {
+        "kind": "swebench_eval_image_recipe",
+        "note": "harness-built per instance; digest pinned at acquisition (\u00a75)."
+      },
+      "instance_id": "caddyserver__caddy-6115",
+      "language": "go",
+      "outcome_blind": true,
+      "raw_command_argv": [
+        "go",
+        "build",
+        "./..."
+      ],
+      "repository": "caddyserver/caddy",
+      "snapshot_variant": "fixed",
       "source_id": "swe-bench-multilingual"
     },
     {
@@ -26382,6 +27328,29 @@
       ]
     },
     {
+      "base_commit": "d129ae6aec6af2182217ee8a235f4df8cd2bbfde",
+      "candidate_id": "caddyserver__caddy-6288::go::vet",
+      "cluster_id": "swebench:caddyserver__caddy-6288",
+      "command_family": "go",
+      "command_subfamily": "vet",
+      "expected_raw_outcome": "text",
+      "image_recipe": {
+        "kind": "swebench_eval_image_recipe",
+        "note": "harness-built per instance; digest pinned at acquisition (\u00a75)."
+      },
+      "instance_id": "caddyserver__caddy-6288",
+      "language": "go",
+      "outcome_blind": true,
+      "raw_command_argv": [
+        "go",
+        "vet",
+        "./..."
+      ],
+      "repository": "caddyserver/caddy",
+      "snapshot_variant": "fixed",
+      "source_id": "swe-bench-multilingual"
+    },
+    {
       "base_commit": "f6d2c293e752254769efe21c8d06a16ebad4845e",
       "candidate_id": "caddyserver__caddy-6345::files_search::ls",
       "cluster_id": "swebench:caddyserver__caddy-6345",
@@ -26473,6 +27442,29 @@
       ]
     },
     {
+      "base_commit": "f6d2c293e752254769efe21c8d06a16ebad4845e",
+      "candidate_id": "caddyserver__caddy-6345::go::vet",
+      "cluster_id": "swebench:caddyserver__caddy-6345",
+      "command_family": "go",
+      "command_subfamily": "vet",
+      "expected_raw_outcome": "text",
+      "image_recipe": {
+        "kind": "swebench_eval_image_recipe",
+        "note": "harness-built per instance; digest pinned at acquisition (\u00a75)."
+      },
+      "instance_id": "caddyserver__caddy-6345",
+      "language": "go",
+      "outcome_blind": true,
+      "raw_command_argv": [
+        "go",
+        "vet",
+        "./..."
+      ],
+      "repository": "caddyserver/caddy",
+      "snapshot_variant": "fixed",
+      "source_id": "swe-bench-multilingual"
+    },
+    {
       "base_commit": "a52917a37dcc40eda1ff5034103d4a89883de2aa",
       "candidate_id": "caddyserver__caddy-6350::files_search::read",
       "cluster_id": "swebench:caddyserver__caddy-6350",
@@ -26562,6 +27554,29 @@
       "target_test_ids": [
         "TestCaddyfileAdaptToJSON"
       ]
+    },
+    {
+      "base_commit": "a52917a37dcc40eda1ff5034103d4a89883de2aa",
+      "candidate_id": "caddyserver__caddy-6350::go::vet",
+      "cluster_id": "swebench:caddyserver__caddy-6350",
+      "command_family": "go",
+      "command_subfamily": "vet",
+      "expected_raw_outcome": "text",
+      "image_recipe": {
+        "kind": "swebench_eval_image_recipe",
+        "note": "harness-built per instance; digest pinned at acquisition (\u00a75)."
+      },
+      "instance_id": "caddyserver__caddy-6350",
+      "language": "go",
+      "outcome_blind": true,
+      "raw_command_argv": [
+        "go",
+        "vet",
+        "./..."
+      ],
+      "repository": "caddyserver/caddy",
+      "snapshot_variant": "fixed",
+      "source_id": "swe-bench-multilingual"
     },
     {
       "base_commit": "198f4385d2f72ccdd853825270f601bea7a7a190",
@@ -26660,6 +27675,29 @@
       ]
     },
     {
+      "base_commit": "198f4385d2f72ccdd853825270f601bea7a7a190",
+      "candidate_id": "caddyserver__caddy-6370::go::vet",
+      "cluster_id": "swebench:caddyserver__caddy-6370",
+      "command_family": "go",
+      "command_subfamily": "vet",
+      "expected_raw_outcome": "text",
+      "image_recipe": {
+        "kind": "swebench_eval_image_recipe",
+        "note": "harness-built per instance; digest pinned at acquisition (\u00a75)."
+      },
+      "instance_id": "caddyserver__caddy-6370",
+      "language": "go",
+      "outcome_blind": true,
+      "raw_command_argv": [
+        "go",
+        "vet",
+        "./..."
+      ],
+      "repository": "caddyserver/caddy",
+      "snapshot_variant": "fixed",
+      "source_id": "swe-bench-multilingual"
+    },
+    {
       "base_commit": "59cbb2c83a03b6fe352ae0b5d05581d9148a4d24",
       "candidate_id": "caddyserver__caddy-6411::files_search::ls",
       "cluster_id": "swebench:caddyserver__caddy-6411",
@@ -26695,6 +27733,29 @@
       ],
       "repository": "caddyserver/caddy",
       "snapshot_variant": "dirty",
+      "source_id": "swe-bench-multilingual"
+    },
+    {
+      "base_commit": "59cbb2c83a03b6fe352ae0b5d05581d9148a4d24",
+      "candidate_id": "caddyserver__caddy-6411::go::build",
+      "cluster_id": "swebench:caddyserver__caddy-6411",
+      "command_family": "go",
+      "command_subfamily": "build",
+      "expected_raw_outcome": "text",
+      "image_recipe": {
+        "kind": "swebench_eval_image_recipe",
+        "note": "harness-built per instance; digest pinned at acquisition (\u00a75)."
+      },
+      "instance_id": "caddyserver__caddy-6411",
+      "language": "go",
+      "outcome_blind": true,
+      "raw_command_argv": [
+        "go",
+        "build",
+        "./..."
+      ],
+      "repository": "caddyserver/caddy",
+      "snapshot_variant": "fixed",
       "source_id": "swe-bench-multilingual"
     },
     {
@@ -27058,6 +28119,28 @@
     },
     {
       "base_commit": "02e38d8ccf7811af27a9c15ddbadf4d26cfc0eab",
+      "candidate_id": "facebook__docusaurus-10130::js_ts::lint",
+      "cluster_id": "swebench:facebook__docusaurus-10130",
+      "command_family": "js_ts",
+      "command_subfamily": "lint",
+      "expected_raw_outcome": "text",
+      "image_recipe": {
+        "kind": "swebench_eval_image_recipe",
+        "note": "harness-built per instance; digest pinned at acquisition (\u00a75)."
+      },
+      "instance_id": "facebook__docusaurus-10130",
+      "language": "typescript",
+      "outcome_blind": true,
+      "raw_command_argv": [
+        "eslint",
+        "."
+      ],
+      "repository": "facebook/docusaurus",
+      "snapshot_variant": "fixed",
+      "source_id": "swe-bench-multilingual"
+    },
+    {
+      "base_commit": "02e38d8ccf7811af27a9c15ddbadf4d26cfc0eab",
       "candidate_id": "facebook__docusaurus-10130::js_ts::test::buggy",
       "cluster_id": "swebench:facebook__docusaurus-10130",
       "command_family": "js_ts",
@@ -27142,6 +28225,28 @@
       ],
       "repository": "facebook/docusaurus",
       "snapshot_variant": "dirty",
+      "source_id": "swe-bench-multilingual"
+    },
+    {
+      "base_commit": "5e9e1d051b2217b95498ecbc10f7e33f64e7a4d3",
+      "candidate_id": "facebook__docusaurus-10309::js_ts::lint",
+      "cluster_id": "swebench:facebook__docusaurus-10309",
+      "command_family": "js_ts",
+      "command_subfamily": "lint",
+      "expected_raw_outcome": "text",
+      "image_recipe": {
+        "kind": "swebench_eval_image_recipe",
+        "note": "harness-built per instance; digest pinned at acquisition (\u00a75)."
+      },
+      "instance_id": "facebook__docusaurus-10309",
+      "language": "typescript",
+      "outcome_blind": true,
+      "raw_command_argv": [
+        "eslint",
+        "."
+      ],
+      "repository": "facebook/docusaurus",
+      "snapshot_variant": "fixed",
       "source_id": "swe-bench-multilingual"
     },
     {
@@ -27240,6 +28345,28 @@
     },
     {
       "base_commit": "41f1c1e3c26ad1e24acd3306077e2534dd8fa0db",
+      "candidate_id": "facebook__docusaurus-8927::js_ts::lint",
+      "cluster_id": "swebench:facebook__docusaurus-8927",
+      "command_family": "js_ts",
+      "command_subfamily": "lint",
+      "expected_raw_outcome": "text",
+      "image_recipe": {
+        "kind": "swebench_eval_image_recipe",
+        "note": "harness-built per instance; digest pinned at acquisition (\u00a75)."
+      },
+      "instance_id": "facebook__docusaurus-8927",
+      "language": "typescript",
+      "outcome_blind": true,
+      "raw_command_argv": [
+        "eslint",
+        "."
+      ],
+      "repository": "facebook/docusaurus",
+      "snapshot_variant": "fixed",
+      "source_id": "swe-bench-multilingual"
+    },
+    {
+      "base_commit": "41f1c1e3c26ad1e24acd3306077e2534dd8fa0db",
       "candidate_id": "facebook__docusaurus-8927::js_ts::test::buggy",
       "cluster_id": "swebench:facebook__docusaurus-8927",
       "command_family": "js_ts",
@@ -27327,6 +28454,28 @@
       ],
       "repository": "facebook/docusaurus",
       "snapshot_variant": "clean",
+      "source_id": "swe-bench-multilingual"
+    },
+    {
+      "base_commit": "b96004e77ebfb23e7349fa495d2177008186bd42",
+      "candidate_id": "facebook__docusaurus-9183::js_ts::lint",
+      "cluster_id": "swebench:facebook__docusaurus-9183",
+      "command_family": "js_ts",
+      "command_subfamily": "lint",
+      "expected_raw_outcome": "text",
+      "image_recipe": {
+        "kind": "swebench_eval_image_recipe",
+        "note": "harness-built per instance; digest pinned at acquisition (\u00a75)."
+      },
+      "instance_id": "facebook__docusaurus-9183",
+      "language": "typescript",
+      "outcome_blind": true,
+      "raw_command_argv": [
+        "eslint",
+        "."
+      ],
+      "repository": "facebook/docusaurus",
+      "snapshot_variant": "fixed",
       "source_id": "swe-bench-multilingual"
     },
     {
@@ -27469,6 +28618,27 @@
       "target_test_ids": [
         "can unwrap a simple mdx code block with CRLF"
       ]
+    },
+    {
+      "base_commit": "0589b1475d56b0b541348aa56f201ec7c56c56d5",
+      "candidate_id": "facebook__docusaurus-9897::js_ts::tsc",
+      "cluster_id": "swebench:facebook__docusaurus-9897",
+      "command_family": "js_ts",
+      "command_subfamily": "tsc",
+      "expected_raw_outcome": "text",
+      "image_recipe": {
+        "kind": "swebench_eval_image_recipe",
+        "note": "harness-built per instance; digest pinned at acquisition (\u00a75)."
+      },
+      "instance_id": "facebook__docusaurus-9897",
+      "language": "typescript",
+      "outcome_blind": true,
+      "raw_command_argv": [
+        "tsc"
+      ],
+      "repository": "facebook/docusaurus",
+      "snapshot_variant": "fixed",
+      "source_id": "swe-bench-multilingual"
     },
     {
       "base_commit": "4d52bc1e148d5290da10cb2775e244e0023778b0",
@@ -28700,6 +29870,29 @@
     },
     {
       "base_commit": "70a0aba3e423246be37462cfdaedd510c26c566e",
+      "candidate_id": "gin-gonic__gin-1805::go::build",
+      "cluster_id": "swebench:gin-gonic__gin-1805",
+      "command_family": "go",
+      "command_subfamily": "build",
+      "expected_raw_outcome": "text",
+      "image_recipe": {
+        "kind": "swebench_eval_image_recipe",
+        "note": "harness-built per instance; digest pinned at acquisition (\u00a75)."
+      },
+      "instance_id": "gin-gonic__gin-1805",
+      "language": "go",
+      "outcome_blind": true,
+      "raw_command_argv": [
+        "go",
+        "build",
+        "./..."
+      ],
+      "repository": "gin-gonic/gin",
+      "snapshot_variant": "fixed",
+      "source_id": "swe-bench-multilingual"
+    },
+    {
+      "base_commit": "70a0aba3e423246be37462cfdaedd510c26c566e",
       "candidate_id": "gin-gonic__gin-1805::go::test::buggy",
       "cluster_id": "swebench:gin-gonic__gin-1805",
       "command_family": "go",
@@ -28787,6 +29980,29 @@
       ],
       "repository": "gin-gonic/gin",
       "snapshot_variant": "clean",
+      "source_id": "swe-bench-multilingual"
+    },
+    {
+      "base_commit": "09a3650c97ca7ef3a542d428a9fb2c8da8c18002",
+      "candidate_id": "gin-gonic__gin-1957::go::build",
+      "cluster_id": "swebench:gin-gonic__gin-1957",
+      "command_family": "go",
+      "command_subfamily": "build",
+      "expected_raw_outcome": "text",
+      "image_recipe": {
+        "kind": "swebench_eval_image_recipe",
+        "note": "harness-built per instance; digest pinned at acquisition (\u00a75)."
+      },
+      "instance_id": "gin-gonic__gin-1957",
+      "language": "go",
+      "outcome_blind": true,
+      "raw_command_argv": [
+        "go",
+        "build",
+        "./..."
+      ],
+      "repository": "gin-gonic/gin",
+      "snapshot_variant": "fixed",
       "source_id": "swe-bench-multilingual"
     },
     {
@@ -28880,6 +30096,29 @@
       ],
       "repository": "gin-gonic/gin",
       "snapshot_variant": "dirty",
+      "source_id": "swe-bench-multilingual"
+    },
+    {
+      "base_commit": "2ee0e963942d91be7944dfcc07dc8c02a4a78566",
+      "candidate_id": "gin-gonic__gin-2121::go::build",
+      "cluster_id": "swebench:gin-gonic__gin-2121",
+      "command_family": "go",
+      "command_subfamily": "build",
+      "expected_raw_outcome": "text",
+      "image_recipe": {
+        "kind": "swebench_eval_image_recipe",
+        "note": "harness-built per instance; digest pinned at acquisition (\u00a75)."
+      },
+      "instance_id": "gin-gonic__gin-2121",
+      "language": "go",
+      "outcome_blind": true,
+      "raw_command_argv": [
+        "go",
+        "build",
+        "./..."
+      ],
+      "repository": "gin-gonic/gin",
+      "snapshot_variant": "fixed",
       "source_id": "swe-bench-multilingual"
     },
     {
@@ -29029,6 +30268,29 @@
       ]
     },
     {
+      "base_commit": "f2bbdfe9f26d84cb994f381050692a9e4553bf75",
+      "candidate_id": "gin-gonic__gin-2755::go::vet",
+      "cluster_id": "swebench:gin-gonic__gin-2755",
+      "command_family": "go",
+      "command_subfamily": "vet",
+      "expected_raw_outcome": "text",
+      "image_recipe": {
+        "kind": "swebench_eval_image_recipe",
+        "note": "harness-built per instance; digest pinned at acquisition (\u00a75)."
+      },
+      "instance_id": "gin-gonic__gin-2755",
+      "language": "go",
+      "outcome_blind": true,
+      "raw_command_argv": [
+        "go",
+        "vet",
+        "./..."
+      ],
+      "repository": "gin-gonic/gin",
+      "snapshot_variant": "fixed",
+      "source_id": "swe-bench-multilingual"
+    },
+    {
       "base_commit": "51aea73ba0f125f6cacc3b4b695efdf21d9c634f",
       "candidate_id": "gin-gonic__gin-3227::files_search::ls",
       "cluster_id": "swebench:gin-gonic__gin-3227",
@@ -29122,6 +30384,29 @@
       ]
     },
     {
+      "base_commit": "51aea73ba0f125f6cacc3b4b695efdf21d9c634f",
+      "candidate_id": "gin-gonic__gin-3227::go::vet",
+      "cluster_id": "swebench:gin-gonic__gin-3227",
+      "command_family": "go",
+      "command_subfamily": "vet",
+      "expected_raw_outcome": "text",
+      "image_recipe": {
+        "kind": "swebench_eval_image_recipe",
+        "note": "harness-built per instance; digest pinned at acquisition (\u00a75)."
+      },
+      "instance_id": "gin-gonic__gin-3227",
+      "language": "go",
+      "outcome_blind": true,
+      "raw_command_argv": [
+        "go",
+        "vet",
+        "./..."
+      ],
+      "repository": "gin-gonic/gin",
+      "snapshot_variant": "fixed",
+      "source_id": "swe-bench-multilingual"
+    },
+    {
       "base_commit": "c2ba8f19ec19914b73290c53a32de479cd463555",
       "candidate_id": "gin-gonic__gin-3741::files_search::tree",
       "cluster_id": "swebench:gin-gonic__gin-3741",
@@ -29156,6 +30441,29 @@
       ],
       "repository": "gin-gonic/gin",
       "snapshot_variant": "dirty",
+      "source_id": "swe-bench-multilingual"
+    },
+    {
+      "base_commit": "c2ba8f19ec19914b73290c53a32de479cd463555",
+      "candidate_id": "gin-gonic__gin-3741::go::build",
+      "cluster_id": "swebench:gin-gonic__gin-3741",
+      "command_family": "go",
+      "command_subfamily": "build",
+      "expected_raw_outcome": "text",
+      "image_recipe": {
+        "kind": "swebench_eval_image_recipe",
+        "note": "harness-built per instance; digest pinned at acquisition (\u00a75)."
+      },
+      "instance_id": "gin-gonic__gin-3741",
+      "language": "go",
+      "outcome_blind": true,
+      "raw_command_argv": [
+        "go",
+        "build",
+        "./..."
+      ],
+      "repository": "gin-gonic/gin",
+      "snapshot_variant": "fixed",
       "source_id": "swe-bench-multilingual"
     },
     {
@@ -29303,6 +30611,29 @@
       ]
     },
     {
+      "base_commit": "9f598a31aafb92d675f38f1c8371e4ac76f858bf",
+      "candidate_id": "gin-gonic__gin-3820::go::vet",
+      "cluster_id": "swebench:gin-gonic__gin-3820",
+      "command_family": "go",
+      "command_subfamily": "vet",
+      "expected_raw_outcome": "text",
+      "image_recipe": {
+        "kind": "swebench_eval_image_recipe",
+        "note": "harness-built per instance; digest pinned at acquisition (\u00a75)."
+      },
+      "instance_id": "gin-gonic__gin-3820",
+      "language": "go",
+      "outcome_blind": true,
+      "raw_command_argv": [
+        "go",
+        "vet",
+        "./..."
+      ],
+      "repository": "gin-gonic/gin",
+      "snapshot_variant": "fixed",
+      "source_id": "swe-bench-multilingual"
+    },
+    {
       "base_commit": "9c081de9cdd1948f521d47d170d18cbc2981c33a",
       "candidate_id": "gin-gonic__gin-4003::files_search::read",
       "cluster_id": "swebench:gin-gonic__gin-4003",
@@ -29394,6 +30725,29 @@
       ]
     },
     {
+      "base_commit": "9c081de9cdd1948f521d47d170d18cbc2981c33a",
+      "candidate_id": "gin-gonic__gin-4003::go::vet",
+      "cluster_id": "swebench:gin-gonic__gin-4003",
+      "command_family": "go",
+      "command_subfamily": "vet",
+      "expected_raw_outcome": "text",
+      "image_recipe": {
+        "kind": "swebench_eval_image_recipe",
+        "note": "harness-built per instance; digest pinned at acquisition (\u00a75)."
+      },
+      "instance_id": "gin-gonic__gin-4003",
+      "language": "go",
+      "outcome_blind": true,
+      "raw_command_argv": [
+        "go",
+        "vet",
+        "./..."
+      ],
+      "repository": "gin-gonic/gin",
+      "snapshot_variant": "fixed",
+      "source_id": "swe-bench-multilingual"
+    },
+    {
       "base_commit": "a322282e70c2935c79f9c0f5c593bfdd032eb964",
       "candidate_id": "gohugoio__hugo-12171::files_search::read",
       "cluster_id": "swebench:gohugoio__hugo-12171",
@@ -29428,6 +30782,29 @@
       ],
       "repository": "gohugoio/hugo",
       "snapshot_variant": "clean",
+      "source_id": "swe-bench-multilingual"
+    },
+    {
+      "base_commit": "a322282e70c2935c79f9c0f5c593bfdd032eb964",
+      "candidate_id": "gohugoio__hugo-12171::go::build",
+      "cluster_id": "swebench:gohugoio__hugo-12171",
+      "command_family": "go",
+      "command_subfamily": "build",
+      "expected_raw_outcome": "text",
+      "image_recipe": {
+        "kind": "swebench_eval_image_recipe",
+        "note": "harness-built per instance; digest pinned at acquisition (\u00a75)."
+      },
+      "instance_id": "gohugoio__hugo-12171",
+      "language": "go",
+      "outcome_blind": true,
+      "raw_command_argv": [
+        "go",
+        "build",
+        "./..."
+      ],
+      "repository": "gohugoio/hugo",
+      "snapshot_variant": "fixed",
       "source_id": "swe-bench-multilingual"
     },
     {
@@ -29521,6 +30898,29 @@
       ],
       "repository": "gohugoio/hugo",
       "snapshot_variant": "clean",
+      "source_id": "swe-bench-multilingual"
+    },
+    {
+      "base_commit": "b1de03f398620eb97e005ae01e1955627475b7c9",
+      "candidate_id": "gohugoio__hugo-12204::go::build",
+      "cluster_id": "swebench:gohugoio__hugo-12204",
+      "command_family": "go",
+      "command_subfamily": "build",
+      "expected_raw_outcome": "text",
+      "image_recipe": {
+        "kind": "swebench_eval_image_recipe",
+        "note": "harness-built per instance; digest pinned at acquisition (\u00a75)."
+      },
+      "instance_id": "gohugoio__hugo-12204",
+      "language": "go",
+      "outcome_blind": true,
+      "raw_command_argv": [
+        "go",
+        "build",
+        "./..."
+      ],
+      "repository": "gohugoio/hugo",
+      "snapshot_variant": "fixed",
       "source_id": "swe-bench-multilingual"
     },
     {
@@ -29669,6 +31069,29 @@
       ]
     },
     {
+      "base_commit": "060cce0a910ffd9dc4e92efbe758fc5f187c3145",
+      "candidate_id": "gohugoio__hugo-12343::go::vet",
+      "cluster_id": "swebench:gohugoio__hugo-12343",
+      "command_family": "go",
+      "command_subfamily": "vet",
+      "expected_raw_outcome": "text",
+      "image_recipe": {
+        "kind": "swebench_eval_image_recipe",
+        "note": "harness-built per instance; digest pinned at acquisition (\u00a75)."
+      },
+      "instance_id": "gohugoio__hugo-12343",
+      "language": "go",
+      "outcome_blind": true,
+      "raw_command_argv": [
+        "go",
+        "vet",
+        "./..."
+      ],
+      "repository": "gohugoio/hugo",
+      "snapshot_variant": "fixed",
+      "source_id": "swe-bench-multilingual"
+    },
+    {
       "base_commit": "196132753649e6e714f05c83122737cabd0da310",
       "candidate_id": "gohugoio__hugo-12448::files_search::read",
       "cluster_id": "swebench:gohugoio__hugo-12448",
@@ -29703,6 +31126,29 @@
       ],
       "repository": "gohugoio/hugo",
       "snapshot_variant": "clean",
+      "source_id": "swe-bench-multilingual"
+    },
+    {
+      "base_commit": "196132753649e6e714f05c83122737cabd0da310",
+      "candidate_id": "gohugoio__hugo-12448::go::build",
+      "cluster_id": "swebench:gohugoio__hugo-12448",
+      "command_family": "go",
+      "command_subfamily": "build",
+      "expected_raw_outcome": "text",
+      "image_recipe": {
+        "kind": "swebench_eval_image_recipe",
+        "note": "harness-built per instance; digest pinned at acquisition (\u00a75)."
+      },
+      "instance_id": "gohugoio__hugo-12448",
+      "language": "go",
+      "outcome_blind": true,
+      "raw_command_argv": [
+        "go",
+        "build",
+        "./..."
+      ],
+      "repository": "gohugoio/hugo",
+      "snapshot_variant": "fixed",
       "source_id": "swe-bench-multilingual"
     },
     {
@@ -29794,6 +31240,29 @@
       ],
       "repository": "gohugoio/hugo",
       "snapshot_variant": "dirty",
+      "source_id": "swe-bench-multilingual"
+    },
+    {
+      "base_commit": "c8dac67defbb512877e974814e196782989b8214",
+      "candidate_id": "gohugoio__hugo-12562::go::build",
+      "cluster_id": "swebench:gohugoio__hugo-12562",
+      "command_family": "go",
+      "command_subfamily": "build",
+      "expected_raw_outcome": "text",
+      "image_recipe": {
+        "kind": "swebench_eval_image_recipe",
+        "note": "harness-built per instance; digest pinned at acquisition (\u00a75)."
+      },
+      "instance_id": "gohugoio__hugo-12562",
+      "language": "go",
+      "outcome_blind": true,
+      "raw_command_argv": [
+        "go",
+        "build",
+        "./..."
+      ],
+      "repository": "gohugoio/hugo",
+      "snapshot_variant": "fixed",
       "source_id": "swe-bench-multilingual"
     },
     {
@@ -29891,6 +31360,29 @@
     },
     {
       "base_commit": "9c4e14eb4f890d2a3caad2dcd9209609b7274914",
+      "candidate_id": "gohugoio__hugo-12579::go::build",
+      "cluster_id": "swebench:gohugoio__hugo-12579",
+      "command_family": "go",
+      "command_subfamily": "build",
+      "expected_raw_outcome": "text",
+      "image_recipe": {
+        "kind": "swebench_eval_image_recipe",
+        "note": "harness-built per instance; digest pinned at acquisition (\u00a75)."
+      },
+      "instance_id": "gohugoio__hugo-12579",
+      "language": "go",
+      "outcome_blind": true,
+      "raw_command_argv": [
+        "go",
+        "build",
+        "./..."
+      ],
+      "repository": "gohugoio/hugo",
+      "snapshot_variant": "fixed",
+      "source_id": "swe-bench-multilingual"
+    },
+    {
+      "base_commit": "9c4e14eb4f890d2a3caad2dcd9209609b7274914",
       "candidate_id": "gohugoio__hugo-12579::go::test::buggy",
       "cluster_id": "swebench:gohugoio__hugo-12579",
       "command_family": "go",
@@ -29978,6 +31470,29 @@
       ],
       "repository": "gohugoio/hugo",
       "snapshot_variant": "dirty",
+      "source_id": "swe-bench-multilingual"
+    },
+    {
+      "base_commit": "83235262d06a060bd22c168b3413903667b8aeb6",
+      "candidate_id": "gohugoio__hugo-12768::go::build",
+      "cluster_id": "swebench:gohugoio__hugo-12768",
+      "command_family": "go",
+      "command_subfamily": "build",
+      "expected_raw_outcome": "text",
+      "image_recipe": {
+        "kind": "swebench_eval_image_recipe",
+        "note": "harness-built per instance; digest pinned at acquisition (\u00a75)."
+      },
+      "instance_id": "gohugoio__hugo-12768",
+      "language": "go",
+      "outcome_blind": true,
+      "raw_command_argv": [
+        "go",
+        "build",
+        "./..."
+      ],
+      "repository": "gohugoio/hugo",
+      "snapshot_variant": "fixed",
       "source_id": "swe-bench-multilingual"
     },
     {
@@ -30955,6 +32470,29 @@
       ]
     },
     {
+      "base_commit": "8faa757e20d8df6c458a002c6bd4e1bc26f41581",
+      "candidate_id": "hashicorp__terraform-34580::go::vet",
+      "cluster_id": "swebench:hashicorp__terraform-34580",
+      "command_family": "go",
+      "command_subfamily": "vet",
+      "expected_raw_outcome": "text",
+      "image_recipe": {
+        "kind": "swebench_eval_image_recipe",
+        "note": "harness-built per instance; digest pinned at acquisition (\u00a75)."
+      },
+      "instance_id": "hashicorp__terraform-34580",
+      "language": "go",
+      "outcome_blind": true,
+      "raw_command_argv": [
+        "go",
+        "vet",
+        "./..."
+      ],
+      "repository": "hashicorp/terraform",
+      "snapshot_variant": "fixed",
+      "source_id": "swe-bench-multilingual"
+    },
+    {
       "base_commit": "310331bdc6b747b68b2e2dd6be257dfc78677973",
       "candidate_id": "hashicorp__terraform-34814::files_search::tree",
       "cluster_id": "swebench:hashicorp__terraform-34814",
@@ -30990,6 +32528,29 @@
       ],
       "repository": "hashicorp/terraform",
       "snapshot_variant": "dirty",
+      "source_id": "swe-bench-multilingual"
+    },
+    {
+      "base_commit": "310331bdc6b747b68b2e2dd6be257dfc78677973",
+      "candidate_id": "hashicorp__terraform-34814::go::build",
+      "cluster_id": "swebench:hashicorp__terraform-34814",
+      "command_family": "go",
+      "command_subfamily": "build",
+      "expected_raw_outcome": "text",
+      "image_recipe": {
+        "kind": "swebench_eval_image_recipe",
+        "note": "harness-built per instance; digest pinned at acquisition (\u00a75)."
+      },
+      "instance_id": "hashicorp__terraform-34814",
+      "language": "go",
+      "outcome_blind": true,
+      "raw_command_argv": [
+        "go",
+        "build",
+        "./..."
+      ],
+      "repository": "hashicorp/terraform",
+      "snapshot_variant": "fixed",
       "source_id": "swe-bench-multilingual"
     },
     {
@@ -31085,6 +32646,29 @@
     },
     {
       "base_commit": "f2e4cb411ed6dfd36fd4f9960a74d8f29c7b8882",
+      "candidate_id": "hashicorp__terraform-34900::go::build",
+      "cluster_id": "swebench:hashicorp__terraform-34900",
+      "command_family": "go",
+      "command_subfamily": "build",
+      "expected_raw_outcome": "text",
+      "image_recipe": {
+        "kind": "swebench_eval_image_recipe",
+        "note": "harness-built per instance; digest pinned at acquisition (\u00a75)."
+      },
+      "instance_id": "hashicorp__terraform-34900",
+      "language": "go",
+      "outcome_blind": true,
+      "raw_command_argv": [
+        "go",
+        "build",
+        "./..."
+      ],
+      "repository": "hashicorp/terraform",
+      "snapshot_variant": "fixed",
+      "source_id": "swe-bench-multilingual"
+    },
+    {
+      "base_commit": "f2e4cb411ed6dfd36fd4f9960a74d8f29c7b8882",
       "candidate_id": "hashicorp__terraform-34900::go::test::buggy",
       "cluster_id": "swebench:hashicorp__terraform-34900",
       "command_family": "go",
@@ -31173,6 +32757,29 @@
       ],
       "repository": "hashicorp/terraform",
       "snapshot_variant": "dirty",
+      "source_id": "swe-bench-multilingual"
+    },
+    {
+      "base_commit": "24833a2b062126a71ef30a86a6d1fc3823afdfdb",
+      "candidate_id": "hashicorp__terraform-35543::go::build",
+      "cluster_id": "swebench:hashicorp__terraform-35543",
+      "command_family": "go",
+      "command_subfamily": "build",
+      "expected_raw_outcome": "text",
+      "image_recipe": {
+        "kind": "swebench_eval_image_recipe",
+        "note": "harness-built per instance; digest pinned at acquisition (\u00a75)."
+      },
+      "instance_id": "hashicorp__terraform-35543",
+      "language": "go",
+      "outcome_blind": true,
+      "raw_command_argv": [
+        "go",
+        "build",
+        "./..."
+      ],
+      "repository": "hashicorp/terraform",
+      "snapshot_variant": "fixed",
       "source_id": "swe-bench-multilingual"
     },
     {
@@ -31332,6 +32939,29 @@
       ]
     },
     {
+      "base_commit": "047c1af0b4a9e1e650f3811d011bcb92b2ceb15a",
+      "candidate_id": "hashicorp__terraform-35611::go::vet",
+      "cluster_id": "swebench:hashicorp__terraform-35611",
+      "command_family": "go",
+      "command_subfamily": "vet",
+      "expected_raw_outcome": "text",
+      "image_recipe": {
+        "kind": "swebench_eval_image_recipe",
+        "note": "harness-built per instance; digest pinned at acquisition (\u00a75)."
+      },
+      "instance_id": "hashicorp__terraform-35611",
+      "language": "go",
+      "outcome_blind": true,
+      "raw_command_argv": [
+        "go",
+        "vet",
+        "./..."
+      ],
+      "repository": "hashicorp/terraform",
+      "snapshot_variant": "fixed",
+      "source_id": "swe-bench-multilingual"
+    },
+    {
       "base_commit": "77434b3cbbc8ee21206f4cc6965e1c9b09cc92b6",
       "candidate_id": "immutable-js__immutable-js-2005::files_search::tree",
       "cluster_id": "swebench:immutable-js__immutable-js-2005",
@@ -31366,6 +32996,28 @@
       ],
       "repository": "immutable-js/immutable-js",
       "snapshot_variant": "dirty",
+      "source_id": "swe-bench-multilingual"
+    },
+    {
+      "base_commit": "77434b3cbbc8ee21206f4cc6965e1c9b09cc92b6",
+      "candidate_id": "immutable-js__immutable-js-2005::js_ts::lint",
+      "cluster_id": "swebench:immutable-js__immutable-js-2005",
+      "command_family": "js_ts",
+      "command_subfamily": "lint",
+      "expected_raw_outcome": "text",
+      "image_recipe": {
+        "kind": "swebench_eval_image_recipe",
+        "note": "harness-built per instance; digest pinned at acquisition (\u00a75)."
+      },
+      "instance_id": "immutable-js__immutable-js-2005",
+      "language": "typescript",
+      "outcome_blind": true,
+      "raw_command_argv": [
+        "eslint",
+        "."
+      ],
+      "repository": "immutable-js/immutable-js",
+      "snapshot_variant": "fixed",
       "source_id": "swe-bench-multilingual"
     },
     {
@@ -31457,6 +33109,28 @@
       ],
       "repository": "immutable-js/immutable-js",
       "snapshot_variant": "dirty",
+      "source_id": "swe-bench-multilingual"
+    },
+    {
+      "base_commit": "493afba6ec17d9c999dc5a15ac80c71c6bdba1c3",
+      "candidate_id": "immutable-js__immutable-js-2006::js_ts::lint",
+      "cluster_id": "swebench:immutable-js__immutable-js-2006",
+      "command_family": "js_ts",
+      "command_subfamily": "lint",
+      "expected_raw_outcome": "text",
+      "image_recipe": {
+        "kind": "swebench_eval_image_recipe",
+        "note": "harness-built per instance; digest pinned at acquisition (\u00a75)."
+      },
+      "instance_id": "immutable-js__immutable-js-2006",
+      "language": "typescript",
+      "outcome_blind": true,
+      "raw_command_argv": [
+        "eslint",
+        "."
+      ],
+      "repository": "immutable-js/immutable-js",
+      "snapshot_variant": "fixed",
       "source_id": "swe-bench-multilingual"
     },
     {
@@ -33609,6 +35283,28 @@
     },
     {
       "base_commit": "114134e195a451fdbaa8d2e9492d869d5c853814",
+      "candidate_id": "mrdoob__three.js-25687::js_ts::lint",
+      "cluster_id": "swebench:mrdoob__three.js-25687",
+      "command_family": "js_ts",
+      "command_subfamily": "lint",
+      "expected_raw_outcome": "text",
+      "image_recipe": {
+        "kind": "swebench_eval_image_recipe",
+        "note": "harness-built per instance; digest pinned at acquisition (\u00a75)."
+      },
+      "instance_id": "mrdoob__three.js-25687",
+      "language": "javascript",
+      "outcome_blind": true,
+      "raw_command_argv": [
+        "eslint",
+        "."
+      ],
+      "repository": "mrdoob/three.js",
+      "snapshot_variant": "fixed",
+      "source_id": "swe-bench-multilingual"
+    },
+    {
+      "base_commit": "114134e195a451fdbaa8d2e9492d869d5c853814",
       "candidate_id": "mrdoob__three.js-25687::js_ts::test::buggy",
       "cluster_id": "swebench:mrdoob__three.js-25687",
       "command_family": "js_ts",
@@ -33753,6 +35449,27 @@
       ]
     },
     {
+      "base_commit": "8d9f8d50b923d5f8a673590ae138bc5d86a3a256",
+      "candidate_id": "mrdoob__three.js-26589::js_ts::tsc",
+      "cluster_id": "swebench:mrdoob__three.js-26589",
+      "command_family": "js_ts",
+      "command_subfamily": "tsc",
+      "expected_raw_outcome": "text",
+      "image_recipe": {
+        "kind": "swebench_eval_image_recipe",
+        "note": "harness-built per instance; digest pinned at acquisition (\u00a75)."
+      },
+      "instance_id": "mrdoob__three.js-26589",
+      "language": "javascript",
+      "outcome_blind": true,
+      "raw_command_argv": [
+        "tsc"
+      ],
+      "repository": "mrdoob/three.js",
+      "snapshot_variant": "fixed",
+      "source_id": "swe-bench-multilingual"
+    },
+    {
       "base_commit": "b99b3fd955864f534b1e2649518112f7e50fef21",
       "candidate_id": "mrdoob__three.js-27395::files_search::read",
       "cluster_id": "swebench:mrdoob__three.js-27395",
@@ -33843,6 +35560,27 @@
       ]
     },
     {
+      "base_commit": "b99b3fd955864f534b1e2649518112f7e50fef21",
+      "candidate_id": "mrdoob__three.js-27395::js_ts::tsc",
+      "cluster_id": "swebench:mrdoob__three.js-27395",
+      "command_family": "js_ts",
+      "command_subfamily": "tsc",
+      "expected_raw_outcome": "text",
+      "image_recipe": {
+        "kind": "swebench_eval_image_recipe",
+        "note": "harness-built per instance; digest pinned at acquisition (\u00a75)."
+      },
+      "instance_id": "mrdoob__three.js-27395",
+      "language": "javascript",
+      "outcome_blind": true,
+      "raw_command_argv": [
+        "tsc"
+      ],
+      "repository": "mrdoob/three.js",
+      "snapshot_variant": "fixed",
+      "source_id": "swe-bench-multilingual"
+    },
+    {
       "base_commit": "3780b41dd070436f3f55327b0a88f27a52e2dfa8",
       "candidate_id": "nlohmann__json-4237::files_search::tree",
       "cluster_id": "swebench:nlohmann__json-4237",
@@ -33912,6 +35650,28 @@
       ],
       "repository": "nushell/nushell",
       "snapshot_variant": "dirty",
+      "source_id": "swe-bench-multilingual"
+    },
+    {
+      "base_commit": "cc9f41e553333b1ad0aa4185a912f7a52355a238",
+      "candidate_id": "nushell__nushell-12901::rust_cargo::check",
+      "cluster_id": "swebench:nushell__nushell-12901",
+      "command_family": "rust_cargo",
+      "command_subfamily": "check",
+      "expected_raw_outcome": "text",
+      "image_recipe": {
+        "kind": "swebench_eval_image_recipe",
+        "note": "harness-built per instance; digest pinned at acquisition (\u00a75)."
+      },
+      "instance_id": "nushell__nushell-12901",
+      "language": "rust",
+      "outcome_blind": true,
+      "raw_command_argv": [
+        "cargo",
+        "check"
+      ],
+      "repository": "nushell/nushell",
+      "snapshot_variant": "fixed",
       "source_id": "swe-bench-multilingual"
     },
     {
@@ -34004,6 +35764,28 @@
     },
     {
       "base_commit": "0c5a67f4e5bf17a2fffbe3cbb54792a6464b3237",
+      "candidate_id": "nushell__nushell-12950::rust_cargo::check",
+      "cluster_id": "swebench:nushell__nushell-12950",
+      "command_family": "rust_cargo",
+      "command_subfamily": "check",
+      "expected_raw_outcome": "text",
+      "image_recipe": {
+        "kind": "swebench_eval_image_recipe",
+        "note": "harness-built per instance; digest pinned at acquisition (\u00a75)."
+      },
+      "instance_id": "nushell__nushell-12950",
+      "language": "rust",
+      "outcome_blind": true,
+      "raw_command_argv": [
+        "cargo",
+        "check"
+      ],
+      "repository": "nushell/nushell",
+      "snapshot_variant": "fixed",
+      "source_id": "swe-bench-multilingual"
+    },
+    {
+      "base_commit": "0c5a67f4e5bf17a2fffbe3cbb54792a6464b3237",
       "candidate_id": "nushell__nushell-12950::rust_cargo::test::buggy",
       "cluster_id": "swebench:nushell__nushell-12950",
       "command_family": "rust_cargo",
@@ -34088,6 +35870,28 @@
       ],
       "repository": "nushell/nushell",
       "snapshot_variant": "dirty",
+      "source_id": "swe-bench-multilingual"
+    },
+    {
+      "base_commit": "46ed69ab126015375d5163972ae321715f34874b",
+      "candidate_id": "nushell__nushell-13246::rust_cargo::build",
+      "cluster_id": "swebench:nushell__nushell-13246",
+      "command_family": "rust_cargo",
+      "command_subfamily": "build",
+      "expected_raw_outcome": "text",
+      "image_recipe": {
+        "kind": "swebench_eval_image_recipe",
+        "note": "harness-built per instance; digest pinned at acquisition (\u00a75)."
+      },
+      "instance_id": "nushell__nushell-13246",
+      "language": "rust",
+      "outcome_blind": true,
+      "raw_command_argv": [
+        "cargo",
+        "build"
+      ],
+      "repository": "nushell/nushell",
+      "snapshot_variant": "fixed",
       "source_id": "swe-bench-multilingual"
     },
     {
@@ -34182,6 +35986,28 @@
     },
     {
       "base_commit": "48e401834d604563106a6ef3738a996d38c790ca",
+      "candidate_id": "nushell__nushell-13605::rust_cargo::check",
+      "cluster_id": "swebench:nushell__nushell-13605",
+      "command_family": "rust_cargo",
+      "command_subfamily": "check",
+      "expected_raw_outcome": "text",
+      "image_recipe": {
+        "kind": "swebench_eval_image_recipe",
+        "note": "harness-built per instance; digest pinned at acquisition (\u00a75)."
+      },
+      "instance_id": "nushell__nushell-13605",
+      "language": "rust",
+      "outcome_blind": true,
+      "raw_command_argv": [
+        "cargo",
+        "check"
+      ],
+      "repository": "nushell/nushell",
+      "snapshot_variant": "fixed",
+      "source_id": "swe-bench-multilingual"
+    },
+    {
+      "base_commit": "48e401834d604563106a6ef3738a996d38c790ca",
       "candidate_id": "nushell__nushell-13605::rust_cargo::test::buggy",
       "cluster_id": "swebench:nushell__nushell-13605",
       "command_family": "rust_cargo",
@@ -34268,6 +36094,28 @@
       ],
       "repository": "nushell/nushell",
       "snapshot_variant": "clean",
+      "source_id": "swe-bench-multilingual"
+    },
+    {
+      "base_commit": "fb34a4fc6c9ca882cc6dc95d437902a45c402e9a",
+      "candidate_id": "nushell__nushell-13831::rust_cargo::build",
+      "cluster_id": "swebench:nushell__nushell-13831",
+      "command_family": "rust_cargo",
+      "command_subfamily": "build",
+      "expected_raw_outcome": "text",
+      "image_recipe": {
+        "kind": "swebench_eval_image_recipe",
+        "note": "harness-built per instance; digest pinned at acquisition (\u00a75)."
+      },
+      "instance_id": "nushell__nushell-13831",
+      "language": "rust",
+      "outcome_blind": true,
+      "raw_command_argv": [
+        "cargo",
+        "build"
+      ],
+      "repository": "nushell/nushell",
+      "snapshot_variant": "fixed",
       "source_id": "swe-bench-multilingual"
     },
     {
@@ -35108,6 +36956,28 @@
     },
     {
       "base_commit": "b17a932342bfdeeaf1dc0fbe4f436c83e258d6c8",
+      "candidate_id": "preactjs__preact-2757::js_ts::lint",
+      "cluster_id": "swebench:preactjs__preact-2757",
+      "command_family": "js_ts",
+      "command_subfamily": "lint",
+      "expected_raw_outcome": "text",
+      "image_recipe": {
+        "kind": "swebench_eval_image_recipe",
+        "note": "harness-built per instance; digest pinned at acquisition (\u00a75)."
+      },
+      "instance_id": "preactjs__preact-2757",
+      "language": "typescript",
+      "outcome_blind": true,
+      "raw_command_argv": [
+        "eslint",
+        "."
+      ],
+      "repository": "preactjs/preact",
+      "snapshot_variant": "fixed",
+      "source_id": "swe-bench-multilingual"
+    },
+    {
+      "base_commit": "b17a932342bfdeeaf1dc0fbe4f436c83e258d6c8",
       "candidate_id": "preactjs__preact-2757::js_ts::test::buggy",
       "cluster_id": "swebench:preactjs__preact-2757",
       "command_family": "js_ts",
@@ -35250,6 +37120,27 @@
       ]
     },
     {
+      "base_commit": "a9f7e676dc03b5008b8483e0937fc27c1af8287f",
+      "candidate_id": "preactjs__preact-2896::js_ts::tsc",
+      "cluster_id": "swebench:preactjs__preact-2896",
+      "command_family": "js_ts",
+      "command_subfamily": "tsc",
+      "expected_raw_outcome": "text",
+      "image_recipe": {
+        "kind": "swebench_eval_image_recipe",
+        "note": "harness-built per instance; digest pinned at acquisition (\u00a75)."
+      },
+      "instance_id": "preactjs__preact-2896",
+      "language": "typescript",
+      "outcome_blind": true,
+      "raw_command_argv": [
+        "tsc"
+      ],
+      "repository": "preactjs/preact",
+      "snapshot_variant": "fixed",
+      "source_id": "swe-bench-multilingual"
+    },
+    {
       "base_commit": "ee76c1eb169897412501d86fbe40122b34cd2e8d",
       "candidate_id": "preactjs__preact-2927::files_search::read",
       "cluster_id": "swebench:preactjs__preact-2927",
@@ -35339,6 +37230,27 @@
       ]
     },
     {
+      "base_commit": "ee76c1eb169897412501d86fbe40122b34cd2e8d",
+      "candidate_id": "preactjs__preact-2927::js_ts::tsc",
+      "cluster_id": "swebench:preactjs__preact-2927",
+      "command_family": "js_ts",
+      "command_subfamily": "tsc",
+      "expected_raw_outcome": "text",
+      "image_recipe": {
+        "kind": "swebench_eval_image_recipe",
+        "note": "harness-built per instance; digest pinned at acquisition (\u00a75)."
+      },
+      "instance_id": "preactjs__preact-2927",
+      "language": "typescript",
+      "outcome_blind": true,
+      "raw_command_argv": [
+        "tsc"
+      ],
+      "repository": "preactjs/preact",
+      "snapshot_variant": "fixed",
+      "source_id": "swe-bench-multilingual"
+    },
+    {
       "base_commit": "c12331064f4ea967641cd5e419204422af050fbb",
       "candidate_id": "preactjs__preact-3010::files_search::read",
       "cluster_id": "swebench:preactjs__preact-3010",
@@ -35375,6 +37287,28 @@
       ],
       "repository": "preactjs/preact",
       "snapshot_variant": "dirty",
+      "source_id": "swe-bench-multilingual"
+    },
+    {
+      "base_commit": "c12331064f4ea967641cd5e419204422af050fbb",
+      "candidate_id": "preactjs__preact-3010::js_ts::lint",
+      "cluster_id": "swebench:preactjs__preact-3010",
+      "command_family": "js_ts",
+      "command_subfamily": "lint",
+      "expected_raw_outcome": "text",
+      "image_recipe": {
+        "kind": "swebench_eval_image_recipe",
+        "note": "harness-built per instance; digest pinned at acquisition (\u00a75)."
+      },
+      "instance_id": "preactjs__preact-3010",
+      "language": "typescript",
+      "outcome_blind": true,
+      "raw_command_argv": [
+        "eslint",
+        "."
+      ],
+      "repository": "preactjs/preact",
+      "snapshot_variant": "fixed",
       "source_id": "swe-bench-multilingual"
     },
     {
@@ -35469,6 +37403,28 @@
     },
     {
       "base_commit": "7556b61bd0d9f72bbd906c3abaebf2b1c9aeacbf",
+      "candidate_id": "preactjs__preact-3062::js_ts::lint",
+      "cluster_id": "swebench:preactjs__preact-3062",
+      "command_family": "js_ts",
+      "command_subfamily": "lint",
+      "expected_raw_outcome": "text",
+      "image_recipe": {
+        "kind": "swebench_eval_image_recipe",
+        "note": "harness-built per instance; digest pinned at acquisition (\u00a75)."
+      },
+      "instance_id": "preactjs__preact-3062",
+      "language": "typescript",
+      "outcome_blind": true,
+      "raw_command_argv": [
+        "eslint",
+        "."
+      ],
+      "repository": "preactjs/preact",
+      "snapshot_variant": "fixed",
+      "source_id": "swe-bench-multilingual"
+    },
+    {
+      "base_commit": "7556b61bd0d9f72bbd906c3abaebf2b1c9aeacbf",
       "candidate_id": "preactjs__preact-3062::js_ts::test::buggy",
       "cluster_id": "swebench:preactjs__preact-3062",
       "command_family": "js_ts",
@@ -35554,6 +37510,28 @@
       ],
       "repository": "preactjs/preact",
       "snapshot_variant": "clean",
+      "source_id": "swe-bench-multilingual"
+    },
+    {
+      "base_commit": "e0e17046753fe09881dfb8d5a69b44933d1fa1ea",
+      "candidate_id": "preactjs__preact-3345::js_ts::lint",
+      "cluster_id": "swebench:preactjs__preact-3345",
+      "command_family": "js_ts",
+      "command_subfamily": "lint",
+      "expected_raw_outcome": "text",
+      "image_recipe": {
+        "kind": "swebench_eval_image_recipe",
+        "note": "harness-built per instance; digest pinned at acquisition (\u00a75)."
+      },
+      "instance_id": "preactjs__preact-3345",
+      "language": "typescript",
+      "outcome_blind": true,
+      "raw_command_argv": [
+        "eslint",
+        "."
+      ],
+      "repository": "preactjs/preact",
+      "snapshot_variant": "fixed",
       "source_id": "swe-bench-multilingual"
     },
     {
@@ -35649,6 +37627,28 @@
     },
     {
       "base_commit": "00c8d1ff1498084c15408cf0014d4c7facdb5dd7",
+      "candidate_id": "preactjs__preact-3454::js_ts::lint",
+      "cluster_id": "swebench:preactjs__preact-3454",
+      "command_family": "js_ts",
+      "command_subfamily": "lint",
+      "expected_raw_outcome": "text",
+      "image_recipe": {
+        "kind": "swebench_eval_image_recipe",
+        "note": "harness-built per instance; digest pinned at acquisition (\u00a75)."
+      },
+      "instance_id": "preactjs__preact-3454",
+      "language": "typescript",
+      "outcome_blind": true,
+      "raw_command_argv": [
+        "eslint",
+        "."
+      ],
+      "repository": "preactjs/preact",
+      "snapshot_variant": "fixed",
+      "source_id": "swe-bench-multilingual"
+    },
+    {
+      "base_commit": "00c8d1ff1498084c15408cf0014d4c7facdb5dd7",
       "candidate_id": "preactjs__preact-3454::js_ts::test::buggy",
       "cluster_id": "swebench:preactjs__preact-3454",
       "command_family": "js_ts",
@@ -35734,6 +37734,28 @@
       ],
       "repository": "preactjs/preact",
       "snapshot_variant": "dirty",
+      "source_id": "swe-bench-multilingual"
+    },
+    {
+      "base_commit": "0b9a9275b47e446106e6e97c78011896f7db2a61",
+      "candidate_id": "preactjs__preact-3562::js_ts::lint",
+      "cluster_id": "swebench:preactjs__preact-3562",
+      "command_family": "js_ts",
+      "command_subfamily": "lint",
+      "expected_raw_outcome": "text",
+      "image_recipe": {
+        "kind": "swebench_eval_image_recipe",
+        "note": "harness-built per instance; digest pinned at acquisition (\u00a75)."
+      },
+      "instance_id": "preactjs__preact-3562",
+      "language": "typescript",
+      "outcome_blind": true,
+      "raw_command_argv": [
+        "eslint",
+        "."
+      ],
+      "repository": "preactjs/preact",
+      "snapshot_variant": "fixed",
       "source_id": "swe-bench-multilingual"
     },
     {
@@ -35825,6 +37847,28 @@
       ],
       "repository": "preactjs/preact",
       "snapshot_variant": "clean",
+      "source_id": "swe-bench-multilingual"
+    },
+    {
+      "base_commit": "c77e6284c199761d59467d8cc596a2f03540e72c",
+      "candidate_id": "preactjs__preact-3567::js_ts::lint",
+      "cluster_id": "swebench:preactjs__preact-3567",
+      "command_family": "js_ts",
+      "command_subfamily": "lint",
+      "expected_raw_outcome": "text",
+      "image_recipe": {
+        "kind": "swebench_eval_image_recipe",
+        "note": "harness-built per instance; digest pinned at acquisition (\u00a75)."
+      },
+      "instance_id": "preactjs__preact-3567",
+      "language": "typescript",
+      "outcome_blind": true,
+      "raw_command_argv": [
+        "eslint",
+        "."
+      ],
+      "repository": "preactjs/preact",
+      "snapshot_variant": "fixed",
       "source_id": "swe-bench-multilingual"
     },
     {
@@ -35970,6 +38014,27 @@
       ]
     },
     {
+      "base_commit": "9457b221fdacd1052ffdb385918e1bab4b10e833",
+      "candidate_id": "preactjs__preact-3689::js_ts::tsc",
+      "cluster_id": "swebench:preactjs__preact-3689",
+      "command_family": "js_ts",
+      "command_subfamily": "tsc",
+      "expected_raw_outcome": "text",
+      "image_recipe": {
+        "kind": "swebench_eval_image_recipe",
+        "note": "harness-built per instance; digest pinned at acquisition (\u00a75)."
+      },
+      "instance_id": "preactjs__preact-3689",
+      "language": "typescript",
+      "outcome_blind": true,
+      "raw_command_argv": [
+        "tsc"
+      ],
+      "repository": "preactjs/preact",
+      "snapshot_variant": "fixed",
+      "source_id": "swe-bench-multilingual"
+    },
+    {
       "base_commit": "2cafedee2ddf7c73795e887ef1970df4be2bca90",
       "candidate_id": "preactjs__preact-3739::files_search::ls",
       "cluster_id": "swebench:preactjs__preact-3739",
@@ -36004,6 +38069,28 @@
       ],
       "repository": "preactjs/preact",
       "snapshot_variant": "dirty",
+      "source_id": "swe-bench-multilingual"
+    },
+    {
+      "base_commit": "2cafedee2ddf7c73795e887ef1970df4be2bca90",
+      "candidate_id": "preactjs__preact-3739::js_ts::lint",
+      "cluster_id": "swebench:preactjs__preact-3739",
+      "command_family": "js_ts",
+      "command_subfamily": "lint",
+      "expected_raw_outcome": "text",
+      "image_recipe": {
+        "kind": "swebench_eval_image_recipe",
+        "note": "harness-built per instance; digest pinned at acquisition (\u00a75)."
+      },
+      "instance_id": "preactjs__preact-3739",
+      "language": "typescript",
+      "outcome_blind": true,
+      "raw_command_argv": [
+        "eslint",
+        "."
+      ],
+      "repository": "preactjs/preact",
+      "snapshot_variant": "fixed",
       "source_id": "swe-bench-multilingual"
     },
     {
@@ -36148,6 +38235,27 @@
       ]
     },
     {
+      "base_commit": "e968a5a4000dfa9bec7e8d7b26543b23def6d29d",
+      "candidate_id": "preactjs__preact-3763::js_ts::tsc",
+      "cluster_id": "swebench:preactjs__preact-3763",
+      "command_family": "js_ts",
+      "command_subfamily": "tsc",
+      "expected_raw_outcome": "text",
+      "image_recipe": {
+        "kind": "swebench_eval_image_recipe",
+        "note": "harness-built per instance; digest pinned at acquisition (\u00a75)."
+      },
+      "instance_id": "preactjs__preact-3763",
+      "language": "typescript",
+      "outcome_blind": true,
+      "raw_command_argv": [
+        "tsc"
+      ],
+      "repository": "preactjs/preact",
+      "snapshot_variant": "fixed",
+      "source_id": "swe-bench-multilingual"
+    },
+    {
       "base_commit": "9c5a82efcc3dcbd0035c694817a3022d81264687",
       "candidate_id": "preactjs__preact-4152::files_search::tree",
       "cluster_id": "swebench:preactjs__preact-4152",
@@ -36183,6 +38291,28 @@
       ],
       "repository": "preactjs/preact",
       "snapshot_variant": "clean",
+      "source_id": "swe-bench-multilingual"
+    },
+    {
+      "base_commit": "9c5a82efcc3dcbd0035c694817a3022d81264687",
+      "candidate_id": "preactjs__preact-4152::js_ts::lint",
+      "cluster_id": "swebench:preactjs__preact-4152",
+      "command_family": "js_ts",
+      "command_subfamily": "lint",
+      "expected_raw_outcome": "text",
+      "image_recipe": {
+        "kind": "swebench_eval_image_recipe",
+        "note": "harness-built per instance; digest pinned at acquisition (\u00a75)."
+      },
+      "instance_id": "preactjs__preact-4152",
+      "language": "typescript",
+      "outcome_blind": true,
+      "raw_command_argv": [
+        "eslint",
+        "."
+      ],
+      "repository": "preactjs/preact",
+      "snapshot_variant": "fixed",
       "source_id": "swe-bench-multilingual"
     },
     {
@@ -36327,6 +38457,27 @@
       ]
     },
     {
+      "base_commit": "66cb6a78776b263a2fe4d1283426e699961095d2",
+      "candidate_id": "preactjs__preact-4182::js_ts::tsc",
+      "cluster_id": "swebench:preactjs__preact-4182",
+      "command_family": "js_ts",
+      "command_subfamily": "tsc",
+      "expected_raw_outcome": "text",
+      "image_recipe": {
+        "kind": "swebench_eval_image_recipe",
+        "note": "harness-built per instance; digest pinned at acquisition (\u00a75)."
+      },
+      "instance_id": "preactjs__preact-4182",
+      "language": "typescript",
+      "outcome_blind": true,
+      "raw_command_argv": [
+        "tsc"
+      ],
+      "repository": "preactjs/preact",
+      "snapshot_variant": "fixed",
+      "source_id": "swe-bench-multilingual"
+    },
+    {
       "base_commit": "13b0afb7a28adb3149d7125fb2b9c16edbcf8e94",
       "candidate_id": "preactjs__preact-4245::files_search::read",
       "cluster_id": "swebench:preactjs__preact-4245",
@@ -36361,6 +38512,28 @@
       ],
       "repository": "preactjs/preact",
       "snapshot_variant": "dirty",
+      "source_id": "swe-bench-multilingual"
+    },
+    {
+      "base_commit": "13b0afb7a28adb3149d7125fb2b9c16edbcf8e94",
+      "candidate_id": "preactjs__preact-4245::js_ts::lint",
+      "cluster_id": "swebench:preactjs__preact-4245",
+      "command_family": "js_ts",
+      "command_subfamily": "lint",
+      "expected_raw_outcome": "text",
+      "image_recipe": {
+        "kind": "swebench_eval_image_recipe",
+        "note": "harness-built per instance; digest pinned at acquisition (\u00a75)."
+      },
+      "instance_id": "preactjs__preact-4245",
+      "language": "typescript",
+      "outcome_blind": true,
+      "raw_command_argv": [
+        "eslint",
+        "."
+      ],
+      "repository": "preactjs/preact",
+      "snapshot_variant": "fixed",
       "source_id": "swe-bench-multilingual"
     },
     {
@@ -36450,6 +38623,28 @@
       ],
       "repository": "preactjs/preact",
       "snapshot_variant": "dirty",
+      "source_id": "swe-bench-multilingual"
+    },
+    {
+      "base_commit": "b820d8b73eade8bc5b3fbf7e5fe0dd5150de80e2",
+      "candidate_id": "preactjs__preact-4316::js_ts::lint",
+      "cluster_id": "swebench:preactjs__preact-4316",
+      "command_family": "js_ts",
+      "command_subfamily": "lint",
+      "expected_raw_outcome": "text",
+      "image_recipe": {
+        "kind": "swebench_eval_image_recipe",
+        "note": "harness-built per instance; digest pinned at acquisition (\u00a75)."
+      },
+      "instance_id": "preactjs__preact-4316",
+      "language": "typescript",
+      "outcome_blind": true,
+      "raw_command_argv": [
+        "eslint",
+        "."
+      ],
+      "repository": "preactjs/preact",
+      "snapshot_variant": "fixed",
       "source_id": "swe-bench-multilingual"
     },
     {
@@ -36594,6 +38789,27 @@
         "refs > should call ref cleanup on unmount",
         "refs > should call ref cleanup when ref changes"
       ]
+    },
+    {
+      "base_commit": "db0f4f2e7a2338ea40050f623f05505a798fc1a4",
+      "candidate_id": "preactjs__preact-4436::js_ts::tsc",
+      "cluster_id": "swebench:preactjs__preact-4436",
+      "command_family": "js_ts",
+      "command_subfamily": "tsc",
+      "expected_raw_outcome": "text",
+      "image_recipe": {
+        "kind": "swebench_eval_image_recipe",
+        "note": "harness-built per instance; digest pinned at acquisition (\u00a75)."
+      },
+      "instance_id": "preactjs__preact-4436",
+      "language": "typescript",
+      "outcome_blind": true,
+      "raw_command_argv": [
+        "tsc"
+      ],
+      "repository": "preactjs/preact",
+      "snapshot_variant": "fixed",
+      "source_id": "swe-bench-multilingual"
     },
     {
       "base_commit": "9b3e84717d301d7a6829420f5849cf1465e73131",
@@ -38163,6 +40379,29 @@
     },
     {
       "base_commit": "64fc3e58fec13af55968db89a484b9e0c5425bd6",
+      "candidate_id": "prometheus__prometheus-10633::go::build",
+      "cluster_id": "swebench:prometheus__prometheus-10633",
+      "command_family": "go",
+      "command_subfamily": "build",
+      "expected_raw_outcome": "text",
+      "image_recipe": {
+        "kind": "swebench_eval_image_recipe",
+        "note": "harness-built per instance; digest pinned at acquisition (\u00a75)."
+      },
+      "instance_id": "prometheus__prometheus-10633",
+      "language": "go",
+      "outcome_blind": true,
+      "raw_command_argv": [
+        "go",
+        "build",
+        "./..."
+      ],
+      "repository": "prometheus/prometheus",
+      "snapshot_variant": "fixed",
+      "source_id": "swe-bench-multilingual"
+    },
+    {
+      "base_commit": "64fc3e58fec13af55968db89a484b9e0c5425bd6",
       "candidate_id": "prometheus__prometheus-10633::go::test::buggy",
       "cluster_id": "swebench:prometheus__prometheus-10633",
       "command_family": "go",
@@ -38310,6 +40549,29 @@
       ]
     },
     {
+      "base_commit": "89de30a0b754f4eb54fb543037683f3db6cda109",
+      "candidate_id": "prometheus__prometheus-10720::go::vet",
+      "cluster_id": "swebench:prometheus__prometheus-10720",
+      "command_family": "go",
+      "command_subfamily": "vet",
+      "expected_raw_outcome": "text",
+      "image_recipe": {
+        "kind": "swebench_eval_image_recipe",
+        "note": "harness-built per instance; digest pinned at acquisition (\u00a75)."
+      },
+      "instance_id": "prometheus__prometheus-10720",
+      "language": "go",
+      "outcome_blind": true,
+      "raw_command_argv": [
+        "go",
+        "vet",
+        "./..."
+      ],
+      "repository": "prometheus/prometheus",
+      "snapshot_variant": "fixed",
+      "source_id": "swe-bench-multilingual"
+    },
+    {
       "base_commit": "5ec1b4baaf01dae0b22567db53886c83b74e0e76",
       "candidate_id": "prometheus__prometheus-11859::files_search::ls",
       "cluster_id": "swebench:prometheus__prometheus-11859",
@@ -38344,6 +40606,29 @@
       ],
       "repository": "prometheus/prometheus",
       "snapshot_variant": "clean",
+      "source_id": "swe-bench-multilingual"
+    },
+    {
+      "base_commit": "5ec1b4baaf01dae0b22567db53886c83b74e0e76",
+      "candidate_id": "prometheus__prometheus-11859::go::build",
+      "cluster_id": "swebench:prometheus__prometheus-11859",
+      "command_family": "go",
+      "command_subfamily": "build",
+      "expected_raw_outcome": "text",
+      "image_recipe": {
+        "kind": "swebench_eval_image_recipe",
+        "note": "harness-built per instance; digest pinned at acquisition (\u00a75)."
+      },
+      "instance_id": "prometheus__prometheus-11859",
+      "language": "go",
+      "outcome_blind": true,
+      "raw_command_argv": [
+        "go",
+        "build",
+        "./..."
+      ],
+      "repository": "prometheus/prometheus",
+      "snapshot_variant": "fixed",
       "source_id": "swe-bench-multilingual"
     },
     {
@@ -38492,6 +40777,29 @@
       ]
     },
     {
+      "base_commit": "9071913fd99fcdea9ea069b277f2be66b08e549c",
+      "candidate_id": "prometheus__prometheus-12874::go::vet",
+      "cluster_id": "swebench:prometheus__prometheus-12874",
+      "command_family": "go",
+      "command_subfamily": "vet",
+      "expected_raw_outcome": "text",
+      "image_recipe": {
+        "kind": "swebench_eval_image_recipe",
+        "note": "harness-built per instance; digest pinned at acquisition (\u00a75)."
+      },
+      "instance_id": "prometheus__prometheus-12874",
+      "language": "go",
+      "outcome_blind": true,
+      "raw_command_argv": [
+        "go",
+        "vet",
+        "./..."
+      ],
+      "repository": "prometheus/prometheus",
+      "snapshot_variant": "fixed",
+      "source_id": "swe-bench-multilingual"
+    },
+    {
       "base_commit": "25a8d576717f4a69290d6f6755b4a90cfaab08ff",
       "candidate_id": "prometheus__prometheus-13845::files_search::ls",
       "cluster_id": "swebench:prometheus__prometheus-13845",
@@ -38526,6 +40834,29 @@
       ],
       "repository": "prometheus/prometheus",
       "snapshot_variant": "clean",
+      "source_id": "swe-bench-multilingual"
+    },
+    {
+      "base_commit": "25a8d576717f4a69290d6f6755b4a90cfaab08ff",
+      "candidate_id": "prometheus__prometheus-13845::go::build",
+      "cluster_id": "swebench:prometheus__prometheus-13845",
+      "command_family": "go",
+      "command_subfamily": "build",
+      "expected_raw_outcome": "text",
+      "image_recipe": {
+        "kind": "swebench_eval_image_recipe",
+        "note": "harness-built per instance; digest pinned at acquisition (\u00a75)."
+      },
+      "instance_id": "prometheus__prometheus-13845",
+      "language": "go",
+      "outcome_blind": true,
+      "raw_command_argv": [
+        "go",
+        "build",
+        "./..."
+      ],
+      "repository": "prometheus/prometheus",
+      "snapshot_variant": "fixed",
       "source_id": "swe-bench-multilingual"
     },
     {
@@ -38621,6 +40952,29 @@
       ],
       "repository": "prometheus/prometheus",
       "snapshot_variant": "dirty",
+      "source_id": "swe-bench-multilingual"
+    },
+    {
+      "base_commit": "9f57f14d6c5e3c10ed212010cb34522458f43d64",
+      "candidate_id": "prometheus__prometheus-14861::go::build",
+      "cluster_id": "swebench:prometheus__prometheus-14861",
+      "command_family": "go",
+      "command_subfamily": "build",
+      "expected_raw_outcome": "text",
+      "image_recipe": {
+        "kind": "swebench_eval_image_recipe",
+        "note": "harness-built per instance; digest pinned at acquisition (\u00a75)."
+      },
+      "instance_id": "prometheus__prometheus-14861",
+      "language": "go",
+      "outcome_blind": true,
+      "raw_command_argv": [
+        "go",
+        "build",
+        "./..."
+      ],
+      "repository": "prometheus/prometheus",
+      "snapshot_variant": "fixed",
       "source_id": "swe-bench-multilingual"
     },
     {
@@ -38776,6 +41130,29 @@
       ]
     },
     {
+      "base_commit": "16bba78f1549cfd7909b61ebd7c55c822c86630b",
+      "candidate_id": "prometheus__prometheus-15142::go::vet",
+      "cluster_id": "swebench:prometheus__prometheus-15142",
+      "command_family": "go",
+      "command_subfamily": "vet",
+      "expected_raw_outcome": "text",
+      "image_recipe": {
+        "kind": "swebench_eval_image_recipe",
+        "note": "harness-built per instance; digest pinned at acquisition (\u00a75)."
+      },
+      "instance_id": "prometheus__prometheus-15142",
+      "language": "go",
+      "outcome_blind": true,
+      "raw_command_argv": [
+        "go",
+        "vet",
+        "./..."
+      ],
+      "repository": "prometheus/prometheus",
+      "snapshot_variant": "fixed",
+      "source_id": "swe-bench-multilingual"
+    },
+    {
       "base_commit": "1fb3c1b5980d2ae3f844b6b9ae2ad38117710aa0",
       "candidate_id": "prometheus__prometheus-9248::files_search::tree",
       "cluster_id": "swebench:prometheus__prometheus-9248",
@@ -38810,6 +41187,29 @@
       ],
       "repository": "prometheus/prometheus",
       "snapshot_variant": "dirty",
+      "source_id": "swe-bench-multilingual"
+    },
+    {
+      "base_commit": "1fb3c1b5980d2ae3f844b6b9ae2ad38117710aa0",
+      "candidate_id": "prometheus__prometheus-9248::go::build",
+      "cluster_id": "swebench:prometheus__prometheus-9248",
+      "command_family": "go",
+      "command_subfamily": "build",
+      "expected_raw_outcome": "text",
+      "image_recipe": {
+        "kind": "swebench_eval_image_recipe",
+        "note": "harness-built per instance; digest pinned at acquisition (\u00a75)."
+      },
+      "instance_id": "prometheus__prometheus-9248",
+      "language": "go",
+      "outcome_blind": true,
+      "raw_command_argv": [
+        "go",
+        "build",
+        "./..."
+      ],
+      "repository": "prometheus/prometheus",
+      "snapshot_variant": "fixed",
       "source_id": "swe-bench-multilingual"
     },
     {
@@ -40041,6 +42441,28 @@
     },
     {
       "base_commit": "59d4cfb75c1a17a26b2b38956ee08d8c53f04e04",
+      "candidate_id": "sharkdp__bat-1892::rust_cargo::build",
+      "cluster_id": "swebench:sharkdp__bat-1892",
+      "command_family": "rust_cargo",
+      "command_subfamily": "build",
+      "expected_raw_outcome": "text",
+      "image_recipe": {
+        "kind": "swebench_eval_image_recipe",
+        "note": "harness-built per instance; digest pinned at acquisition (\u00a75)."
+      },
+      "instance_id": "sharkdp__bat-1892",
+      "language": "rust",
+      "outcome_blind": true,
+      "raw_command_argv": [
+        "cargo",
+        "build"
+      ],
+      "repository": "sharkdp/bat",
+      "snapshot_variant": "fixed",
+      "source_id": "swe-bench-multilingual"
+    },
+    {
+      "base_commit": "59d4cfb75c1a17a26b2b38956ee08d8c53f04e04",
       "candidate_id": "sharkdp__bat-1892::rust_cargo::test::buggy",
       "cluster_id": "swebench:sharkdp__bat-1892",
       "command_family": "rust_cargo",
@@ -40126,6 +42548,28 @@
       ],
       "repository": "sharkdp/bat",
       "snapshot_variant": "dirty",
+      "source_id": "swe-bench-multilingual"
+    },
+    {
+      "base_commit": "02a9d191ed06e6e37d4e352f12e25e65e8037dd0",
+      "candidate_id": "sharkdp__bat-2201::rust_cargo::build",
+      "cluster_id": "swebench:sharkdp__bat-2201",
+      "command_family": "rust_cargo",
+      "command_subfamily": "build",
+      "expected_raw_outcome": "text",
+      "image_recipe": {
+        "kind": "swebench_eval_image_recipe",
+        "note": "harness-built per instance; digest pinned at acquisition (\u00a75)."
+      },
+      "instance_id": "sharkdp__bat-2201",
+      "language": "rust",
+      "outcome_blind": true,
+      "raw_command_argv": [
+        "cargo",
+        "build"
+      ],
+      "repository": "sharkdp/bat",
+      "snapshot_variant": "fixed",
       "source_id": "swe-bench-multilingual"
     },
     {
@@ -40221,6 +42665,28 @@
     },
     {
       "base_commit": "c14ce4f7caa36fe524975c51f7aae3d5a852d1f9",
+      "candidate_id": "sharkdp__bat-2260::rust_cargo::build",
+      "cluster_id": "swebench:sharkdp__bat-2260",
+      "command_family": "rust_cargo",
+      "command_subfamily": "build",
+      "expected_raw_outcome": "text",
+      "image_recipe": {
+        "kind": "swebench_eval_image_recipe",
+        "note": "harness-built per instance; digest pinned at acquisition (\u00a75)."
+      },
+      "instance_id": "sharkdp__bat-2260",
+      "language": "rust",
+      "outcome_blind": true,
+      "raw_command_argv": [
+        "cargo",
+        "build"
+      ],
+      "repository": "sharkdp/bat",
+      "snapshot_variant": "fixed",
+      "source_id": "swe-bench-multilingual"
+    },
+    {
+      "base_commit": "c14ce4f7caa36fe524975c51f7aae3d5a852d1f9",
       "candidate_id": "sharkdp__bat-2260::rust_cargo::test::buggy",
       "cluster_id": "swebench:sharkdp__bat-2260",
       "command_family": "rust_cargo",
@@ -40306,6 +42772,28 @@
       ],
       "repository": "sharkdp/bat",
       "snapshot_variant": "clean",
+      "source_id": "swe-bench-multilingual"
+    },
+    {
+      "base_commit": "7c847d84b0c3c97df6badfbb39d153ad93aec74e",
+      "candidate_id": "sharkdp__bat-2393::rust_cargo::check",
+      "cluster_id": "swebench:sharkdp__bat-2393",
+      "command_family": "rust_cargo",
+      "command_subfamily": "check",
+      "expected_raw_outcome": "text",
+      "image_recipe": {
+        "kind": "swebench_eval_image_recipe",
+        "note": "harness-built per instance; digest pinned at acquisition (\u00a75)."
+      },
+      "instance_id": "sharkdp__bat-2393",
+      "language": "rust",
+      "outcome_blind": true,
+      "raw_command_argv": [
+        "cargo",
+        "check"
+      ],
+      "repository": "sharkdp/bat",
+      "snapshot_variant": "fixed",
       "source_id": "swe-bench-multilingual"
     },
     {
@@ -40401,6 +42889,28 @@
     },
     {
       "base_commit": "e2bf85e749d87459e3fced697af5cd9cc96eeb8c",
+      "candidate_id": "sharkdp__bat-2650::rust_cargo::build",
+      "cluster_id": "swebench:sharkdp__bat-2650",
+      "command_family": "rust_cargo",
+      "command_subfamily": "build",
+      "expected_raw_outcome": "text",
+      "image_recipe": {
+        "kind": "swebench_eval_image_recipe",
+        "note": "harness-built per instance; digest pinned at acquisition (\u00a75)."
+      },
+      "instance_id": "sharkdp__bat-2650",
+      "language": "rust",
+      "outcome_blind": true,
+      "raw_command_argv": [
+        "cargo",
+        "build"
+      ],
+      "repository": "sharkdp/bat",
+      "snapshot_variant": "fixed",
+      "source_id": "swe-bench-multilingual"
+    },
+    {
+      "base_commit": "e2bf85e749d87459e3fced697af5cd9cc96eeb8c",
       "candidate_id": "sharkdp__bat-2650::rust_cargo::test::buggy",
       "cluster_id": "swebench:sharkdp__bat-2650",
       "command_family": "rust_cargo",
@@ -40490,6 +43000,28 @@
     },
     {
       "base_commit": "db66e4459bc4e66c03629d7cbc235f59245280c0",
+      "candidate_id": "sharkdp__bat-2835::rust_cargo::build",
+      "cluster_id": "swebench:sharkdp__bat-2835",
+      "command_family": "rust_cargo",
+      "command_subfamily": "build",
+      "expected_raw_outcome": "text",
+      "image_recipe": {
+        "kind": "swebench_eval_image_recipe",
+        "note": "harness-built per instance; digest pinned at acquisition (\u00a75)."
+      },
+      "instance_id": "sharkdp__bat-2835",
+      "language": "rust",
+      "outcome_blind": true,
+      "raw_command_argv": [
+        "cargo",
+        "build"
+      ],
+      "repository": "sharkdp/bat",
+      "snapshot_variant": "fixed",
+      "source_id": "swe-bench-multilingual"
+    },
+    {
+      "base_commit": "db66e4459bc4e66c03629d7cbc235f59245280c0",
       "candidate_id": "sharkdp__bat-2835::rust_cargo::test::buggy",
       "cluster_id": "swebench:sharkdp__bat-2835",
       "command_family": "rust_cargo",
@@ -40574,6 +43106,28 @@
       ],
       "repository": "sharkdp/bat",
       "snapshot_variant": "dirty",
+      "source_id": "swe-bench-multilingual"
+    },
+    {
+      "base_commit": "2be3a14a7e2c74360765a5fa213750f727f2c5bb",
+      "candidate_id": "sharkdp__bat-3108::rust_cargo::check",
+      "cluster_id": "swebench:sharkdp__bat-3108",
+      "command_family": "rust_cargo",
+      "command_subfamily": "check",
+      "expected_raw_outcome": "text",
+      "image_recipe": {
+        "kind": "swebench_eval_image_recipe",
+        "note": "harness-built per instance; digest pinned at acquisition (\u00a75)."
+      },
+      "instance_id": "sharkdp__bat-3108",
+      "language": "rust",
+      "outcome_blind": true,
+      "raw_command_argv": [
+        "cargo",
+        "check"
+      ],
+      "repository": "sharkdp/bat",
+      "snapshot_variant": "fixed",
       "source_id": "swe-bench-multilingual"
     },
     {
@@ -40669,6 +43223,28 @@
     },
     {
       "base_commit": "2b9d25df052e50c60531b1000703b79bf9b6065a",
+      "candidate_id": "sharkdp__bat-562::rust_cargo::clippy",
+      "cluster_id": "swebench:sharkdp__bat-562",
+      "command_family": "rust_cargo",
+      "command_subfamily": "clippy",
+      "expected_raw_outcome": "text",
+      "image_recipe": {
+        "kind": "swebench_eval_image_recipe",
+        "note": "harness-built per instance; digest pinned at acquisition (\u00a75)."
+      },
+      "instance_id": "sharkdp__bat-562",
+      "language": "rust",
+      "outcome_blind": true,
+      "raw_command_argv": [
+        "cargo",
+        "clippy"
+      ],
+      "repository": "sharkdp/bat",
+      "snapshot_variant": "fixed",
+      "source_id": "swe-bench-multilingual"
+    },
+    {
+      "base_commit": "2b9d25df052e50c60531b1000703b79bf9b6065a",
       "candidate_id": "sharkdp__bat-562::rust_cargo::test::buggy",
       "cluster_id": "swebench:sharkdp__bat-562",
       "command_family": "rust_cargo",
@@ -40754,6 +43330,28 @@
       ],
       "repository": "tokio-rs/axum",
       "snapshot_variant": "clean",
+      "source_id": "swe-bench-multilingual"
+    },
+    {
+      "base_commit": "23808f72a2c00c314cedea40a75b73954402a148",
+      "candidate_id": "tokio-rs__axum-1119::rust_cargo::clippy",
+      "cluster_id": "swebench:tokio-rs__axum-1119",
+      "command_family": "rust_cargo",
+      "command_subfamily": "clippy",
+      "expected_raw_outcome": "text",
+      "image_recipe": {
+        "kind": "swebench_eval_image_recipe",
+        "note": "harness-built per instance; digest pinned at acquisition (\u00a75)."
+      },
+      "instance_id": "tokio-rs__axum-1119",
+      "language": "rust",
+      "outcome_blind": true,
+      "raw_command_argv": [
+        "cargo",
+        "clippy"
+      ],
+      "repository": "tokio-rs/axum",
+      "snapshot_variant": "fixed",
       "source_id": "swe-bench-multilingual"
     },
     {
@@ -40850,6 +43448,28 @@
       "source_id": "swe-bench-multilingual"
     },
     {
+      "base_commit": "b4204e223dc96df3d51fc8893f32d37b66be7005",
+      "candidate_id": "tokio-rs__axum-1730::rust_cargo::build",
+      "cluster_id": "swebench:tokio-rs__axum-1730",
+      "command_family": "rust_cargo",
+      "command_subfamily": "build",
+      "expected_raw_outcome": "text",
+      "image_recipe": {
+        "kind": "swebench_eval_image_recipe",
+        "note": "harness-built per instance; digest pinned at acquisition (\u00a75)."
+      },
+      "instance_id": "tokio-rs__axum-1730",
+      "language": "rust",
+      "outcome_blind": true,
+      "raw_command_argv": [
+        "cargo",
+        "build"
+      ],
+      "repository": "tokio-rs/axum",
+      "snapshot_variant": "fixed",
+      "source_id": "swe-bench-multilingual"
+    },
+    {
       "base_commit": "e97462d45251c21ffd1ba4fb5db30f3cf6f6cb6c",
       "candidate_id": "tokio-rs__axum-1934::files_search::ls",
       "cluster_id": "swebench:tokio-rs__axum-1934",
@@ -40884,6 +43504,28 @@
       ],
       "repository": "tokio-rs/axum",
       "snapshot_variant": "dirty",
+      "source_id": "swe-bench-multilingual"
+    },
+    {
+      "base_commit": "e97462d45251c21ffd1ba4fb5db30f3cf6f6cb6c",
+      "candidate_id": "tokio-rs__axum-1934::rust_cargo::clippy",
+      "cluster_id": "swebench:tokio-rs__axum-1934",
+      "command_family": "rust_cargo",
+      "command_subfamily": "clippy",
+      "expected_raw_outcome": "text",
+      "image_recipe": {
+        "kind": "swebench_eval_image_recipe",
+        "note": "harness-built per instance; digest pinned at acquisition (\u00a75)."
+      },
+      "instance_id": "tokio-rs__axum-1934",
+      "language": "rust",
+      "outcome_blind": true,
+      "raw_command_argv": [
+        "cargo",
+        "clippy"
+      ],
+      "repository": "tokio-rs/axum",
+      "snapshot_variant": "fixed",
       "source_id": "swe-bench-multilingual"
     },
     {
@@ -40974,6 +43616,28 @@
       ],
       "repository": "tokio-rs/axum",
       "snapshot_variant": "dirty",
+      "source_id": "swe-bench-multilingual"
+    },
+    {
+      "base_commit": "6f7ff8556587d51c6919a864926e4b8090f92c3f",
+      "candidate_id": "tokio-rs__axum-2096::rust_cargo::clippy",
+      "cluster_id": "swebench:tokio-rs__axum-2096",
+      "command_family": "rust_cargo",
+      "command_subfamily": "clippy",
+      "expected_raw_outcome": "text",
+      "image_recipe": {
+        "kind": "swebench_eval_image_recipe",
+        "note": "harness-built per instance; digest pinned at acquisition (\u00a75)."
+      },
+      "instance_id": "tokio-rs__axum-2096",
+      "language": "rust",
+      "outcome_blind": true,
+      "raw_command_argv": [
+        "cargo",
+        "clippy"
+      ],
+      "repository": "tokio-rs/axum",
+      "snapshot_variant": "fixed",
       "source_id": "swe-bench-multilingual"
     },
     {
@@ -41073,6 +43737,28 @@
     },
     {
       "base_commit": "5512ebcd23d261a2be5ee07676721b7637ffc054",
+      "candidate_id": "tokio-rs__axum-682::rust_cargo::clippy",
+      "cluster_id": "swebench:tokio-rs__axum-682",
+      "command_family": "rust_cargo",
+      "command_subfamily": "clippy",
+      "expected_raw_outcome": "text",
+      "image_recipe": {
+        "kind": "swebench_eval_image_recipe",
+        "note": "harness-built per instance; digest pinned at acquisition (\u00a75)."
+      },
+      "instance_id": "tokio-rs__axum-682",
+      "language": "rust",
+      "outcome_blind": true,
+      "raw_command_argv": [
+        "cargo",
+        "clippy"
+      ],
+      "repository": "tokio-rs/axum",
+      "snapshot_variant": "fixed",
+      "source_id": "swe-bench-multilingual"
+    },
+    {
+      "base_commit": "5512ebcd23d261a2be5ee07676721b7637ffc054",
       "candidate_id": "tokio-rs__axum-682::rust_cargo::test::buggy",
       "cluster_id": "swebench:tokio-rs__axum-682",
       "command_family": "rust_cargo",
@@ -41168,6 +43854,28 @@
     },
     {
       "base_commit": "d6ce99190b2d53e5858678264027e656197f0efa",
+      "candidate_id": "tokio-rs__axum-691::rust_cargo::build",
+      "cluster_id": "swebench:tokio-rs__axum-691",
+      "command_family": "rust_cargo",
+      "command_subfamily": "build",
+      "expected_raw_outcome": "text",
+      "image_recipe": {
+        "kind": "swebench_eval_image_recipe",
+        "note": "harness-built per instance; digest pinned at acquisition (\u00a75)."
+      },
+      "instance_id": "tokio-rs__axum-691",
+      "language": "rust",
+      "outcome_blind": true,
+      "raw_command_argv": [
+        "cargo",
+        "build"
+      ],
+      "repository": "tokio-rs/axum",
+      "snapshot_variant": "fixed",
+      "source_id": "swe-bench-multilingual"
+    },
+    {
+      "base_commit": "d6ce99190b2d53e5858678264027e656197f0efa",
       "candidate_id": "tokio-rs__axum-691::rust_cargo::test::buggy",
       "cluster_id": "swebench:tokio-rs__axum-691",
       "command_family": "rust_cargo",
@@ -41253,6 +43961,28 @@
       ],
       "repository": "tokio-rs/axum",
       "snapshot_variant": "clean",
+      "source_id": "swe-bench-multilingual"
+    },
+    {
+      "base_commit": "84df7eaa38aa38b3a4b4153678316c0700fc4fa8",
+      "candidate_id": "tokio-rs__axum-734::rust_cargo::check",
+      "cluster_id": "swebench:tokio-rs__axum-734",
+      "command_family": "rust_cargo",
+      "command_subfamily": "check",
+      "expected_raw_outcome": "text",
+      "image_recipe": {
+        "kind": "swebench_eval_image_recipe",
+        "note": "harness-built per instance; digest pinned at acquisition (\u00a75)."
+      },
+      "instance_id": "tokio-rs__axum-734",
+      "language": "rust",
+      "outcome_blind": true,
+      "raw_command_argv": [
+        "cargo",
+        "check"
+      ],
+      "repository": "tokio-rs/axum",
+      "snapshot_variant": "fixed",
       "source_id": "swe-bench-multilingual"
     },
     {
@@ -41343,6 +44073,28 @@
       ],
       "repository": "tokio-rs/tokio",
       "snapshot_variant": "dirty",
+      "source_id": "swe-bench-multilingual"
+    },
+    {
+      "base_commit": "553cc3b194df875cac8736473e1f01cf3e40a660",
+      "candidate_id": "tokio-rs__tokio-4384::rust_cargo::check",
+      "cluster_id": "swebench:tokio-rs__tokio-4384",
+      "command_family": "rust_cargo",
+      "command_subfamily": "check",
+      "expected_raw_outcome": "text",
+      "image_recipe": {
+        "kind": "swebench_eval_image_recipe",
+        "note": "harness-built per instance; digest pinned at acquisition (\u00a75)."
+      },
+      "instance_id": "tokio-rs__tokio-4384",
+      "language": "rust",
+      "outcome_blind": true,
+      "raw_command_argv": [
+        "cargo",
+        "check"
+      ],
+      "repository": "tokio-rs/tokio",
+      "snapshot_variant": "fixed",
       "source_id": "swe-bench-multilingual"
     },
     {
@@ -41438,6 +44190,28 @@
     },
     {
       "base_commit": "53cf021b813c61cdeace26e863c89f65f6e92abd",
+      "candidate_id": "tokio-rs__tokio-4867::rust_cargo::check",
+      "cluster_id": "swebench:tokio-rs__tokio-4867",
+      "command_family": "rust_cargo",
+      "command_subfamily": "check",
+      "expected_raw_outcome": "text",
+      "image_recipe": {
+        "kind": "swebench_eval_image_recipe",
+        "note": "harness-built per instance; digest pinned at acquisition (\u00a75)."
+      },
+      "instance_id": "tokio-rs__tokio-4867",
+      "language": "rust",
+      "outcome_blind": true,
+      "raw_command_argv": [
+        "cargo",
+        "check"
+      ],
+      "repository": "tokio-rs/tokio",
+      "snapshot_variant": "fixed",
+      "source_id": "swe-bench-multilingual"
+    },
+    {
+      "base_commit": "53cf021b813c61cdeace26e863c89f65f6e92abd",
       "candidate_id": "tokio-rs__tokio-4867::rust_cargo::test::buggy",
       "cluster_id": "swebench:tokio-rs__tokio-4867",
       "command_family": "rust_cargo",
@@ -41525,6 +44299,28 @@
       ],
       "repository": "tokio-rs/tokio",
       "snapshot_variant": "dirty",
+      "source_id": "swe-bench-multilingual"
+    },
+    {
+      "base_commit": "9d9488db67136651f85d839efcb5f61aba8531c9",
+      "candidate_id": "tokio-rs__tokio-4898::rust_cargo::build",
+      "cluster_id": "swebench:tokio-rs__tokio-4898",
+      "command_family": "rust_cargo",
+      "command_subfamily": "build",
+      "expected_raw_outcome": "text",
+      "image_recipe": {
+        "kind": "swebench_eval_image_recipe",
+        "note": "harness-built per instance; digest pinned at acquisition (\u00a75)."
+      },
+      "instance_id": "tokio-rs__tokio-4898",
+      "language": "rust",
+      "outcome_blind": true,
+      "raw_command_argv": [
+        "cargo",
+        "build"
+      ],
+      "repository": "tokio-rs/tokio",
+      "snapshot_variant": "fixed",
       "source_id": "swe-bench-multilingual"
     },
     {
@@ -41618,6 +44414,28 @@
     },
     {
       "base_commit": "0a85a9662d30139c779ea49a59be30db0f292b5d",
+      "candidate_id": "tokio-rs__tokio-6551::rust_cargo::check",
+      "cluster_id": "swebench:tokio-rs__tokio-6551",
+      "command_family": "rust_cargo",
+      "command_subfamily": "check",
+      "expected_raw_outcome": "text",
+      "image_recipe": {
+        "kind": "swebench_eval_image_recipe",
+        "note": "harness-built per instance; digest pinned at acquisition (\u00a75)."
+      },
+      "instance_id": "tokio-rs__tokio-6551",
+      "language": "rust",
+      "outcome_blind": true,
+      "raw_command_argv": [
+        "cargo",
+        "check"
+      ],
+      "repository": "tokio-rs/tokio",
+      "snapshot_variant": "fixed",
+      "source_id": "swe-bench-multilingual"
+    },
+    {
+      "base_commit": "0a85a9662d30139c779ea49a59be30db0f292b5d",
       "candidate_id": "tokio-rs__tokio-6551::rust_cargo::test::buggy",
       "cluster_id": "swebench:tokio-rs__tokio-6551",
       "command_family": "rust_cargo",
@@ -41702,6 +44520,28 @@
       ],
       "repository": "tokio-rs/tokio",
       "snapshot_variant": "dirty",
+      "source_id": "swe-bench-multilingual"
+    },
+    {
+      "base_commit": "873cb8ae2fc291eaffbd71e3c83d17b2f0ed7abf",
+      "candidate_id": "tokio-rs__tokio-6603::rust_cargo::clippy",
+      "cluster_id": "swebench:tokio-rs__tokio-6603",
+      "command_family": "rust_cargo",
+      "command_subfamily": "clippy",
+      "expected_raw_outcome": "text",
+      "image_recipe": {
+        "kind": "swebench_eval_image_recipe",
+        "note": "harness-built per instance; digest pinned at acquisition (\u00a75)."
+      },
+      "instance_id": "tokio-rs__tokio-6603",
+      "language": "rust",
+      "outcome_blind": true,
+      "raw_command_argv": [
+        "cargo",
+        "clippy"
+      ],
+      "repository": "tokio-rs/tokio",
+      "snapshot_variant": "fixed",
       "source_id": "swe-bench-multilingual"
     },
     {
@@ -41796,6 +44636,28 @@
     },
     {
       "base_commit": "0cbf1a5adae81e8ff86ca6d040aeee67cf888262",
+      "candidate_id": "tokio-rs__tokio-6724::rust_cargo::build",
+      "cluster_id": "swebench:tokio-rs__tokio-6724",
+      "command_family": "rust_cargo",
+      "command_subfamily": "build",
+      "expected_raw_outcome": "text",
+      "image_recipe": {
+        "kind": "swebench_eval_image_recipe",
+        "note": "harness-built per instance; digest pinned at acquisition (\u00a75)."
+      },
+      "instance_id": "tokio-rs__tokio-6724",
+      "language": "rust",
+      "outcome_blind": true,
+      "raw_command_argv": [
+        "cargo",
+        "build"
+      ],
+      "repository": "tokio-rs/tokio",
+      "snapshot_variant": "fixed",
+      "source_id": "swe-bench-multilingual"
+    },
+    {
+      "base_commit": "0cbf1a5adae81e8ff86ca6d040aeee67cf888262",
       "candidate_id": "tokio-rs__tokio-6724::rust_cargo::test::buggy",
       "cluster_id": "swebench:tokio-rs__tokio-6724",
       "command_family": "rust_cargo",
@@ -41880,6 +44742,28 @@
       ],
       "repository": "tokio-rs/tokio",
       "snapshot_variant": "clean",
+      "source_id": "swe-bench-multilingual"
+    },
+    {
+      "base_commit": "ab53bf0c4727ae63c6a3a3d772b7bd837d2f49c3",
+      "candidate_id": "tokio-rs__tokio-6752::rust_cargo::build",
+      "cluster_id": "swebench:tokio-rs__tokio-6752",
+      "command_family": "rust_cargo",
+      "command_subfamily": "build",
+      "expected_raw_outcome": "text",
+      "image_recipe": {
+        "kind": "swebench_eval_image_recipe",
+        "note": "harness-built per instance; digest pinned at acquisition (\u00a75)."
+      },
+      "instance_id": "tokio-rs__tokio-6752",
+      "language": "rust",
+      "outcome_blind": true,
+      "raw_command_argv": [
+        "cargo",
+        "build"
+      ],
+      "repository": "tokio-rs/tokio",
+      "snapshot_variant": "fixed",
       "source_id": "swe-bench-multilingual"
     },
     {
@@ -41973,6 +44857,28 @@
     },
     {
       "base_commit": "d6213594ca3767f182e8981fde7a119575e94c65",
+      "candidate_id": "tokio-rs__tokio-6838::rust_cargo::clippy",
+      "cluster_id": "swebench:tokio-rs__tokio-6838",
+      "command_family": "rust_cargo",
+      "command_subfamily": "clippy",
+      "expected_raw_outcome": "text",
+      "image_recipe": {
+        "kind": "swebench_eval_image_recipe",
+        "note": "harness-built per instance; digest pinned at acquisition (\u00a75)."
+      },
+      "instance_id": "tokio-rs__tokio-6838",
+      "language": "rust",
+      "outcome_blind": true,
+      "raw_command_argv": [
+        "cargo",
+        "clippy"
+      ],
+      "repository": "tokio-rs/tokio",
+      "snapshot_variant": "fixed",
+      "source_id": "swe-bench-multilingual"
+    },
+    {
+      "base_commit": "d6213594ca3767f182e8981fde7a119575e94c65",
       "candidate_id": "tokio-rs__tokio-6838::rust_cargo::test::buggy",
       "cluster_id": "swebench:tokio-rs__tokio-6838",
       "command_family": "rust_cargo",
@@ -42061,6 +44967,28 @@
     },
     {
       "base_commit": "b8ac94ed70df22f885bad7ea3c0ff51c536bad4a",
+      "candidate_id": "tokio-rs__tokio-7139::rust_cargo::check",
+      "cluster_id": "swebench:tokio-rs__tokio-7139",
+      "command_family": "rust_cargo",
+      "command_subfamily": "check",
+      "expected_raw_outcome": "text",
+      "image_recipe": {
+        "kind": "swebench_eval_image_recipe",
+        "note": "harness-built per instance; digest pinned at acquisition (\u00a75)."
+      },
+      "instance_id": "tokio-rs__tokio-7139",
+      "language": "rust",
+      "outcome_blind": true,
+      "raw_command_argv": [
+        "cargo",
+        "check"
+      ],
+      "repository": "tokio-rs/tokio",
+      "snapshot_variant": "fixed",
+      "source_id": "swe-bench-multilingual"
+    },
+    {
+      "base_commit": "b8ac94ed70df22f885bad7ea3c0ff51c536bad4a",
       "candidate_id": "tokio-rs__tokio-7139::rust_cargo::test::buggy",
       "cluster_id": "swebench:tokio-rs__tokio-7139",
       "command_family": "rust_cargo",
@@ -42145,6 +45073,28 @@
       ],
       "repository": "uutils/coreutils",
       "snapshot_variant": "dirty",
+      "source_id": "swe-bench-multilingual"
+    },
+    {
+      "base_commit": "e2aa2c74408d46da900cad4a0b764c8760a300ff",
+      "candidate_id": "uutils__coreutils-6377::rust_cargo::check",
+      "cluster_id": "swebench:uutils__coreutils-6377",
+      "command_family": "rust_cargo",
+      "command_subfamily": "check",
+      "expected_raw_outcome": "text",
+      "image_recipe": {
+        "kind": "swebench_eval_image_recipe",
+        "note": "harness-built per instance; digest pinned at acquisition (\u00a75)."
+      },
+      "instance_id": "uutils__coreutils-6377",
+      "language": "rust",
+      "outcome_blind": true,
+      "raw_command_argv": [
+        "cargo",
+        "check"
+      ],
+      "repository": "uutils/coreutils",
+      "snapshot_variant": "fixed",
       "source_id": "swe-bench-multilingual"
     },
     {
@@ -42244,6 +45194,28 @@
     },
     {
       "base_commit": "bc0b4880e000b881a1cabc733b2d261f3526d15e",
+      "candidate_id": "uutils__coreutils-6575::rust_cargo::build",
+      "cluster_id": "swebench:uutils__coreutils-6575",
+      "command_family": "rust_cargo",
+      "command_subfamily": "build",
+      "expected_raw_outcome": "text",
+      "image_recipe": {
+        "kind": "swebench_eval_image_recipe",
+        "note": "harness-built per instance; digest pinned at acquisition (\u00a75)."
+      },
+      "instance_id": "uutils__coreutils-6575",
+      "language": "rust",
+      "outcome_blind": true,
+      "raw_command_argv": [
+        "cargo",
+        "build"
+      ],
+      "repository": "uutils/coreutils",
+      "snapshot_variant": "fixed",
+      "source_id": "swe-bench-multilingual"
+    },
+    {
+      "base_commit": "bc0b4880e000b881a1cabc733b2d261f3526d15e",
       "candidate_id": "uutils__coreutils-6575::rust_cargo::test::buggy",
       "cluster_id": "swebench:uutils__coreutils-6575",
       "command_family": "rust_cargo",
@@ -42328,6 +45300,28 @@
       ],
       "repository": "uutils/coreutils",
       "snapshot_variant": "dirty",
+      "source_id": "swe-bench-multilingual"
+    },
+    {
+      "base_commit": "b89a6255a9cb5ee09867707f395d02929273dc45",
+      "candidate_id": "uutils__coreutils-6682::rust_cargo::build",
+      "cluster_id": "swebench:uutils__coreutils-6682",
+      "command_family": "rust_cargo",
+      "command_subfamily": "build",
+      "expected_raw_outcome": "text",
+      "image_recipe": {
+        "kind": "swebench_eval_image_recipe",
+        "note": "harness-built per instance; digest pinned at acquisition (\u00a75)."
+      },
+      "instance_id": "uutils__coreutils-6682",
+      "language": "rust",
+      "outcome_blind": true,
+      "raw_command_argv": [
+        "cargo",
+        "build"
+      ],
+      "repository": "uutils/coreutils",
+      "snapshot_variant": "fixed",
       "source_id": "swe-bench-multilingual"
     },
     {
@@ -42423,6 +45417,28 @@
     },
     {
       "base_commit": "af86aee6b86a99736ca304ff656d0e4c6d547333",
+      "candidate_id": "uutils__coreutils-6690::rust_cargo::build",
+      "cluster_id": "swebench:uutils__coreutils-6690",
+      "command_family": "rust_cargo",
+      "command_subfamily": "build",
+      "expected_raw_outcome": "text",
+      "image_recipe": {
+        "kind": "swebench_eval_image_recipe",
+        "note": "harness-built per instance; digest pinned at acquisition (\u00a75)."
+      },
+      "instance_id": "uutils__coreutils-6690",
+      "language": "rust",
+      "outcome_blind": true,
+      "raw_command_argv": [
+        "cargo",
+        "build"
+      ],
+      "repository": "uutils/coreutils",
+      "snapshot_variant": "fixed",
+      "source_id": "swe-bench-multilingual"
+    },
+    {
+      "base_commit": "af86aee6b86a99736ca304ff656d0e4c6d547333",
       "candidate_id": "uutils__coreutils-6690::rust_cargo::test::buggy",
       "cluster_id": "swebench:uutils__coreutils-6690",
       "command_family": "rust_cargo",
@@ -42510,6 +45526,28 @@
       ],
       "repository": "uutils/coreutils",
       "snapshot_variant": "clean",
+      "source_id": "swe-bench-multilingual"
+    },
+    {
+      "base_commit": "a4088475832957e070b8f904cd3a33a818d07d72",
+      "candidate_id": "uutils__coreutils-6731::rust_cargo::build",
+      "cluster_id": "swebench:uutils__coreutils-6731",
+      "command_family": "rust_cargo",
+      "command_subfamily": "build",
+      "expected_raw_outcome": "text",
+      "image_recipe": {
+        "kind": "swebench_eval_image_recipe",
+        "note": "harness-built per instance; digest pinned at acquisition (\u00a75)."
+      },
+      "instance_id": "uutils__coreutils-6731",
+      "language": "rust",
+      "outcome_blind": true,
+      "raw_command_argv": [
+        "cargo",
+        "build"
+      ],
+      "repository": "uutils/coreutils",
+      "snapshot_variant": "fixed",
       "source_id": "swe-bench-multilingual"
     },
     {
@@ -42750,6 +45788,28 @@
     },
     {
       "base_commit": "3653bc0f45d6fedf84e29b64ca52584359c383c0",
+      "candidate_id": "vuejs__core-11589::js_ts::lint",
+      "cluster_id": "swebench:vuejs__core-11589",
+      "command_family": "js_ts",
+      "command_subfamily": "lint",
+      "expected_raw_outcome": "text",
+      "image_recipe": {
+        "kind": "swebench_eval_image_recipe",
+        "note": "harness-built per instance; digest pinned at acquisition (\u00a75)."
+      },
+      "instance_id": "vuejs__core-11589",
+      "language": "typescript",
+      "outcome_blind": true,
+      "raw_command_argv": [
+        "eslint",
+        "."
+      ],
+      "repository": "vuejs/core",
+      "snapshot_variant": "fixed",
+      "source_id": "swe-bench-multilingual"
+    },
+    {
+      "base_commit": "3653bc0f45d6fedf84e29b64ca52584359c383c0",
       "candidate_id": "vuejs__core-11589::js_ts::test::buggy",
       "cluster_id": "swebench:vuejs__core-11589",
       "command_family": "js_ts",
@@ -42834,6 +45894,28 @@
       ],
       "repository": "vuejs/core",
       "snapshot_variant": "clean",
+      "source_id": "swe-bench-multilingual"
+    },
+    {
+      "base_commit": "cb843e0be31f9e563ccfc30eca0c06f2a224b505",
+      "candidate_id": "vuejs__core-11739::js_ts::lint",
+      "cluster_id": "swebench:vuejs__core-11739",
+      "command_family": "js_ts",
+      "command_subfamily": "lint",
+      "expected_raw_outcome": "text",
+      "image_recipe": {
+        "kind": "swebench_eval_image_recipe",
+        "note": "harness-built per instance; digest pinned at acquisition (\u00a75)."
+      },
+      "instance_id": "vuejs__core-11739",
+      "language": "typescript",
+      "outcome_blind": true,
+      "raw_command_argv": [
+        "eslint",
+        "."
+      ],
+      "repository": "vuejs/core",
+      "snapshot_variant": "fixed",
       "source_id": "swe-bench-multilingual"
     },
     {
@@ -42978,6 +46060,27 @@
       ]
     },
     {
+      "base_commit": "67d6596d40b1807b9cd8eb0d9282932ea77be3c0",
+      "candidate_id": "vuejs__core-11870::js_ts::tsc",
+      "cluster_id": "swebench:vuejs__core-11870",
+      "command_family": "js_ts",
+      "command_subfamily": "tsc",
+      "expected_raw_outcome": "text",
+      "image_recipe": {
+        "kind": "swebench_eval_image_recipe",
+        "note": "harness-built per instance; digest pinned at acquisition (\u00a75)."
+      },
+      "instance_id": "vuejs__core-11870",
+      "language": "typescript",
+      "outcome_blind": true,
+      "raw_command_argv": [
+        "tsc"
+      ],
+      "repository": "vuejs/core",
+      "snapshot_variant": "fixed",
+      "source_id": "swe-bench-multilingual"
+    },
+    {
       "base_commit": "706d4ac1d0210b2d9134b3228280187fe02fc971",
       "candidate_id": "vuejs__core-11899::files_search::ls",
       "cluster_id": "swebench:vuejs__core-11899",
@@ -43065,6 +46168,27 @@
       "target_test_ids": [
         "packages/compiler-sfc/__tests__/compileStyle.spec.ts > SFC scoped CSS > nesting selector with atrule and comment"
       ]
+    },
+    {
+      "base_commit": "706d4ac1d0210b2d9134b3228280187fe02fc971",
+      "candidate_id": "vuejs__core-11899::js_ts::tsc",
+      "cluster_id": "swebench:vuejs__core-11899",
+      "command_family": "js_ts",
+      "command_subfamily": "tsc",
+      "expected_raw_outcome": "text",
+      "image_recipe": {
+        "kind": "swebench_eval_image_recipe",
+        "note": "harness-built per instance; digest pinned at acquisition (\u00a75)."
+      },
+      "instance_id": "vuejs__core-11899",
+      "language": "typescript",
+      "outcome_blind": true,
+      "raw_command_argv": [
+        "tsc"
+      ],
+      "repository": "vuejs/core",
+      "snapshot_variant": "fixed",
+      "source_id": "swe-bench-multilingual"
     },
     {
       "base_commit": "d0b513eb463f580e29378e43d112ff6859aa366e",
@@ -43156,10 +46280,31 @@
         "packages/compiler-core/__tests__/parse.spec.ts > compiler: parse > Element > v-pre with half-open interpolation",
         "packages/compiler-core/__tests__/parse.spec.ts > compiler: parse > Element > self-closing v-pre"
       ]
+    },
+    {
+      "base_commit": "d0b513eb463f580e29378e43d112ff6859aa366e",
+      "candidate_id": "vuejs__core-11915::js_ts::tsc",
+      "cluster_id": "swebench:vuejs__core-11915",
+      "command_family": "js_ts",
+      "command_subfamily": "tsc",
+      "expected_raw_outcome": "text",
+      "image_recipe": {
+        "kind": "swebench_eval_image_recipe",
+        "note": "harness-built per instance; digest pinned at acquisition (\u00a75)."
+      },
+      "instance_id": "vuejs__core-11915",
+      "language": "typescript",
+      "outcome_blind": true,
+      "raw_command_argv": [
+        "tsc"
+      ],
+      "repository": "vuejs/core",
+      "snapshot_variant": "fixed",
+      "source_id": "swe-bench-multilingual"
     }
   ],
   "cluster_unit": "external source unit (SWE-bench instance / Loghub file / BugsInPy bug / container image)",
-  "distinct_clusters": 819,
+  "distinct_clusters": 836,
   "distinct_repositories": 76,
   "excluded_at_enumeration": [
     {
@@ -43173,12 +46318,12 @@
     "containers": 12,
     "files_search": 314,
     "git": 300,
-    "go": 84,
-    "js_ts": 86,
+    "go": 126,
+    "js_ts": 129,
     "jvm": 86,
     "logs": 14,
-    "python": 1002,
-    "rust_cargo": 84
+    "python": 1019,
+    "rust_cargo": 127
   },
   "generated_by": "evals/interop/v2/n2/e-rtk-native-corpus/tools/build_n2e_candidate_inventory.py",
   "instances_record": "n2e-swebench-instances-v1.json",
@@ -43186,7 +46331,7 @@
   "mission": "N2-E",
   "mission_title": "external RTK-native claim-aligned command corpus",
   "purpose": "Complete outcome-blind candidate pool (\u00a78), enumerated before RTK execution.",
-  "record_sha256": "sha256:d212e9fc3137557103ead3493148b765ae679298e486e96360bcf488b77cb531",
+  "record_sha256": "sha256:bee7f2663e3cdd14ede66f745581e9360846bb8b1d1fd90d09c1834ddf42a82b",
   "record_type": "n2e-candidate-inventory",
   "record_version": "v1",
   "schema_version": "n2e-record-1",

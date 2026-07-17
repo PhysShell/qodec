@@ -49,6 +49,15 @@ FAMILY_RAW_TEST = {
     "js_ts": ["npm", "test"],
     "jvm": ["mvn", "test"],
 }
+# Build/lint subcommands per family (§6.3-§6.6): one is assigned deterministically
+# per instance so the pool covers clean-build / diagnostics / warnings diversity.
+# Their pass/fail/diagnostic outcome is determined at RAW qualification (still
+# blind to RTK), so expected_raw_outcome is "text", not a dataset-derived verdict.
+FAMILY_BUILD_LINT = {
+    "rust_cargo": {"build": ["cargo", "build"], "check": ["cargo", "check"], "clippy": ["cargo", "clippy"]},
+    "go": {"build": ["go", "build", "./..."], "vet": ["go", "vet", "./..."]},
+    "js_ts": {"tsc": ["tsc"], "lint": ["eslint", "."]},
+}
 GIT_SUBFAMILIES = ["status", "diff", "log", "show", "add", "commit", "push"]
 FILES_SUBFAMILIES = ["ls", "tree", "read"]
 DOCKER_SUBFAMILIES = ["ps", "images", "logs"]
@@ -111,6 +120,23 @@ def build() -> dict:
                                          "note": "harness-built per instance; digest pinned at acquisition (§5)."},
                         "outcome_blind": True,
                     })
+
+        # build/lint candidate — one deterministically-assigned subcommand per instance
+        if family in FAMILY_BUILD_LINT:
+            bl = FAMILY_BUILD_LINT[family]
+            bl_sub = _pick(f"buildlint:{instance_id}", sorted(bl))
+            candidates.append({
+                "candidate_id": f"{instance_id}::{family}::{bl_sub}",
+                "cluster_id": cluster_id, "source_id": "swe-bench-multilingual",
+                "repository": repo, "language": language,
+                "command_family": family, "command_subfamily": bl_sub,
+                "snapshot_variant": "fixed", "raw_command_argv": bl[bl_sub],
+                "expected_raw_outcome": "text", "base_commit": row["base_commit"],
+                "instance_id": instance_id,
+                "image_recipe": {"kind": "swebench_eval_image_recipe",
+                                 "note": "harness-built per instance; digest pinned at acquisition (§5)."},
+                "outcome_blind": True,
+            })
 
         # git candidate — one deterministically-assigned subfamily per instance
         git_sub = _pick(f"git:{instance_id}", GIT_SUBFAMILIES)
@@ -175,6 +201,21 @@ def build() -> dict:
                 "buggy_commit": b.get("buggy_commit_id"), "fixed_commit": b.get("fixed_commit_id"),
                 "outcome_blind": True,
             })
+
+    # python ruff candidates — one per BugsInPy project (lint diagnostics, §6.4)
+    seen_proj = set()
+    for b in bip["bugs"]:
+        if b["project"] in seen_proj:
+            continue
+        seen_proj.add(b["project"])
+        candidates.append({
+            "candidate_id": f"bugsinpy::{b['project']}::python::ruff",
+            "cluster_id": f"bugsinpy:{b['project']}", "source_id": "bugsinpy",
+            "repository": f"bugsinpy/{b['project']}", "language": "python",
+            "command_family": "python", "command_subfamily": "ruff", "snapshot_variant": "fixed",
+            "raw_command_argv": ["ruff", "check", "."], "expected_raw_outcome": "text",
+            "python_version": b.get("python_version"), "outcome_blind": True,
+        })
 
     # Container candidates (docker ps/images/logs) from pinned local images
     for img in container_images():
