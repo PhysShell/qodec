@@ -141,7 +141,7 @@ def run_arm(argv, frozen_dir: Path, policy_id: str, timeout: int, wrapper_prefix
     """RAW or RTK arm: REPS runs in FRESH copies of the frozen env, network-denied.
     Canonicalize each combined stream under policy_id; the ACCEPTED stream is the
     canonical bytes (identical across reps when deterministic)."""
-    runs, canon_hashes, raw_hashes = [], [], []
+    runs, canon_hashes, raw_hashes, canon_streams = [], [], [], []
     accepted_canonical = None
     timed_out_any = False
     for _ in range(REPS):
@@ -157,6 +157,7 @@ def run_arm(argv, frozen_dir: Path, policy_id: str, timeout: int, wrapper_prefix
                      "canonical_bytes": len(cb)})
         canon_hashes.append(hashlib.sha256(cb).hexdigest())
         raw_hashes.append(hashlib.sha256(r["combined"]).hexdigest())
+        canon_streams.append(cb)
         accepted_canonical = cb  # identical across reps iff deterministic
     exit_stable = len({x["exit_code"] for x in runs}) == 1
     deterministic = len(set(canon_hashes)) == 1
@@ -166,8 +167,24 @@ def run_arm(argv, frozen_dir: Path, policy_id: str, timeout: int, wrapper_prefix
         "canonicalization_policy": policy_id, "timed_out": timed_out_any,
         "canonical_sha256": canon_hashes[0] if deterministic else None,
         "raw_capture_hashes": raw_hashes, "runs": runs,
+        "nondeterminism_sample": _nd_sample(canon_streams) if not deterministic else None,
         "_accepted_canonical": accepted_canonical if deterministic else None,
     }
+
+
+def _nd_sample(streams: list[bytes]) -> str | None:
+    """A compact unified diff between the first two DIFFERING canonical streams,
+    so a nondeterministic arm reveals EXACTLY what varies across reps (per-rep
+    path, ordering, address, ...) -- diagnostic only, never a gate."""
+    import difflib
+    base = streams[0]
+    for other in streams[1:]:
+        if other != base:
+            a = base.decode("utf-8", "replace").splitlines()
+            b = other.decode("utf-8", "replace").splitlines()
+            diff = "\n".join(difflib.unified_diff(a, b, "rep0", "repN", lineterm="", n=1))
+            return diff[:3000]
+    return None
 
 
 # --------------------------- stratum adapters ---------------------------
