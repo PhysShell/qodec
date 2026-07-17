@@ -34,6 +34,16 @@ class TestCanonPolicies(unittest.TestCase):
         b = canon.canonicalize(b"===== 3 passed in 5.00s =====", "pytest-v1")
         self.assertEqual(a, b)
 
+    def test_vitest_per_file_duration_normalized(self):
+        # per-file trailing elapsed ("(150 tests) 110ms") is pure duration jitter
+        a = canon.canonicalize(b"  \xe2\x9c\x93 parse.spec.ts  (150 tests) 110ms", "vitest-v1")
+        b = canon.canonicalize(b"  \xe2\x9c\x93 parse.spec.ts  (150 tests) 109ms", "vitest-v1")
+        self.assertEqual(a, b)
+        # but a changed test COUNT must never be masked
+        c1 = canon.canonicalize(b"  \xe2\x9c\x93 parse.spec.ts  (150 tests) 110ms", "vitest-v1")
+        c2 = canon.canonicalize(b"  \xe2\x9c\x93 parse.spec.ts  (149 tests) 110ms", "vitest-v1")
+        self.assertNotEqual(c1, c2)
+
     # ---- semantic changes MUST survive every policy ----
     SEMANTIC_PAIRS = [
         (b"test result: ok. 5 passed; 0 failed; finished in 0.1s",

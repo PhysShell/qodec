@@ -144,21 +144,29 @@ def run_arm(argv, frozen_dir: Path, policy_id: str, timeout: int, wrapper_prefix
     runs, canon_hashes, raw_hashes, canon_streams = [], [], [], []
     accepted_canonical = None
     timed_out_any = False
-    for _ in range(REPS):
-        with tempfile.TemporaryDirectory(prefix="n2e-rep-") as td:
-            work = Path(td) / "w"
+    # FIXED work path across reps: many tools echo their absolute working directory
+    # into output (e.g. vitest's "RUN vX /path"), so a per-rep random tempdir path
+    # is itself a source of nondeterminism. Reusing one constant path removes that
+    # variance WITHOUT masking any semantic difference (a real diff still differs).
+    work = Path(tempfile.gettempdir()) / "n2e-fixedwork"
+    try:
+        for _ in range(REPS):
+            if work.exists():
+                shutil.rmtree(work, ignore_errors=True)
             shutil.copytree(frozen_dir, work, symlinks=True)
             r = run_isolated(argv, str(work), timeout, wrapper_prefix, env_extra)
-        timed_out_any = timed_out_any or r.get("timed_out", False)
-        cb = canon.canonicalize(r["combined"], policy_id)
-        runs.append({"exit_code": r["exit_code"],
-                     "raw_combined_sha256": hashlib.sha256(r["combined"]).hexdigest(),
-                     "canonical_sha256": hashlib.sha256(cb).hexdigest(),
-                     "canonical_bytes": len(cb)})
-        canon_hashes.append(hashlib.sha256(cb).hexdigest())
-        raw_hashes.append(hashlib.sha256(r["combined"]).hexdigest())
-        canon_streams.append(cb)
-        accepted_canonical = cb  # identical across reps iff deterministic
+            timed_out_any = timed_out_any or r.get("timed_out", False)
+            cb = canon.canonicalize(r["combined"], policy_id)
+            runs.append({"exit_code": r["exit_code"],
+                         "raw_combined_sha256": hashlib.sha256(r["combined"]).hexdigest(),
+                         "canonical_sha256": hashlib.sha256(cb).hexdigest(),
+                         "canonical_bytes": len(cb)})
+            canon_hashes.append(hashlib.sha256(cb).hexdigest())
+            raw_hashes.append(hashlib.sha256(r["combined"]).hexdigest())
+            canon_streams.append(cb)
+            accepted_canonical = cb  # identical across reps iff deterministic
+    finally:
+        shutil.rmtree(work, ignore_errors=True)
     exit_stable = len({x["exit_code"] for x in runs}) == 1
     deterministic = len(set(canon_hashes)) == 1
     return {

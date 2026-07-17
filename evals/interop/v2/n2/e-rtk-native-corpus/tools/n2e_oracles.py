@@ -117,9 +117,13 @@ def raw_outcome(scenario: dict, raw: bytes, raw_exit: int) -> dict:
         return {"oracle": "test_outcome", "verdict": bool(ok),
                 "evidence": {"summary": summ, "exit": raw_exit, "declared": "passing"}}
     if sub in ("build", "check", "clippy", "vet", "tsc", "lint", "ruff"):
-        # diagnostics case: RAW must produce a stable, parseable result (exit reflects diagnostics)
-        return {"oracle": "diagnostics_present", "verdict": len(raw) > 0,
-                "evidence": {"diagnostics": len(_diagnostics(raw)), "exit": raw_exit}}
+        # diagnostics case: RAW is valid if the tool RAN to a definite result -- a
+        # clean pass (exit 0, no diagnostics) is a legitimate outcome, not a failure;
+        # only a tool that neither exited clean nor emitted diagnostics is rejected.
+        ok = raw_exit == 0 or len(raw) > 0
+        return {"oracle": "diagnostics_defined", "verdict": bool(ok),
+                "evidence": {"diagnostics": len(_diagnostics(raw)), "exit": raw_exit,
+                             "clean": raw_exit == 0 and len(raw) == 0}}
     if fam == "git":
         return {"oracle": f"git_{sub}", "verdict": _git_raw_ok(sub, raw, raw_exit),
                 "evidence": {"exit": raw_exit, "bytes": len(raw)}}

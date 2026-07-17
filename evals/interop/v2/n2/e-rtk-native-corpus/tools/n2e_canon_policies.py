@@ -44,11 +44,17 @@ _POLICIES: dict[str, list[tuple[re.Pattern, bytes]]] = {
         (re.compile(rb"\bin \d+\.\d+s "), b"in <dur> "),
         (re.compile(rb"^\d+\.\d+s\b", re.MULTILINE), b"<dur>"),
     ],
-    # vitest/jest: "Duration  1.23s" ; "Time:        1.234 s"
+    # vitest/jest: "Duration  1.23s" ; "Time: 1.234 s" ; per-file/test trailing
+    # elapsed such as "(150 tests) 110ms" and "... 1.2s" (all pure duration grammar).
     "vitest-v1": [
         (re.compile(rb"Duration\s+\d+\.\d+m?s"), b"Duration <dur>"),
         (re.compile(rb"Time:\s+\d+\.\d+\s*s"), b"Time: <dur>"),
         (re.compile(rb"\bin \d+ms\b"), b"in <dur>"),
+        # trailing per-file/per-suite elapsed after a "(N tests[...]) 110ms" or " 1.2s"
+        (re.compile(rb"(\)\s*)\d+ms\b"), rb"\1<dur>"),
+        (re.compile(rb"(\)\s*)\d+\.\d+s\b"), rb"\1<dur>"),
+        (re.compile(rb"(\btests?\b.*?\s)\d+ms\b"), rb"\1<dur>"),
+        (re.compile(rb"\bstart(ing)?\s+at\s+\d{1,2}:\d{2}:\d{2}\b"), b"start at <time>"),
     ],
     # gradle test: "BUILD SUCCESSFUL in 12s" ; "> Task :test"
     "gradle-test-v1": [
