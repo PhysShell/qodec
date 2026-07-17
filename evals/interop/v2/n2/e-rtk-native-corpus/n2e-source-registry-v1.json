@@ -8,36 +8,24 @@
   "generated_by": "evals/interop/v2/n2/e-rtk-native-corpus/tools/build_n2e_source_registry.py",
   "mission": "N2-E",
   "mission_title": "external RTK-native claim-aligned command corpus",
-  "purpose": "External source registry (\u00a72). Immutable identities are resolved live from publishers (HF revision, Zenodo record, OCI digest) so only real content-addressed values are committed; incomplete acquisitions are DEFERRED with typed reasons and never carry fabricated hashes.",
-  "record_sha256": "sha256:d163e5d31c49e99e6a8cb54abb4d0c91343af02c4c15c44fc74b1f4a1b853d40",
+  "pins_record": "n2e-source-pins-v1.json",
+  "pins_sha256": "sha256:82d1ec73ab1527505412a5f6d8c76c0dfa554098ea3b8f7091f37551b2f669f8",
+  "purpose": "External source registry (\u00a72), built deterministically and offline from the committed immutable pins (n2e-source-pins-v1.json). Rebuilds byte-identically regardless of upstream movement. Incomplete acquisitions are DEFERRED with typed reasons and never carry fabricated hashes.",
+  "record_sha256": "sha256:8f9b90d25ac58914c3a5ef9bd5dc6a1da3ebb07cb33da2bb34ef6ce7b19a1e05",
   "record_type": "n2e-source-registry",
   "record_version": "v1",
-  "resolution_mode": "live",
   "schema_version": "n2e-record-1",
-  "source_count": 10,
+  "source_count": 11,
   "sources": [
     {
       "classification": "ACCEPTED_PRIMARY",
       "identity": {
         "dataset_id": "SWE-bench/SWE-bench_Multilingual",
-        "gated": false,
         "immutable_revision": "2b7aced941b4873e9cad3e76abbae93f481d1beb",
         "kind": "huggingface_dataset",
-        "last_modified": "2025-08-26T00:42:28.000Z",
-        "resolved_via": "huggingface_api",
         "source_url": "https://huggingface.co/datasets/SWE-bench/SWE-bench_Multilingual"
       },
       "license_note": "per-instance upstream repository licenses; dataset card on HF.",
-      "oci_digest_example": {
-        "digest_verified": true,
-        "immutable_digest": "sha256:f3f63bb87d581c0e7b47f900dd82165b71040e1758d3c29e915e2b18da9baf63",
-        "kind": "oci_image",
-        "media_type": "application/vnd.docker.distribution.manifest.v2+json",
-        "platform": "linux/amd64",
-        "reference": "latest",
-        "repository": "swebench/sweb.eval.x86_64.astropy_1776_astropy-12907",
-        "resolved_via": "oci_registry_http_api"
-      },
       "primary_for": [
         "rust_cargo",
         "go",
@@ -46,7 +34,24 @@
       ],
       "source_id": "swe-bench-multilingual",
       "spec_section": "2.2",
-      "typed_reason": "immutable HF revision resolved; reproducible per-instance Docker environments; native RTK ecosystems (Rust/Go/JS/TS/Java)."
+      "typed_reason": "immutable HF revision pinned; reproducible per-instance Docker environments; native RTK ecosystems (Rust/Go/JS/TS/Java)."
+    },
+    {
+      "classification": "ACCEPTED_PRIMARY",
+      "identity": {
+        "child_digest": "sha256:f3f63bb87d581c0e7b47f900dd82165b71040e1758d3c29e915e2b18da9baf63",
+        "index_digest": "sha256:f3f63bb87d581c0e7b47f900dd82165b71040e1758d3c29e915e2b18da9baf63",
+        "kind": "oci_image",
+        "media_type": "application/vnd.docker.distribution.manifest.v2+json",
+        "platform": "linux/amd64",
+        "registry": "registry-1.docker.io",
+        "repository": "swebench/sweb.eval.x86_64.astropy_1776_astropy-12907"
+      },
+      "license_note": "image derived from upstream project + SWE-bench harness.",
+      "primary_for": [],
+      "source_id": "swe-bench-eval-image-sample",
+      "spec_section": "2.2",
+      "typed_reason": "real SWE-bench eval image pinned by immutable manifest digest; validates the per-instance OCI-by-digest lock path the corpus relies on."
     },
     {
       "classification": "ACCEPTED_PRIMARY",
@@ -59,14 +64,9 @@
             "size": 578629
           },
           {
-            "checksum": "md5:fef920579c366462ea7d341af8f533d8",
-            "key": "OpenSSH.zip",
-            "size": 8166947
-          },
-          {
-            "checksum": "md5:2e4b67dc68c3a4f1c18e267c341c52a2",
-            "key": "Proxifier.zip",
-            "size": 380635
+            "checksum": "md5:521ee643375bb6e9d0dd88636ff7ece1",
+            "key": "BGL.zip",
+            "size": 86118141
           },
           {
             "checksum": "md5:f23880dd4938379a535ab71a8d27a798",
@@ -74,44 +74,9 @@
             "size": 321944794
           },
           {
-            "checksum": "md5:a1a1db599519eb6b12b3368f37d274f7",
-            "key": "Linux.zip",
-            "size": 428410
-          },
-          {
-            "checksum": "md5:6b90126e1c78591454aef10ecc1da098",
-            "key": "HealthApp.zip",
-            "size": 3960708
-          },
-          {
             "checksum": "md5:07d035b50ede61f7850e0453e43f85bb",
             "key": "HPC.zip",
             "size": 4792408
-          },
-          {
-            "checksum": "md5:e696a94a9b703eb3fd93a2c78e3050ed",
-            "key": "Zookeeper.zip",
-            "size": 870580
-          },
-          {
-            "checksum": "md5:a8d365d003845c3bef61661375513910",
-            "key": "Thunderbird.zip",
-            "size": 293018641
-          },
-          {
-            "checksum": "md5:707faeedf8b1b9f920c073114139a023",
-            "key": "OpenStack.zip",
-            "size": 7387614
-          },
-          {
-            "checksum": "md5:521ee643375bb6e9d0dd88636ff7ece1",
-            "key": "BGL.zip",
-            "size": 86118141
-          },
-          {
-            "checksum": "md5:e5b392e013be0f10a55b5b009f4b9c9d",
-            "key": "Mac.zip",
-            "size": 3017741
           },
           {
             "checksum": "md5:e8d413f0ea3f3e90956f185da9d635a8",
@@ -119,27 +84,65 @@
             "size": 4263949
           },
           {
+            "checksum": "md5:6b90126e1c78591454aef10ecc1da098",
+            "key": "HealthApp.zip",
+            "size": 3960708
+          },
+          {
+            "checksum": "md5:a1a1db599519eb6b12b3368f37d274f7",
+            "key": "Linux.zip",
+            "size": 428410
+          },
+          {
+            "checksum": "md5:e5b392e013be0f10a55b5b009f4b9c9d",
+            "key": "Mac.zip",
+            "size": 3017741
+          },
+          {
+            "checksum": "md5:fef920579c366462ea7d341af8f533d8",
+            "key": "OpenSSH.zip",
+            "size": 8166947
+          },
+          {
+            "checksum": "md5:707faeedf8b1b9f920c073114139a023",
+            "key": "OpenStack.zip",
+            "size": 7387614
+          },
+          {
+            "checksum": "md5:2e4b67dc68c3a4f1c18e267c341c52a2",
+            "key": "Proxifier.zip",
+            "size": 380635
+          },
+          {
             "checksum": "md5:ca0ef9c6e8ece0df602793bd302e03a6",
             "key": "Spark.zip",
             "size": 230699188
+          },
+          {
+            "checksum": "md5:a8d365d003845c3bef61661375513910",
+            "key": "Thunderbird.zip",
+            "size": 293018641
+          },
+          {
+            "checksum": "md5:e696a94a9b703eb3fd93a2c78e3050ed",
+            "key": "Zookeeper.zip",
+            "size": 870580
           }
         ],
         "kind": "zenodo_record",
         "license": "cc-by-4.0",
         "record_id": "8275861",
-        "resolved_via": "zenodo_api",
-        "source_url": "https://zenodo.org/records/8275861",
         "title": "Loghub-2.0: a collection of large-scale datasets for log parsing",
         "version_doi": "10.5281/zenodo.8275861"
       },
-      "license_note": "see Zenodo record metadata.",
+      "license_note": "cc-by-4.0",
       "primary_for": [
         "logs",
         "files_search"
       ],
       "source_id": "loghub-2.0",
       "spec_section": "2.5",
-      "typed_reason": "immutable Zenodo record with publisher checksums; static log files for deterministic slices."
+      "typed_reason": "immutable Zenodo version record with publisher file checksums; static log files for deterministic slices."
     },
     {
       "classification": "DEFERRED",
@@ -152,7 +155,7 @@
       "metadata_source": "https://raw.githubusercontent.com/BugSwarm/BugSwarm/master/",
       "source_id": "bugswarm-1.3.1",
       "spec_section": "2.1",
-      "typed_reason": "reachable (metadata via raw.githubusercontent, images on docker.io resolvable via the OCI resolver), but per-artifact reproducible-image digest enumeration and reproducible-only filtering not completed in the bootstrap session; no per-artifact hashes are recorded until resolved."
+      "typed_reason": "reachable (metadata via raw.githubusercontent, images on docker.io resolvable via the OCI resolver), but per-artifact reproducible-image digest enumeration and reproducible-only filtering not completed; no per-artifact hashes are recorded until resolved. Required only if SWE-bench Multilingual cannot fill the Maven/Gradle quota."
     },
     {
       "classification": "DEFERRED",
@@ -162,7 +165,7 @@
       "license_note": "Terminal-Bench task license (to be recorded at enumeration).",
       "source_id": "terminal-bench-2.0",
       "spec_section": "2.6",
-      "typed_reason": "environment-only use (no agent, no task success). Task image OCI digests resolvable via the resolver, but the exact task-id -> image-digest table is not enumerated in the bootstrap session; no digests recorded until resolved."
+      "typed_reason": "environment-only use (no agent, no task success). Task image OCI digests resolvable via the resolver, but the exact task-id -> image-digest table is not enumerated yet; required to populate the mandatory container stratum if no accepted source provides local disposable containers."
     },
     {
       "classification": "ACCEPTED_RESERVE",
@@ -173,7 +176,7 @@
       ],
       "source_id": "bugsjs",
       "spec_section": "2.3",
-      "typed_reason": "independent JS/Mocha stratum; framework repo + metadata reachable via raw.githubusercontent. Held as reserve behind SWE-bench Multilingual JS/TS."
+      "typed_reason": "independent JS/Mocha stratum; framework repo + metadata reachable via raw.githubusercontent. Reserve behind SWE-bench Multilingual JS/TS."
     },
     {
       "classification": "ACCEPTED_RESERVE",
@@ -196,7 +199,7 @@
       "classification": "DEFERRED",
       "source_id": "panic4r",
       "spec_section": "2.7",
-      "typed_reason": "research candidate only; no independently verified durable executable artifact source confirmed in bootstrap."
+      "typed_reason": "research candidate only; no independently verified durable executable artifact source confirmed."
     },
     {
       "classification": "DEFERRED",

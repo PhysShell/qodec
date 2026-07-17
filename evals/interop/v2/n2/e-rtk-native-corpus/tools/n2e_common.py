@@ -23,9 +23,24 @@ from __future__ import annotations
 import hashlib
 import json
 import os
+import ssl
 from pathlib import Path
 
 SCHEMA_VERSION = "n2e-record-1"
+
+
+def ssl_context() -> ssl.SSLContext:
+    """TLS context honoring the platform trust store and standard CA env vars.
+
+    Respects SSL_CERT_FILE / REQUESTS_CA_BUNDLE (and NIX_SSL_CERT_FILE) when set;
+    otherwise falls back to the system trust store. No session-specific CA path
+    is baked in — a proxy CA, if any, is supplied externally via those env vars.
+    """
+    for var in ("SSL_CERT_FILE", "REQUESTS_CA_BUNDLE", "CURL_CA_BUNDLE", "NIX_SSL_CERT_FILE"):
+        path = os.environ.get(var)
+        if path and Path(path).exists():
+            return ssl.create_default_context(cafile=path)
+    return ssl.create_default_context()
 
 
 def compact_canonical_bytes(body: dict) -> bytes:

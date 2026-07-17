@@ -28,10 +28,15 @@ DEFAULT_REGISTRY = "registry-1.docker.io"
 
 
 def _ctx():
-    ca = os.environ.get("NIX_SSL_CERT_FILE") or os.environ.get("CURL_CA_BUNDLE") \
-        or os.environ.get("SSL_CERT_FILE") or "/root/.ccr/ca-bundle.crt"
-    if os.path.exists(ca):
-        return ssl.create_default_context(cafile=ca)
+    """TLS context honoring standard CA env vars, else the platform trust store.
+
+    No session-specific CA path is baked in; supply one via SSL_CERT_FILE /
+    REQUESTS_CA_BUNDLE / CURL_CA_BUNDLE / NIX_SSL_CERT_FILE if a proxy re-terminates TLS.
+    """
+    for var in ("SSL_CERT_FILE", "REQUESTS_CA_BUNDLE", "CURL_CA_BUNDLE", "NIX_SSL_CERT_FILE"):
+        ca = os.environ.get(var)
+        if ca and os.path.exists(ca):
+            return ssl.create_default_context(cafile=ca)
     return ssl.create_default_context()
 
 
@@ -123,6 +128,48 @@ def resolve(registry, repo, reference, arch="amd64", os_name="linux"):
         ev["pinned_digest"] = child["digest"]
     else:
         ev["pinned_digest"] = dcd or local
+    return ev
+
+
+def verify_by_digest(registry, repo, index_digest, child_digest, arch="amd64", os_name="linux"):
+    """Verify an immutable pin: fetch repo@index_digest and repo@child_digest,
+    confirm the manifest bytes hash to the claimed digests, and that the child is
+    the requested platform inside the index. Never resolves a mutable tag.
+    """
+    token = get_token(registry, repo)
+    ev = {
+        "registry": registry, "repository": repo,
+        "index_digest": index_digest, "child_digest": child_digest,
+        "platform_requested": f"{os_name}/{arch}",
+    }
+    try:
+        iraw, idcd, ictype = fetch_manifest(registry, repo, index_digest, token)
+    except urllib.error.HTTPError as e:
+        # An unavailable pinned artifact (e.g. digest not found) is a verification
+        # failure, not a crash — the pin cannot be confirmed.
+        ev["error"] = f"index manifest unavailable: HTTP {e.code}"
+        ev["verified"] = False
+        return ev
+    ev["index_local_sha256"] = sha256_digest(iraw)
+    ev["index_digest_verified"] = (sha256_digest(iraw) == index_digest == (idcd or index_digest))
+    if ictype in (OCI_INDEX, DOCKER_LIST):
+        idx = json.loads(iraw)
+        match = next((m for m in idx.get("manifests", [])
+                     if m.get("platform", {}).get("architecture") == arch
+                     and m.get("platform", {}).get("os") == os_name), None)
+        ev["child_in_index"] = bool(match and match["digest"] == child_digest)
+    else:
+        # Single-arch: index_digest already is the image manifest.
+        ev["child_in_index"] = (child_digest == index_digest)
+    try:
+        craw, cdcd, _ = fetch_manifest(registry, repo, child_digest, token)
+    except urllib.error.HTTPError as e:
+        ev["error"] = f"child manifest unavailable: HTTP {e.code}"
+        ev["verified"] = False
+        return ev
+    ev["child_local_sha256"] = sha256_digest(craw)
+    ev["child_digest_verified"] = (sha256_digest(craw) == child_digest == (cdcd or child_digest))
+    ev["verified"] = bool(ev["index_digest_verified"] and ev["child_digest_verified"] and ev["child_in_index"])
     return ev
 
 
