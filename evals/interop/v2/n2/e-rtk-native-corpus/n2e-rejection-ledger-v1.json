@@ -1,0 +1,12 @@
+{
+  "generated_by": "evals/interop/v2/n2/e-rtk-native-corpus/tools/build_n2e_selection.py",
+  "mission": "N2-E",
+  "mission_title": "external RTK-native claim-aligned command corpus",
+  "purpose": "Typed hard-filter rejections and slot underfills (\u00a79).",
+  "record_sha256": "sha256:82db82c3963fc46582ded05b2256e85fe60ef90f42a060bc065b54700324a0cc",
+  "record_type": "n2e-rejection-ledger",
+  "record_version": "v1",
+  "rejection_count": 0,
+  "rejections": [],
+  "schema_version": "n2e-record-1"
+}

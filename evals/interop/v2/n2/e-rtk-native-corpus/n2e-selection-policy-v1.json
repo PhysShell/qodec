@@ -1,0 +1,303 @@
+{
+  "diversity_constraints": {
+    "max_pct_cases_per_repository": 0.1,
+    "max_source_units_per_repository": 2,
+    "min_distinct_repositories": 24,
+    "min_distinct_source_systems": 5,
+    "min_repos_per_language": {
+      "go": 4,
+      "js_ts": 4,
+      "jvm": 4,
+      "python": 4,
+      "rust_cargo": 4
+    }
+  },
+  "fallback_rule": "On typed qualification failure of a selected case, replace it with the next candidate from this case's slot in the frozen reserve ordering (n2e-reserve-list-v1.json). Never replace based on observed RTK/QODEC savings.",
+  "generated_by": "evals/interop/v2/n2/e-rtk-native-corpus/tools/build_n2e_selection_policy.py",
+  "mission": "N2-E",
+  "mission_title": "external RTK-native claim-aligned command corpus",
+  "objective_weights": {
+    "command_family_coverage": 0.35,
+    "environment_cost": 0.1,
+    "outcome_diversity": 0.2,
+    "raw_output_size_balance": 0.15,
+    "source_recency_diversity": 0.05,
+    "source_repository_diversity": 0.15
+  },
+  "ordering": "Within each slot: filter eligible candidates, stable-sort by candidate_id, then order by sha256(f'{seed}:{candidate_id}'). Greedily fill respecting the global per-repository source-unit cap (<=2 clusters/repo) and the 10% case cap.",
+  "purpose": "Frozen \u00a79/\u00a710 selection policy: seed, quota slots (=70), objectives, diversity, size strata, fallback.",
+  "record_sha256": "sha256:959a6a5f84dec8d4c3102878579fbdb94d89036f458ab76009c12135d5541771",
+  "record_type": "n2e-selection-policy",
+  "record_version": "v1",
+  "schema_version": "n2e-record-1",
+  "seed": 20260717,
+  "size_strata": {
+    "huge": [
+      100001,
+      250000
+    ],
+    "large": [
+      20001,
+      100000
+    ],
+    "max_pct_per_family_from_one_stratum": 0.4,
+    "medium": [
+      2001,
+      20000
+    ],
+    "note": "size strata are validated post-RAW-qualification; selection is frozen on metadata only.",
+    "small": [
+      251,
+      2000
+    ],
+    "tiny": [
+      1,
+      250
+    ]
+  },
+  "slots": [
+    {
+      "count": 2,
+      "family": "files_search",
+      "id": "fs_ls_tree",
+      "subfamilies": [
+        "ls",
+        "tree"
+      ]
+    },
+    {
+      "count": 2,
+      "family": "files_search",
+      "id": "fs_read",
+      "subfamilies": [
+        "read"
+      ]
+    },
+    {
+      "count": 6,
+      "family": "files_search",
+      "id": "fs_grep",
+      "subfamilies": [
+        "grep"
+      ]
+    },
+    {
+      "count": 3,
+      "family": "git",
+      "id": "git_status",
+      "subfamilies": [
+        "status"
+      ]
+    },
+    {
+      "count": 3,
+      "family": "git",
+      "id": "git_diff",
+      "subfamilies": [
+        "diff"
+      ]
+    },
+    {
+      "count": 3,
+      "family": "git",
+      "id": "git_log_show",
+      "subfamilies": [
+        "log",
+        "show"
+      ]
+    },
+    {
+      "count": 5,
+      "family": "git",
+      "id": "git_acp",
+      "subfamilies": [
+        "add",
+        "commit",
+        "push"
+      ]
+    },
+    {
+      "count": 2,
+      "family": "rust_cargo",
+      "id": "rust_test_fail",
+      "subfamilies": [
+        "test"
+      ],
+      "variant": "buggy"
+    },
+    {
+      "count": 2,
+      "family": "rust_cargo",
+      "id": "rust_test_pass",
+      "subfamilies": [
+        "test"
+      ],
+      "variant": "fixed"
+    },
+    {
+      "count": 1,
+      "family": "rust_cargo",
+      "id": "rust_test_multi",
+      "min_target_tests": 2,
+      "subfamilies": [
+        "test"
+      ],
+      "variant": "buggy"
+    },
+    {
+      "count": 1,
+      "family": "rust_cargo",
+      "id": "rust_build",
+      "subfamilies": [
+        "build"
+      ]
+    },
+    {
+      "count": 1,
+      "family": "rust_cargo",
+      "id": "rust_check",
+      "subfamilies": [
+        "check"
+      ]
+    },
+    {
+      "count": 1,
+      "family": "rust_cargo",
+      "id": "rust_clippy",
+      "subfamilies": [
+        "clippy"
+      ]
+    },
+    {
+      "count": 3,
+      "family": "python",
+      "id": "py_pytest_fail",
+      "subfamilies": [
+        "pytest"
+      ],
+      "variant": "buggy"
+    },
+    {
+      "count": 3,
+      "family": "python",
+      "id": "py_pytest_pass",
+      "subfamilies": [
+        "pytest"
+      ],
+      "variant": "fixed"
+    },
+    {
+      "count": 2,
+      "family": "python",
+      "id": "py_ruff",
+      "subfamilies": [
+        "ruff"
+      ]
+    },
+    {
+      "count": 2,
+      "family": "js_ts",
+      "id": "js_test_fail",
+      "subfamilies": [
+        "test"
+      ],
+      "variant": "buggy"
+    },
+    {
+      "count": 2,
+      "family": "js_ts",
+      "id": "js_test_pass",
+      "subfamilies": [
+        "test"
+      ],
+      "variant": "fixed"
+    },
+    {
+      "count": 2,
+      "family": "js_ts",
+      "id": "js_tsc",
+      "subfamilies": [
+        "tsc"
+      ]
+    },
+    {
+      "count": 2,
+      "family": "js_ts",
+      "id": "js_lint",
+      "subfamilies": [
+        "lint"
+      ]
+    },
+    {
+      "count": 2,
+      "family": "go",
+      "id": "go_test_fail",
+      "subfamilies": [
+        "test"
+      ],
+      "variant": "buggy"
+    },
+    {
+      "count": 2,
+      "family": "go",
+      "id": "go_test_pass",
+      "subfamilies": [
+        "test"
+      ],
+      "variant": "fixed"
+    },
+    {
+      "count": 1,
+      "family": "go",
+      "id": "go_build",
+      "subfamilies": [
+        "build"
+      ]
+    },
+    {
+      "count": 1,
+      "family": "go",
+      "id": "go_vet",
+      "subfamilies": [
+        "vet"
+      ]
+    },
+    {
+      "count": 3,
+      "family": "jvm",
+      "id": "jvm_test_fail",
+      "subfamilies": [
+        "test"
+      ],
+      "variant": "buggy"
+    },
+    {
+      "count": 3,
+      "family": "jvm",
+      "id": "jvm_test_pass",
+      "subfamilies": [
+        "test"
+      ],
+      "variant": "fixed"
+    },
+    {
+      "count": 6,
+      "family": "logs",
+      "id": "logs_log",
+      "subfamilies": [
+        "log"
+      ]
+    },
+    {
+      "count": 4,
+      "family": "containers",
+      "id": "containers",
+      "subfamilies": [
+        "ps",
+        "images",
+        "logs"
+      ]
+    }
+  ],
+  "target_case_count": 70
+}
