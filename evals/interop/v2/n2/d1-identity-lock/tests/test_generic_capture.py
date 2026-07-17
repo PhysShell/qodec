@@ -1084,5 +1084,23 @@ class TestCargoTestCanonicalizationWiring(unittest.TestCase):
         self.assertNotIn("repo-hyperfine", gc.CANONICALIZED_CASE_IDS)
 
 
+class TestPytestRequestsCanonicalizationWiring(unittest.TestCase):
+    """repo-requests (N2-D1b Stage 2, real CI evidence: CPython's object-repr
+    address, pytest's own session-summary duration, and threading.Thread's
+    own repr's native ident were the sole remaining raw differences after
+    the argv0/tmpdir/editable-install fixes let pytest actually run its full
+    suite) must dispatch to pytest_requests_canonicalizer.py, never to any
+    other canonicalizer module."""
+
+    def test_repo_requests_uses_the_pytest_requests_module(self):
+        module = gc.CANONICALIZATION_MODULE_BY_CASE_ID["repo-requests"]
+        self.assertIs(module, gc.pytest_requests_canonicalizer)
+        self.assertIsNot(module, gc.maven_canonicalizer)
+        self.assertIsNot(module, gc.vstest_canonicalizer)
+        self.assertIsNot(module, gc.gradle_canonicalizer_v2)
+        self.assertIsNot(module, gc.gradle_canonicalizer_helm_values_v1)
+        self.assertIsNot(module, gc.cargo_test_canonicalizer)
+
+
 if __name__ == "__main__":
     unittest.main()

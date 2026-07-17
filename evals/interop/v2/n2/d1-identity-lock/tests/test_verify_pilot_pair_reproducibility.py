@@ -831,5 +831,24 @@ class TestIdempotence(unittest.TestCase):
         )
 
 
+class TestPytestRequestsDispatch(unittest.TestCase):
+    """repo-requests (N2-D1b Stage 2) must dispatch to
+    pytest_requests_canonicalizer.py / its own policy path, never to any
+    other canonicalizer -- mirrors the analogous dispatch-table check in
+    test_generic_capture.py's TestPytestRequestsCanonicalizationWiring."""
+
+    def test_repo_requests_resolves_to_the_pytest_requests_module_and_policy(self):
+        module, policy_path = verifier._canonicalizer_for_case_id("repo-requests")
+        self.assertIs(module, verifier.pytest_requests_canonicalizer)
+        self.assertEqual(policy_path, verifier.PYTEST_REQUESTS_POLICY_PATH)
+
+    def test_pytest_requests_canonicalized_derivation_checks_real_idempotence(self):
+        raw = b"self = <Server(Thread-1, stopped 140547873863360)> in 14.49s =\n"
+        canonical, _ = verifier.pytest_requests_canonicalizer.canonicalize_stream(raw)
+        self.assertTrue(
+            verifier._is_idempotent("case-specific-deterministic-canonicalization", "repo-requests", canonical)
+        )
+
+
 if __name__ == "__main__":
     unittest.main()

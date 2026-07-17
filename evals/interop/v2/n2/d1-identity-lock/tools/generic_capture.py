@@ -42,6 +42,7 @@ import gradle_canonicalizer_helm_values_v1  # noqa: E402
 import gradle_canonicalizer_v2  # noqa: E402
 import maven_canonicalizer  # noqa: E402
 import network_enforcement_probe  # noqa: E402
+import pytest_requests_canonicalizer  # noqa: E402
 import receipt_contract  # noqa: E402
 import toolchain_identity  # noqa: E402
 import vstest_canonicalizer  # noqa: E402
@@ -78,6 +79,18 @@ GRADLE_CANONICALIZATION_POLICY_HELM_VALUES_V1_PATH = (
 CARGO_TEST_CANONICALIZATION_POLICY_PATH = (
     TOOLS_DIR.parent / "cargo-test-capture-canonicalization-policy.json"
 )
+# N2-D1b Stage 2 (2026-07-17): repo-requests invokes pytest against its own
+# frozen argv, under full network denial (repo-requests is NOT in
+# gsp.NETWORK_ENFORCEMENT_AUTHORIZED_CASES). After the argv0-resolution,
+# TMPDIR/tmp-fs-rw, and editable-install-source-dir fixes let pytest
+# actually run its full suite to a deterministic, identical outcome, the
+# sole remaining raw differences were CPython's own object-repr address,
+# pytest's own session-summary duration, and threading.Thread's own repr's
+# native ident -- see pytest_requests_canonicalizer.py's own module
+# docstring for the full evidence-derived grammar.
+PYTEST_REQUESTS_CANONICALIZATION_POLICY_PATH = (
+    TOOLS_DIR.parent / "pytest-requests-capture-canonicalization-policy.json"
+)
 
 # D1b decision (2026-07-16): for the case_id(s) each policy below names, the
 # canonical benchmark input is a deterministic derivation of the raw,
@@ -103,12 +116,16 @@ _GRADLE_CANONICALIZATION_POLICY_HELM_VALUES_V1 = gradle_canonicalizer_helm_value
 _CARGO_TEST_CANONICALIZATION_POLICY = cargo_test_canonicalizer.load_and_verify_policy(
     CARGO_TEST_CANONICALIZATION_POLICY_PATH
 )
+_PYTEST_REQUESTS_CANONICALIZATION_POLICY = pytest_requests_canonicalizer.load_and_verify_policy(
+    PYTEST_REQUESTS_CANONICALIZATION_POLICY_PATH
+)
 _CANONICALIZATION_PROFILES = [
     (_CANONICALIZATION_POLICY, maven_canonicalizer),
     (_VSTEST_CANONICALIZATION_POLICY, vstest_canonicalizer),
     (_GRADLE_CANONICALIZATION_POLICY_V2, gradle_canonicalizer_v2),
     (_GRADLE_CANONICALIZATION_POLICY_HELM_VALUES_V1, gradle_canonicalizer_helm_values_v1),
     (_CARGO_TEST_CANONICALIZATION_POLICY, cargo_test_canonicalizer),
+    (_PYTEST_REQUESTS_CANONICALIZATION_POLICY, pytest_requests_canonicalizer),
 ]
 _all_canonicalized_case_ids = [
     cid for policy, _module in _CANONICALIZATION_PROFILES for cid in policy["applicable_case_ids"]
