@@ -46,17 +46,26 @@ class TestOracles(unittest.TestCase):
         self.assertEqual(counts["info"], 1)
 
     def test_log_oracle_flags_dropped_content(self):
+        scen = {"command_family": "logs", "command_subfamily": "log"}
         raw = b"ERROR a\nERROR b\nWARN c\n"
         rtk_bad = b"Log Summary\n [error] 0 errors\n [warn] 0 warnings\n [info] 0 info\n"
-        verdict = ora.check_log_oracle(raw, rtk_bad)
-        self.assertFalse(verdict["severity_counts_preserved"])
-        self.assertTrue(verdict["content_dropped"])
+        verdict = ora.rtk_agrees(scen, raw, rtk_bad)
+        self.assertFalse(verdict["verdict"])  # RTK misreports 0 errors when RAW has 2
 
     def test_log_oracle_passes_when_preserved(self):
+        scen = {"command_family": "logs", "command_subfamily": "log"}
         raw = b"ERROR a\nERROR b\nWARN c\n"
         rtk_ok = b"Log Summary\n [error] 2 errors\n [warn] 1 warnings\n [info] 0 info\n"
-        verdict = ora.check_log_oracle(raw, rtk_ok)
-        self.assertTrue(verdict["severity_counts_preserved"])
+        verdict = ora.rtk_agrees(scen, raw, rtk_ok)
+        self.assertTrue(verdict["verdict"])
+
+    def test_grep_agreement_exact_no_missing_match(self):
+        scen = {"command_family": "files_search", "command_subfamily": "grep"}
+        raw = b"f:10:err here\nf:20:another err\n"
+        rtk_missing = b"f:10:err here\n"  # dropped a match -> must fail
+        self.assertFalse(ora.rtk_agrees(scen, raw, rtk_missing)["verdict"])
+        rtk_ok = b"f:10:err here\nf:20:another err\n"
+        self.assertTrue(ora.rtk_agrees(scen, raw, rtk_ok)["verdict"])
 
     def test_grep_match_identities(self):
         raw = b"file.py:10:def foo():\nfile.py:20:return 1\n"

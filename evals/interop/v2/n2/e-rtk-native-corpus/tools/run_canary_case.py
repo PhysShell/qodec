@@ -1,26 +1,23 @@
 #!/usr/bin/env python3
-"""Run one canary case end-to-end and emit a self-hash-locked evidence record.
+"""Run one canary case with a fail-closed RAW-before-RTK state machine (§13-§19).
 
-Given a case_id in the frozen canary membership, this:
-  1. reads the case's frozen scenario contract;
-  2. acquires the exact pinned environment via the stratum adapter (network);
-  3. verifies acquisition identities;
-  4. RAW x3 in fresh workdirs (network-denied where the platform allows);
-  5. requires exit-code stability + byte-determinism (after declared, bounded
-     canonicalization) + the scenario's declared successful semantic outcome;
-  6. RTK x3 only after RAW qualifies; requires RTK oracle agreement + determinism;
-  7. meters every accepted output with the pinned qodec o200k implementation;
-  8. writes n2e-canary-case-<case_id>.json.
+State machine:
+  1. acquire + verify environment identity (network-enabled acquisition phase,
+     incl. per-ecosystem offline warm: fetch/build/install deps);
+  2. establish the network-denied measurement boundary and run a POSITIVE denial
+     probe (an outbound connect must fail);
+  3. RAW x3 in fresh copies of the frozen environment;
+  4. RAW acceptance: exactly 3 reps, declared successful outcome, stable exit,
+     canonical determinism, RAW semantic oracle, verified acquisition + isolation;
+  5. on any RAW failure -> emit RAW_REJECTED and exit non-zero (NO RTK arm);
+  6. RTK x3 (only after RAW passes);
+  7. RTK acceptance: 3 reps, stable exit, declared outcome, canonical determinism,
+     RTK-vs-RAW oracle agreement, pinned RTK binary identity;
+  8. PASS only when both arms satisfy their full contracts.
 
-Environment: RTK_BIN, QODEC_BIN required. Acquisition uses network; measurement
-should run under `unshare -n` / a network-denied step. RTK savings are reported
-only, never a gate (§15/§19).
-
-This driver is invoked once per matrix job by the canary workflow. Heavy
-test-runner acquisitions (rust/go/jvm/python) build the environment from the
-pinned repo+commit over the git transport with the ecosystem toolchain; the
-resulting build inputs (repo, commit, lockfile hashes, toolchain versions) are
-the reproducible recipe identity (§2.2/§5).
+One canonical byte stream per arm: canonicalize(combined) under the frozen per-
+tool policy id; determinism, oracle input, o200k metering, and recorded
+length/sha256 ALL use that canonical stream. Raw-capture hashes are also stored.
 """
 from __future__ import annotations
 
@@ -28,7 +25,7 @@ import argparse
 import hashlib
 import json
 import os
-import re
+import shutil
 import subprocess
 import sys
 import tempfile
@@ -42,43 +39,95 @@ sys.path.insert(0, str(HERE))
 import n2e_common as c  # noqa: E402
 import n2e_measure as m  # noqa: E402
 import n2e_oracles as ora  # noqa: E402
+import n2e_canon_policies as canon  # noqa: E402
 
 SCEN = N2E_DIR / "n2e-command-scenarios-v1.json"
 CANARY = N2E_DIR / "n2e-canary-membership-v1.json"
 PINS = N2E_DIR / "n2e-source-pins-v1.json"
+RTK_BINARY_SHA256 = "41f316adf7b30a568208a0a4f824bffb266ecb6d01bd9de81bed58e1d469dfcf"
 REPS = 3
 
 
-# ----- canonicalization (§15: bounded, format-based, never touches diagnostics) -----
-_DURATION = re.compile(rb"(?:finished in|in|took|elapsed[:=]?)\s*\d+(?:\.\d+)?\s*(?:s|ms|seconds|secs)", re.IGNORECASE)
-_TMP = re.compile(rb"/tmp/[A-Za-z0-9_.-]+")
+def _git_env(home: Path | None = None) -> dict:
+    e = {"GIT_TERMINAL_PROMPT": "0", "PATH": os.environ.get("PATH", "/usr/bin:/bin"),
+         "GIT_AUTHOR_NAME": "n2e", "GIT_AUTHOR_EMAIL": "n2e@local",
+         "GIT_COMMITTER_NAME": "n2e", "GIT_COMMITTER_EMAIL": "n2e@local",
+         "GIT_AUTHOR_DATE": "2026-07-17T00:00:00+0000",
+         "GIT_COMMITTER_DATE": "2026-07-17T00:00:00+0000",
+         "GIT_CONFIG_GLOBAL": "/dev/null", "GIT_CONFIG_SYSTEM": "/dev/null"}
+    if home:
+        e["HOME"] = str(home)
+    return e
 
 
-def canonicalize(data: bytes, policy_id: str) -> bytes:
-    """Apply ONLY the declared, bounded normalizations for this policy id.
-    Returns bytes unchanged unless a specific class applies. Never rewrites
-    numbers/paths/timestamps generically."""
-    if policy_id == "none":
-        return data
-    out = data
-    if "duration" in policy_id:
-        out = _DURATION.sub(b"<elapsed>", out)
-    if "tmpdir" in policy_id:
-        out = _TMP.sub(b"<tmp>", out)
-    return out
+# ---- network isolation: run a child with no network + a positive denial probe ----
+def netns_available() -> bool:
+    try:
+        r = subprocess.run(["unshare", "-rn", "true"], capture_output=True, timeout=15)
+        return r.returncode == 0
+    except Exception:
+        return False
 
 
-def _git_env():
-    return {"GIT_TERMINAL_PROMPT": "0", "PATH": os.environ.get("PATH", "/usr/bin:/bin"),
-            "GIT_AUTHOR_NAME": "n2e", "GIT_AUTHOR_EMAIL": "n2e@local",
-            "GIT_COMMITTER_NAME": "n2e", "GIT_COMMITTER_EMAIL": "n2e@local"}
+def denial_probe() -> dict:
+    """Under `unshare -rn`, an outbound TCP connect must FAIL. Returns proof."""
+    probe = ("import socket,sys\n"
+             "s=socket.socket();s.settimeout(4)\n"
+             "try:\n"
+             " s.connect(('1.1.1.1',53));print('REACHED');sys.exit(1)\n"
+             "except OSError as e:\n"
+             " print('DENIED',e.errno);sys.exit(0)\n")
+    r = subprocess.run(["unshare", "-rn", sys.executable, "-c", probe],
+                       capture_output=True, text=True, timeout=30)
+    return {"denied": r.returncode == 0, "output": (r.stdout or r.stderr).strip()}
+
+
+def run_isolated(argv, cwd, timeout, env_extra=None):
+    """Run argv under `unshare -rn` (no network) in cwd with the mandated env."""
+    env = m.measurement_env(env_extra)
+    full = ["unshare", "-rn", "--"] + argv
+    p = subprocess.run(full, cwd=cwd, env=env, stdin=subprocess.DEVNULL,
+                       stdout=subprocess.PIPE, stderr=subprocess.PIPE, timeout=timeout)
+    combined = p.stdout + p.stderr
+    return {"exit_code": p.returncode, "stdout": p.stdout, "stderr": p.stderr, "combined": combined}
+
+
+def run_arm(argv, frozen_dir: Path, policy_id: str, timeout: int, env_extra=None) -> dict:
+    """RAW or RTK arm: REPS runs in FRESH copies of the frozen env, isolated.
+    Canonicalize each combined stream under policy_id; the ACCEPTED stream is the
+    canonical bytes (identical across reps when deterministic)."""
+    runs, canon_hashes, raw_hashes = [], [], []
+    accepted_canonical = None
+    for _ in range(REPS):
+        with tempfile.TemporaryDirectory(prefix="n2e-rep-") as td:
+            work = Path(td) / "w"
+            shutil.copytree(frozen_dir, work, symlinks=True)
+            r = run_isolated(argv, str(work), timeout, env_extra)
+        cb = canon.canonicalize(r["combined"], policy_id)
+        runs.append({"exit_code": r["exit_code"],
+                     "raw_combined_sha256": hashlib.sha256(r["combined"]).hexdigest(),
+                     "canonical_sha256": hashlib.sha256(cb).hexdigest(),
+                     "canonical_bytes": len(cb)})
+        canon_hashes.append(hashlib.sha256(cb).hexdigest())
+        raw_hashes.append(hashlib.sha256(r["combined"]).hexdigest())
+        accepted_canonical = cb  # identical across reps iff deterministic
+    exit_stable = len({x["exit_code"] for x in runs}) == 1
+    deterministic = len(set(canon_hashes)) == 1
+    return {
+        "reps_completed": len(runs), "exit_code": runs[0]["exit_code"],
+        "exit_code_stable": exit_stable, "canonical_deterministic": deterministic,
+        "canonicalization_policy": policy_id,
+        "canonical_sha256": canon_hashes[0] if deterministic else None,
+        "raw_capture_hashes": raw_hashes, "runs": runs,
+        "_accepted_canonical": accepted_canonical if deterministic else None,
+    }
 
 
 # --------------------------- stratum adapters ---------------------------
-def acquire_loghub(scen: dict, workroot: Path) -> dict:
-    system = scen["source_image_identity"]["key"].removesuffix(".zip")
-    checksum = scen["source_image_identity"]["checksum"]
-    size = scen["source_image_identity"]["size"]
+def acquire_loghub(scen, workroot):
+    ident = scen["source_image_identity"]
+    system = ident["key"].removesuffix(".zip")
+    checksum, size = ident["checksum"], ident["size"]
     recid = next(z["record_id"] for z in c.load_record(PINS)["zenodo_records"] if z["source_id"] == "loghub-2.0")
     url = f"https://zenodo.org/api/records/{recid}/files/{system}.zip/content"
     with urllib.request.urlopen(urllib.request.Request(url), context=c.ssl_context(), timeout=300) as r:
@@ -86,9 +135,8 @@ def acquire_loghub(scen: dict, workroot: Path) -> dict:
     algo, _, hexv = checksum.partition(":")
     if len(data) != size or hashlib.new(algo, data).hexdigest() != hexv:
         raise SystemExit(f"loghub {system}: checksum/size mismatch")
-    zp = workroot / f"{system}.zip"
-    zp.write_bytes(data)
-    z = zipfile.ZipFile(zp)
+    (workroot / f"{system}.zip").write_bytes(data)
+    z = zipfile.ZipFile(workroot / f"{system}.zip")
     for n in z.namelist():
         if n.startswith("/") or ".." in Path(n).parts:
             raise SystemExit("unsafe archive path")
@@ -96,245 +144,359 @@ def acquire_loghub(scen: dict, workroot: Path) -> dict:
     logf = next((workroot / "x").rglob("*.log"))
     slice_bytes = b"".join(logf.read_bytes().splitlines(keepends=True)[:1500])
     (workroot / f"{system}.log").write_bytes(slice_bytes)
+    shutil.rmtree(workroot / "x")
+    (workroot / f"{system}.zip").unlink()
     return {"identity_verified": True, "checksum": checksum,
             "slice_sha256": hashlib.sha256(slice_bytes).hexdigest(),
-            "workdir_file": f"{system}.log", "canonicalization": "none"}
+            "policy": canon.policy_for("logs", "log")}
 
 
-def acquire_git_checkout(scen: dict, workroot: Path) -> dict:
+def _git_fetch_checkout(repo_url, commit, dest, home):
+    subprocess.run(["git", "init", "-q", str(dest)], check=True, env=_git_env(home))
+    subprocess.run(["git", "-C", str(dest), "fetch", "-q", "--depth", "1", repo_url, commit],
+                   check=True, env=_git_env(home))
+    subprocess.run(["git", "-C", str(dest), "checkout", "-q", "FETCH_HEAD"], check=True, env=_git_env(home))
+    head = subprocess.run(["git", "-C", str(dest), "rev-parse", "HEAD"],
+                          capture_output=True, text=True, env=_git_env(home)).stdout.strip()
+    if head != commit:
+        raise SystemExit(f"checkout HEAD {head} != pinned {commit}")
+
+
+def acquire_git(scen, workroot):
     ident = scen["source_image_identity"]
     repo, commit = ident["repository"], ident["base_commit"]
-    subprocess.run(["git", "init", "-q", str(workroot)], check=True, env=_git_env())
-    subprocess.run(["git", "-C", str(workroot), "fetch", "-q", "--depth", "1",
-                    f"https://github.com/{repo}.git", commit], check=True, env=_git_env())
-    subprocess.run(["git", "-C", str(workroot), "checkout", "-q", "FETCH_HEAD"], check=True, env=_git_env())
-    head = subprocess.run(["git", "-C", str(workroot), "rev-parse", "HEAD"],
-                          capture_output=True, text=True, env=_git_env()).stdout.strip()
-    if head != commit:
-        raise SystemExit(f"git checkout HEAD {head} != pinned {commit}")
+    home = workroot / ".home"
+    home.mkdir()
+    repo_dir = workroot / "repo"
+    _git_fetch_checkout(f"https://github.com/{repo}.git", commit, repo_dir, home)
+    sub = scen["command_subfamily"]
+    applied = _construct_git_state(scen, repo_dir, home)
     return {"identity_verified": True, "repository": repo, "commit": commit,
-            "canonicalization": "tmpdir"}
+            "git_state": applied, "workdir": "repo", "home_local": True,
+            "policy": canon.policy_for("git", sub, git=True)}
 
 
-def acquire_docker(scen: dict, workroot: Path) -> dict:
+def _construct_git_state(scen, repo_dir: Path, home: Path) -> dict:
+    """Build the repository-local state each frozen git scenario requires (§6.2)."""
+    sub = scen["command_subfamily"]
+    ge = _git_env(home)
+    info = {"subfamily": sub}
+    # deterministic modification for status/diff/add/commit
+    if sub in ("status", "diff", "add", "commit"):
+        target = repo_dir / "N2E_DIRTY.txt"
+        target.write_text("n2e deterministic dirty state\n")
+        info["modified"] = ["N2E_DIRTY.txt"]
+        if sub in ("add", "commit"):
+            subprocess.run(["git", "-C", str(repo_dir), "add", "N2E_DIRTY.txt"], check=True, env=ge)
+            info["staged"] = ["N2E_DIRTY.txt"]
+    if sub == "push":
+        bare = repo_dir.parent / "n2e-local.git"
+        subprocess.run(["git", "init", "-q", "--bare", str(bare)], check=True, env=ge)
+        subprocess.run(["git", "-C", str(repo_dir), "remote", "add", "n2e-local", str(bare)], check=True, env=ge)
+        info["bare_remote"] = str(bare)
+        pre = subprocess.run(["git", "-C", str(bare), "rev-parse", "HEAD"], capture_output=True, text=True, env=ge)
+        info["remote_pre_ref"] = pre.stdout.strip() or None
+    return info
+
+
+def acquire_docker(scen, workroot):
     ident = scen["source_image_identity"]
     ref = f"{ident['repository'].replace('library/', '')}@{ident['child_digest']}"
-    subprocess.run(["docker", "pull", ref], check=True)
+    subprocess.run(["docker", "pull", ref], check=True, capture_output=True)
     name = scen["case_id"].split("::")[1] if "::" in scen["case_id"] else "n2e"
     subprocess.run(["docker", "rm", "-f", name], capture_output=True)
     subprocess.run(["docker", "run", "-d", "--name", name, ref], check=True, capture_output=True)
     return {"identity_verified": True, "image_digest": ident["child_digest"],
-            "container_name": name, "canonicalization": "none"}
+            "container_name": name, "network_denied_note": "docker cases observe host-side docker; container runs with default net but measurement command is docker CLI read-only",
+            "policy": canon.policy_for("containers", scen["command_subfamily"])}
 
 
-def _hf_instance_patch(instance_id: str, revision: str) -> dict:
-    url = ("https://datasets-server.huggingface.co/rows?dataset=SWE-bench%2FSWE-bench_Multilingual"
-           f"&config=default&split=test&offset=0&length=100&revision={revision}")
-    # find the instance across pages
+def _hf_instance(instance_id, revision):
     off = 0
     while off < 300:
-        u = url.replace("offset=0", f"offset={off}")
+        u = ("https://datasets-server.huggingface.co/rows?dataset=SWE-bench%2FSWE-bench_Multilingual"
+             f"&config=default&split=test&offset={off}&length=100&revision={revision}")
         with urllib.request.urlopen(urllib.request.Request(u, headers={"Accept": "application/json"}),
                                     context=c.ssl_context(), timeout=90) as r:
             d = json.loads(r.read())
         for item in d["rows"]:
             if item["row"]["instance_id"] == instance_id:
                 return item["row"]
-        off += len(d["rows"])
-        if not d["rows"]:
-            break
-    raise SystemExit(f"instance {instance_id} not found at revision")
+        off += len(d["rows"]) or 300
+    raise SystemExit(f"instance {instance_id} not found")
 
 
-def acquire_swebench_test(scen: dict, workroot: Path) -> dict:
+def acquire_swebench(scen, workroot):
     ident = scen["source_image_identity"]
-    repo, base = ident["repository"], ident["base_commit"]
-    instance_id = ident["instance_id"]
+    repo, base, instance_id = ident["repository"], ident["base_commit"], ident["instance_id"]
+    fam, sub = scen["command_family"], scen["command_subfamily"]
     revision = next(h["revision"] for h in c.load_record(PINS)["hf_datasets"] if h["source_id"] == "swe-bench-multilingual")
-    row = _hf_instance_patch(instance_id, revision)
-    patch = (row.get("patch") or "").encode()
-    test_patch = (row.get("test_patch") or "").encode()
-    subprocess.run(["git", "init", "-q", str(workroot)], check=True, env=_git_env())
-    subprocess.run(["git", "-C", str(workroot), "fetch", "-q", "--depth", "1",
-                    f"https://github.com/{repo}.git", base], check=True, env=_git_env())
-    subprocess.run(["git", "-C", str(workroot), "checkout", "-q", "FETCH_HEAD"], check=True, env=_git_env())
+    row = _hf_instance(instance_id, revision)
+    home = workroot / ".home"
+    home.mkdir()
+    repo_dir = workroot / "repo"
+    _git_fetch_checkout(f"https://github.com/{repo}.git", base, repo_dir, home)
     applied = []
-    for name, blob in (("test_patch", test_patch), ("patch", patch)):
-        # buggy variant: apply only test_patch; fixed: apply test_patch + gold patch
+    for name, key in (("test_patch", "test_patch"), ("patch", "patch")):
         if name == "patch" and scen["snapshot_variant"] != "fixed":
             continue
+        blob = (row.get(key) or "").encode()
         if not blob:
             continue
         pf = workroot / f"{name}.diff"
         pf.write_bytes(blob)
-        subprocess.run(["git", "-C", str(workroot), "apply", str(pf)], check=True, env=_git_env())
+        subprocess.run(["git", "-C", str(repo_dir), "apply", str(pf)], check=True, env=_git_env(home))
         applied.append({name: hashlib.sha256(blob).hexdigest()})
-    result = {"identity_verified": True, "repository": repo, "base_commit": base,
-              "instance_id": instance_id, "applied_patches": applied,
-              "recipe": "checkout base_commit + apply test_patch (+ gold patch if fixed)",
-              "canonicalization": "duration|tmpdir"}
-    if scen["command_family"] == "js_ts" and scen["command_subfamily"] == "test":
-        # resolve the real JS test runner from package.json (npm test is RTK passthrough)
+    warm, raw_argv, rtk_argv, policy = _warm_test_env(fam, sub, scen, repo_dir, home)
+    return {"identity_verified": True, "repository": repo, "base_commit": base,
+            "instance_id": instance_id, "applied_patches": applied, "warm": warm,
+            "resolved_raw_argv": raw_argv, "resolved_rtk_argv": rtk_argv,
+            "workdir": "repo", "home_local": True, "policy": policy}
+
+
+def acquire_bugsinpy(scen, workroot):
+    ident = scen["source_image_identity"]
+    repo = ident["repository"]
+    commit = ident.get("fixed_commit") if scen["snapshot_variant"] == "fixed" else ident.get("buggy_commit")
+    gh = next((b["github_url"] for b in c.load_record(N2E_DIR / "n2e-bugsinpy-bugs-v1.json")["bugs"]
+               if f"bugsinpy/{b['project']}" == repo), None)
+    if not gh:
+        raise SystemExit(f"github_url for {repo} not found")
+    home = workroot / ".home"
+    home.mkdir()
+    repo_dir = workroot / "repo"
+    _git_fetch_checkout(f"{gh}.git", commit, repo_dir, home)
+    warm, raw_argv, rtk_argv, policy = _warm_test_env("python", scen["command_subfamily"], scen, repo_dir, home)
+    return {"identity_verified": True, "repository": repo, "github_url": gh, "commit": commit,
+            "warm": warm, "resolved_raw_argv": raw_argv, "resolved_rtk_argv": rtk_argv,
+            "workdir": "repo", "home_local": True, "policy": policy}
+
+
+def _warm_test_env(fam, sub, scen, repo_dir: Path, home: Path):
+    """Install deps + prebuild during the network-enabled acquisition phase so
+    the measurement runs offline. Returns (warm_evidence, raw_argv, rtk_argv, policy)."""
+    env = m.measurement_env({"HOME": str(home), "CARGO_HOME": str(home / ".cargo"),
+                             "GOFLAGS": "-mod=mod", "GOPATH": str(home / "go"),
+                             "npm_config_cache": str(home / ".npm")})
+    warm = {"steps": []}
+
+    def step(cmd, tmo=1200):
+        r = subprocess.run(cmd, cwd=str(repo_dir), env=env, capture_output=True, timeout=tmo)
+        warm["steps"].append({"cmd": cmd, "exit": r.returncode})
+        return r
+
+    if fam == "rust_cargo":
+        step(["cargo", "fetch"])
+        raw = {"test": ["cargo", "test", "--offline"], "build": ["cargo", "build", "--offline"],
+               "check": ["cargo", "check", "--offline"], "clippy": ["cargo", "clippy", "--offline"]}[sub]
+        rtk = ["rtk"] + raw[:-1]  # rtk cargo <sub> (drop --offline for the wrapper; cargo still offline via CARGO_NET_OFFLINE)
+        policy = canon.policy_for("rust_cargo", sub)
+    elif fam == "go":
+        step(["go", "mod", "download"])
+        raw = {"test": ["go", "test", "./..."], "build": ["go", "build", "./..."],
+               "vet": ["go", "vet", "./..."]}[sub]
+        rtk = ["rtk", "go"] + raw[1:]
+        policy = canon.policy_for("go", sub)
+    elif fam == "js_ts":
+        step(["npm", "install", "--no-audit", "--no-fund"], tmo=1800)
         runner = "vitest"
-        pj = workroot / "package.json"
+        pj = repo_dir / "package.json"
         if pj.exists():
             txt = pj.read_text(errors="replace")
             runner = "jest" if '"jest"' in txt and "vitest" not in txt else ("vitest" if "vitest" in txt else "jest")
-        result["resolved_raw_argv"] = ["npx", runner]
-        result["resolved_rtk_argv"] = ["rtk", runner]
-        result["js_test_runner"] = runner
-    if scen["command_family"] == "jvm":
-        # detect Maven vs Gradle (e.g. apache/lucene uses Gradle, not Maven)
-        if (workroot / "pom.xml").exists():
-            build_sys, raw, rtk = "maven", ["mvn", scen["command_subfamily"]], ["rtk", "mvn", scen["command_subfamily"]]
-        elif (workroot / "gradlew").exists() or (workroot / "build.gradle").exists() or (workroot / "build.gradle.kts").exists():
-            build_sys, raw, rtk = "gradle", ["./gradlew", scen["command_subfamily"]], ["rtk", "gradlew", scen["command_subfamily"]]
+        if sub == "test":
+            raw, rtk = ["npx", runner, "run"], ["rtk", runner]
+        elif sub == "tsc":
+            raw, rtk = ["npx", "tsc", "--noEmit"], ["rtk", "tsc"]
         else:
-            build_sys, raw, rtk = "unknown", scen["original_argv"], scen["explicit_rtk_argv"]
-        result["jvm_build_system"] = build_sys
-        result["resolved_raw_argv"] = raw
-        result["resolved_rtk_argv"] = rtk
-    return result
+            raw, rtk = ["npx", "eslint", "."], ["rtk", "lint", "."]
+        policy = canon.policy_for("js_ts", sub)
+        warm["js_test_runner"] = runner
+    elif fam == "jvm":
+        build_sys = "maven" if (repo_dir / "pom.xml").exists() else "gradle"
+        if build_sys == "gradle":
+            raw, rtk = ["./gradlew", "test", "--offline"], ["rtk", "gradlew", "test"]
+        else:
+            raw, rtk = ["mvn", "-o", "test"], ["rtk", "mvn", "test"]
+        step(raw[:1] + (["dependencies"] if build_sys == "maven" else ["dependencies", "--refresh-dependencies"]), tmo=1800)
+        policy = canon.policy_for("jvm", sub, jvm_build=build_sys)
+        warm["jvm_build_system"] = build_sys
+    elif fam == "python":
+        step(["python3", "-m", "pip", "install", "-e", "."], tmo=1800)
+        step(["python3", "-m", "pip", "install", "pytest", "ruff"])
+        raw = {"pytest": ["python3", "-m", "pytest", "-q"], "ruff": ["ruff", "check", "."]}[sub]
+        rtk = ["rtk", "pytest"] if sub == "pytest" else ["rtk", "ruff", "check", "."]
+        policy = canon.policy_for("python", sub)
+    else:
+        raise SystemExit(f"no warm step for {fam}/{sub}")
+    return warm, raw, rtk, policy
 
 
-def acquire_bugsinpy_test(scen: dict, workroot: Path) -> dict:
-    ident = scen["source_image_identity"]
-    repo = ident["repository"]  # bugsinpy/<project>
-    commit = ident.get("fixed_commit") if scen["snapshot_variant"] == "fixed" else ident.get("buggy_commit")
-    gh = None
-    for b in c.load_record(N2E_DIR / "n2e-bugsinpy-bugs-v1.json")["bugs"]:
-        if f"bugsinpy/{b['project']}" == repo:
-            gh = b["github_url"]
-            break
-    if not gh:
-        raise SystemExit(f"github_url for {repo} not found")
-    subprocess.run(["git", "init", "-q", str(workroot)], check=True, env=_git_env())
-    subprocess.run(["git", "-C", str(workroot), "fetch", "-q", "--depth", "1", f"{gh}.git", commit],
-                   check=True, env=_git_env())
-    subprocess.run(["git", "-C", str(workroot), "checkout", "-q", "FETCH_HEAD"], check=True, env=_git_env())
-    return {"identity_verified": True, "repository": repo, "github_url": gh, "commit": commit,
-            "recipe": "checkout project at fixed/buggy commit; deps installed at acquisition",
-            "canonicalization": "duration|tmpdir"}
-
-
-ADAPTERS = {
-    "logs": acquire_loghub,
-    "git": acquire_git_checkout,
-    "files_search": acquire_git_checkout,
-    "containers": acquire_docker,
-    "rust_cargo": acquire_swebench_test,
-    "go": acquire_swebench_test,
-    "jvm": acquire_swebench_test,
-    "js_ts": acquire_swebench_test,
-    "python": acquire_bugsinpy_test,
-}
-
-
-def canon_determinism(r: dict, canon: str) -> tuple[bool, str]:
-    """Byte-determinism after the declared canonicalization; returns the canonical hash."""
-    hashes = [hashlib.sha256(canonicalize(b, canon)).hexdigest() for b in r["_all_combined"]]
-    return len(set(hashes)) == 1, hashes[0]
+ADAPTERS = {"logs": acquire_loghub, "git": acquire_git, "files_search": acquire_git,
+            "containers": acquire_docker, "rust_cargo": acquire_swebench, "go": acquire_swebench,
+            "jvm": acquire_swebench, "js_ts": acquire_swebench, "python": acquire_bugsinpy}
 
 
 def main() -> int:
     ap = argparse.ArgumentParser()
     ap.add_argument("case_id")
-    ap.add_argument("--out", default=None)
+    ap.add_argument("--out", required=True)
     args = ap.parse_args()
-    rtk_bin = os.environ["RTK_BIN"]
-    qodec_bin = os.environ["QODEC_BIN"]
+    rtk_bin, qodec_bin = os.environ["RTK_BIN"], os.environ["QODEC_BIN"]
+    out = Path(args.out)
 
     scen = next(s for s in c.load_record(SCEN)["scenarios"] if s["case_id"] == args.case_id)
-    canary_ids = {mm["case_id"] for mm in c.load_record(CANARY)["membership"]}
-    if args.case_id not in canary_ids:
+    if args.case_id not in {m0["case_id"] for m0 in c.load_record(CANARY)["membership"]}:
         raise SystemExit(f"{args.case_id} not in frozen canary membership")
+    fam, sub = scen["command_family"], scen["command_subfamily"]
 
-    fam = scen["command_family"]
-    adapter = ADAPTERS.get(fam)
-    out = Path(args.out or (N2E_DIR / f"n2e-canary-case-{args.case_id.replace('::', '__').replace('/', '_')}.json"))
-
-    if adapter is None:
-        rec = c.envelope(
-            record_type="n2e-canary-case",
-            generated_by="tools/run_canary_case.py",
-            case_id=args.case_id, command_family=fam, status="PENDING_HARNESS_ADAPTER",
-            reason=("test-runner harness adapter not yet implemented in this driver; "
-                    "recorded as pending rather than a fabricated pass (§27-honest)."),
-            rtk_binary_sha256=c.sha256_file(rtk_bin),
-        )
+    def emit(status, **kw):
+        rec = c.envelope(record_type="n2e-canary-case", generated_by="tools/run_canary_case.py",
+                         case_id=args.case_id, command_family=fam, command_subfamily=sub,
+                         status=status, rtk_binary_sha256=c.sha256_file(rtk_bin), **kw)
         c.write_record(out, rec)
-        print(f"{args.case_id}: PENDING (no adapter) -> {out.name}")
-        return 0
+        return rec
 
-    with tempfile.TemporaryDirectory(prefix="n2e-canary-") as td:
-        workroot = Path(td)
-        acq = adapter(scen, workroot)
-        canon = acq.get("canonicalization", "none")
-        # acquisition may resolve argvs (e.g. js_ts jest|vitest from package.json)
+    # rtk binary identity gate
+    if c.sha256_file(rtk_bin) != RTK_BINARY_SHA256:
+        emit("REJECTED_RTK_IDENTITY", reason="RTK_BIN sha256 != pinned")
+        return 2
+    # isolation availability + positive denial probe
+    if not netns_available():
+        emit("REJECTED_NO_ISOLATION", reason="unshare -rn network namespace unavailable")
+        return 2
+    probe = denial_probe()
+    if not probe["denied"]:
+        emit("REJECTED_ISOLATION_LEAK", denial_probe=probe)
+        return 2
+
+    workroot = Path(tempfile.mkdtemp(prefix="n2e-case-"))
+    try:
+        acq = ADAPTERS[fam](scen, workroot)
+        if not acq.get("identity_verified"):
+            emit("REJECTED_ACQUISITION", acquisition=acq)
+            return 2
+        policy = acq["policy"]
+        frozen = workroot / acq.get("workdir", ".")
         raw_argv = acq.get("resolved_raw_argv") or scen["original_argv"]
         rtk_argv = acq.get("resolved_rtk_argv") or scen["explicit_rtk_argv"]
-        raw = m.run_repeated(raw_argv, REPS, timeout=scen["timeout_seconds"],
-                             setup=_copier(workroot))
-        rtk = m.run_repeated([rtk_bin] + rtk_argv[1:], REPS, timeout=scen["timeout_seconds"],
-                             setup=_copier(workroot)) if rtk_argv else None
-        raw_det, raw_canon_hash = canon_determinism(raw, canon)
-        raw_tokens = m.o200k_tokens(raw["_last"]["_combined"], qodec_bin)
-        if rtk:
-            rtk_det, rtk_canon_hash = canon_determinism(rtk, canon)
-            rtk_tokens = m.o200k_tokens(rtk["_last"]["_combined"], qodec_bin)
+        env_extra = {"HOME": str(workroot / ".home")} if acq.get("home_local") else None
+        if fam in ("git", "files_search"):
+            # git needs a repository-local, fixed identity in the measurement env
+            env_extra = {**(env_extra or {}),
+                         "GIT_AUTHOR_NAME": "n2e", "GIT_AUTHOR_EMAIL": "n2e@local",
+                         "GIT_COMMITTER_NAME": "n2e", "GIT_COMMITTER_EMAIL": "n2e@local",
+                         "GIT_AUTHOR_DATE": "2026-07-17T00:00:00+0000",
+                         "GIT_COMMITTER_DATE": "2026-07-17T00:00:00+0000",
+                         "GIT_CONFIG_GLOBAL": "/dev/null", "GIT_CONFIG_SYSTEM": "/dev/null",
+                         "GIT_PAGER": "cat", "PAGER": "cat"}
+        # docker cases observe host state: not run inside a netns copy
+        if fam == "containers":
+            raw = _docker_arm(scen["original_argv"], policy, scen["timeout_seconds"])
+            rtk_run = None
         else:
-            rtk_det, rtk_canon_hash, rtk_tokens = None, None, None
-        oracle = run_oracle(scen, raw["_last"]["_combined"], rtk["_last"]["_combined"] if rtk else b"")
+            raw = run_arm(raw_argv, frozen, policy, scen["timeout_seconds"], env_extra)
+            rtk_run = None
 
-    savings = round(100 * (raw_tokens - rtk_tokens) / raw_tokens, 2) if (rtk_tokens and raw_tokens) else None
-    rec = c.envelope(
-        record_type="n2e-canary-case", generated_by="tools/run_canary_case.py",
-        case_id=args.case_id, command_family=fam, command_subfamily=scen["command_subfamily"],
-        status="MEASURED", acquisition=acq, canonicalization=canon,
-        rtk_binary_sha256=c.sha256_file(rtk_bin),
-        raw_arm={"exit_code": raw["exit_code"], "exit_code_stable": raw["exit_code_stable"],
-                 "byte_deterministic": raw["byte_deterministic"],
-                 "canonical_deterministic": raw_det, "canonical_sha256": raw_canon_hash,
-                 "combined_sha256": raw["combined_sha256"],
-                 "combined_bytes": raw["combined_bytes"], "o200k_tokens": raw_tokens},
-        rtk_arm=({"exit_code": rtk["exit_code"], "exit_code_stable": rtk["exit_code_stable"],
-                  "byte_deterministic": rtk["byte_deterministic"],
-                  "canonical_deterministic": rtk_det, "canonical_sha256": rtk_canon_hash,
-                  "combined_sha256": rtk["combined_sha256"],
-                  "combined_bytes": rtk["combined_bytes"], "o200k_tokens": rtk_tokens} if rtk else None),
-        semantic_oracle=oracle,
-        rtk_savings_pct_reporting_only=savings,
-        acceptance_note="RTK savings reporting-only; never a gate (§15/§19).",
-    )
-    c.write_record(out, rec)
-    print(f"{args.case_id}: MEASURED raw={raw_tokens} rtk={rtk_tokens} savings={savings}% -> {out.name}")
-    return 0
+        # ---- RAW acceptance gate ----
+        raw_ok, raw_reasons, raw_oracle = _raw_accept(scen, raw, acq, probe)
+        if not raw_ok:
+            emit("RAW_REJECTED", acquisition=acq, isolation={"denial_probe": probe},
+                 raw_arm=_arm_public(raw), raw_semantic_oracle=raw_oracle,
+                 rejection_reasons=raw_reasons)
+            return 1
+
+        # ---- RTK arm (only after RAW passes) ----
+        if rtk_argv is None:
+            emit("RTK_REJECTED", acquisition=acq, raw_arm=_arm_public(raw),
+                 rejection_reasons=["no explicit RTK argv resolved"])
+            return 1
+        if fam == "containers":
+            rtk_run = _docker_arm([rtk_bin] + rtk_argv[1:], policy, scen["timeout_seconds"])
+        else:
+            rtk_run = run_arm([rtk_bin] + rtk_argv[1:], frozen, policy, scen["timeout_seconds"], env_extra)
+
+        rtk_ok, rtk_reasons, rtk_oracle = _rtk_accept(scen, raw, rtk_run, rtk_bin)
+        raw_tokens = m.o200k_tokens(raw["_accepted_canonical"], qodec_bin)
+        rtk_tokens = m.o200k_tokens(rtk_run["_accepted_canonical"], qodec_bin) if rtk_run.get("_accepted_canonical") is not None else None
+        savings = round(100 * (raw_tokens - rtk_tokens) / raw_tokens, 2) if (rtk_tokens and raw_tokens) else None
+
+        status = "PASS" if (raw_ok and rtk_ok) else "RTK_REJECTED"
+        emit(status, acquisition=acq, isolation={"denial_probe": probe},
+             canonicalization_policy=policy,
+             raw_arm={**_arm_public(raw), "o200k_tokens": raw_tokens},
+             rtk_arm={**_arm_public(rtk_run), "o200k_tokens": rtk_tokens},
+             raw_semantic_oracle=raw_oracle, rtk_semantic_oracle=rtk_oracle,
+             rtk_savings_pct_reporting_only=savings, rejection_reasons=rtk_reasons or None,
+             acceptance_note="RTK savings reporting-only; never a gate (§15/§19).")
+        print(f"{args.case_id}: {status} raw={raw_tokens} rtk={rtk_tokens} savings={savings}")
+        return 0 if status == "PASS" else 1
+    finally:
+        shutil.rmtree(workroot, ignore_errors=True)
+        if fam == "containers":
+            name = args.case_id.split("::")[1]
+            subprocess.run(["docker", "rm", "-f", name], capture_output=True)
 
 
-def _copier(workroot: Path):
-    import shutil
+def _docker_arm(argv, policy, timeout):
+    """Docker read-only CLI observation (host-side). Not netns-isolated (§6.9)."""
+    runs, canon_hashes, raw_hashes = [], [], []
+    accepted = None
+    for _ in range(REPS):
+        p = subprocess.run(argv, env=m.measurement_env(), stdin=subprocess.DEVNULL,
+                           stdout=subprocess.PIPE, stderr=subprocess.PIPE, timeout=timeout)
+        cb = canon.canonicalize(p.stdout + p.stderr, policy)
+        runs.append({"exit_code": p.returncode,
+                     "raw_combined_sha256": hashlib.sha256(p.stdout + p.stderr).hexdigest(),
+                     "canonical_sha256": hashlib.sha256(cb).hexdigest(), "canonical_bytes": len(cb)})
+        canon_hashes.append(hashlib.sha256(cb).hexdigest())
+        raw_hashes.append(hashlib.sha256(p.stdout + p.stderr).hexdigest())
+        accepted = cb
+    det = len(set(canon_hashes)) == 1
+    return {"reps_completed": REPS, "exit_code": runs[0]["exit_code"],
+            "exit_code_stable": len({x["exit_code"] for x in runs}) == 1,
+            "canonical_deterministic": det, "canonicalization_policy": policy,
+            "canonical_sha256": canon_hashes[0] if det else None,
+            "raw_capture_hashes": raw_hashes, "runs": runs,
+            "_accepted_canonical": accepted if det else None}
 
-    def setup(td):
-        for item in workroot.iterdir():
-            dst = Path(td) / item.name
-            if item.is_dir():
-                shutil.copytree(item, dst, symlinks=True)
-            else:
-                shutil.copy2(item, dst)
-    return setup
+
+def _arm_public(arm):
+    return {k: v for k, v in arm.items() if not k.startswith("_")}
 
 
-def run_oracle(scen: dict, raw: bytes, rtk: bytes) -> dict:
-    ot = scen["semantic_oracle_type"]
-    if ot == "log_oracle":
-        return ora.check_log_oracle(raw, rtk)
-    if ot == "grep_oracle":
-        raw_ids = ora.grep_match_identities(raw)
-        rtk_ids = ora.grep_match_identities(rtk)
-        return {"oracle": ot, "raw_match_count": len(raw_ids),
-                "matches_preserved": raw_ids <= rtk_ids or bool(raw_ids & rtk_ids),
-                "note": "no RAW match identity may disappear"}
-    return {"oracle": ot, "note": "oracle comparison recorded at aggregation for this family"}
+def _raw_accept(scen, raw, acq, probe):
+    reasons = []
+    if raw["reps_completed"] != REPS:
+        reasons.append("raw reps != 3")
+    if not raw["exit_code_stable"]:
+        reasons.append("raw exit unstable")
+    if not raw["canonical_deterministic"]:
+        reasons.append("raw not canonically deterministic")
+    if not acq.get("identity_verified"):
+        reasons.append("acquisition identity unverified")
+    if not probe.get("denied"):
+        reasons.append("network denial probe failed")
+    oracle = ora.raw_outcome(scen, raw["_accepted_canonical"] or b"", raw["exit_code"])
+    if oracle.get("verdict") is not True:
+        reasons.append(f"raw oracle failed: {oracle.get('oracle')}")
+    return (len(reasons) == 0, reasons, oracle)
+
+
+def _rtk_accept(scen, raw, rtk, rtk_bin):
+    reasons = []
+    if rtk["reps_completed"] != REPS:
+        reasons.append("rtk reps != 3")
+    if not rtk["exit_code_stable"]:
+        reasons.append("rtk exit unstable")
+    if not rtk["canonical_deterministic"]:
+        reasons.append("rtk not canonically deterministic")
+    if c.sha256_file(rtk_bin) != RTK_BINARY_SHA256:
+        reasons.append("rtk binary identity")
+    oracle = ora.rtk_agrees(scen, raw["_accepted_canonical"] or b"", rtk.get("_accepted_canonical") or b"")
+    if oracle.get("verdict") is not True:
+        reasons.append(f"rtk oracle disagreement: {oracle.get('oracle')}")
+    return (len(reasons) == 0, reasons, oracle)
 
 
 if __name__ == "__main__":
