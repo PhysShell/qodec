@@ -279,6 +279,8 @@ name: qodec-n2d1b-miner-pilot
 
 on:
   workflow_dispatch: {}
+  push:
+    branches: [ci-trigger/n2d1b-stage2-4d6d408]
 permissions:
   contents: read
 env:
