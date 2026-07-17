@@ -33,6 +33,8 @@ GRADLE_HELM_VALUES_V1_POLICY_PATH = BASE_DIR / "gradle-capture-canonicalization-
 CARGO_TEST_POLICY_PATH = BASE_DIR / "cargo-test-capture-canonicalization-policy.json"
 PYTEST_REQUESTS_DURATION_V1_POLICY_PATH = BASE_DIR / "pytest-requests-duration-capture-canonicalization-policy-v1.json"
 REPLACEMENT_SELECTION_RECORD_PATH = BASE_DIR / "stage2-replacement-selection-v1.json"
+JOBS_MANIFEST_PATH = BASE_DIR / "stage2-run-29550102525-jobs-manifest.json"
+ARTIFACTS_MANIFEST_PATH = BASE_DIR / "stage2-run-29550102525-artifacts-manifest.json"
 
 REQUIRED_CASE_IDS = {
     "repo-docker-java-parser", "repo-dockerfile-parser-rs", "repo-helm-values",
@@ -63,6 +65,21 @@ REQUIRED_PYTEST_REQUESTS_DURATION_V1_POLICY_SHA256 = "21543de45468f51c103d078f78
 
 REQUIRED_REPLACEMENT_CASE_ID = "repo-helm-values"
 REQUIRED_REJECTED_CASE_ID = "repo-spotless"
+
+# Exact repo-requests authorization/policy/fixture identity strings -- pinned
+# literally, not merely checked for non-emptiness or mutual distinctness.
+REQUIRED_NETWORK_ENFORCEMENT_APPROVAL_IDENTITY = "n2d1b-repo-requests-loopback-only-authorization-2026-07-17"
+REQUIRED_TEST_NETWORK_FIXTURE_APPROVAL_IDENTITY = "n2d1b-repo-requests-timeout-sink-v1-authorization-2026-07-17"
+REQUIRED_TEST_NETWORK_FIXTURE_NAME = "repo-requests-timeout-sink-v1"
+REQUIRED_SOURCE_MTIME_MATERIALIZATION_POLICY_IDENTITY = "n2d1b-repo-requests-source-mtime-materialization-v1"
+REQUIRED_CANONICALIZATION_REPLACEMENT_RULE_NAME = "pytest_final_summary_duration"
+REQUIRED_SOURCE_MTIME_AFFECTED_FILE_COUNT = 128
+
+# Exact repo-requests pytest final-summary counts -- both captures must show
+# these, and only these, categories (no "failed"/"error" category may be
+# present at all).
+REQUIRED_PYTEST_SUMMARY_COUNTS = {"passed": 619, "skipped": 15, "xfailed": 1, "warnings": 18}
+FORBIDDEN_PYTEST_SUMMARY_CATEGORIES = {"failed", "error", "errors"}
 
 
 def compute_record_sha256(body: dict) -> str:
@@ -154,8 +171,31 @@ def _check_trigger_patch_content(patch_text: str) -> str | None:
     return None
 
 
+def _parse_pytest_final_summary(text: str) -> tuple[dict, str]:
+    """Parses a pytest final-summary line's count categories and duration
+    clause. Raises ValueError on any shape it doesn't recognize -- fails
+    closed rather than silently accepting a malformed or unexpected summary."""
+    if " in " not in text:
+        raise ValueError(f"pytest summary has no ' in <duration>' clause: {text!r}")
+    counts_part, duration_part = text.rsplit(" in ", 1)
+    counts: dict = {}
+    for token in counts_part.split(", "):
+        token = token.strip()
+        pieces = token.split(" ", 1)
+        if len(pieces) != 2 or not pieces[0].isdigit():
+            raise ValueError(f"unparseable pytest summary count token {token!r} in {text!r}")
+        count, category = int(pieces[0]), pieces[1].strip()
+        if category in counts:
+            raise ValueError(f"duplicate pytest summary category {category!r} in {text!r}")
+        counts[category] = count
+    if not duration_part.strip():
+        raise ValueError(f"empty duration clause in {text!r}")
+    return counts, duration_part.strip()
+
+
 def verify(record_path: Path = RECORD_PATH, trigger_patch_path: Path = TRIGGER_PATCH_PATH,
-           repo_root: Path | None = None) -> tuple[bool, str]:
+           repo_root: Path | None = None, jobs_manifest_path: Path = JOBS_MANIFEST_PATH,
+           artifacts_manifest_path: Path = ARTIFACTS_MANIFEST_PATH) -> tuple[bool, str]:
     if not record_path.is_file():
         return False, f"{record_path} does not exist"
 
@@ -351,6 +391,86 @@ def verify(record_path: Path = RECORD_PATH, trigger_patch_path: Path = TRIGGER_P
     if not record.get("all_pair_verify_job_conclusions_success") or not record.get("all_pair_verify_jobs_success"):
         return False, "all_pair_verify_job_conclusions_success / all_pair_verify_jobs_success must be true"
 
+    # --- cross-check against the independently-committed run evidence --------
+    # manifests: these are transcribed from the real GitHub API responses
+    # SEPARATELY from this record's own jobs/artifacts lists, so a tamper of
+    # either one alone (without a matching tamper of the other) is caught.
+    if not jobs_manifest_path.is_file():
+        return False, f"{jobs_manifest_path} does not exist"
+    if not artifacts_manifest_path.is_file():
+        return False, f"{artifacts_manifest_path} does not exist"
+
+    jobs_manifest = json.loads(jobs_manifest_path.read_text())
+    recomputed_jobs_manifest_hash = compute_record_sha256(jobs_manifest)
+    if recomputed_jobs_manifest_hash != jobs_manifest.get("record_sha256"):
+        return False, (
+            f"{jobs_manifest_path.name} self-hash mismatch: "
+            f"recorded={jobs_manifest.get('record_sha256')!r} recomputed={recomputed_jobs_manifest_hash!r}"
+        )
+    if jobs_manifest.get("record_type") != "n2d1b-stage2-run-jobs-manifest-v1":
+        return False, f"{jobs_manifest_path.name}: unexpected record_type {jobs_manifest.get('record_type')!r}"
+    if jobs_manifest.get("workflow_run_id") != REQUIRED_WORKFLOW_RUN_ID:
+        return False, f"{jobs_manifest_path.name}.workflow_run_id != required {REQUIRED_WORKFLOW_RUN_ID!r}"
+    if jobs_manifest.get("head_sha") != REQUIRED_EXECUTION_TRIGGER_SHA:
+        return False, f"{jobs_manifest_path.name}.head_sha != required {REQUIRED_EXECUTION_TRIGGER_SHA!r}"
+    if jobs_manifest.get("head_branch") != REQUIRED_TRIGGER_BRANCH:
+        return False, f"{jobs_manifest_path.name}.head_branch != required {REQUIRED_TRIGGER_BRANCH!r}"
+    manifest_jobs = jobs_manifest.get("jobs", [])
+    if jobs_manifest.get("total_count") != 28 or len(manifest_jobs) != 28:
+        return False, f"{jobs_manifest_path.name} must list exactly 28 jobs"
+
+    manifest_job_tuples = {(j.get("job_id"), j.get("name"), j.get("conclusion")) for j in manifest_jobs}
+    if len(manifest_job_tuples) != 28:
+        return False, f"{jobs_manifest_path.name} contains duplicate (job_id, name, conclusion) tuples"
+    record_job_tuples = {
+        (j.get("job_id"), j.get("name"), j.get("conclusion"))
+        for j in list(jobs) + list(pair_verify_jobs) + list(other_jobs)
+    }
+    if record_job_tuples != manifest_job_tuples:
+        return False, (
+            "stage2-full-matrix-acceptance.json's jobs/pair_verify_jobs/other_jobs do not exactly match "
+            f"{jobs_manifest_path.name}: record-only={record_job_tuples - manifest_job_tuples!r} "
+            f"manifest-only={manifest_job_tuples - record_job_tuples!r}"
+        )
+
+    artifacts_manifest = json.loads(artifacts_manifest_path.read_text())
+    recomputed_artifacts_manifest_hash = compute_record_sha256(artifacts_manifest)
+    if recomputed_artifacts_manifest_hash != artifacts_manifest.get("record_sha256"):
+        return False, (
+            f"{artifacts_manifest_path.name} self-hash mismatch: "
+            f"recorded={artifacts_manifest.get('record_sha256')!r} recomputed={recomputed_artifacts_manifest_hash!r}"
+        )
+    if artifacts_manifest.get("record_type") != "n2d1b-stage2-run-artifacts-manifest-v1":
+        return False, (
+            f"{artifacts_manifest_path.name}: unexpected record_type {artifacts_manifest.get('record_type')!r}"
+        )
+    if artifacts_manifest.get("workflow_run_id") != REQUIRED_WORKFLOW_RUN_ID:
+        return False, f"{artifacts_manifest_path.name}.workflow_run_id != required {REQUIRED_WORKFLOW_RUN_ID!r}"
+    if artifacts_manifest.get("head_sha") != REQUIRED_EXECUTION_TRIGGER_SHA:
+        return False, f"{artifacts_manifest_path.name}.head_sha != required {REQUIRED_EXECUTION_TRIGGER_SHA!r}"
+    if artifacts_manifest.get("head_branch") != REQUIRED_TRIGGER_BRANCH:
+        return False, f"{artifacts_manifest_path.name}.head_branch != required {REQUIRED_TRIGGER_BRANCH!r}"
+    manifest_artifacts = artifacts_manifest.get("artifacts", [])
+    if artifacts_manifest.get("total_count") != 28 or len(manifest_artifacts) != 28:
+        return False, f"{artifacts_manifest_path.name} must list exactly 28 artifacts"
+
+    manifest_artifact_tuples = {
+        (a.get("artifact_id"), a.get("name"), a.get("digest_sha256")) for a in manifest_artifacts
+    }
+    if len(manifest_artifact_tuples) != 28:
+        return False, f"{artifacts_manifest_path.name} contains duplicate (artifact_id, name, digest_sha256) tuples"
+    record_artifact_tuples = {
+        (a.get("artifact_id"), a.get("name"), a.get("digest_sha256"))
+        for a in list(artifacts) + list(pair_report_artifacts) + list(other_artifacts)
+    }
+    if record_artifact_tuples != manifest_artifact_tuples:
+        return False, (
+            "stage2-full-matrix-acceptance.json's artifacts/pair_report_artifacts/other_artifacts do not "
+            f"exactly match {artifacts_manifest_path.name}: "
+            f"record-only={record_artifact_tuples - manifest_artifact_tuples!r} "
+            f"manifest-only={manifest_artifact_tuples - record_artifact_tuples!r}"
+        )
+
     # --- policy identities ---------------------------------------------------
     sys.path.insert(0, str(TOOLS_DIR))
     import cargo_test_canonicalizer  # noqa: E402
@@ -519,23 +639,80 @@ def verify(record_path: Path = RECORD_PATH, trigger_patch_path: Path = TRIGGER_P
         return False, f"repo_requests_detailed_acceptance.timeout_sink_probe_argv != required {expected_probe_argv!r}"
     if rr.get("network_enforcement_mode") != "outer-netns-loopback-only":
         return False, "repo_requests_detailed_acceptance.network_enforcement_mode must be 'outer-netns-loopback-only'"
-    if not rr.get("test_network_fixture") or not rr.get("test_network_fixture_approval_identity"):
-        return False, "repo_requests_detailed_acceptance test_network_fixture / its approval identity must be set"
-    if not rr.get("network_enforcement_approval_identity"):
-        return False, "repo_requests_detailed_acceptance.network_enforcement_approval_identity must be set"
+
+    # Exact identity pins -- literal equality against the historically
+    # authorized strings, not merely non-emptiness or mutual distinctness.
+    # A record could satisfy "non-empty and distinct" with two entirely
+    # fabricated identities; only the exact-constant check catches that.
+    if rr.get("test_network_fixture") != REQUIRED_TEST_NETWORK_FIXTURE_NAME:
+        return False, (
+            f"repo_requests_detailed_acceptance.test_network_fixture != "
+            f"required {REQUIRED_TEST_NETWORK_FIXTURE_NAME!r}"
+        )
+    if rr.get("test_network_fixture_approval_identity") != REQUIRED_TEST_NETWORK_FIXTURE_APPROVAL_IDENTITY:
+        return False, (
+            f"repo_requests_detailed_acceptance.test_network_fixture_approval_identity != "
+            f"required {REQUIRED_TEST_NETWORK_FIXTURE_APPROVAL_IDENTITY!r}"
+        )
+    if rr.get("network_enforcement_approval_identity") != REQUIRED_NETWORK_ENFORCEMENT_APPROVAL_IDENTITY:
+        return False, (
+            f"repo_requests_detailed_acceptance.network_enforcement_approval_identity != "
+            f"required {REQUIRED_NETWORK_ENFORCEMENT_APPROVAL_IDENTITY!r}"
+        )
     if rr.get("test_network_fixture_approval_identity") == rr.get("network_enforcement_approval_identity"):
         return False, (
             "repo_requests_detailed_acceptance: test_network_fixture_approval_identity must NOT be silently "
             "merged with network_enforcement_approval_identity -- these are distinct authorizations"
         )
+    if rr.get("source_mtime_materialization_policy_identity") != REQUIRED_SOURCE_MTIME_MATERIALIZATION_POLICY_IDENTITY:
+        return False, (
+            f"repo_requests_detailed_acceptance.source_mtime_materialization_policy_identity != "
+            f"required {REQUIRED_SOURCE_MTIME_MATERIALIZATION_POLICY_IDENTITY!r}"
+        )
+    if rr.get("canonicalization_replacement_rule_name") != REQUIRED_CANONICALIZATION_REPLACEMENT_RULE_NAME:
+        return False, (
+            f"repo_requests_detailed_acceptance.canonicalization_replacement_rule_name != "
+            f"required {REQUIRED_CANONICALIZATION_REPLACEMENT_RULE_NAME!r}"
+        )
     if rr.get("source_mtime_materialization_fixed_timestamp_epoch_seconds") != 946684800:
         return False, "repo_requests_detailed_acceptance source_mtime epoch must be 946684800 (2000-01-01T00:00:00Z)"
     if rr.get("source_mtime_materialization_fixed_timestamp_iso8601_utc") != "2000-01-01T00:00:00Z":
         return False, "repo_requests_detailed_acceptance source_mtime iso8601 must be '2000-01-01T00:00:00Z'"
-    if not isinstance(rr.get("source_mtime_materialization_affected_file_count_both_captures"), int) or (
-        rr.get("source_mtime_materialization_affected_file_count_both_captures") <= 0
-    ):
-        return False, "repo_requests_detailed_acceptance source_mtime affected file count must be a positive int"
+    if rr.get("source_mtime_materialization_affected_file_count_both_captures") != REQUIRED_SOURCE_MTIME_AFFECTED_FILE_COUNT:
+        return False, (
+            "repo_requests_detailed_acceptance.source_mtime_materialization_affected_file_count_both_captures "
+            f"must be exactly {REQUIRED_SOURCE_MTIME_AFFECTED_FILE_COUNT!r}"
+        )
+
+    # --- exact repo-requests pytest final-summary counts, both captures ------
+    summaries = rr.get("pytest_final_summary", {})
+    parsed_counts = {}
+    for leg in ("capture_a", "capture_b"):
+        summary_text = summaries.get(leg, "")
+        try:
+            counts, duration_clause = _parse_pytest_final_summary(summary_text)
+        except ValueError as exc:
+            return False, f"repo_requests_detailed_acceptance.pytest_final_summary[{leg!r}] unparseable: {exc}"
+        forbidden_present = FORBIDDEN_PYTEST_SUMMARY_CATEGORIES & set(counts.keys())
+        if forbidden_present:
+            return False, (
+                f"repo_requests_detailed_acceptance.pytest_final_summary[{leg!r}] contains forbidden "
+                f"non-zero-implying categories {sorted(forbidden_present)}: {summary_text!r}"
+            )
+        for category, required_count in REQUIRED_PYTEST_SUMMARY_COUNTS.items():
+            if counts.get(category) != required_count:
+                return False, (
+                    f"repo_requests_detailed_acceptance.pytest_final_summary[{leg!r}] {category}="
+                    f"{counts.get(category)!r} != required {required_count!r}: {summary_text!r}"
+                )
+        if not duration_clause:
+            return False, f"repo_requests_detailed_acceptance.pytest_final_summary[{leg!r}] has an empty duration clause"
+        parsed_counts[leg] = counts
+    if parsed_counts.get("capture_a") != parsed_counts.get("capture_b"):
+        return False, (
+            "repo_requests_detailed_acceptance.pytest_final_summary: capture_a and capture_b count "
+            f"categories must be identical (only duration may differ): {parsed_counts!r}"
+        )
 
     # --- timeout-sink / network-enforcement / mtime authorization maps --------
     if record.get("timeout_sink_authorized_cases", {}).get("repo-requests") != "10.255.255.1":
@@ -579,6 +756,33 @@ def verify(record_path: Path = RECORD_PATH, trigger_patch_path: Path = TRIGGER_P
     repl_ok, repl_message = verify_stage2_replacement_selection.verify(REPLACEMENT_SELECTION_RECORD_PATH)
     if not repl_ok:
         return False, f"replacement-selection record failed independent re-verification: {repl_message}"
+
+    # --- run-evidence-manifests link: cross-check against the manifests -----
+    # already loaded, hashed, and self-verified above.
+    manifests_link = record.get("run_evidence_manifests", {})
+    if manifests_link.get("jobs_manifest_path") != (
+        "evals/interop/v2/n2/d1-identity-lock/stage2-run-29550102525-jobs-manifest.json"
+    ):
+        return False, f"run_evidence_manifests.jobs_manifest_path unexpected: {manifests_link.get('jobs_manifest_path')!r}"
+    if manifests_link.get("artifacts_manifest_path") != (
+        "evals/interop/v2/n2/d1-identity-lock/stage2-run-29550102525-artifacts-manifest.json"
+    ):
+        return False, (
+            f"run_evidence_manifests.artifacts_manifest_path unexpected: "
+            f"{manifests_link.get('artifacts_manifest_path')!r}"
+        )
+    if manifests_link.get("jobs_manifest_record_sha256") != jobs_manifest.get("record_sha256"):
+        return False, (
+            "run_evidence_manifests.jobs_manifest_record_sha256 does not match the actual committed "
+            f"{jobs_manifest_path.name}'s own record_sha256"
+        )
+    if manifests_link.get("artifacts_manifest_record_sha256") != artifacts_manifest.get("record_sha256"):
+        return False, (
+            "run_evidence_manifests.artifacts_manifest_record_sha256 does not match the actual committed "
+            f"{artifacts_manifest_path.name}'s own record_sha256"
+        )
+    if manifests_link.get("verified_self_consistent_at_build_time") is not True:
+        return False, "run_evidence_manifests.verified_self_consistent_at_build_time must be true"
 
     return True, "OK"
 

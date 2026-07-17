@@ -900,7 +900,7 @@
     "repo": "PhysShell/qodec",
     "state_at_acceptance": "PR #3's body is updated in place to report this exact accepted evidence, superseding all prior 'accepted'/'in progress' language. The disposable trigger commit is not an ancestor of the PR head."
   },
-  "record_sha256": "sha256:8370f2c74705f42a8b4eb3c80a24642d916c31b94c05124a3200d4d25aff4e8d",
+  "record_sha256": "sha256:1c722a31b836dbe1f68b6c4fb9d224f70077859772121cfc636076160ae8b6cd",
   "record_type": "n2d1b-stage2-full-matrix-acceptance-v1",
   "record_version": 2,
   "remediation_history": "Supersedes the prior stage2-full-matrix-acceptance.json (workflow run 29544801640), REVOKED because repo-requests' capture there genuinely failed (30 failed, 205 errors) and was wrongly accepted -- see pytest-requests-canonicalization-v1-rejection-record.json. Round-1 remediation (fail-closed content gate, network authorization, toolchain identity fix, canonicalizer retirement) produced a fresh full run (29547420247), which correctly rejected repo-requests again -- two newly surfaced, genuine execution-environment incompatibilities: a network-namespace timeout-sink gap (four TestTimeout tests connecting to 10.255.255.1 hit an immediate ENETUNREACH instead of a socket.timeout) and a source-mtime/zipfile-1980-floor gap (extracted files carried Unix-epoch mtimes; Python's zipfile rejects timestamps before 1980). Round-2 remediation fixed both: a repo-requests-only veth-pair timeout-sink network fixture (empirically validated via a local live probe before any production change) and a repo-requests-only deterministic ZIP-safe source-mtime materialization step. A first focused diagnostic probe (run 29548972173, repo-requests only) failed for an unrelated reason -- the timeout-sink probe's own target IP was passed via an env var Sandboy's env_clear()+env_allow confinement stripped before the confined child ran; fixed by passing it via argv instead. A second focused probe (run 29549403465) was genuinely successful -- the first-ever clean repo-requests capture pair -- differing from its own pair only in pytest's own final-summary duration, which became the basis for the new pytest_requests_duration_canonicalizer_v1.py policy. This record's own run (29550102525) is the fresh, complete nine-case matrix run required after all of the above, on a fresh implementation commit and disposable trigger branch, reusing no artifact from any prior run or diagnostic probe.",
@@ -952,6 +952,13 @@
   "repository": "PhysShell/qodec",
   "rtk_nix_identity_closure_authorized_next": true,
   "rtk_or_qodec_benchmark_arms_executed": false,
+  "run_evidence_manifests": {
+    "artifacts_manifest_path": "evals/interop/v2/n2/d1-identity-lock/stage2-run-29550102525-artifacts-manifest.json",
+    "artifacts_manifest_record_sha256": "sha256:cb4f6de6dab317ecffe714e5d205f7070e9f62d685b5b76a68f1cdc8035c103f",
+    "jobs_manifest_path": "evals/interop/v2/n2/d1-identity-lock/stage2-run-29550102525-jobs-manifest.json",
+    "jobs_manifest_record_sha256": "sha256:86be831cde7aecd71710fa0ec41116ebb7204d57c452cb5d400d7a9c52f57b2a",
+    "verified_self_consistent_at_build_time": true
+  },
   "rust_deterministic_test_threads_authorized_case_ids": [
     "repo-dockerfile-parser-rs",
     "repo-rustlings"

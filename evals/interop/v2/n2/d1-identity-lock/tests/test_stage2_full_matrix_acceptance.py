@@ -23,6 +23,8 @@ BASE_DIR = Path(__file__).resolve().parents[1]
 RECORD_PATH = BASE_DIR / "stage2-full-matrix-acceptance.json"
 TRIGGER_PATCH_PATH = BASE_DIR / "evidence" / "stage2-full-matrix-trigger.patch"
 CARGO_TEST_POLICY_PATH = BASE_DIR / "cargo-test-capture-canonicalization-policy.json"
+JOBS_MANIFEST_PATH = BASE_DIR / "stage2-run-29550102525-jobs-manifest.json"
+ARTIFACTS_MANIFEST_PATH = BASE_DIR / "stage2-run-29550102525-artifacts-manifest.json"
 
 
 def _write_record(tmp_path: Path, record: dict) -> Path:
@@ -408,6 +410,11 @@ class TestMutationsAreCaught(unittest.TestCase):
         # Setting the two distinct authorization identities to the SAME string
         # is exactly the forbidden "silently broaden the existing loopback-only
         # approval into this behavior" shape the user explicitly ruled out.
+        # Because both identities are now individually pinned to their own
+        # exact required constants, merging them trips the exact-pin check
+        # for whichever field no longer matches its own required value first
+        # -- a strictly stronger guarantee than the plain distinctness check
+        # alone would give.
         def mutate(r):
             same = r["repo_requests_detailed_acceptance"]["network_enforcement_approval_identity"]
             r["repo_requests_detailed_acceptance"]["test_network_fixture_approval_identity"] = same
@@ -415,7 +422,22 @@ class TestMutationsAreCaught(unittest.TestCase):
 
         ok, message = self._verify_mutated_record(mutate)
         self.assertFalse(ok)
-        self.assertIn("distinct authorizations", message)
+        self.assertIn("test_network_fixture_approval_identity", message)
+
+    def test_repo_requests_network_enforcement_approval_distinct_but_both_wrong_fails(self):
+        # A more surgical probe of the plain distinctness check itself: two
+        # DIFFERENT fabricated strings (so exact-pin checks against the real
+        # required constants fire regardless) confirms the verifier fails
+        # closed even when the "distinct from each other" property alone
+        # would be satisfied by pure coincidence.
+        def mutate(r):
+            r["repo_requests_detailed_acceptance"]["network_enforcement_approval_identity"] = "fabricated-a"
+            r["network_enforcement_approval_identities"]["repo-requests"] = "fabricated-a"
+            r["repo_requests_detailed_acceptance"]["test_network_fixture_approval_identity"] = "fabricated-b"
+            r["timeout_sink_approval_identities"]["repo-requests"] = "fabricated-b"
+
+        ok, message = self._verify_mutated_record(mutate)
+        self.assertFalse(ok)
 
     def test_repo_requests_detailed_acceptance_mtime_epoch_wrong_fails(self):
         def mutate(r):
@@ -448,6 +470,207 @@ class TestMutationsAreCaught(unittest.TestCase):
         ok, message = self._verify_mutated_record(mutate)
         self.assertFalse(ok)
         self.assertIn("verified_by_its_own_verifier_at_build_time", message)
+
+    def test_record_job_unique_but_wrong_id_mismatches_manifest_fails(self):
+        # A job_id that is UNIQUE among the record's own jobs (so the local
+        # duplicate-detection check alone would pass) but does not match the
+        # real value in the independently-committed jobs manifest.
+        def mutate(r):
+            r["jobs"][0]["job_id"] = 99999999999
+
+        ok, message = self._verify_mutated_record(mutate)
+        self.assertFalse(ok)
+        self.assertIn("jobs-manifest", message)
+
+    def test_record_artifact_well_formed_but_wrong_digest_mismatches_manifest_fails(self):
+        # A syntactically well-formed 64-lowercase-hex digest -- passes the
+        # local shape check -- that simply isn't the real digest on file in
+        # the independently-committed artifacts manifest.
+        def mutate(r):
+            r["artifacts"][0]["digest_sha256"] = "1" * 64
+
+        ok, message = self._verify_mutated_record(mutate)
+        self.assertFalse(ok)
+        self.assertIn("artifacts-manifest", message)
+
+    def test_network_enforcement_approval_identity_wrong_but_nonempty_fails(self):
+        # Non-empty, and distinct from test_network_fixture_approval_identity
+        # (so the "not silently merged" check alone would pass) -- but simply
+        # not the required, historically-authorized identity string.
+        def mutate(r):
+            r["repo_requests_detailed_acceptance"]["network_enforcement_approval_identity"] = (
+                "some-other-plausible-looking-authorization-id"
+            )
+            r["network_enforcement_approval_identities"]["repo-requests"] = (
+                "some-other-plausible-looking-authorization-id"
+            )
+
+        ok, message = self._verify_mutated_record(mutate)
+        self.assertFalse(ok)
+        self.assertIn("network_enforcement_approval_identity", message)
+
+    def test_test_network_fixture_name_wrong_but_nonempty_fails(self):
+        def mutate(r):
+            r["repo_requests_detailed_acceptance"]["test_network_fixture"] = "some-other-fixture-name"
+            r["timeout_sink_test_network_fixture_names"]["repo-requests"] = "some-other-fixture-name"
+
+        ok, message = self._verify_mutated_record(mutate)
+        self.assertFalse(ok)
+        self.assertIn("test_network_fixture", message)
+
+    def test_source_mtime_materialization_policy_identity_wrong_fails(self):
+        def mutate(r):
+            r["repo_requests_detailed_acceptance"]["source_mtime_materialization_policy_identity"] = (
+                "some-other-policy-identity"
+            )
+
+        ok, message = self._verify_mutated_record(mutate)
+        self.assertFalse(ok)
+        self.assertIn("source_mtime_materialization_policy_identity", message)
+
+    def test_canonicalization_replacement_rule_name_wrong_fails(self):
+        def mutate(r):
+            r["repo_requests_detailed_acceptance"]["canonicalization_replacement_rule_name"] = "some_other_rule"
+
+        ok, message = self._verify_mutated_record(mutate)
+        self.assertFalse(ok)
+        self.assertIn("canonicalization_replacement_rule_name", message)
+
+    def test_affected_file_count_off_by_one_fails(self):
+        # 127, not 0 or a negative number -- the old "positive int" check
+        # alone would have passed this; only the exact-128 check catches it.
+        def mutate(r):
+            r["repo_requests_detailed_acceptance"]["source_mtime_materialization_affected_file_count_both_captures"] = 127
+
+        ok, message = self._verify_mutated_record(mutate)
+        self.assertFalse(ok)
+        self.assertIn("affected_file_count", message)
+
+    def test_pytest_summary_with_failed_category_fails(self):
+        def mutate(r):
+            r["repo_requests_detailed_acceptance"]["pytest_final_summary"]["capture_a"] = (
+                "618 passed, 1 failed, 15 skipped, 1 xfailed, 18 warnings in 78.55s (0:01:18)"
+            )
+
+        ok, message = self._verify_mutated_record(mutate)
+        self.assertFalse(ok)
+        self.assertIn("forbidden", message)
+
+    def test_pytest_summary_wrong_passed_count_fails(self):
+        def mutate(r):
+            r["repo_requests_detailed_acceptance"]["pytest_final_summary"]["capture_a"] = (
+                "618 passed, 15 skipped, 1 xfailed, 18 warnings in 78.55s (0:01:18)"
+            )
+
+        ok, message = self._verify_mutated_record(mutate)
+        self.assertFalse(ok)
+        self.assertIn("passed", message)
+
+    def test_pytest_summary_capture_a_b_count_mismatch_fails(self):
+        # capture_b's skipped count (14, not 15) fails the required-counts
+        # check directly -- proving the two captures are checked
+        # independently, not merely compared to each other.
+        def mutate(r):
+            r["repo_requests_detailed_acceptance"]["pytest_final_summary"]["capture_b"] = (
+                "619 passed, 14 skipped, 1 xfailed, 18 warnings in 78.68s (0:01:18)"
+            )
+
+        ok, message = self._verify_mutated_record(mutate)
+        self.assertFalse(ok)
+        self.assertIn("skipped", message)
+
+    def test_pytest_summary_unparseable_fails(self):
+        def mutate(r):
+            r["repo_requests_detailed_acceptance"]["pytest_final_summary"]["capture_a"] = "completely malformed text"
+
+        ok, message = self._verify_mutated_record(mutate)
+        self.assertFalse(ok)
+        self.assertIn("unparseable", message)
+
+    def test_run_evidence_manifests_jobs_sha256_mismatch_fails(self):
+        def mutate(r):
+            r["run_evidence_manifests"]["jobs_manifest_record_sha256"] = "sha256:" + "0" * 64
+
+        ok, message = self._verify_mutated_record(mutate)
+        self.assertFalse(ok)
+        self.assertIn("jobs_manifest_record_sha256", message)
+
+    def test_run_evidence_manifests_artifacts_sha256_mismatch_fails(self):
+        def mutate(r):
+            r["run_evidence_manifests"]["artifacts_manifest_record_sha256"] = "sha256:" + "1" * 64
+
+        ok, message = self._verify_mutated_record(mutate)
+        self.assertFalse(ok)
+        self.assertIn("artifacts_manifest_record_sha256", message)
+
+
+class TestRunEvidenceManifestMutationsAreCaught(unittest.TestCase):
+    """Mutates the independently-committed run-evidence manifests themselves
+    (not the acceptance record) and asserts the verifier fails closed,
+    exercising verify()'s jobs_manifest_path/artifacts_manifest_path
+    parameters the same way record_path is exercised above."""
+
+    @classmethod
+    def setUpClass(cls):
+        cls.original_jobs_manifest = json.loads(JOBS_MANIFEST_PATH.read_text())
+        cls.original_artifacts_manifest = json.loads(ARTIFACTS_MANIFEST_PATH.read_text())
+
+    def setUp(self):
+        self._tmpdir = tempfile.TemporaryDirectory()
+        self.tmp_path = Path(self._tmpdir.name)
+
+    def tearDown(self):
+        self._tmpdir.cleanup()
+
+    def _write_manifest(self, name: str, manifest: dict) -> Path:
+        out = self.tmp_path / name
+        out.write_text(json.dumps(manifest, indent=2, sort_keys=True) + "\n")
+        return out
+
+    def test_tampered_jobs_manifest_self_hash_fails(self):
+        mutated = copy.deepcopy(self.original_jobs_manifest)
+        mutated["jobs"][0]["conclusion"] = "failure"  # mutate WITHOUT re-signing
+        path = self._write_manifest("jobs-manifest.json", mutated)
+        ok, message = verifier.verify(jobs_manifest_path=path)
+        self.assertFalse(ok)
+        self.assertIn("self-hash mismatch", message)
+
+    def test_jobs_manifest_unique_but_wrong_job_id_mismatches_record_fails(self):
+        mutated = copy.deepcopy(self.original_jobs_manifest)
+        mutated["jobs"][0]["job_id"] = 88888888888
+        mutated["record_sha256"] = verifier.compute_record_sha256(mutated)
+        path = self._write_manifest("jobs-manifest.json", mutated)
+        ok, message = verifier.verify(jobs_manifest_path=path)
+        self.assertFalse(ok)
+        self.assertIn("jobs-manifest", message)
+
+    def test_artifacts_manifest_well_formed_but_wrong_digest_mismatches_record_fails(self):
+        mutated = copy.deepcopy(self.original_artifacts_manifest)
+        mutated["artifacts"][0]["digest_sha256"] = "2" * 64
+        mutated["record_sha256"] = verifier.compute_record_sha256(mutated)
+        path = self._write_manifest("artifacts-manifest.json", mutated)
+        ok, message = verifier.verify(artifacts_manifest_path=path)
+        self.assertFalse(ok)
+        self.assertIn("artifacts-manifest", message)
+
+    def test_jobs_manifest_wrong_workflow_run_id_fails(self):
+        mutated = copy.deepcopy(self.original_jobs_manifest)
+        mutated["workflow_run_id"] = 1
+        mutated["record_sha256"] = verifier.compute_record_sha256(mutated)
+        path = self._write_manifest("jobs-manifest.json", mutated)
+        ok, message = verifier.verify(jobs_manifest_path=path)
+        self.assertFalse(ok)
+        self.assertIn("workflow_run_id", message)
+
+    def test_artifacts_manifest_missing_one_artifact_fails(self):
+        mutated = copy.deepcopy(self.original_artifacts_manifest)
+        mutated["artifacts"].pop()
+        mutated["total_count"] = len(mutated["artifacts"])
+        mutated["record_sha256"] = verifier.compute_record_sha256(mutated)
+        path = self._write_manifest("artifacts-manifest.json", mutated)
+        ok, message = verifier.verify(artifacts_manifest_path=path)
+        self.assertFalse(ok)
+        self.assertIn("28 artifacts", message)
 
 
 class TestExternalFileMutationsAreCaught(unittest.TestCase):

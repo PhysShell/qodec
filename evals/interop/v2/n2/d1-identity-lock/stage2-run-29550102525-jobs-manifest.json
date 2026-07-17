@@ -1,0 +1,151 @@
+{
+  "head_branch": "ci-trigger/n2d1b-stage2-478d70b",
+  "head_sha": "c430812a604ec25fa68d40e55a5df156f6029707",
+  "jobs": [
+    {
+      "conclusion": "success",
+      "job_id": 87790638449,
+      "name": "dockerfile-parser-rs-lockfile"
+    },
+    {
+      "conclusion": "success",
+      "job_id": 87790677686,
+      "name": "pilot-repo-hyperfine-capture-a"
+    },
+    {
+      "conclusion": "success",
+      "job_id": 87790677687,
+      "name": "pilot-repo-kubeops-generator-capture-b"
+    },
+    {
+      "conclusion": "success",
+      "job_id": 87790677695,
+      "name": "pilot-repo-kubeops-generator-capture-a"
+    },
+    {
+      "conclusion": "success",
+      "job_id": 87790677710,
+      "name": "pilot-repo-pyflakes-capture-b"
+    },
+    {
+      "conclusion": "success",
+      "job_id": 87790677721,
+      "name": "pilot-repo-hyperfine-capture-b"
+    },
+    {
+      "conclusion": "success",
+      "job_id": 87790677724,
+      "name": "pilot-repo-moshi-capture-a"
+    },
+    {
+      "conclusion": "success",
+      "job_id": 87790677729,
+      "name": "pilot-repo-docker-java-parser-capture-a"
+    },
+    {
+      "conclusion": "success",
+      "job_id": 87790677730,
+      "name": "pilot-repo-docker-java-parser-capture-b"
+    },
+    {
+      "conclusion": "success",
+      "job_id": 87790677743,
+      "name": "pilot-repo-pyflakes-capture-a"
+    },
+    {
+      "conclusion": "success",
+      "job_id": 87790677765,
+      "name": "pilot-repo-dockerfile-parser-rs-capture-a"
+    },
+    {
+      "conclusion": "success",
+      "job_id": 87790677768,
+      "name": "pilot-repo-helm-values-capture-a"
+    },
+    {
+      "conclusion": "success",
+      "job_id": 87790677778,
+      "name": "pilot-repo-dockerfile-parser-rs-capture-b"
+    },
+    {
+      "conclusion": "success",
+      "job_id": 87790677784,
+      "name": "pilot-repo-moshi-capture-b"
+    },
+    {
+      "conclusion": "success",
+      "job_id": 87790677799,
+      "name": "pilot-repo-rustlings-capture-a"
+    },
+    {
+      "conclusion": "success",
+      "job_id": 87790677803,
+      "name": "pilot-repo-requests-capture-b"
+    },
+    {
+      "conclusion": "success",
+      "job_id": 87790677811,
+      "name": "pilot-repo-requests-capture-a"
+    },
+    {
+      "conclusion": "success",
+      "job_id": 87790677812,
+      "name": "pilot-repo-rustlings-capture-b"
+    },
+    {
+      "conclusion": "success",
+      "job_id": 87790677823,
+      "name": "pilot-repo-helm-values-capture-b"
+    },
+    {
+      "conclusion": "success",
+      "job_id": 87791420718,
+      "name": "pair-verify-repo-pyflakes"
+    },
+    {
+      "conclusion": "success",
+      "job_id": 87791420726,
+      "name": "pair-verify-repo-docker-java-parser"
+    },
+    {
+      "conclusion": "success",
+      "job_id": 87791420727,
+      "name": "pair-verify-repo-kubeops-generator"
+    },
+    {
+      "conclusion": "success",
+      "job_id": 87791420732,
+      "name": "pair-verify-repo-hyperfine"
+    },
+    {
+      "conclusion": "success",
+      "job_id": 87791420737,
+      "name": "pair-verify-repo-helm-values"
+    },
+    {
+      "conclusion": "success",
+      "job_id": 87791420743,
+      "name": "pair-verify-repo-rustlings"
+    },
+    {
+      "conclusion": "success",
+      "job_id": 87791420753,
+      "name": "pair-verify-repo-dockerfile-parser-rs"
+    },
+    {
+      "conclusion": "success",
+      "job_id": 87791420760,
+      "name": "pair-verify-repo-moshi"
+    },
+    {
+      "conclusion": "success",
+      "job_id": 87791420773,
+      "name": "pair-verify-repo-requests"
+    }
+  ],
+  "record_sha256": "sha256:86be831cde7aecd71710fa0ec41116ebb7204d57c452cb5d400d7a9c52f57b2a",
+  "record_type": "n2d1b-stage2-run-jobs-manifest-v1",
+  "source": "GitHub Actions REST API list_workflow_jobs response for workflow run 29550102525, independently transcribed job-by-job from that real response (saved verbatim to this session's own tool-result transcript before being condensed here). Not derived from, or shared code with, build_stage2_full_matrix_acceptance.py's own separate transcription of the same underlying API response.",
+  "total_count": 28,
+  "workflow_run_id": 29550102525
+}

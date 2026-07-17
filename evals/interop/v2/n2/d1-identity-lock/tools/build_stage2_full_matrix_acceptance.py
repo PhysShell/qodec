@@ -716,6 +716,48 @@ def _build_replacement_selection_link() -> dict:
     }
 
 
+JOBS_MANIFEST_PATH = Path(__file__).resolve().parents[1] / "stage2-run-29550102525-jobs-manifest.json"
+ARTIFACTS_MANIFEST_PATH = Path(__file__).resolve().parents[1] / "stage2-run-29550102525-artifacts-manifest.json"
+
+
+def _build_run_evidence_manifests_link() -> dict:
+    """Links the two independently-committed, self-hash-locked run-evidence
+    manifests (stage2-run-29550102525-jobs-manifest.json,
+    stage2-run-29550102525-artifacts-manifest.json) -- each separately
+    transcribed from the real GitHub API responses for this run, not derived
+    from this module's own ARTIFACTS/PILOT_JOBS/etc. lists above. Never
+    copies their content; only their paths and their own, independently
+    recomputed self-hashes. verify_stage2_full_matrix_acceptance.py
+    additionally requires this record's own jobs/artifacts lists to exactly
+    match the manifests' contents -- this link records ONLY that the
+    manifests exist and are self-consistent at build time."""
+    import hashlib as _hashlib
+    import json as _json
+
+    def _recompute_sha256(body: dict) -> str:
+        body_for_hash = dict(body)
+        body_for_hash["record_sha256"] = None
+        canonical = _json.dumps(body_for_hash, sort_keys=True, separators=(",", ":")).encode("utf-8")
+        return "sha256:" + _hashlib.sha256(canonical).hexdigest()
+
+    jobs_manifest = _json.loads(JOBS_MANIFEST_PATH.read_text())
+    if _recompute_sha256(jobs_manifest) != jobs_manifest["record_sha256"]:
+        raise RuntimeError(f"{JOBS_MANIFEST_PATH} failed its own self-hash check at build time")
+    artifacts_manifest = _json.loads(ARTIFACTS_MANIFEST_PATH.read_text())
+    if _recompute_sha256(artifacts_manifest) != artifacts_manifest["record_sha256"]:
+        raise RuntimeError(f"{ARTIFACTS_MANIFEST_PATH} failed its own self-hash check at build time")
+
+    return {
+        "jobs_manifest_path": "evals/interop/v2/n2/d1-identity-lock/stage2-run-29550102525-jobs-manifest.json",
+        "jobs_manifest_record_sha256": jobs_manifest["record_sha256"],
+        "artifacts_manifest_path": (
+            "evals/interop/v2/n2/d1-identity-lock/stage2-run-29550102525-artifacts-manifest.json"
+        ),
+        "artifacts_manifest_record_sha256": artifacts_manifest["record_sha256"],
+        "verified_self_consistent_at_build_time": True,
+    }
+
+
 def build_record() -> dict:
     body = {
         "record_type": "n2d1b-stage2-full-matrix-acceptance-v1",
@@ -813,6 +855,7 @@ def build_record() -> dict:
         "canonical_benchmark_input_sha256_by_case_id": CANONICAL_BENCHMARK_INPUT_SHA256_BY_CASE_ID,
         "repo_requests_detailed_acceptance": REPO_REQUESTS_DETAILED_ACCEPTANCE,
         "replacement_selection": _build_replacement_selection_link(),
+        "run_evidence_manifests": _build_run_evidence_manifests_link(),
         "independent_rederivation_verification": INDEPENDENT_REDERIVATION_VERIFICATION,
         "all_artifacts_content_inspected": True,
         "all_cases_content_accepted": True,
