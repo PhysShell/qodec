@@ -1,0 +1,153 @@
+name: qodec-n2e-corpus-canary
+
+# Manual-only. Runs the frozen 12-case N2-E acceptance canary: builds the pinned
+# RTK + QODEC substrate, executes each canary case (RAW x3 + RTK x3 + o200k +
+# oracle) in its own matrix job, aggregates independently self-hash-verified
+# per-case evidence, and runs the acceptance verifier. No push / pull_request
+# triggers for external-corpus execution.
+on:
+  workflow_dispatch: {}
+
+permissions:
+  contents: read
+
+env:
+  N2E: evals/interop/v2/n2/e-rtk-native-corpus
+
+jobs:
+  frozen:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - name: Verify frozen Phase A records
+        run: |
+          cd "$N2E"
+          python3 tools/verify_n2e_source_registry.py
+          python3 tools/verify_n2e_candidate_inventory.py
+          python3 tools/verify_n2e_selection.py
+          python3 tools/verify_n2e_command_scenarios.py
+
+  substrate:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: cachix/install-nix-action@08dcb3a5e62fa31e2da3d490afc4176ef55ecd72 # v30
+        with:
+          extra_nix_config: |
+            experimental-features = nix-command flakes
+            sandbox = true
+      - name: Build pinned RTK + QODEC and assert RTK identity
+        run: |
+          nix build .#rtk-pinned .#qodec -L
+          RTK="$(nix path-info .#rtk-pinned)/bin/rtk"
+          QODEC="$(nix path-info .#qodec)/bin/qodec"
+          SHA="$(sha256sum "$RTK" | cut -d' ' -f1)"
+          echo "rtk sha256=$SHA"
+          test "$SHA" = "41f316adf7b30a568208a0a4f824bffb266ecb6d01bd9de81bed58e1d469dfcf"
+          mkdir -p substrate/bin
+          cp "$RTK" substrate/bin/rtk
+          cp "$QODEC" substrate/bin/qodec
+          chmod +x substrate/bin/*
+      - uses: actions/upload-artifact@v4
+        with:
+          name: substrate
+          path: substrate
+          retention-days: 3
+
+  matrix-gen:
+    runs-on: ubuntu-latest
+    needs: [frozen]
+    outputs:
+      cases: "${{ steps.gen.outputs.cases }}"
+    steps:
+      - uses: actions/checkout@v4
+      - id: gen
+        run: |
+          cases="$(python3 -c "import json;print(json.dumps([m['case_id'] for m in json.load(open('$N2E/n2e-canary-membership-v1.json'))['membership']]))")"
+          echo "cases=$cases" >> "$GITHUB_OUTPUT"
+
+  canary:
+    runs-on: ubuntu-latest
+    needs: [substrate, matrix-gen]
+    strategy:
+      fail-fast: false
+      matrix:
+        case_id: "${{ fromJson(needs.matrix-gen.outputs.cases) }}"
+    timeout-minutes: 40
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - uses: actions/download-artifact@v4
+        with:
+          name: substrate
+          path: substrate
+      - name: Toolchains (best-effort; per-case families vary)
+        run: |
+          chmod +x substrate/bin/* || true
+          rustup default stable 2>/dev/null || true
+      - name: Run canary case
+        env:
+          RTK_BIN: "${{ github.workspace }}/substrate/bin/rtk"
+          QODEC_BIN: "${{ github.workspace }}/substrate/bin/qodec"
+          CASE_ID: "${{ matrix.case_id }}"
+        run: |
+          cd "$N2E"
+          mkdir -p out
+          safe="$(python3 -c "import os;print(os.environ['CASE_ID'].replace('::','__').replace('/','_'))")"
+          python3 tools/run_canary_case.py "$CASE_ID" --out "out/n2e-canary-case-$safe.json"
+      - uses: actions/upload-artifact@v4
+        with:
+          name: "case-${{ strategy.job-index }}"
+          path: "evals/interop/v2/n2/e-rtk-native-corpus/out/*.json"
+          retention-days: 3
+
+  aggregate:
+    runs-on: ubuntu-latest
+    needs: [canary]
+    if: always()
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - uses: actions/download-artifact@v4
+        with:
+          path: cases
+          pattern: case-*
+          merge-multiple: true
+      - name: Aggregate + acceptance
+        env:
+          RUN_ID: "${{ github.run_id }}"
+        run: |
+          cd "$N2E"
+          python3 tools/build_n2e_canary_acceptance.py "$GITHUB_WORKSPACE/cases" "$RUN_ID"
+          cat n2e-canary-results-v1.md
+      - uses: actions/upload-artifact@v4
+        with:
+          name: canary-acceptance
+          path: |
+            evals/interop/v2/n2/e-rtk-native-corpus/n2e-canary-acceptance-v1.json
+            evals/interop/v2/n2/e-rtk-native-corpus/n2e-canary-results-v1.md
+          retention-days: 7
+
+  accept:
+    runs-on: ubuntu-latest
+    needs: [aggregate]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - uses: actions/download-artifact@v4
+        with:
+          name: canary-acceptance
+          path: evals/interop/v2/n2/e-rtk-native-corpus
+      - name: Independent acceptance verification
+        run: |
+          cd "$N2E"
+          python3 tools/verify_n2e_canary_acceptance.py

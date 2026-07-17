@@ -85,6 +85,7 @@ def run_repeated(argv: list[str], reps: int, timeout: int, setup=None,
         "combined_bytes": runs[0]["combined_bytes"],
         "runs": [{k: v for k, v in r.items() if not k.startswith("_")} for r in runs],
         "_last": runs[-1],
+        "_all_combined": [r["_combined"] for r in runs],
     }
 
 
