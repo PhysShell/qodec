@@ -279,6 +279,8 @@ name: qodec-n2d1b-miner-pilot
 
 on:
   workflow_dispatch: {}
+  push:
+    branches: [ci-probe/n2d1b-repo-requests-focused-c75c60d]
 permissions:
   contents: read
 env:
@@ -354,30 +356,23 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        # Stage 2: the full nine-case repository-miner matrix. The original
-        # 5-case pilot passed real content-level acceptance (Stage 1,
-        # reaccepted on the migrated repository under Gradle duration
-        # canonicalization policy v2 -- see stage1-current-head-
-        # reacceptance-v2.json). These 4 additions restore the 3 cases
-        # deferred at the Stage 1/2 revocation (repo-rustlings,
-        # repo-dockerfile-parser-rs, repo-requests -- all already had full
-        # tool support wired below and in run_pilot_case.py/content_
-        # acceptance.py from that earlier era, simply unreachable while the
-        # matrix was narrowed) plus repo-helm-values, the deterministically
-        # selected jvm-gradle repository-miner replacement for the
-        # permanently-rejected repo-spotless (see stage2-replacement-
-        # selection-v1.json) -- never repo-moshi's slot, never a hand-picked
-        # substitute.
+        # DIAGNOSTIC-ONLY PROBE (ci-probe/n2d1b-repo-requests-focused-c75c60d,
+        # never merged, never the canonical implementation branch's own
+        # matrix): reduced to repo-requests only, to cheaply re-validate the
+        # round-2 timeout-sink argv fix (see commit c75c60d) under the real
+        # Sandboy/CI envelope before spending a full 28-job matrix run. This
+        # narrowing is scoped to this disposable branch only -- the
+        # canonical nine-case matrix (preserved in full on the
+        # implementation branch) is:
+        #   repo-hyperfine (rust), repo-docker-java-parser (jvm-maven),
+        #   repo-kubeops-generator (dotnet), repo-pyflakes (python),
+        #   repo-moshi (jvm-gradle), repo-rustlings (rust),
+        #   repo-dockerfile-parser-rs (rust), repo-requests (python),
+        #   repo-helm-values (jvm-gradle).
+        # This run's own artifacts are diagnostic only and cannot become
+        # final Stage 2 evidence.
         case:
-          - { case_id: repo-hyperfine, ecosystem: rust }
-          - { case_id: repo-docker-java-parser, ecosystem: jvm-maven }
-          - { case_id: repo-kubeops-generator, ecosystem: dotnet }
-          - { case_id: repo-pyflakes, ecosystem: python }
-          - { case_id: repo-moshi, ecosystem: jvm-gradle }
-          - { case_id: repo-rustlings, ecosystem: rust }
-          - { case_id: repo-dockerfile-parser-rs, ecosystem: rust }
           - { case_id: repo-requests, ecosystem: python }
-          - { case_id: repo-helm-values, ecosystem: jvm-gradle }
         job: [capture-a, capture-b]
     runs-on: ubuntu-24.04
     steps:
@@ -691,16 +686,10 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
+        # DIAGNOSTIC-ONLY PROBE -- see the `pilot` job's own matrix comment
+        # above; reduced to repo-requests only on this disposable branch.
         case_id:
-          - repo-hyperfine
-          - repo-docker-java-parser
-          - repo-kubeops-generator
-          - repo-pyflakes
-          - repo-moshi
-          - repo-rustlings
-          - repo-dockerfile-parser-rs
           - repo-requests
-          - repo-helm-values
     runs-on: ubuntu-24.04
     steps:
       - name: Checkout 007
