@@ -450,6 +450,26 @@ def build_toolchain_fn_and_env(ecosystem: str, args) -> tuple:
             # read by Python at runtime, so it is NOT added to env_allow.
             base_interpreter_root = str(Path(args.python_base_interpreter).parent.parent)
             env_values["PYTHON_BASE_INTERPRETER_ROOT"] = base_interpreter_root
+        if args.case_id == "repo-requests":
+            # Real CI evidence (Stage 2, third full run): repo-requests' own
+            # frozen, upstream-documented requirements-dev.txt reads
+            # "-e .[socks]" (an EDITABLE install of the package under test) --
+            # cannot be changed, it is frozen source content, not tooling.
+            # pip's editable-install metadata records the ABSOLUTE PATH of
+            # the directory `pip install` actually ran against during
+            # trusted setup ($RUNNER_TEMP/source-artifact/repo-requests/
+            # source), never the confined capture's own separately
+            # re-extracted work_dir/source -- the two extractions are
+            # intentionally independent (see the workflow's own comment).
+            # The confined run failed with "ModuleNotFoundError: No module
+            # named 'requests'" until this exact, already-populated priming
+            # directory was made fs_ro-visible too -- same class of forward
+            # as Maven's MAVEN_LOCAL_REPO_PATH/~/.m2 and Gradle's
+            # GRADLE_M2_REPO_PATH/GRADLE_USER_HOME (a real, trusted-setup-
+            # populated directory the confined process doesn't automatically
+            # see). Synthetic, policy-only key: never itself read by Python
+            # at runtime, so NOT added to env_allow.
+            env_values["PYTHON_EDITABLE_INSTALL_SOURCE_DIR"] = str(Path(args.source_artifact_dir) / "source")
         return (
             lambda source_root: et.capture_python_toolchain_identity(
                 python_bin,

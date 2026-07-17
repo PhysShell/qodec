@@ -73,7 +73,20 @@ ECOSYSTEM_POLICY_HINTS = {
         # never covers since hostedtoolcache is outside /usr,/bin,/lib. Same
         # class of gap as JAVA_HOME/DOTNET_ROOT: any toolchain installed
         # outside the baseline system paths needs its own explicit grant.
-        "extra_fs_ro_from_env": ["VIRTUAL_ENV", "PYTHON_BASE_INTERPRETER_ROOT"],
+        # PYTHON_EDITABLE_INSTALL_SOURCE_DIR is a synthetic, policy-only key
+        # (never itself forwarded to the confined child), case-scoped to
+        # repo-requests only (see run_pilot_case.py's own comment): its
+        # frozen requirements-dev.txt reads "-e .[socks]", and pip's
+        # editable-install metadata records the absolute path of the
+        # directory `pip install` actually ran against during trusted
+        # setup -- a real, already-populated directory the confined
+        # capture's own separately re-extracted work_dir/source never
+        # automatically sees. Real evidence: "ModuleNotFoundError: No
+        # module named 'requests'" until this exact directory was
+        # fs_ro-visible too.
+        "extra_fs_ro_from_env": [
+            "VIRTUAL_ENV", "PYTHON_BASE_INTERPRETER_ROOT", "PYTHON_EDITABLE_INSTALL_SOURCE_DIR",
+        ],
         "extra_fs_rw_from_env": [],
         # Real capture (repo-requests, Stage 2 second full run): pytest's own
         # output-capture manager (_pytest.capture.FDCapture) calls stdlib

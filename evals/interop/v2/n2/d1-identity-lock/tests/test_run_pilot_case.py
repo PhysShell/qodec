@@ -34,6 +34,7 @@ def _args(**overrides):
         "python_base_interpreter": "",
         "setup_python_action_commit": "",
         "case_id": "repo-hyperfine",
+        "source_artifact_dir": "/fake/source-artifact/repo-requests",
     }
     base.update(overrides)
     return argparse.Namespace(**base)
@@ -82,6 +83,34 @@ class TestPythonVenvRootComputation(unittest.TestCase):
                 env_values["PYTHON_BASE_INTERPRETER_ROOT"],
                 str(tmp_path / "hostedtoolcache" / "Python" / "3.12.3" / "x64"),
             )
+
+
+class TestRequestsEditableInstallSourceDirExposure(unittest.TestCase):
+    """Real CI evidence (Stage 2, third full run): repo-requests' own frozen
+    requirements-dev.txt reads "-e .[socks]" (editable) -- pip's
+    editable-install metadata records the absolute path of the trusted-setup
+    extraction directory `pip install` actually ran against, which the
+    confined capture's own separately re-extracted work_dir/source never
+    automatically sees. Failed with "ModuleNotFoundError: No module named
+    'requests'" until this exact directory was exposed."""
+
+    def test_repo_requests_gets_the_editable_install_source_dir(self):
+        _toolchain_fn, env_values = rpc.build_toolchain_fn_and_env(
+            "python", _args(case_id="repo-requests", source_artifact_dir="/fake/source-artifact/repo-requests")
+        )
+        self.assertEqual(
+            env_values["PYTHON_EDITABLE_INSTALL_SOURCE_DIR"],
+            str(Path("/fake/source-artifact/repo-requests") / "source"),
+        )
+
+    def test_repo_pyflakes_does_not_get_it(self):
+        # Same ecosystem, different case_id -- repo-pyflakes' own
+        # `pip install .` is a regular (non-editable) install, self-contained
+        # in the venv's site-packages; never silently broadened.
+        _toolchain_fn, env_values = rpc.build_toolchain_fn_and_env(
+            "python", _args(case_id="repo-pyflakes")
+        )
+        self.assertNotIn("PYTHON_EDITABLE_INSTALL_SOURCE_DIR", env_values)
 
 
 class TestMavenLocalRepoExposure(unittest.TestCase):
