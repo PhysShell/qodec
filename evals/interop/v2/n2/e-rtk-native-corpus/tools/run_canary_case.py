@@ -61,39 +61,71 @@ def _git_env(home: Path | None = None) -> dict:
 
 
 # ---- network isolation: run a child with no network + a positive denial probe ----
-def netns_available() -> bool:
-    try:
-        r = subprocess.run(["unshare", "-rn", "true"], capture_output=True, timeout=15)
-        return r.returncode == 0
-    except Exception:
-        return False
+# Two mechanisms, tried in order, so it works both under an unprivileged-userns
+# container AND on GitHub-hosted runners (which restrict unprivileged userns but
+# grant passwordless sudo):
+#   unshare-rn     : unprivileged user+net namespace
+#   unshare-n-root : `unshare -n` as root (when already root)
+#   sudo-unshare-n : `sudo -n unshare -n` (passwordless-sudo netns)
+_ISO_CANDIDATES = [
+    ("unshare-rn", ["unshare", "-rn", "--"]),
+    ("unshare-n-root", ["unshare", "-n", "--"]),
+    ("sudo-unshare-n", ["sudo", "-n", "unshare", "-n", "--"]),
+]
 
 
-def denial_probe() -> dict:
-    """Under `unshare -rn`, an outbound TCP connect must FAIL. Returns proof."""
+def _env_i(env: dict) -> list[str]:
+    return ["env", "-i"] + [f"{k}={v}" for k, v in env.items()]
+
+
+def resolve_isolation() -> tuple[str, list] | None:
+    """Return (method_name, wrapper_prefix) for the first mechanism that both
+    starts AND denies outbound network, else None."""
+    for name, prefix in _ISO_CANDIDATES:
+        try:
+            r = subprocess.run(prefix + ["true"], capture_output=True, timeout=20)
+            if r.returncode != 0:
+                continue
+        except Exception:
+            continue
+        if _probe(prefix)["denied"]:
+            return name, prefix
+    return None
+
+
+def _probe(prefix: list) -> dict:
     probe = ("import socket,sys\n"
              "s=socket.socket();s.settimeout(4)\n"
              "try:\n"
              " s.connect(('1.1.1.1',53));print('REACHED');sys.exit(1)\n"
              "except OSError as e:\n"
              " print('DENIED',e.errno);sys.exit(0)\n")
-    r = subprocess.run(["unshare", "-rn", sys.executable, "-c", probe],
-                       capture_output=True, text=True, timeout=30)
-    return {"denied": r.returncode == 0, "output": (r.stdout or r.stderr).strip()}
+    env = {"PATH": os.environ.get("PATH", "/usr/bin:/bin")}
+    try:
+        r = subprocess.run(prefix + _env_i(env) + [sys.executable, "-c", probe],
+                           capture_output=True, text=True, timeout=30)
+        return {"denied": r.returncode == 0, "output": (r.stdout or r.stderr).strip()}
+    except Exception as e:
+        return {"denied": False, "output": f"probe error: {e}"}
 
 
-def run_isolated(argv, cwd, timeout, env_extra=None):
-    """Run argv under `unshare -rn` (no network) in cwd with the mandated env."""
+def denial_probe(prefix: list) -> dict:
+    return _probe(prefix)
+
+
+def run_isolated(argv, cwd, timeout, wrapper_prefix, env_extra=None):
+    """Run argv network-denied via `wrapper_prefix` with an explicit env (env -i),
+    so it is robust to sudo env-sanitization."""
     env = m.measurement_env(env_extra)
-    full = ["unshare", "-rn", "--"] + argv
-    p = subprocess.run(full, cwd=cwd, env=env, stdin=subprocess.DEVNULL,
+    full = wrapper_prefix + _env_i(env) + list(argv)
+    p = subprocess.run(full, cwd=cwd, stdin=subprocess.DEVNULL,
                        stdout=subprocess.PIPE, stderr=subprocess.PIPE, timeout=timeout)
     combined = p.stdout + p.stderr
     return {"exit_code": p.returncode, "stdout": p.stdout, "stderr": p.stderr, "combined": combined}
 
 
-def run_arm(argv, frozen_dir: Path, policy_id: str, timeout: int, env_extra=None) -> dict:
-    """RAW or RTK arm: REPS runs in FRESH copies of the frozen env, isolated.
+def run_arm(argv, frozen_dir: Path, policy_id: str, timeout: int, wrapper_prefix, env_extra=None) -> dict:
+    """RAW or RTK arm: REPS runs in FRESH copies of the frozen env, network-denied.
     Canonicalize each combined stream under policy_id; the ACCEPTED stream is the
     canonical bytes (identical across reps when deterministic)."""
     runs, canon_hashes, raw_hashes = [], [], []
@@ -102,7 +134,7 @@ def run_arm(argv, frozen_dir: Path, policy_id: str, timeout: int, env_extra=None
         with tempfile.TemporaryDirectory(prefix="n2e-rep-") as td:
             work = Path(td) / "w"
             shutil.copytree(frozen_dir, work, symlinks=True)
-            r = run_isolated(argv, str(work), timeout, env_extra)
+            r = run_isolated(argv, str(work), timeout, wrapper_prefix, env_extra)
         cb = canon.canonicalize(r["combined"], policy_id)
         runs.append({"exit_code": r["exit_code"],
                      "raw_combined_sha256": hashlib.sha256(r["combined"]).hexdigest(),
@@ -361,14 +393,24 @@ def main() -> int:
     if c.sha256_file(rtk_bin) != RTK_BINARY_SHA256:
         emit("REJECTED_RTK_IDENTITY", reason="RTK_BIN sha256 != pinned")
         return 2
-    # isolation availability + positive denial probe
-    if not netns_available():
-        emit("REJECTED_NO_ISOLATION", reason="unshare -rn network namespace unavailable")
-        return 2
-    probe = denial_probe()
-    if not probe["denied"]:
-        emit("REJECTED_ISOLATION_LEAK", denial_probe=probe)
-        return 2
+    # network isolation: required for all families EXCEPT containers (host-side
+    # read-only docker observation, §6.9). Resolve the mechanism + positive probe.
+    if fam == "containers":
+        iso = {"method": "host_side_docker_observation", "host_side_observation": True,
+               "denial_probe": {"denied": None, "note": "not applicable: host-side docker CLI read-only"}}
+        wrapper = None
+    else:
+        resolved = resolve_isolation()
+        if resolved is None:
+            emit("REJECTED_NO_ISOLATION",
+                 reason="no working network-denied mechanism (unshare -rn / unshare -n / sudo unshare -n)")
+            return 2
+        method, wrapper = resolved
+        probe = denial_probe(wrapper)
+        if not probe["denied"]:
+            emit("REJECTED_ISOLATION_LEAK", isolation={"method": method, "denial_probe": probe})
+            return 2
+        iso = {"method": method, "denial_probe": probe}
 
     workroot = Path(tempfile.mkdtemp(prefix="n2e-case-"))
     try:
@@ -395,26 +437,26 @@ def main() -> int:
             raw = _docker_arm(scen["original_argv"], policy, scen["timeout_seconds"])
             rtk_run = None
         else:
-            raw = run_arm(raw_argv, frozen, policy, scen["timeout_seconds"], env_extra)
+            raw = run_arm(raw_argv, frozen, policy, scen["timeout_seconds"], wrapper, env_extra)
             rtk_run = None
 
         # ---- RAW acceptance gate ----
-        raw_ok, raw_reasons, raw_oracle = _raw_accept(scen, raw, acq, probe)
+        raw_ok, raw_reasons, raw_oracle = _raw_accept(scen, raw, acq, iso)
         if not raw_ok:
-            emit("RAW_REJECTED", acquisition=acq, isolation={"denial_probe": probe},
+            emit("RAW_REJECTED", acquisition=acq, isolation=iso,
                  raw_arm=_arm_public(raw), raw_semantic_oracle=raw_oracle,
                  rejection_reasons=raw_reasons)
             return 1
 
         # ---- RTK arm (only after RAW passes) ----
         if rtk_argv is None:
-            emit("RTK_REJECTED", acquisition=acq, raw_arm=_arm_public(raw),
+            emit("RTK_REJECTED", acquisition=acq, isolation=iso, raw_arm=_arm_public(raw),
                  rejection_reasons=["no explicit RTK argv resolved"])
             return 1
         if fam == "containers":
             rtk_run = _docker_arm([rtk_bin] + rtk_argv[1:], policy, scen["timeout_seconds"])
         else:
-            rtk_run = run_arm([rtk_bin] + rtk_argv[1:], frozen, policy, scen["timeout_seconds"], env_extra)
+            rtk_run = run_arm([rtk_bin] + rtk_argv[1:], frozen, policy, scen["timeout_seconds"], wrapper, env_extra)
 
         rtk_ok, rtk_reasons, rtk_oracle = _rtk_accept(scen, raw, rtk_run, rtk_bin)
         raw_tokens = m.o200k_tokens(raw["_accepted_canonical"], qodec_bin)
@@ -422,7 +464,7 @@ def main() -> int:
         savings = round(100 * (raw_tokens - rtk_tokens) / raw_tokens, 2) if (rtk_tokens and raw_tokens) else None
 
         status = "PASS" if (raw_ok and rtk_ok) else "RTK_REJECTED"
-        emit(status, acquisition=acq, isolation={"denial_probe": probe},
+        emit(status, acquisition=acq, isolation=iso,
              canonicalization_policy=policy,
              raw_arm={**_arm_public(raw), "o200k_tokens": raw_tokens},
              rtk_arm={**_arm_public(rtk_run), "o200k_tokens": rtk_tokens},
@@ -465,7 +507,7 @@ def _arm_public(arm):
     return {k: v for k, v in arm.items() if not k.startswith("_")}
 
 
-def _raw_accept(scen, raw, acq, probe):
+def _raw_accept(scen, raw, acq, iso):
     reasons = []
     if raw["reps_completed"] != REPS:
         reasons.append("raw reps != 3")
@@ -475,7 +517,9 @@ def _raw_accept(scen, raw, acq, probe):
         reasons.append("raw not canonically deterministic")
     if not acq.get("identity_verified"):
         reasons.append("acquisition identity unverified")
-    if not probe.get("denied"):
+    if iso.get("host_side_observation"):
+        pass  # containers: host-side read-only docker observation (§6.9), no netns
+    elif not (iso.get("denial_probe") or {}).get("denied"):
         reasons.append("network denial probe failed")
     oracle = ora.raw_outcome(scen, raw["_accepted_canonical"] or b"", raw["exit_code"])
     if oracle.get("verdict") is not True:
