@@ -1,0 +1,62 @@
+# TEMPORARY, DISPOSABLE probe workflow. Not part of the N2-D evidence
+# surface. Exists only to determine, on a real GitHub-hosted runner,
+# whether a single dataset-rtn-traffic-ids N2-D3 leg measurement (whose
+# qodec process was locally observed to exceed 8.4GB RSS before an OOM
+# kill under memory contention) completes or gets OOM-killed when run
+# alone on standard ubuntu-latest hardware. This branch/workflow is never
+# merged and will be deleted after the probe runs.
+name: _tmp-rtn-memory-probe
+on:
+  push:
+    branches:
+      - n2d/ci-trigger-probe-rtn-memory
+permissions:
+  contents: read
+concurrency:
+  group: tmp-rtn-memory-probe
+  cancel-in-progress: true
+jobs:
+  probe:
+    runs-on: ubuntu-latest
+    timeout-minutes: 90
+    steps:
+      - name: Checkout
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        with:
+          persist-credentials: false
+      - name: Report runner memory
+        run: free -h
+      - name: Install Nix
+        uses: cachix/install-nix-action@08dcb3a5e62fa31e2da3d490afc4176ef55ecd72 # v30
+      - name: Build qodec (explicit out-link)
+        run: nix build .#qodec --out-link qodec-result --no-update-lock-file --print-build-logs
+      - name: Build rtk-pinned (explicit out-link)
+        run: nix build .#rtk-pinned --out-link rtk-result --no-update-lock-file --print-build-logs
+      - name: Measure dataset-rtn-traffic-ids leg a (single real repetition, background with memory sampling)
+        run: |
+          python3 evals/interop/v2/n2/d1-identity-lock/tools/n2d3_measure_case.py \
+            --qodec-bin "$(pwd)/qodec-result/bin/qodec" --rtk-bin "$(pwd)/rtk-result/bin/rtk" \
+            --case-id dataset-rtn-traffic-ids --leg a --timeout-seconds 5000 \
+            --out rtn-probe-leg-a.json &
+          MEASURE_PID=$!
+          PEAK_KB=0
+          while kill -0 "$MEASURE_PID" 2>/dev/null; do
+            for p in $(pgrep -f "qodec-result/bin/qodec encode" || true); do
+              RSS_KB=$(awk '/VmRSS/{print $2}' /proc/"$p"/status 2>/dev/null || echo 0)
+              if [ "${RSS_KB:-0}" -gt "$PEAK_KB" ]; then PEAK_KB=$RSS_KB; fi
+            done
+            sleep 15
+          done
+          wait "$MEASURE_PID"
+          EXIT_CODE=$?
+          echo "MEASURE_EXIT_CODE=$EXIT_CODE"
+          echo "PEAK_QODEC_RSS_KB=$PEAK_KB"
+          free -h
+          exit "$EXIT_CODE"
+      - name: Upload probe result
+        if: always()
+        uses: actions/upload-artifact@b4b15b8c7c6ac21ea08fcf65892d2ee8f75cf882 # v4.4.3
+        with:
+          name: rtn-memory-probe-result
+          path: rtn-probe-leg-a.json
+          if-no-files-found: warn
