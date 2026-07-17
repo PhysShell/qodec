@@ -1,0 +1,89 @@
+{
+  "canary_case_count": 12,
+  "distinct_families": 9,
+  "generated_by": "evals/interop/v2/n2/e-rtk-native-corpus/tools/build_n2e_canary_membership.py",
+  "membership": [
+    {
+      "canary_slot": "test_generic",
+      "case_id": "apache__lucene-13704::jvm::test::buggy",
+      "command_family": "jvm",
+      "command_subfamily": "test"
+    },
+    {
+      "canary_slot": "python",
+      "case_id": "bugsinpy::scrapy-9::python::pytest::fixed",
+      "command_family": "python",
+      "command_subfamily": "pytest"
+    },
+    {
+      "canary_slot": "test_generic",
+      "case_id": "caddyserver__caddy-5870::go::test::buggy",
+      "command_family": "go",
+      "command_subfamily": "test"
+    },
+    {
+      "canary_slot": "docker",
+      "case_id": "container::redis::docker::images",
+      "command_family": "containers",
+      "command_subfamily": "images"
+    },
+    {
+      "canary_slot": "build_lint",
+      "case_id": "gin-gonic__gin-2755::go::vet",
+      "command_family": "go",
+      "command_subfamily": "vet"
+    },
+    {
+      "canary_slot": "log",
+      "case_id": "loghub::HDFS::log",
+      "command_family": "logs",
+      "command_subfamily": "log"
+    },
+    {
+      "canary_slot": "git_1",
+      "case_id": "php-cs-fixer__php-cs-fixer-8075::git::commit",
+      "command_family": "git",
+      "command_subfamily": "commit"
+    },
+    {
+      "canary_slot": "files_search_1",
+      "case_id": "preactjs__preact-3345::files_search::read",
+      "command_family": "files_search",
+      "command_subfamily": "read"
+    },
+    {
+      "canary_slot": "files_search_1",
+      "case_id": "projectlombok__lombok-3312::files_search::read",
+      "command_family": "files_search",
+      "command_subfamily": "read"
+    },
+    {
+      "canary_slot": "git_1",
+      "case_id": "rubocop__rubocop-13687::git::show",
+      "command_family": "git",
+      "command_subfamily": "show"
+    },
+    {
+      "canary_slot": "rust",
+      "case_id": "tokio-rs__tokio-4384::rust_cargo::test::fixed",
+      "command_family": "rust_cargo",
+      "command_subfamily": "test"
+    },
+    {
+      "canary_slot": "js_ts",
+      "case_id": "vuejs__core-11589::js_ts::test::buggy",
+      "command_family": "js_ts",
+      "command_subfamily": "test"
+    }
+  ],
+  "mission": "N2-E",
+  "mission_title": "external RTK-native claim-aligned command corpus",
+  "policy_sha256": "sha256:7a103c20afc6f106d726baa77aab7f8f3f333fc27a8d0dbf12f09c0338fa46db",
+  "purpose": "Frozen deterministic 12-case canary membership (\u00a719), chosen before measurement.",
+  "record_sha256": "sha256:6390fd385cc7137c1181e6707880a418c36289426d9968a1fe2e6b61c28504ae",
+  "record_type": "n2e-canary-membership",
+  "record_version": "v1",
+  "schema_version": "n2e-record-1",
+  "seed": 20260717,
+  "selection_sha256": "sha256:403845edd8f2463af496bc8091351113ded07880cb1b318de6b4ec98ab7f6c29"
+}
