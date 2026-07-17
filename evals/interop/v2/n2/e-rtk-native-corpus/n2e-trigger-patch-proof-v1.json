@@ -6,15 +6,15 @@
   ],
   "diff_text": "diff --git a/.github/workflows/qodec-n2e-corpus-canary.yml b/.github/workflows/qodec-n2e-corpus-canary.yml\nindex 1a20a2a..42f766e 100644\n--- a/.github/workflows/qodec-n2e-corpus-canary.yml\n+++ b/.github/workflows/qodec-n2e-corpus-canary.yml\n@@ -9,6 +9,9 @@ name: qodec-n2e-corpus-canary\n # and independently re-derives acceptance from primary evidence.\n on:\n   workflow_dispatch: {}\n+  push:\n+    branches:\n+      - 'ci-trigger/n2e-canary-**'\n \n permissions:\n   contents: read\n",
   "generated_by": "evals/interop/v2/n2/e-rtk-native-corpus/tools/build_n2e_trigger_patch_proof.py",
-  "implementation_sha": "096142f748dfafbe9c7a16e9581ef4855c11a67f",
+  "implementation_sha": "92f4f3a9a8def95d296bbc53697595671978e28f",
   "mission": "N2-E",
   "mission_title": "external RTK-native claim-aligned command corpus",
   "only_workflow_changed": true,
   "purpose": "Prove the CI trigger commit changes only the workflow trigger stanza (#10).",
-  "record_sha256": "sha256:cb2b3a389772cc7cfa772ca762d228c0b3d9637aefd170438b2025663a812092",
+  "record_sha256": "sha256:3dd5b11a2c637f6e0e8e762e1ca3524bc56d2f0853b64a85a9510a03a2329a28",
   "record_type": "n2e-trigger-patch-proof",
   "record_version": "v1",
   "removed_line_count": 0,
   "schema_version": "n2e-record-1",
-  "trigger_sha": "cd8b225d1687bd8aa62c6993a7e3c915a06ebf64"
+  "trigger_sha": "145d7f5edc3e9003ca7cc4a2d6d4a4c6a05098c6"
 }
