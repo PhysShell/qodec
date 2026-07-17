@@ -268,6 +268,17 @@ class TestNetworkEnforcementModeIsCaseIdScoped(unittest.TestCase):
         self.assertIn("tcp_connect = []", text)
         self.assertIn("tcp_bind = []", text)
 
+    def test_repo_requests_receives_the_exception(self):
+        # D1b remediation (2026-07-17): pytest-httpbin's own local WSGI test
+        # server hit the identical class of loopback-bind PermissionError
+        # as repo-kubeops-generator's VSTest test-host and repo-moshi's/
+        # repo-helm-values's Gradle daemon -- authorized separately, not
+        # inherited from any of those entries.
+        text = self._build(ecosystem="python", case_id="repo-requests")
+        self.assertIn('network_enforcement_mode = "outer-netns-loopback-only"', text)
+        self.assertIn("tcp_connect = []", text)
+        self.assertIn("tcp_bind = []", text)
+
     def test_repo_spotless_is_not_restored_to_the_authorized_set(self):
         # repo-spotless is REJECTED_ACQUISITION_MODEL_INCOMPATIBLE (see
         # repo-spotless-rejection-record.json) for a reason entirely
@@ -297,10 +308,16 @@ class TestNetworkEnforcementModeIsCaseIdScoped(unittest.TestCase):
             text = self._build(ecosystem=ecosystem, case_id="repo-totally-unauthorized-case")
             self.assertNotIn("network_enforcement_mode", text, f"ecosystem={ecosystem}")
 
-    def test_only_the_three_authorized_cases_exist(self):
+    def test_only_the_four_authorized_cases_exist(self):
         self.assertEqual(
             set(gsp.NETWORK_ENFORCEMENT_AUTHORIZED_CASES),
-            {"repo-moshi", "repo-kubeops-generator", "repo-helm-values"},
+            {"repo-moshi", "repo-kubeops-generator", "repo-helm-values", "repo-requests"},
+        )
+
+    def test_repo_requests_has_an_explicit_approval_identity(self):
+        self.assertEqual(
+            gsp.NETWORK_ENFORCEMENT_APPROVAL_IDENTITIES.get("repo-requests"),
+            "n2d1b-repo-requests-loopback-only-authorization-2026-07-17",
         )
 
     def test_all_authorized_cases_grant_read_access_to_probe_script_directories(self):
@@ -318,6 +335,7 @@ class TestNetworkEnforcementModeIsCaseIdScoped(unittest.TestCase):
             ("jvm-gradle", "repo-moshi"),
             ("dotnet", "repo-kubeops-generator"),
             ("jvm-gradle", "repo-helm-values"),
+            ("python", "repo-requests"),
         ):
             text = self._build(ecosystem=ecosystem, case_id=case_id)
             fs_ro_line = next(line for line in text.splitlines() if line.startswith("fs_ro"))

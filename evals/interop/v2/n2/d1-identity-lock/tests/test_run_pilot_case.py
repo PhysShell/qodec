@@ -334,5 +334,52 @@ class TestPythonArgv0OverrideSelection(unittest.TestCase):
         self.assertIsNone(override)
 
 
+class TestRepoRequestsToolchainIdentityIsExactMatchClassifiable(unittest.TestCase):
+    """D1b remediation (2026-07-17): the prior "3.x" requested_version_or_
+    range never exact/compatible-matched toolchain_identity.classify()'s own
+    wildcard-range grammar against a real three-component resolved version
+    ("3.12.3") -- every real repo-requests run classified as
+    toolchain_executed.classification="unexpected-resolution". Fixed by
+    pinning the exact same actions/setup-python identity repo-pyflakes
+    already uses (python-version 3.12.3), so requested_version_or_range now
+    literally equals the pinned, always-resolved version."""
+
+    def test_requested_version_or_range_is_the_exact_pinned_version(self):
+        self.assertEqual(rpc.CASES["repo-requests"]["requested_version_or_range"], "3.12.3")
+
+    def test_resolver_mechanism_documents_the_pinned_setup_python_identity(self):
+        mechanism = rpc.CASES["repo-requests"]["resolver_mechanism"]
+        self.assertIn("a26af69be951a213d495a4c3e4e4022e16d87065", mechanism)
+        self.assertIn("3.12.3", mechanism)
+
+    def test_classify_against_the_real_pinned_resolution_is_exact_match(self):
+        import toolchain_identity as ti  # noqa: E402 -- available via generic_capture's sys.path setup
+
+        classification = ti.classify(
+            requested_version_or_range=rpc.CASES["repo-requests"]["requested_version_or_range"],
+            resolved_version="3.12.3",
+            runtime_identifier="cpython-3.12.3-cpython-312-cpython-312-x86_64-linux-gnu-linux-x86_64",
+            resolved_executable_path="/opt/hostedtoolcache/Python/3.12.3/x64/bin/python3",
+            executed_binary_absolute_path="/home/runner/work/_temp/venv-repo-requests/bin/python",
+            executed_binary_sha256="a" * 64,
+        )
+        self.assertEqual(classification, "exact-match")
+
+    def test_the_prior_wildcard_range_would_have_been_unexpected_resolution(self):
+        # Documents the actual bug: "3.x" against a real three-component
+        # resolved version never matches classify()'s own range grammar.
+        import toolchain_identity as ti  # noqa: E402
+
+        classification = ti.classify(
+            requested_version_or_range="3.x",
+            resolved_version="3.12.3",
+            runtime_identifier="cpython-3.12.3-cpython-312-cpython-312-x86_64-linux-gnu-linux-x86_64",
+            resolved_executable_path="/usr/bin/python3",
+            executed_binary_absolute_path="/home/runner/work/_temp/venv-repo-requests/bin/python",
+            executed_binary_sha256="a" * 64,
+        )
+        self.assertEqual(classification, "unexpected-resolution")
+
+
 if __name__ == "__main__":
     unittest.main()

@@ -248,6 +248,33 @@
 # (fixed via a narrowly scoped gradle_canonicalizer.py rule, independent of
 # maven_canonicalizer.py and vstest_canonicalizer.py -- see
 # gradle-capture-canonicalization-policy.json).
+#
+# D1b REMEDIATION (2026-07-17): run 29544801640 (the fifth full 28-job run,
+# previously reported as fully accepted in stage2-full-matrix-acceptance.
+# json) is REVOKED as final Stage 2 evidence. Real inspection of its
+# accepted repo-requests capture-a artifact found exit_code=1, "30 failed,
+# 384 passed, 15 skipped, 1 xfailed, 32 warnings, 205 errors" -- a genuine
+# pytest FAILURE, not a successful run, wrongly classified as
+# "genuine-workload-output" because the prior content-acceptance gate only
+# checked for the literal presence of a pytest final-summary line, never
+# its actual failed/error counts, and only rejected exit codes 126/127. All
+# 205 errors trace to pytest-httpbin's own local WSGI test server's
+# socket.bind() call hitting a real PermissionError under this sandbox's
+# (at that time, blanket) network denial for repo-requests -- a genuine
+# confinement gap, not a test-suite defect. See
+# pytest-requests-canonicalization-v1-rejection-record.json for the full
+# rejection of the canonicalizer this invalid run produced. Fixed via: (1)
+# content_acceptance.py now requires repo-requests exit_code==0 and a
+# pytest summary with zero failed/zero errors; (2) repo-requests authorized
+# for outer-netns-loopback-only network enforcement (generic_sandbox_
+# policy.py), so pytest-httpbin's own local fixture server can bind
+# loopback while external connectivity remains denied; (3) repo-requests'
+# python toolchain pinned to the same actions/setup-python identity
+# repo-pyflakes uses (python-version 3.12.3), fixing toolchain_executed.
+# classification from "unexpected-resolution" to "exact-match"; (4)
+# pytest_requests_canonicalizer.py unwired from the active dispatch --
+# repo-requests runs uncanonicalized pending a fresh, genuinely successful
+# capture pair.
 name: qodec-n2d1b-miner-pilot
 
 on:
@@ -439,20 +466,29 @@ jobs:
       # Pinned to a real, verified actions/setup-python commit (tag
       # v5.6.0, confirmed via `git ls-remote --tags`), not merely a
       # guessed/typed SHA.
+      #
+      # D1b remediation (2026-07-17): repo-requests joins repo-pyflakes here
+      # -- its prior "3.x" toolchain_requested range never exact/compatible-
+      # matched toolchain_identity.classify()'s own wildcard-range grammar
+      # against the real three-component resolved version ("3.12.3"),
+      # always classifying as "unexpected-resolution". This runner's ambient
+      # python3 already resolves to exactly 3.12.3, so pinning the SAME
+      # identity repo-pyflakes uses changes nothing about what executes,
+      # only makes it reproducible and exact-match-classifiable.
       - uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065 # v5.6.0
-        if: matrix.case.case_id == 'repo-pyflakes'
+        if: matrix.case.case_id == 'repo-pyflakes' || matrix.case.case_id == 'repo-requests'
         with:
           python-version: "3.12.3"
           architecture: "x64"
 
-      - name: Resolve pinned Python base interpreter path (repo-pyflakes only)
-        if: matrix.case.case_id == 'repo-pyflakes'
+      - name: Resolve pinned Python base interpreter path (repo-pyflakes, repo-requests only)
+        if: matrix.case.case_id == 'repo-pyflakes' || matrix.case.case_id == 'repo-requests'
         run: |
           echo "PYTHON_BASE_INTERPRETER=$(python3 -c 'import sys; print(sys.executable)')" >> "$GITHUB_ENV"
           python3 --version
 
-      - name: Confirm python3 (runner-preinstalled; only for python cases other than repo-pyflakes)
-        if: matrix.case.ecosystem == 'python' && matrix.case.case_id != 'repo-pyflakes'
+      - name: Confirm python3 (runner-preinstalled; only for python cases with no pinned setup-python step)
+        if: matrix.case.ecosystem == 'python' && matrix.case.case_id != 'repo-pyflakes' && matrix.case.case_id != 'repo-requests'
         run: python3 --version
 
       # ---- repo-dockerfile-parser-rs only: fetch the ONE published lockfile ----
@@ -610,7 +646,7 @@ jobs:
             published_lockfile_arg=(--published-lockfile "$RUNNER_TEMP/dfpr-published-lockfile/Cargo.lock")
           fi
           pinned_python_arg=()
-          if [ "${{ matrix.case.case_id }}" = "repo-pyflakes" ]; then
+          if [ "${{ matrix.case.case_id }}" = "repo-pyflakes" ] || [ "${{ matrix.case.case_id }}" = "repo-requests" ]; then
             pinned_python_arg=(
               --python-base-interpreter "$PYTHON_BASE_INTERPRETER"
               --setup-python-action-commit "a26af69be951a213d495a4c3e4e4022e16d87065"

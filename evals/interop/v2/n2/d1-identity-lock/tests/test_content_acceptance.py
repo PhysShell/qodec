@@ -37,6 +37,20 @@ REAL_NU1301_STDOUT = (
 )
 HARMLESS_LANDLOCK_WARNING_STDERR = b"sandboy: warning: Landlock only PARTIALLY enforced (kernel too old for some access rights)\n"
 
+# Real stdout/stderr shape from the Stage 2 run wrongly accepted as final
+# evidence (29544801640, since rejected) -- repo-requests' 205 pytest
+# ERRORs from pytest-httpbin's own local WSGI server hitting a
+# PermissionError binding its loopback socket under (at that time, blanket)
+# network denial.
+REAL_SOCKET_BIND_PERMISSION_DENIED_STDERR = (
+    b"        self.socket.bind(self.server_address)\n"
+    b'        ~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^\n'
+    b"      File \"/usr/lib/python3.12/socketserver.py\", line 473, in server_bind\n"
+    b"        self.socket.bind(self.server_address)\n"
+    b"E       PermissionError: [Errno 13] Permission denied\n"
+    b"/usr/lib/python3.12/socketserver.py:473: PermissionError\n"
+)
+
 
 class TestDetectInfrastructureFailure(unittest.TestCase):
     def test_rustup_no_default_toolchain_detected(self):
@@ -96,9 +110,50 @@ class TestCaseSemanticMarkers(unittest.TestCase):
         ok, _ = ca.CASE_SEMANTIC_VALIDATORS["repo-kubeops-generator"]("Passed!  - Failed: 0, Passed: 61, Total: 61\n")
         self.assertTrue(ok)
 
-    def test_pytest_marker(self):
-        ok, _ = ca.CASE_SEMANTIC_VALIDATORS["repo-requests"]("========== 614 passed, 5 failed in 12.34s ==========\n")
+    def test_pytest_marker_accepts_genuinely_zero_failure_summary(self):
+        ok, _ = ca.CASE_SEMANTIC_VALIDATORS["repo-requests"]("========== 614 passed in 12.34s ==========\n")
         self.assertTrue(ok)
+
+    def test_pytest_marker_rejects_any_failed_count(self):
+        # D1b remediation (2026-07-17): a summary containing the literal
+        # word "failed" or "error" must never be accepted merely because
+        # pytest reached its final report -- only a ZERO failed/error count
+        # is a genuine success.
+        ok, desc = ca.CASE_SEMANTIC_VALIDATORS["repo-requests"]("========== 614 passed, 5 failed in 12.34s ==========\n")
+        self.assertFalse(ok)
+        self.assertIn("5 failed", desc)
+
+    def test_pytest_marker_rejects_real_stage2_run5_broken_summary(self):
+        # The exact real summary line from run 29544801640 (since rejected
+        # as final evidence): 30 failed, 205 errors, all from pytest-
+        # httpbin's own local WSGI server hitting a sandbox-confinement
+        # socket.bind PermissionError under network denial.
+        ok, desc = ca.CASE_SEMANTIC_VALIDATORS["repo-requests"](
+            "= 30 failed, 384 passed, 15 skipped, 1 xfailed, 32 warnings, 205 errors in 14.43s =\n"
+        )
+        self.assertFalse(ok)
+        self.assertIn("30 failed", desc)
+        self.assertIn("205 error", desc)
+
+    def test_pytest_marker_rejects_passed_with_one_error(self):
+        ok, desc = ca.CASE_SEMANTIC_VALIDATORS["repo-requests"]("========== 10 passed, 1 error in 1.0s ==========\n")
+        self.assertFalse(ok)
+        self.assertIn("1 error", desc)
+
+    def test_pytest_marker_rejects_collection_error_with_no_pass_fail_words(self):
+        ok, desc = ca.CASE_SEMANTIC_VALIDATORS["repo-requests"](
+            "!!!!!!!!!! Interrupted: 1 error during collection !!!!!!!!!!\n"
+            "========== 1 error in 0.05s ==========\n"
+        )
+        self.assertFalse(ok)
+        self.assertIn("1 error", desc)
+
+    def test_pytest_marker_rejects_when_no_final_summary_line_present(self):
+        # A catastrophic import/collection failure that never reaches
+        # pytest's own final report line at all.
+        ok, desc = ca.CASE_SEMANTIC_VALIDATORS["repo-requests"]("ImportError: cannot import name 'foo' from 'bar'\n")
+        self.assertFalse(ok)
+        self.assertIn("not found", desc)
 
     def test_gradle_marker(self):
         ok, _ = ca.CASE_SEMANTIC_VALIDATORS["repo-spotless"]("BUILD SUCCESSFUL in 3s\n")
@@ -143,15 +198,92 @@ class TestValidateCaptureContent(unittest.TestCase):
         self.assertTrue(report["accepted"])
         self.assertEqual(report["rejection_reasons"], [])
 
-    def test_pytest_test_failures_permitted_with_valid_summary(self):
-        # repo-requests: a completion with real test FAILURES and a nonzero
-        # exit code must still be accepted -- exit code alone is not the gate.
+    def test_pytest_test_failures_are_rejected_not_permitted(self):
+        # D1b remediation (2026-07-17): this test used to assert ACCEPTANCE
+        # of a real-failure summary -- exactly the defect the user
+        # identified in the Stage 2 run wrongly accepted as final evidence
+        # (29544801640: 30 failed, 205 errors, silently accepted). A
+        # completion with real test FAILURES and a nonzero exit code must
+        # now be REJECTED: repo-requests requires a genuinely successful,
+        # zero-failure, exit-0 run.
         stdout = b"===== 614 passed, 5 failed, 15 skipped in 42.1s =====\n"
         report = ca.validate_capture_content(
             case_id="repo-requests", canonical_stream_bytes=stdout,
             raw_stdout=stdout, raw_stderr=b"", exit_code=1,
         )
+        self.assertFalse(report["accepted"])
+        self.assertFalse(report["checks"]["termination_allowed"])
+        self.assertFalse(report["checks"]["case_semantic_marker_found"])
+
+    def test_pytest_genuinely_successful_run_is_accepted(self):
+        stdout = b"===== 619 passed, 15 skipped in 42.1s =====\n"
+        report = ca.validate_capture_content(
+            case_id="repo-requests", canonical_stream_bytes=stdout,
+            raw_stdout=stdout, raw_stderr=b"", exit_code=0,
+        )
         self.assertTrue(report["accepted"])
+        self.assertEqual(report["rejection_reasons"], [])
+        self.assertEqual(report["content_classification"], "genuine-workload-output")
+
+    def test_pytest_nonzero_exit_is_rejected_even_with_a_zero_failure_summary(self):
+        # A pathological case (e.g. a plugin crash after the summary
+        # printed, or a warnings-as-errors nonzero exit) -- repo-requests
+        # requires exit code 0 unconditionally, not merely inferred from
+        # the summary's own failed/error counts.
+        stdout = b"===== 619 passed, 15 skipped in 42.1s =====\n"
+        report = ca.validate_capture_content(
+            case_id="repo-requests", canonical_stream_bytes=stdout,
+            raw_stdout=stdout, raw_stderr=b"", exit_code=2,
+        )
+        self.assertFalse(report["accepted"])
+        self.assertFalse(report["checks"]["termination_allowed"])
+        self.assertIn("exit code 2 != 0", report["rejection_reasons"][0])
+
+    def test_real_stage2_run5_broken_capture_is_rejected_end_to_end(self):
+        # The exact real raw.stdout shape from run 29544801640's accepted
+        # (wrongly) repo-requests capture-a: exit_code=1, 30 failed, 205
+        # errors, all from pytest-httpbin's own socket.bind PermissionError
+        # under network denial.
+        stdout = (
+            b"= 30 failed, 384 passed, 15 skipped, 1 xfailed, 32 warnings, 205 errors in 14.43s =\n"
+        )
+        report = ca.validate_capture_content(
+            case_id="repo-requests", canonical_stream_bytes=stdout,
+            raw_stdout=stdout, raw_stderr=REAL_SOCKET_BIND_PERMISSION_DENIED_STDERR, exit_code=1,
+        )
+        self.assertFalse(report["accepted"])
+        self.assertEqual(report["infrastructure_failure_detected"], "socket-bind-permission-denied")
+        self.assertFalse(report["checks"]["termination_allowed"])
+        self.assertFalse(report["checks"]["case_semantic_marker_found"])
+        self.assertEqual(report["content_classification"], "rejected")
+
+    def test_pytest_passed_with_one_error_is_rejected_end_to_end(self):
+        stdout = b"===== 10 passed, 1 error in 1.0s =====\n"
+        report = ca.validate_capture_content(
+            case_id="repo-requests", canonical_stream_bytes=stdout,
+            raw_stdout=stdout, raw_stderr=b"", exit_code=1,
+        )
+        self.assertFalse(report["accepted"])
+
+    def test_pytest_collection_error_is_rejected_end_to_end(self):
+        stdout = (
+            b"!!!!!!!!!! Interrupted: 1 error during collection !!!!!!!!!!\n"
+            b"===== 1 error in 0.05s =====\n"
+        )
+        report = ca.validate_capture_content(
+            case_id="repo-requests", canonical_stream_bytes=stdout,
+            raw_stdout=stdout, raw_stderr=b"", exit_code=2,
+        )
+        self.assertFalse(report["accepted"])
+
+    def test_pytest_import_error_with_no_final_summary_is_rejected_end_to_end(self):
+        stdout = b"ImportError: cannot import name 'foo' from 'bar'\n"
+        report = ca.validate_capture_content(
+            case_id="repo-requests", canonical_stream_bytes=stdout,
+            raw_stdout=stdout, raw_stderr=b"", exit_code=1,
+        )
+        self.assertFalse(report["accepted"])
+        self.assertFalse(report["checks"]["case_semantic_marker_found"])
 
     def test_genuinely_empty_pyflakes_after_clean_run_is_rejected_not_synthesized(self):
         # Without the authorized erratum resolution signal (e.g. a caller

@@ -831,23 +831,21 @@ class TestIdempotence(unittest.TestCase):
         )
 
 
-class TestPytestRequestsDispatch(unittest.TestCase):
-    """repo-requests (N2-D1b Stage 2) must dispatch to
-    pytest_requests_canonicalizer.py / its own policy path, never to any
-    other canonicalizer -- mirrors the analogous dispatch-table check in
-    test_generic_capture.py's TestPytestRequestsCanonicalizationWiring."""
+class TestPytestRequestsDispatchIsUnwiredPendingValidEvidence(unittest.TestCase):
+    """D1b remediation (2026-07-17): repo-requests' prior canonicalization
+    policy (pytest_requests_canonicalizer.py) is REJECTED -- derived from
+    run 29544801640, in which repo-requests genuinely FAILED and was
+    wrongly accepted as final evidence. See generic_capture.py's identical
+    comment and pytest-requests-canonicalization-v1-rejection-record.json.
+    repo-requests no longer dispatches to any canonicalizer module."""
 
-    def test_repo_requests_resolves_to_the_pytest_requests_module_and_policy(self):
+    def test_repo_requests_resolves_to_no_canonicalizer(self):
         module, policy_path = verifier._canonicalizer_for_case_id("repo-requests")
-        self.assertIs(module, verifier.pytest_requests_canonicalizer)
-        self.assertEqual(policy_path, verifier.PYTEST_REQUESTS_POLICY_PATH)
+        self.assertIsNone(module)
+        self.assertIsNone(policy_path)
 
-    def test_pytest_requests_canonicalized_derivation_checks_real_idempotence(self):
-        raw = b"self = <Server(Thread-1, stopped 140547873863360)> in 14.49s =\n"
-        canonical, _ = verifier.pytest_requests_canonicalizer.canonicalize_stream(raw)
-        self.assertTrue(
-            verifier._is_idempotent("case-specific-deterministic-canonicalization", "repo-requests", canonical)
-        )
+    def test_pytest_requests_canonicalizer_module_is_not_imported_by_the_verifier(self):
+        self.assertFalse(hasattr(verifier, "pytest_requests_canonicalizer"))
 
 
 if __name__ == "__main__":

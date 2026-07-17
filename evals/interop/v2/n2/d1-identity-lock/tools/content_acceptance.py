@@ -54,6 +54,19 @@ INFRASTRUCTURE_FAILURE_SIGNATURES: list[tuple[str, re.Pattern]] = [
      re.compile(r"(command not found|No such file or directory.*\b(cargo|mvn|gradlew|dotnet|python3?)\b)")),
     ("sandbox-refused-to-run",
      re.compile(r"(Refusing to run unconfined|Landlock NOT enforced)")),
+    # D1b remediation (2026-07-17): real inspection of the Stage 2 run
+    # wrongly accepted as final evidence (29544801640) found repo-requests'
+    # 205 pytest ERRORs all originated from pytest-httpbin's local WSGI test
+    # server genuinely failing to bind its own loopback socket under this
+    # sandbox's (at that time, blanket) network denial -- a sandbox-
+    # confinement gap, never a genuine test-suite defect, and never
+    # something a content-acceptance gate should silently average away by
+    # comparing two identically-broken runs to each other. Detected
+    # generally (not repo-requests-specific): Python's socketserver.py
+    # binding a socket and immediately hitting PermissionError is an
+    # infrastructure signature for any case.
+    ("socket-bind-permission-denied",
+     re.compile(r"socket\.bind\([^\n]*\)[\s\S]{0,400}?PermissionError: \[Errno 13\] Permission denied")),
 ]
 
 
@@ -70,13 +83,28 @@ def detect_infrastructure_failure(stdout: bytes, stderr: bytes) -> str | None:
 # Exit codes that are never a legitimate workload outcome for any case
 # (shell "command not found" / "permission denied to exec" conventions) --
 # everything else is case-specific and gated by the semantic marker instead
-# of a blanket "must be zero" rule (repo-requests must accept real pytest
-# test-failure exit codes; repo-pyflakes must accept its own violation-found
-# exit code).
+# of a blanket "must be zero" rule (repo-pyflakes must accept its own
+# violation-found exit code).
 ABNORMAL_EXIT_CODES = {126, 127}
 
+# D1b remediation (2026-07-17): repo-requests was previously in the
+# "case-specific semantic marker gates termination" group alongside
+# repo-pyflakes -- real inspection of the Stage 2 run wrongly accepted as
+# final evidence (29544801640) showed this let a real pytest exit code 1
+# (30 failed, 205 errors -- pytest's own documented exit code for "tests
+# were collected and run but some failed") through unchallenged, entirely
+# on the strength of a nonzero-but-not-126/127 exit code being "allowed".
+# repo-requests' accepted benchmark input must be a genuinely successful
+# (zero-failure) suite run: exit code 0 is now REQUIRED, not merely
+# "not abnormal". This is deliberately narrower than every other pytest-
+# shaped case might someday need -- scoped to this exact case_id, never
+# generalized to "python" or "pytest" as an ecosystem-wide rule.
+STRICT_ZERO_EXIT_CODE_REQUIRED_CASE_IDS = {"repo-requests"}
 
-def termination_allowed(exit_code: int) -> bool:
+
+def termination_allowed(exit_code: int, *, case_id: str | None = None) -> bool:
+    if case_id in STRICT_ZERO_EXIT_CODE_REQUIRED_CASE_IDS:
+        return exit_code == 0
     return exit_code not in ABNORMAL_EXIT_CODES and exit_code >= 0
 
 
@@ -100,9 +128,40 @@ def _dotnet_test_semantic_marker(text: str) -> tuple[bool, str]:
     return ok, "VSTest completion summary (Passed!/Failed!/Total tests:)"
 
 
-def _pytest_semantic_marker(text: str) -> tuple[bool, str]:
-    ok = bool(re.search(r"=+ .*(passed|failed|error).* in [\d.]+s.*=+", text))
-    return ok, "pytest final summary line ('=== N passed/failed in Ts ===')"
+_PYTEST_FINAL_SUMMARY_RE = re.compile(r"=+\s*(?P<body>.+?)\s+in\s+[\d.]+s(?:\s*\(\d+:\d\d:\d\d\))?\s*=+")
+_PYTEST_COUNT_RE = re.compile(r"(\d+)\s+(failed|passed|skipped|xfailed|xpassed|deselected|errors?|warnings?)\b")
+
+
+def _pytest_requests_semantic_marker(text: str) -> tuple[bool, str]:
+    """D1b remediation (2026-07-17): repo-requests requires a genuinely
+    successful pytest run -- collection completed, a final summary line
+    present, AND that summary reports ZERO failed and ZERO errors. Real CI
+    evidence (Stage 2, run 29544801640 -- since rejected as final evidence):
+    205 pytest-httpbin ERRORs from a sandbox-confinement gap (socket.bind's
+    own PermissionError under network denial) were wrongly accepted because
+    the prior marker only checked for the literal word passed/failed/error
+    appearing anywhere in the summary line, never the actual counts. A
+    pytest final summary line is always emitted even for a pure collection
+    error (e.g. "1 error in 0.05s"), so this same check also covers
+    collection/import failures -- there is no separate marker needed for
+    those; a summary with zero failed and zero errors can only originate
+    from a genuinely completed, fully passing run."""
+    match = _PYTEST_FINAL_SUMMARY_RE.search(text)
+    if not match:
+        return False, "pytest final summary line ('=== N passed in Ts ===') not found"
+    counts: dict[str, int] = {}
+    for count_str, label in _PYTEST_COUNT_RE.findall(match.group("body")):
+        key = "error" if label.startswith("error") else ("warning" if label.startswith("warning") else label)
+        counts[key] = counts.get(key, 0) + int(count_str)
+    failed = counts.get("failed", 0)
+    errors = counts.get("error", 0)
+    if failed > 0 or errors > 0:
+        return False, (
+            f"pytest final summary reports {failed} failed and {errors} error(s) -- repo-requests "
+            "requires a genuinely successful (zero-failure, zero-error) suite completion, never a "
+            "deterministic pair of two identically-broken runs"
+        )
+    return True, "pytest final summary line reporting zero failed and zero errors"
 
 
 def _gradle_semantic_marker(text: str) -> tuple[bool, str]:
@@ -127,7 +186,7 @@ CASE_SEMANTIC_VALIDATORS = {
     "repo-dockerfile-parser-rs": _cargo_test_semantic_marker,
     "repo-docker-java-parser": _maven_semantic_marker,
     "repo-kubeops-generator": _dotnet_test_semantic_marker,
-    "repo-requests": _pytest_semantic_marker,
+    "repo-requests": _pytest_requests_semantic_marker,
     "repo-spotless": _gradle_semantic_marker,
     "repo-moshi": _gradle_semantic_marker,
     "repo-helm-values": _gradle_semantic_marker,
@@ -160,7 +219,7 @@ def validate_capture_content(*, case_id: str, canonical_stream_bytes: bytes,
 
     is_nonempty = len(canonical_stream_bytes) > 0
     infra_failure = detect_infrastructure_failure(raw_stdout, raw_stderr)
-    term_allowed = termination_allowed(exit_code)
+    term_allowed = termination_allowed(exit_code, case_id=case_id)
 
     validator = CASE_SEMANTIC_VALIDATORS.get(case_id)
     if validator is None:
@@ -206,7 +265,10 @@ def validate_capture_content(*, case_id: str, canonical_stream_bytes: bytes,
         if not is_nonempty:
             rejection_reasons.append("canonical stream is empty")
         if not term_allowed:
-            rejection_reasons.append(f"exit code {exit_code} is an abnormal/non-workload termination")
+            if case_id in STRICT_ZERO_EXIT_CODE_REQUIRED_CASE_IDS:
+                rejection_reasons.append(f"exit code {exit_code} != 0 -- {case_id} requires a genuinely successful (exit 0) run")
+            else:
+                rejection_reasons.append(f"exit code {exit_code} is an abnormal/non-workload termination")
         if infra_failure is not None:
             rejection_reasons.append(f"detected known infrastructure failure: {infra_failure}")
         if not semantic_ok:

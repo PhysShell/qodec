@@ -238,6 +238,31 @@ NETWORK_ENFORCEMENT_AUTHORIZED_CASES = {
     # OS-chosen ephemeral client<->daemon port) -- authorized separately
     # here, never inherited from repo-moshi's own entry.
     "repo-helm-values": "outer-netns-loopback-only",
+    # D1b remediation (2026-07-17): repo-requests' own frozen `pytest` argv
+    # runs pytest-httpbin, which starts a LOCAL WSGI test server (the
+    # repository's own documented fixture, not an external service) bound
+    # to loopback for the duration of the test run. Under this sandbox's
+    # prior blanket network denial, that server's own socket.bind() call
+    # failed with a genuine PermissionError, cascading into 205 pytest
+    # ERRORs that content_acceptance.py's fixed gate now correctly refuses
+    # to accept as workload output. This is the SAME class of gap as
+    # repo-kubeops-generator's VSTest test-host and repo-moshi's/repo-helm-
+    # values's Gradle daemon above -- a real, local, loopback-only listener
+    # Sandboy's fully-closed tcp_bind policy has no way to express -- never
+    # inherited from any of those entries, authorized separately here.
+    # External IPv4/IPv6 connectivity remains denied; no upstream source
+    # patch, pytest argument change, or test-selection skip is involved --
+    # the frozen argv stays exactly ["pytest"].
+    "repo-requests": "outer-netns-loopback-only",
+}
+
+# Approving-decision identities for each network_enforcement_mode
+# authorization above -- mirrors content_acceptance.py's
+# PYFLAKES_EMPTY_OUTPUT_AUTHORIZATION_ID pattern: an explicit, citable
+# identity for the record, never merely implied by the case_id's presence
+# in NETWORK_ENFORCEMENT_AUTHORIZED_CASES.
+NETWORK_ENFORCEMENT_APPROVAL_IDENTITIES = {
+    "repo-requests": "n2d1b-repo-requests-loopback-only-authorization-2026-07-17",
 }
 
 

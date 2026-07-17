@@ -1084,22 +1084,25 @@ class TestCargoTestCanonicalizationWiring(unittest.TestCase):
         self.assertNotIn("repo-hyperfine", gc.CANONICALIZED_CASE_IDS)
 
 
-class TestPytestRequestsCanonicalizationWiring(unittest.TestCase):
-    """repo-requests (N2-D1b Stage 2, real CI evidence: CPython's object-repr
-    address, pytest's own session-summary duration, and threading.Thread's
-    own repr's native ident were the sole remaining raw differences after
-    the argv0/tmpdir/editable-install fixes let pytest actually run its full
-    suite) must dispatch to pytest_requests_canonicalizer.py, never to any
-    other canonicalizer module."""
+class TestPytestRequestsCanonicalizationIsUnwiredPendingValidEvidence(unittest.TestCase):
+    """D1b remediation (2026-07-17): repo-requests' prior canonicalization
+    policy (pytest_requests_canonicalizer.py) was derived from run
+    29544801640, in which repo-requests genuinely FAILED (30 failed, 205
+    errors from a sandbox-confinement gap, not a real test defect) and was
+    wrongly accepted as final evidence -- see
+    pytest-requests-canonicalization-v1-rejection-record.json. That module
+    and policy remain on disk, byte-for-byte, as rejected historical
+    evidence, but are no longer imported or dispatched. repo-requests now
+    runs UNCANONICALIZED (raw-capped-stream, exactly like any other case
+    with no active policy) until a genuinely successful capture pair is
+    observed and a new, separately-reviewed policy is built."""
 
-    def test_repo_requests_uses_the_pytest_requests_module(self):
-        module = gc.CANONICALIZATION_MODULE_BY_CASE_ID["repo-requests"]
-        self.assertIs(module, gc.pytest_requests_canonicalizer)
-        self.assertIsNot(module, gc.maven_canonicalizer)
-        self.assertIsNot(module, gc.vstest_canonicalizer)
-        self.assertIsNot(module, gc.gradle_canonicalizer_v2)
-        self.assertIsNot(module, gc.gradle_canonicalizer_helm_values_v1)
-        self.assertIsNot(module, gc.cargo_test_canonicalizer)
+    def test_repo_requests_has_no_canonicalization_module(self):
+        self.assertNotIn("repo-requests", gc.CANONICALIZATION_MODULE_BY_CASE_ID)
+        self.assertNotIn("repo-requests", gc.CANONICALIZED_CASE_IDS)
+
+    def test_pytest_requests_canonicalizer_module_is_not_imported_by_generic_capture(self):
+        self.assertFalse(hasattr(gc, "pytest_requests_canonicalizer"))
 
 
 if __name__ == "__main__":

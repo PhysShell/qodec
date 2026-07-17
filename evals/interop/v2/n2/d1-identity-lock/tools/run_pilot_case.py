@@ -162,11 +162,32 @@ CASES = {
         # source tree itself is read-only under this policy, so this one
         # directory must be pre-created and writable.
         "project_writable_dirs_relative": [".pytest_cache"],
-        "requested_version_or_range": "3.x",
+        # D1b remediation (2026-07-17): the prior "3.x" range request never
+        # exact-matched toolchain_identity.classify()'s own wildcard-range
+        # grammar against the real resolved three-component version string
+        # ("3.12.3") -- classify()'s _range_matches() builds a fixed-shape
+        # regex from the request itself (one \d+ segment per "x"/"*" token
+        # in "3.x", i.e. "^3\.\d+$", which a THREE-component resolved
+        # version can never match), so every real run classified as
+        # toolchain_executed.classification="unexpected-resolution", not a
+        # hard failure but never accepted at face value either. Fixed the
+        # same way repo-pyflakes' own ambient-interpreter drift was fixed
+        # (D1b, 2026-07-16): pin the EXACT same actions/setup-python
+        # identity (tag v5.6.0, commit
+        # a26af69be951a213d495a4c3e4e4022e16d87065, python-version 3.12.3,
+        # x64) rather than the runner-ambient interpreter -- this runner's
+        # ambient python3 already happened to resolve to exactly 3.12.3, so
+        # pinning explicitly changes nothing about what actually executes,
+        # only makes the identity reproducible and exact-match-classifiable
+        # instead of implicit.
+        "requested_version_or_range": "3.12.3",
         "resolver_mechanism": (
-            "runner-preinstalled python3, installed into a dedicated venv via the "
-            "repo's own documented `pip install -r requirements-dev.txt` (installs "
-            "requests[socks] editable plus pytest/pytest-cov/pytest-httpbin/httpbin/trustme)"
+            "actions/setup-python (pinned commit a26af69be951a213d495a4c3e4e4022e16d87065, "
+            "tag v5.6.0), python-version 3.12.3, architecture x64 -- explicit pin, not the "
+            "runner-ambient interpreter (same identity repo-pyflakes uses); installed into a "
+            "dedicated venv (created FROM that resolved interpreter) via the repo's own "
+            "documented `pip install -r requirements-dev.txt` (installs requests[socks] "
+            "editable plus pytest/pytest-cov/pytest-httpbin/httpbin/trustme)"
         ),
     },
     "repo-moshi": {
@@ -552,9 +573,10 @@ def main() -> int:
     ap.add_argument("--venv-python", default="")
     ap.add_argument("--python-base-interpreter", default="",
                      help="Absolute path of the actions/setup-python-resolved interpreter the venv "
-                          "(--venv-python) was created FROM -- repo-pyflakes only.")
+                          "(--venv-python) was created FROM -- repo-pyflakes and repo-requests only.")
     ap.add_argument("--setup-python-action-commit", default="",
-                     help="Exact pinned actions/setup-python commit SHA used -- repo-pyflakes only.")
+                     help="Exact pinned actions/setup-python commit SHA used -- repo-pyflakes and "
+                          "repo-requests only.")
     ap.add_argument("--java-home-11", default="")
     ap.add_argument("--java-home-21", default="")
     ap.add_argument(
