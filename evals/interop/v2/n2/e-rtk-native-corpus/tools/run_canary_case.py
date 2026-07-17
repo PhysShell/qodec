@@ -75,10 +75,17 @@ def _git_env(home: Path | None = None) -> dict:
 # root-owned build artifacts that break the per-rep TemporaryDirectory cleanup.
 _UID, _GID = os.getuid(), os.getgid()
 _DROP = ["setpriv", "--reuid", str(_UID), "--regid", str(_GID), "--clear-groups", "--"]
+# Bring LOOPBACK up inside the fresh netns before running the workload: `unshare -n`
+# creates a namespace whose `lo` is DOWN, so hermetic tests/servers that bind or
+# connect to 127.0.0.1/::1 fail spuriously. External network stays denied (the ns
+# has no route off-box), which the positive denial probe still confirms. `ip` needs
+# CAP_NET_ADMIN, held (real root via sudo, or mapped-root in the userns) BEFORE the
+# setpriv drop, so the lo-up runs first, then `exec "$@"` continues to the drop.
+_LO = 'ip link set lo up 2>/dev/null || true; exec "$@"'
 _ISO_CANDIDATES = [
-    ("unshare-rn", ["unshare", "-rn", "--"]),
-    ("unshare-n-root", ["unshare", "-n", "--"] + _DROP),
-    ("sudo-unshare-n", ["sudo", "-n", "unshare", "-n", "--"] + _DROP),
+    ("unshare-rn", ["unshare", "-rn", "--", "sh", "-c", _LO, "sh"]),
+    ("unshare-n-root", ["unshare", "-n", "--", "sh", "-c", _LO, "sh"] + _DROP),
+    ("sudo-unshare-n", ["sudo", "-n", "unshare", "-n", "--", "sh", "-c", _LO, "sh"] + _DROP),
 ]
 
 
@@ -177,6 +184,7 @@ def run_arm(argv, frozen_dir: Path, policy_id: str, timeout: int, wrapper_prefix
         "raw_capture_hashes": raw_hashes, "runs": runs,
         "nondeterminism_sample": _nd_sample(canon_streams) if not deterministic else None,
         "_accepted_canonical": accepted_canonical if deterministic else None,
+        "_output_tail": (canon_streams[-1][-2500:]).decode("utf-8", "replace") if canon_streams else "",
     }
 
 
@@ -555,6 +563,7 @@ def main() -> int:
         if not raw_ok:
             emit("RAW_REJECTED", acquisition=acq, isolation=iso,
                  raw_arm=_arm_public(raw), raw_semantic_oracle=raw_oracle,
+                 raw_output_tail=raw.get("_output_tail"), raw_argv=raw_argv,
                  rejection_reasons=raw_reasons)
             return 1
 

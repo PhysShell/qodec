@@ -47,6 +47,16 @@ class TestCanonPolicies(unittest.TestCase):
         c3 = canon.canonicalize(b'{"ts":1.0,"msg":"y","origins":["//localhost:2019","//[::1]:2019"]}', "go-test-v1")
         self.assertNotEqual(canon.canonicalize(a, "go-test-v1"), c3)
 
+    def test_vitest_walltime_phases_and_chromium_ids_normalized(self):
+        a = (b"   Start at  21:37:10\n   Duration 1.2s (transform 5.92s, setup 643ms, tests 9.28s)\n"
+             b"[4945:4945:0717/213801.172445:FATAL:zygote.cc(126)] No usable sandbox!\n")
+        b = (b"   Start at  21:38:45\n   Duration 1.3s (transform 6.19s, setup 619ms, tests 9.30s)\n"
+             b"[7774:7774:0717/213936.290729:FATAL:zygote.cc(126)] No usable sandbox!\n")
+        self.assertEqual(canon.canonicalize(a, "vitest-v1"), canon.canonicalize(b, "vitest-v1"))
+        # the semantic crash reason must remain observable
+        self.assertNotEqual(canon.canonicalize(a, "vitest-v1"),
+                            canon.canonicalize(a.replace(b"No usable sandbox!", b"Segfault!"), "vitest-v1"))
+
     def test_vitest_per_file_duration_normalized(self):
         # per-file trailing elapsed ("(150 tests) 110ms") is pure duration jitter
         a = canon.canonicalize(b"  \xe2\x9c\x93 parse.spec.ts  (150 tests) 110ms", "vitest-v1")

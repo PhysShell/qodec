@@ -29,6 +29,12 @@ _VITEST_FAIL = re.compile(rb"(?:FAIL|\xc3\x97)\s+(\S+)")
 _DIAG = re.compile(rb"(?P<file>[\w./\-]+):(?P<line>\d+):(?:(?P<col>\d+):)?\s*(?P<sev>error|warning|note)?", re.IGNORECASE)
 
 
+_VITEST_SUM = re.compile(rb"Tests\s+(?:(\d+) failed\s*\|\s*)?(\d+) passed(?:\s*\|\s*(\d+) skipped)?")
+_VITEST_SUM_FAILONLY = re.compile(rb"Tests\s+(\d+) failed\b(?!\s*\|)")
+_GRADLE_SUM = re.compile(rb"(\d+) tests? completed(?:,\s*(\d+) failed)?")
+_GRADLE_FAIL = re.compile(rb"^(\S+) > (\S+) FAILED", re.MULTILINE)
+
+
 def _test_summary(raw: bytes) -> dict:
     """Best-effort tool-agnostic parse of passed/failed + failing ids."""
     failing = set()
@@ -37,6 +43,24 @@ def _test_summary(raw: bytes) -> dict:
     if m:
         passed = int(m.group(1))
         failed = int(m.group(2))
+    # vitest: "Tests  1 failed | 3185 passed | 5 skipped (3268)" (or all-passed)
+    if passed is None:
+        vm = _VITEST_SUM.search(raw)
+        if vm:
+            failed = int(vm.group(1)) if vm.group(1) else 0
+            passed = int(vm.group(2))
+        elif _VITEST_SUM_FAILONLY.search(raw):
+            failed = int(_VITEST_SUM_FAILONLY.search(raw).group(1))
+            passed = 0
+    # gradle/JUnit: "N tests completed, M failed" + "Class > method FAILED"
+    if passed is None:
+        gm = _GRADLE_SUM.search(raw)
+        if gm:
+            total = int(gm.group(1))
+            failed = int(gm.group(2)) if gm.group(2) else 0
+            passed = total - failed
+    for fm in _GRADLE_FAIL.finditer(raw):
+        failing.add(f"{fm.group(1).decode('utf-8','replace')}::{fm.group(2).decode('utf-8','replace')}")
     for pat in (_CARGO_FAIL, _GOTEST_FAIL, _PYTEST_FAIL):
         for fm in pat.finditer(raw):
             failing.add(fm.group(1).decode("utf-8", "replace"))

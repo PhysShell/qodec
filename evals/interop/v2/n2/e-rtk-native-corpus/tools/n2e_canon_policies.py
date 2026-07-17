@@ -74,7 +74,16 @@ _POLICIES: dict[str, list[tuple[re.Pattern, bytes]]] = {
         (re.compile(rb"(\)\s*)\d+ms\b"), rb"\1<dur>"),
         (re.compile(rb"(\)\s*)\d+\.\d+s\b"), rb"\1<dur>"),
         (re.compile(rb"(\btests?\b.*?\s)\d+ms\b"), rb"\1<dur>"),
-        (re.compile(rb"\bstart(ing)?\s+at\s+\d{1,2}:\d{2}:\d{2}\b"), b"start at <time>"),
+        # vitest summary "Start at  HH:MM:SS" (wall-clock) and the per-phase Duration
+        # breakdown "(transform 5.92s, setup 643ms, collect .., tests .., ..)".
+        (re.compile(rb"Start at\s+\d{1,2}:\d{2}:\d{2}"), b"Start at <time>"),
+        (re.compile(rb"\b(transform|setup|collect|tests|environment|prepare)\s+\d+(?:\.\d+)?\s?m?s\b"),
+         rb"\1 <dur>"),
+        # chromium/zygote crash logs from browser-backed tests fail CONSISTENTLY under
+        # the sandboxless netns; only the PID:TID and MMDD/HHMMSS.micro timestamps vary
+        # (pure process/wall-clock metadata -- the "No usable sandbox" text is kept).
+        (re.compile(rb"\[\d+:\d+:\d{4}/\d{6}\.\d+:"), b"[<proc>:<time>:"),
+        (re.compile(rb"\[\d{4}/\d{6}\.\d+:"), b"[<time>:"),
     ],
     # gradle test: "BUILD SUCCESSFUL in 12s" ; "> Task :test"
     "gradle-test-v1": [
