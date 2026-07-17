@@ -1,15 +1,29 @@
 """Per-tool, versioned output canonicalization policies (§15).
 
-Each policy is identified by an IMMUTABLE id and matches ONLY the exact known
-nondeterministic grammar for one tool's output — elapsed durations, and nothing
-else. Policies never touch diagnostic text, paths, test names, error messages,
-counts, or any semantic value. `identity-v1` is the default and changes nothing.
+Each policy is identified by an IMMUTABLE id. There are two DISTINCT classes:
 
-A policy is resolved deterministically from a frozen scenario's (command_family,
-command_subfamily) via `policy_for`, and the resolved id is recorded in the
-per-case evidence. Mutation tests (test_n2e_canon_policies.py) prove that a
-semantic change to the bytes always survives canonicalization (i.e. the policy
-cannot mask a real difference).
+  1. Tool-level duration/cache policies (e.g. cargo-test-v1, go-test-v1, pytest-v1,
+     vitest-v1, gradle-test-v1). These match ONLY the exact known nondeterministic
+     grammar of a single tool's OWN output — elapsed durations, cache markers, and
+     the tool's own wall-clock summary lines — and nothing else. They are selected
+     by (command_family, command_subfamily). They never touch diagnostic text,
+     paths, test names, error messages, counts, or any semantic value.
+
+  2. Explicitly case-scoped, PARSER-BOUNDED structural policies (e.g.
+     caddy-go-test-v1). These handle a structured artifact that a SPECIFIC case's
+     tested program emits (here: Caddy's zap JSON admin logs). They parse the full
+     structure with a real parser, require the exact schema/context before touching
+     anything, normalize only proven wall-clock fields, and canonicalize declared
+     unordered sets while preserving their exact multiset. A case-scoped policy is
+     selected ONLY by the exact immutable case_id (via _CASE_POLICY / the execution
+     contract) — NEVER from family/subfamily — and must never be substituted by the
+     family-generic policy.
+
+`policy_for` resolves the id (honouring the case-scoped binding first); the id is
+recorded in the per-case evidence AND in the self-hash-locked execution contract,
+which is the normative source the verifier checks. Mutation tests
+(test_n2e_canon_policies.py) prove that a semantic change to the bytes always
+survives canonicalization (i.e. the policy cannot mask a real difference).
 """
 from __future__ import annotations
 

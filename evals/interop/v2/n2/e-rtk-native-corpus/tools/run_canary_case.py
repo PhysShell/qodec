@@ -40,6 +40,7 @@ import n2e_common as c  # noqa: E402
 import n2e_measure as m  # noqa: E402
 import n2e_oracles as ora  # noqa: E402
 import n2e_canon_policies as canon  # noqa: E402
+import n2e_argv_resolver as resolver  # noqa: E402
 
 SCEN = N2E_DIR / "n2e-command-scenarios-v1.json"
 CANARY = N2E_DIR / "n2e-canary-membership-v1.json"
@@ -391,70 +392,44 @@ def _warm_test_env(fam, sub, scen, repo_dir: Path, home: Path):
             warm["steps"].append({"cmd": cmd, "exit": None, "timed_out": True, "tail": tail})
             return None
 
-    offline_env, resolved = {}, {}
+    # WARM = network-enabled cache population ONLY. It NEVER defines the measured
+    # command; the effective argv, scheduler, and offline env come from the single
+    # normative resolver (n2e_argv_resolver) so they equal the execution contract.
     if fam == "rust_cargo":
         step(["cargo", "fetch"])
-        # frozen `cargo test`: offline via env; single-thread scheduler via env
-        # (RUST_TEST_THREADS) so the command bytes stay the frozen contract.
-        offline_env = {"CARGO_NET_OFFLINE": "true", "RUST_TEST_THREADS": "1"}
-        warm["scheduler"] = "RUST_TEST_THREADS=1 (single-threaded, deterministic order)"
-        policy = canon.policy_for("rust_cargo", sub)
     elif fam == "go":
         step(["go", "mod", "download"])
-        offline_env = {"GOFLAGS": "-mod=mod", "GOPROXY": "off"}
-        policy = canon.policy_for("go", sub, case_id=scen["case_id"])
     elif fam == "js_ts":
         pj = repo_dir / "package.json"
         pj_txt = pj.read_text(errors="replace") if pj.exists() else ""
         pnpm = (repo_dir / "pnpm-lock.yaml").exists() or "catalog:" in pj_txt or '"workspace:' in pj_txt
         if pnpm:
-            step(["corepack", "pnpm", "install", "--frozen-lockfile=false"], tmo=1800)
-            exec_pfx = ["corepack", "pnpm", "exec"]
+            step(["corepack", "pnpm", "install", "--frozen-lockfile"], tmo=1800)
             warm["js_package_manager"] = "pnpm"
         else:
-            step(["npm", "install", "--no-audit", "--no-fund"], tmo=1800)
-            exec_pfx = ["npx"]
+            step(["npm", "ci", "--no-audit", "--no-fund"], tmo=1800)
             warm["js_package_manager"] = "npm"
-        runner = "jest" if '"jest"' in pj_txt and "vitest" not in pj_txt else ("vitest" if "vitest" in pj_txt else "jest")
-        # deterministic sequential scheduler for the pinned runner (same test set,
-        # no filtering); applied identically to RAW and RTK, recorded as identity.
-        if runner == "vitest":
-            seq = ["--no-file-parallelism", "--sequence.concurrent=false", "--sequence.shuffle=false"]
-        else:  # jest
-            seq = ["--runInBand"]
-        if sub == "test":
-            resolved = {"raw_argv": exec_pfx + [runner, "run", *seq], "rtk_argv": ["rtk", runner, *seq]}
-        elif sub == "tsc":
-            resolved = {"raw_argv": exec_pfx + ["tsc", "--noEmit"], "rtk_argv": ["rtk", "tsc"]}
-        else:
-            resolved = {"raw_argv": exec_pfx + ["eslint", "."], "rtk_argv": ["rtk", "lint", "."]}
-        warm["js_test_runner"] = runner
-        warm["scheduler"] = "sequential: " + " ".join(seq)
-        policy = canon.policy_for("js_ts", sub)
     elif fam == "jvm":
-        build_sys = "maven" if (repo_dir / "pom.xml").exists() else "gradle"
-        if build_sys == "gradle":
-            # WARM (network on): fetch the gradle distribution + all deps and compile
-            # test classes into the cache, WITHOUT running tests. MEASUREMENT then runs
-            # the frozen `test` offline against that cache under the predeclared limit.
-            step(["./gradlew", "testClasses", "--no-daemon", "--console=plain"], tmo=1800)
-            resolved = {"raw_argv": ["./gradlew", "test", "--offline", "--no-daemon",
-                                     "--console=plain", "--max-workers=1"],
-                        "rtk_argv": ["rtk", "gradlew", "test"]}
+        if (repo_dir / "pom.xml").exists():
+            step(["mvn", "-B", "-DskipTests", "test-compile"], tmo=1800)
         else:
-            step(["mvn", "-B", "-DskipTests", "test-compile"], tmo=1800)  # network: populate ~/.m2
-            resolved = {"raw_argv": ["mvn", "-o", "-B", "test"], "rtk_argv": ["rtk", "mvn", "test"]}
-        warm["jvm_build_system"] = build_sys
-        warm["build_system_resolution"] = f"jvm/test resolved to repo build system: {build_sys}"
-        policy = canon.policy_for("jvm", sub, jvm_build=build_sys)
+            step(["./gradlew", "testClasses", "--no-daemon", "--console=plain"], tmo=1800)
     elif fam == "python":
         step(["python3", "-m", "pip", "install", "-e", "."], tmo=1800)
         step(["python3", "-m", "pip", "install", "pytest"])
-        # frozen `pytest <path>` runs verbatim; PYTHONHASHSEED pins hash-order.
-        offline_env = {"PYTHONHASHSEED": "0", "PYTHONDONTWRITEBYTECODE": "1"}
-        policy = canon.policy_for("python", sub)
     else:
         raise SystemExit(f"no warm step for {fam}/{sub}")
+
+    r = resolver.resolve(scen, repo_dir)
+    warm["resolution_rule"] = r["resolution_rule"]
+    warm["scheduler_flags"] = r.get("scheduler_flags")
+    for k in ("package_manager", "runner", "build_system"):
+        if r.get(k) is not None:
+            warm[k] = r[k]
+    policy = canon.policy_for(fam, sub, git=(fam == "git"),
+                              jvm_build=r.get("build_system"), case_id=scen["case_id"])
+    resolved = {"raw_argv": r["effective_raw_argv"], "rtk_argv": r["effective_rtk_argv"]}
+    offline_env = r["scheduler_env"]
     warm["ok"] = all(s.get("exit") == 0 for s in warm["steps"])
     return warm, policy, offline_env, resolved
 
