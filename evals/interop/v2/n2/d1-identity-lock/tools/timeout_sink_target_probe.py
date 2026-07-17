@@ -15,9 +15,22 @@ at connect()-time instead of blocking): a route via a real (if otherwise
 inert) veth peer forces genuine, never-answered ARP resolution, so the
 CALLER's own socket.settimeout() is what actually fires.
 
-Never hardcodes the target address itself -- always reads it from the same
-env var run_confined_build.sh's conditional route setup keys off of, so a
-mismatch between the two is impossible by construction.
+Never hardcodes the target address itself -- takes it as argv[1] (the
+caller, timeout_sink_probe.py, passes generic_sandbox_policy.py's own
+TIMEOUT_SINK_AUTHORIZED_CASES[case_id] value), so a mismatch between the
+authorized target and the probed target is impossible by construction.
+
+argv, not an env var: real CI evidence (run 29548972173) showed Sandboy's
+own env_clear() + env_allow confinement strips N2D1B_TIMEOUT_SINK_TARGET
+before exec'ing this script even though run_confined_build.sh's OUTER
+sudo/unshare layer correctly preserves it -- that outer env var is read by
+the unconfined bash wrapper that sets up the veth-pair route (before
+Sandboy ever runs), never by anything inside Sandboy's own confinement.
+Command-line argv, unlike env vars, is not subject to Sandboy's env
+allowlist, so it reaches this confined script intact. Falls back to the
+N2D1B_TIMEOUT_SINK_TARGET env var (only) when no argv is given, to keep
+ad hoc local invocation (e.g. a live probe outside the full pilot-case
+plumbing) working unchanged.
 """
 import json
 import os
@@ -33,9 +46,12 @@ PROBE_PORT = 80
 
 
 def main():
-    target = os.environ.get("N2D1B_TIMEOUT_SINK_TARGET")
+    target = sys.argv[1] if len(sys.argv) > 1 else os.environ.get("N2D1B_TIMEOUT_SINK_TARGET")
     if not target:
-        print(json.dumps({"result": "MISCONFIGURED", "error": "N2D1B_TIMEOUT_SINK_TARGET not set"}))
+        print(json.dumps({
+            "result": "MISCONFIGURED",
+            "error": "sink target not provided via argv[1] or N2D1B_TIMEOUT_SINK_TARGET",
+        }))
         sys.exit(2)
 
     s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)

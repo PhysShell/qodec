@@ -21,9 +21,13 @@ def _fake_run_real_build_factory(sink_stdout: bytes, sink_exit: int,
                                   negative_stdout: bytes, negative_exit: int,
                                   positive_stdout: bytes, positive_exit: int):
     def _fake(sandboy_bin, policy_path, cwd, argv, env):
-        script = argv[-1]
-        if "timeout_sink_target_probe.py" in script:
+        # timeout_sink_target_probe.py is invoked with the sink target
+        # appended as an extra argv element (argv[-1] is the target IP, not
+        # the script path) -- check membership across the whole argv, not
+        # just the last element.
+        if any("timeout_sink_target_probe.py" in a for a in argv):
             return {"argv": argv, "exit_code": sink_exit, "raw_stdout": sink_stdout, "raw_stderr": b""}
+        script = argv[-1]
         if "network_probe.py" in script:
             return {"argv": argv, "exit_code": negative_exit, "raw_stdout": negative_stdout, "raw_stderr": b""}
         return {"argv": argv, "exit_code": positive_exit, "raw_stdout": positive_stdout, "raw_stderr": b""}
@@ -122,6 +126,16 @@ class TestRunTimeoutSinkChecks(unittest.TestCase):
             report["loopback_bind_connect_probe"]["raw_stdout_sha256"],
             hashlib.sha256(REAL_POSITIVE_ALLOWED).hexdigest(),
         )
+
+    def test_sink_target_is_passed_as_argv_not_only_env(self):
+        # Real CI evidence (run 29548972173): Sandboy's own env_clear() +
+        # env_allow confinement strips N2D1B_TIMEOUT_SINK_TARGET before
+        # exec'ing the confined probe script, even though the OUTER sudo/
+        # unshare wrapper correctly preserves it for its own veth-pair route
+        # setup. argv is not subject to that allowlist -- the sink probe's
+        # argv must carry the target explicitly, not rely on env alone.
+        report = self._run(REAL_SINK_GENUINE_TIMEOUT, 0, REAL_NEGATIVE_ALL_BLOCKED, 0, REAL_POSITIVE_ALLOWED, 0)
+        self.assertIn("10.255.255.1", report["sink_target_probe"]["argv"])
 
 
 if __name__ == "__main__":

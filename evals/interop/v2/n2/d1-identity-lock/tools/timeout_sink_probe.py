@@ -51,8 +51,9 @@ def sha256_bytes(data: bytes) -> str:
     return hashlib.sha256(data).hexdigest()
 
 
-def _run_probe(sandboy_bin: Path, policy_path: Path, cwd: Path, env: dict, script: Path) -> dict:
-    result = capture_build.run_real_build(sandboy_bin, policy_path, cwd, ["python3", str(script)], env)
+def _run_probe(sandboy_bin: Path, policy_path: Path, cwd: Path, env: dict, script: Path,
+                extra_args: tuple = ()) -> dict:
+    result = capture_build.run_real_build(sandboy_bin, policy_path, cwd, ["python3", str(script), *extra_args], env)
     try:
         parsed = json.loads(result["raw_stdout"].strip().splitlines()[-1]) if result["raw_stdout"].strip() else {}
     except (json.JSONDecodeError, IndexError):
@@ -76,12 +77,17 @@ def run_timeout_sink_checks(*, case_id: str, sink_target: str, test_network_fixt
     """Runs all three probes through the SAME envelope as the real capture
     that follows, for `case_id` (must be a key of generic_sandbox_policy.py's
     TIMEOUT_SINK_AUTHORIZED_CASES -- the caller is responsible for that
-    gate; this function does not re-check it). `env` must already contain
-    N2D1B_TIMEOUT_SINK_TARGET=sink_target (the caller sets this once and
-    reuses it for both the probes and the real capture run that follows --
-    see generic_capture.py). Raises nothing itself -- the caller decides how
-    to fail based on `timeout_sink_verified`."""
-    sink = _run_probe(sandboy_bin, policy_path, cwd, env, SINK_TARGET_PROBE_SCRIPT)
+    gate; this function does not re-check it). `sink_target` is passed to
+    the sink-target probe as a command-line argument, not via `env` --
+    real CI evidence (run 29548972173) showed Sandboy's own env_clear() +
+    env_allow confinement strips any env var not explicitly allowlisted
+    before exec'ing the confined child, even though run_confined_build.sh's
+    OUTER sudo/unshare layer correctly preserves N2D1B_TIMEOUT_SINK_TARGET
+    for its own (unconfined) veth-pair route setup. argv is not subject to
+    that allowlist, so it reaches the confined probe script intact. Raises
+    nothing itself -- the caller decides how to fail based on
+    `timeout_sink_verified`."""
+    sink = _run_probe(sandboy_bin, policy_path, cwd, env, SINK_TARGET_PROBE_SCRIPT, extra_args=(sink_target,))
     negative = _run_probe(sandboy_bin, policy_path, cwd, env, NEGATIVE_PROBE_SCRIPT)
     positive = _run_probe(sandboy_bin, policy_path, cwd, env, POSITIVE_PROBE_SCRIPT)
 
