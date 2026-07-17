@@ -1,0 +1,151 @@
+{
+  "artifacts": [
+    {
+      "artifact_id": 8395412204,
+      "digest_sha256": "44bc157f5e28b590035d91ad66309ed882996b8be36212faa04654550ad0fbe0",
+      "name": "n2d1b-dockerfile-parser-rs-lockfile"
+    },
+    {
+      "artifact_id": 8395421416,
+      "digest_sha256": "3e61bc62b358a90611368a399c38ffdfad397e3ae8b971188d09af6fd1959781",
+      "name": "n2d1b-pilot-repo-hyperfine-capture-b"
+    },
+    {
+      "artifact_id": 8395422285,
+      "digest_sha256": "98cdd0bd19d1ea5ba8d3b78f2d44341fb247511a1e0011ef20a6f20a05ad297b",
+      "name": "n2d1b-pilot-repo-dockerfile-parser-rs-capture-b"
+    },
+    {
+      "artifact_id": 8395422395,
+      "digest_sha256": "bb2499d38ae03761051442ec353a8618069eec962cb1e7b2f66817c4ab6641a2",
+      "name": "n2d1b-pilot-repo-dockerfile-parser-rs-capture-a"
+    },
+    {
+      "artifact_id": 8395423562,
+      "digest_sha256": "b5b0c67dbec58ac059ff8abaaedd687da6d8c75513686b7e8f7ab6df724a8a7e",
+      "name": "n2d1b-pilot-repo-hyperfine-capture-a"
+    },
+    {
+      "artifact_id": 8395423659,
+      "digest_sha256": "3228f40282b488c4cd866a1e890478dca9c2eb2efb6cf1a6552625c5ff6ca724",
+      "name": "n2d1b-pilot-repo-pyflakes-capture-b"
+    },
+    {
+      "artifact_id": 8395424069,
+      "digest_sha256": "1108a251046f09e0e1cd40f832656a9f86b1cd1a04c8ceb4adf46fe75c6939da",
+      "name": "n2d1b-pilot-repo-rustlings-capture-b"
+    },
+    {
+      "artifact_id": 8395426596,
+      "digest_sha256": "2ee917bd9795acd46dae130ee3b216eb37b92425bea06471574e4ab6165ff288",
+      "name": "n2d1b-pilot-repo-kubeops-generator-capture-b"
+    },
+    {
+      "artifact_id": 8395428847,
+      "digest_sha256": "32f0d738e3c5c4ef540727ce124a4de97e2ee7dd25c0a931a56ce48466234642",
+      "name": "n2d1b-pilot-repo-kubeops-generator-capture-a"
+    },
+    {
+      "artifact_id": 8395433364,
+      "digest_sha256": "d89a7563e2d65a748375648842024aadf00cc98298d2498d108198fddbbc2e7e",
+      "name": "n2d1b-pilot-repo-rustlings-capture-a"
+    },
+    {
+      "artifact_id": 8395433551,
+      "digest_sha256": "1b720cad83191684d58daef09608768b794d73a142d1bce1b293d3d279fddc20",
+      "name": "n2d1b-pilot-repo-pyflakes-capture-a"
+    },
+    {
+      "artifact_id": 8395443914,
+      "digest_sha256": "efeaba5de29c651cf5c0aaf32b131cea4192946bb6e1b83dfc118e584e9e93a7",
+      "name": "n2d1b-pilot-repo-docker-java-parser-capture-a"
+    },
+    {
+      "artifact_id": 8395444024,
+      "digest_sha256": "f345cf1e56ca89c33eae0f9f95900153bba1d40e253102ea610a4a5421b4fc1c",
+      "name": "n2d1b-pilot-repo-requests-capture-b"
+    },
+    {
+      "artifact_id": 8395446225,
+      "digest_sha256": "a6c967eebac4560538537d9a447c5b8724aa93de3f46b8eca059e0ace4cab1b4",
+      "name": "n2d1b-pilot-repo-docker-java-parser-capture-b"
+    },
+    {
+      "artifact_id": 8395454071,
+      "digest_sha256": "8103fff2bbae3a8219eb818838b58ceddd42f1cdbb315a0cbe3d92ba8ff20f54",
+      "name": "n2d1b-pilot-repo-helm-values-capture-a"
+    },
+    {
+      "artifact_id": 8395455667,
+      "digest_sha256": "488cbab90320581f1bd4c8d51cf7933e711945eb7a29056c861171aebdfa8792",
+      "name": "n2d1b-pilot-repo-requests-capture-a"
+    },
+    {
+      "artifact_id": 8395460492,
+      "digest_sha256": "06e5bd25af97df0ca87fa8d36c2c2c8a6ad2eaa61f308b393f59d587cdf811ea",
+      "name": "n2d1b-pilot-repo-helm-values-capture-b"
+    },
+    {
+      "artifact_id": 8395484398,
+      "digest_sha256": "6eaafc736fdec47955ff2372af3c0fdd0b916615d5864ec1c19785b1b46767e3",
+      "name": "n2d1b-pilot-repo-moshi-capture-a"
+    },
+    {
+      "artifact_id": 8395494166,
+      "digest_sha256": "cfb27a23d33ea83df97cb2a4b95bb861557370c26fd5428cff76b88b71cc23e7",
+      "name": "n2d1b-pilot-repo-moshi-capture-b"
+    },
+    {
+      "artifact_id": 8395496107,
+      "digest_sha256": "e1366800863bc8ae88fb0312c108c93463b08c4c62a2e976672db1638b9dd4f0",
+      "name": "n2d1b-pair-reproducibility-repo-pyflakes"
+    },
+    {
+      "artifact_id": 8395496325,
+      "digest_sha256": "24c3ef39c869ec6958d14f2f4380038a2519ad127ee7bc068b20b02381940cdd",
+      "name": "n2d1b-pair-reproducibility-repo-helm-values"
+    },
+    {
+      "artifact_id": 8395496468,
+      "digest_sha256": "a392806a103c5641c7061820ae0765c8f1dfd56e5eb4a92fc92023b804563ef0",
+      "name": "n2d1b-pair-reproducibility-repo-hyperfine"
+    },
+    {
+      "artifact_id": 8395496797,
+      "digest_sha256": "eb80dece0133ce8e61221f1649a0a627ec90bc82436de3e427e57bd28f002181",
+      "name": "n2d1b-pair-reproducibility-repo-docker-java-parser"
+    },
+    {
+      "artifact_id": 8395496831,
+      "digest_sha256": "4d9eb1536dc4c8ae76d20c746f422e2945469ee647644480db38fba5c34308bc",
+      "name": "n2d1b-pair-reproducibility-repo-rustlings"
+    },
+    {
+      "artifact_id": 8395497957,
+      "digest_sha256": "e23bafa52506193e2bb67f041dfccc8f8f9203f3fccf245f76d104c88dd14bc5",
+      "name": "n2d1b-pair-reproducibility-repo-kubeops-generator"
+    },
+    {
+      "artifact_id": 8395498102,
+      "digest_sha256": "f04e38e6febb218fb4a57a9a16291e2025e36cb3e281d1128f4d43d5c6e0afe4",
+      "name": "n2d1b-pair-reproducibility-repo-moshi"
+    },
+    {
+      "artifact_id": 8395498389,
+      "digest_sha256": "0726139dc26adea253ec73059d5d9e11fc863de718ad4670172576df69495951",
+      "name": "n2d1b-pair-reproducibility-repo-dockerfile-parser-rs"
+    },
+    {
+      "artifact_id": 8395498696,
+      "digest_sha256": "d20c2e2447b5fb7677fcd3fbc5853cf26b5fa945c565839814431f7bfd762785",
+      "name": "n2d1b-pair-reproducibility-repo-requests"
+    }
+  ],
+  "head_branch": "ci-trigger/n2d1b-stage2-478d70b",
+  "head_sha": "c430812a604ec25fa68d40e55a5df156f6029707",
+  "record_sha256": "sha256:cb4f6de6dab317ecffe714e5d205f7070e9f62d685b5b76a68f1cdc8035c103f",
+  "record_type": "n2d1b-stage2-run-artifacts-manifest-v1",
+  "source": "GitHub Actions REST API list_workflow_run_artifacts response for workflow run 29550102525, independently transcribed artifact-by-artifact from that real response (saved verbatim to this session's own tool-result transcript before being condensed here). Not derived from, or shared code with, build_stage2_full_matrix_acceptance.py's own separate transcription of the same underlying API response.",
+  "total_count": 28,
+  "workflow_run_id": 29550102525
+}

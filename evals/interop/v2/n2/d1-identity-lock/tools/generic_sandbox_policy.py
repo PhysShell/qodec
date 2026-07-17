@@ -40,7 +40,7 @@ ECOSYSTEM_POLICY_HINTS = {
     "rust": {
         "env_allow": [
             "PATH", "HOME", "TMPDIR", "CARGO_HOME", "RUSTUP_HOME", "CARGO_NET_OFFLINE",
-            "RUSTUP_TOOLCHAIN",
+            "RUSTUP_TOOLCHAIN", "RUST_TEST_THREADS",
         ],
         "extra_fs_ro_from_env": ["RUSTUP_HOME"],
         "extra_fs_rw_from_env": ["CARGO_HOME"],
@@ -73,8 +73,35 @@ ECOSYSTEM_POLICY_HINTS = {
         # never covers since hostedtoolcache is outside /usr,/bin,/lib. Same
         # class of gap as JAVA_HOME/DOTNET_ROOT: any toolchain installed
         # outside the baseline system paths needs its own explicit grant.
-        "extra_fs_ro_from_env": ["VIRTUAL_ENV", "PYTHON_BASE_INTERPRETER_ROOT"],
+        # PYTHON_EDITABLE_INSTALL_SOURCE_DIR is a synthetic, policy-only key
+        # (never itself forwarded to the confined child), case-scoped to
+        # repo-requests only (see run_pilot_case.py's own comment): its
+        # frozen requirements-dev.txt reads "-e .[socks]", and pip's
+        # editable-install metadata records the absolute path of the
+        # directory `pip install` actually ran against during trusted
+        # setup -- a real, already-populated directory the confined
+        # capture's own separately re-extracted work_dir/source never
+        # automatically sees. Real evidence: "ModuleNotFoundError: No
+        # module named 'requests'" until this exact directory was
+        # fs_ro-visible too.
+        "extra_fs_ro_from_env": [
+            "VIRTUAL_ENV", "PYTHON_BASE_INTERPRETER_ROOT", "PYTHON_EDITABLE_INSTALL_SOURCE_DIR",
+        ],
         "extra_fs_rw_from_env": [],
+        # Real capture (repo-requests, Stage 2 second full run): pytest's own
+        # output-capture manager (_pytest.capture.FDCapture) calls stdlib
+        # tempfile.TemporaryFile(), which -- even with TMPDIR correctly set
+        # to this job's own dedicated, already-fs_rw tmp_dir -- raised
+        # "FileNotFoundError: No usable temporary directory found in
+        # ['/tmp', '/var/tmp', '/usr/tmp', <source_root>]" (TMPDIR/TEMP/TMP
+        # values are only ever prepended to that list if actually usable
+        # writable dirs; their absence from the reported list is itself the
+        # evidence TMPDIR wasn't reaching this specific confined process).
+        # Same class of gap as rust's linker, Maven/scala-maven-plugin's
+        # compiler-bridge unpack, and Gradle's Kotlin-compiler-daemon lock
+        # file: some transitive dependency hardcodes the real system /tmp
+        # regardless of TMPDIR.
+        "extra_fs_rw_fixed": [Path("/tmp")],
     },
     "jvm-maven": {
         "env_allow": ["PATH", "HOME", "TMPDIR", "JAVA_HOME", "MAVEN_OPTS"],
@@ -205,6 +232,91 @@ ECOSYSTEM_POLICY_HINTS = {
 NETWORK_ENFORCEMENT_AUTHORIZED_CASES = {
     "repo-kubeops-generator": "outer-netns-loopback-only",
     "repo-moshi": "outer-netns-loopback-only",
+    # Stage 2 authorization: repo-helm-values's Gradle daemon hits the
+    # identical class of loopback-bind requirement as repo-moshi's own
+    # (Sandboy's fully-closed tcp_bind policy otherwise refuses the daemon's
+    # OS-chosen ephemeral client<->daemon port) -- authorized separately
+    # here, never inherited from repo-moshi's own entry.
+    "repo-helm-values": "outer-netns-loopback-only",
+    # D1b remediation (2026-07-17): repo-requests' own frozen `pytest` argv
+    # runs pytest-httpbin, which starts a LOCAL WSGI test server (the
+    # repository's own documented fixture, not an external service) bound
+    # to loopback for the duration of the test run. Under this sandbox's
+    # prior blanket network denial, that server's own socket.bind() call
+    # failed with a genuine PermissionError, cascading into 205 pytest
+    # ERRORs that content_acceptance.py's fixed gate now correctly refuses
+    # to accept as workload output. This is the SAME class of gap as
+    # repo-kubeops-generator's VSTest test-host and repo-moshi's/repo-helm-
+    # values's Gradle daemon above -- a real, local, loopback-only listener
+    # Sandboy's fully-closed tcp_bind policy has no way to express -- never
+    # inherited from any of those entries, authorized separately here.
+    # External IPv4/IPv6 connectivity remains denied; no upstream source
+    # patch, pytest argument change, or test-selection skip is involved --
+    # the frozen argv stays exactly ["pytest"].
+    "repo-requests": "outer-netns-loopback-only",
+}
+
+# Approving-decision identities for each network_enforcement_mode
+# authorization above -- mirrors content_acceptance.py's
+# PYFLAKES_EMPTY_OUTPUT_AUTHORIZATION_ID pattern: an explicit, citable
+# identity for the record, never merely implied by the case_id's presence
+# in NETWORK_ENFORCEMENT_AUTHORIZED_CASES.
+NETWORK_ENFORCEMENT_APPROVAL_IDENTITIES = {
+    "repo-requests": "n2d1b-repo-requests-loopback-only-authorization-2026-07-17",
+}
+
+# D1b remediation round 2 (2026-07-17): a SEPARATE, ADDITIONAL authorization
+# layer, never a broadening of NETWORK_ENFORCEMENT_AUTHORIZED_CASES /
+# NETWORK_ENFORCEMENT_APPROVAL_IDENTITIES above. repo-requests' frozen
+# `pytest` argv also runs four TestTimeout tests that hardcode
+# `10.255.255.1` -- the SAME address the `requests` library's own upstream
+# test suite hardcodes for exactly this "expected to time out, never
+# connect" purpose in a normal, non-sandboxed environment (not an arbitrary
+# test-suite artifact) -- and require a genuine `socket.timeout`, not an
+# immediate `OSError: [Errno 101] Network is unreachable` (confirmed via
+# real CI run 29547420247's artifact bytes: all four TestTimeout tests
+# failed with exactly this synchronous errno inside the isolated netns,
+# which has no route to that address at all).
+#
+# The fix (empirically validated via a local live probe before any
+# production change, per this task's own explicit requirement) is a
+# veth-pair route, deliberately NOT a `blackhole`/`unreachable`/`prohibit`
+# Linux route type: those return a SYNCHRONOUS errno at connect()-time
+# (the kernel's route-lookup path short-circuits before any L2
+# transmission), which is exactly the wrong semantics here. A veth pair
+# with both ends brought up but no IP address assigned to either, and a
+# directly-connected, gateway-less /32 route to the authorized target via
+# the local end, forces a genuine (never-completing) ARP resolution --
+# nothing ever answers -- so connect() genuinely blocks until the CALLER's
+# own socket.settimeout() fires, independent of any kernel-level ARP-
+# failure timeout. See run_confined_build.sh's own conditional route setup
+# (gated on the N2D1B_TIMEOUT_SINK_TARGET env var) and
+# timeout_sink_probe.py's three-probe live verification.
+#
+# Authorized strictly per exact case_id, exactly like
+# NETWORK_ENFORCEMENT_AUTHORIZED_CASES above -- never inherited by an
+# ecosystem sibling. Maps case_id -> the single exact target IP address
+# this fixture is authorized to route (never a network range, never
+# arbitrary RFC1918 connectivity).
+TIMEOUT_SINK_AUTHORIZED_CASES = {
+    "repo-requests": "10.255.255.1",
+}
+
+# Approving-decision identities for each timeout-sink authorization above --
+# mirrors NETWORK_ENFORCEMENT_APPROVAL_IDENTITIES's own pattern, but
+# recorded under its own distinct name so the two authorization layers are
+# never conflated in the receipt or in review.
+TIMEOUT_SINK_APPROVAL_IDENTITIES = {
+    "repo-requests": "n2d1b-repo-requests-timeout-sink-v1-authorization-2026-07-17",
+}
+
+# The receipt's own `test_network_fixture` field value for each authorized
+# case_id -- distinct from `network_enforcement_mode` (see generic_capture.
+# py's receipt-building comment). Named per-fixture (not merely "v1") so a
+# future, differently-scoped timeout-sink fixture for another case_id would
+# get its own name here, never silently reusing this one.
+TIMEOUT_SINK_TEST_NETWORK_FIXTURE_NAMES = {
+    "repo-requests": "repo-requests-timeout-sink-v1",
 }
 
 

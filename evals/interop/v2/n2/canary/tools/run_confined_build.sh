@@ -53,13 +53,53 @@ CALLER_USER=$(id -un)
 # ECOSYSTEM_POLICY_HINTS), not just dotnet's -- a strict superset of the
 # original dotnet-only list, so N2-A's own (frozen, already-accepted) usage
 # is unaffected.
-PRESERVE_ENV="PATH,HOME,TMPDIR,DOTNET_ROOT,DOTNET_CLI_TELEMETRY_OPTOUT,DOTNET_NOLOGO,DOTNET_SKIP_FIRST_TIME_EXPERIENCE,DOTNET_MULTILEVEL_LOOKUP,DOTNET_GENERATE_ASPNET_CERTIFICATE,NUGET_PACKAGES,CARGO_HOME,RUSTUP_HOME,CARGO_NET_OFFLINE,RUSTUP_TOOLCHAIN,PYTHONDONTWRITEBYTECODE,PIP_NO_INDEX,VIRTUAL_ENV,JAVA_HOME,MAVEN_OPTS,GRADLE_USER_HOME,GRADLE_OPTS"
+#
+# N2D1B_TIMEOUT_SINK_TARGET is a synthetic, wrapper-only key (never itself
+# forwarded to the confined child, and never a Sandboy env_allow entry --
+# see generic_sandbox_policy.py's TIMEOUT_SINK_AUTHORIZED_CASES): when set,
+# it names the single exact IP address this job's veth-pair timeout-sink
+# route (below) should target. Authorized strictly per exact case_id
+# (currently repo-requests only), never a whole ecosystem.
+PRESERVE_ENV="PATH,HOME,TMPDIR,DOTNET_ROOT,DOTNET_CLI_TELEMETRY_OPTOUT,DOTNET_NOLOGO,DOTNET_SKIP_FIRST_TIME_EXPERIENCE,DOTNET_MULTILEVEL_LOOKUP,DOTNET_GENERATE_ASPNET_CERTIFICATE,NUGET_PACKAGES,CARGO_HOME,RUSTUP_HOME,CARGO_NET_OFFLINE,RUSTUP_TOOLCHAIN,RUST_TEST_THREADS,PYTHONDONTWRITEBYTECODE,PIP_NO_INDEX,VIRTUAL_ENV,JAVA_HOME,MAVEN_OPTS,GRADLE_USER_HOME,GRADLE_OPTS,N2D1B_TIMEOUT_SINK_TARGET"
 
 ulimit -t 600                    # 600s CPU time
 ulimit -u 512                    # max processes/threads for this user
 
+# D1b remediation round 2 (2026-07-17), repo-requests-only: when the caller
+# sets N2D1B_TIMEOUT_SINK_TARGET, add a route to that single exact target IP
+# that makes connect() genuinely block (never returning a synchronous
+# errno) until the CALLER's own socket-timeout mechanism fires. Deliberately
+# NOT a `blackhole`/`unreachable`/`prohibit` route type: those return a
+# synchronous errno at connect()-time (the kernel's route-lookup path
+# short-circuits before any L2 transmission), which is exactly the wrong
+# semantics for a test suite that expects a genuine socket.timeout (real CI
+# run 29547420247 confirmed the FAILURE mode this guards against: an
+# immediate "OSError: [Errno 101] Network is unreachable" instead of a
+# timeout, because the isolated netns simply had no route to the target at
+# all). Instead: a veth pair with BOTH ends brought up but NEITHER assigned
+# an IP address, and a directly-connected, gateway-less /32 route to the
+# target via the local end. Sending traffic there requires ARP resolution
+# for an address neither veth peer owns -- nothing ever answers, so the
+# kernel keeps retrying ARP indefinitely while connect() blocks, and the
+# caller's own `socket.settimeout()` (non-blocking socket + select()/
+# poll()) is what actually raises `socket.timeout`, well before any
+# kernel-level ARP-failure timeout. Empirically validated via a local live
+# probe (loopback still works; the sink target produces a genuine, bounded
+# socket.timeout at several different requested timeouts; every other
+# RFC1918/external target stays immediately blocked, never connecting and
+# never hanging) before this conditional was added -- see
+# timeout_sink_probe.py for the same three checks re-run live on every
+# authorized job. A route to exactly one /32 address, not a general "allow
+# this subnet" rule: it does not create a real listener (no ECONNREFUSED)
+# and does not permit arbitrary RFC1918 connectivity.
 exec sudo --preserve-env="$PRESERVE_ENV" unshare --net bash -c '
   ip link set lo up
+  if [ -n "${N2D1B_TIMEOUT_SINK_TARGET:-}" ]; then
+    ip link add n2d1bsink0 type veth peer name n2d1bsink1
+    ip link set n2d1bsink0 up
+    ip link set n2d1bsink1 up
+    ip route add "${N2D1B_TIMEOUT_SINK_TARGET}/32" dev n2d1bsink0
+  fi
   cd "$1" || exit 1
   shift
   caller_user=$1; shift

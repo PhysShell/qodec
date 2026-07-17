@@ -248,6 +248,33 @@
 # (fixed via a narrowly scoped gradle_canonicalizer.py rule, independent of
 # maven_canonicalizer.py and vstest_canonicalizer.py -- see
 # gradle-capture-canonicalization-policy.json).
+#
+# D1b REMEDIATION (2026-07-17): run 29544801640 (the fifth full 28-job run,
+# previously reported as fully accepted in stage2-full-matrix-acceptance.
+# json) is REVOKED as final Stage 2 evidence. Real inspection of its
+# accepted repo-requests capture-a artifact found exit_code=1, "30 failed,
+# 384 passed, 15 skipped, 1 xfailed, 32 warnings, 205 errors" -- a genuine
+# pytest FAILURE, not a successful run, wrongly classified as
+# "genuine-workload-output" because the prior content-acceptance gate only
+# checked for the literal presence of a pytest final-summary line, never
+# its actual failed/error counts, and only rejected exit codes 126/127. All
+# 205 errors trace to pytest-httpbin's own local WSGI test server's
+# socket.bind() call hitting a real PermissionError under this sandbox's
+# (at that time, blanket) network denial for repo-requests -- a genuine
+# confinement gap, not a test-suite defect. See
+# pytest-requests-canonicalization-v1-rejection-record.json for the full
+# rejection of the canonicalizer this invalid run produced. Fixed via: (1)
+# content_acceptance.py now requires repo-requests exit_code==0 and a
+# pytest summary with zero failed/zero errors; (2) repo-requests authorized
+# for outer-netns-loopback-only network enforcement (generic_sandbox_
+# policy.py), so pytest-httpbin's own local fixture server can bind
+# loopback while external connectivity remains denied; (3) repo-requests'
+# python toolchain pinned to the same actions/setup-python identity
+# repo-pyflakes uses (python-version 3.12.3), fixing toolchain_executed.
+# classification from "unexpected-resolution" to "exact-match"; (4)
+# pytest_requests_canonicalizer.py unwired from the active dispatch --
+# repo-requests runs uncanonicalized pending a fresh, genuinely successful
+# capture pair.
 name: qodec-n2d1b-miner-pilot
 
 on:
@@ -327,20 +354,30 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        # Scoped back down to the original 5 pilot cases only, per the
-        # required re-run discipline after the Stage 1/2 revocation -- see
-        # the REVOKED note above. Re-expand to the full 9-case set (the
-        # commented-out entries below) only after this 5-case run passes
-        # real content-level acceptance, inspected at the byte level.
+        # Stage 2: the full nine-case repository-miner matrix. The original
+        # 5-case pilot passed real content-level acceptance (Stage 1,
+        # reaccepted on the migrated repository under Gradle duration
+        # canonicalization policy v2 -- see stage1-current-head-
+        # reacceptance-v2.json). These 4 additions restore the 3 cases
+        # deferred at the Stage 1/2 revocation (repo-rustlings,
+        # repo-dockerfile-parser-rs, repo-requests -- all already had full
+        # tool support wired below and in run_pilot_case.py/content_
+        # acceptance.py from that earlier era, simply unreachable while the
+        # matrix was narrowed) plus repo-helm-values, the deterministically
+        # selected jvm-gradle repository-miner replacement for the
+        # permanently-rejected repo-spotless (see stage2-replacement-
+        # selection-v1.json) -- never repo-moshi's slot, never a hand-picked
+        # substitute.
         case:
           - { case_id: repo-hyperfine, ecosystem: rust }
           - { case_id: repo-docker-java-parser, ecosystem: jvm-maven }
           - { case_id: repo-kubeops-generator, ecosystem: dotnet }
           - { case_id: repo-pyflakes, ecosystem: python }
           - { case_id: repo-moshi, ecosystem: jvm-gradle }
-          # - { case_id: repo-rustlings, ecosystem: rust }
-          # - { case_id: repo-dockerfile-parser-rs, ecosystem: rust }
-          # - { case_id: repo-requests, ecosystem: python }
+          - { case_id: repo-rustlings, ecosystem: rust }
+          - { case_id: repo-dockerfile-parser-rs, ecosystem: rust }
+          - { case_id: repo-requests, ecosystem: python }
+          - { case_id: repo-helm-values, ecosystem: jvm-gradle }
         job: [capture-a, capture-b]
     runs-on: ubuntu-24.04
     steps:
@@ -429,20 +466,29 @@ jobs:
       # Pinned to a real, verified actions/setup-python commit (tag
       # v5.6.0, confirmed via `git ls-remote --tags`), not merely a
       # guessed/typed SHA.
+      #
+      # D1b remediation (2026-07-17): repo-requests joins repo-pyflakes here
+      # -- its prior "3.x" toolchain_requested range never exact/compatible-
+      # matched toolchain_identity.classify()'s own wildcard-range grammar
+      # against the real three-component resolved version ("3.12.3"),
+      # always classifying as "unexpected-resolution". This runner's ambient
+      # python3 already resolves to exactly 3.12.3, so pinning the SAME
+      # identity repo-pyflakes uses changes nothing about what executes,
+      # only makes it reproducible and exact-match-classifiable.
       - uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065 # v5.6.0
-        if: matrix.case.case_id == 'repo-pyflakes'
+        if: matrix.case.case_id == 'repo-pyflakes' || matrix.case.case_id == 'repo-requests'
         with:
           python-version: "3.12.3"
           architecture: "x64"
 
-      - name: Resolve pinned Python base interpreter path (repo-pyflakes only)
-        if: matrix.case.case_id == 'repo-pyflakes'
+      - name: Resolve pinned Python base interpreter path (repo-pyflakes, repo-requests only)
+        if: matrix.case.case_id == 'repo-pyflakes' || matrix.case.case_id == 'repo-requests'
         run: |
           echo "PYTHON_BASE_INTERPRETER=$(python3 -c 'import sys; print(sys.executable)')" >> "$GITHUB_ENV"
           python3 --version
 
-      - name: Confirm python3 (runner-preinstalled; only for python cases other than repo-pyflakes)
-        if: matrix.case.ecosystem == 'python' && matrix.case.case_id != 'repo-pyflakes'
+      - name: Confirm python3 (runner-preinstalled; only for python cases with no pinned setup-python step)
+        if: matrix.case.ecosystem == 'python' && matrix.case.case_id != 'repo-pyflakes' && matrix.case.case_id != 'repo-requests'
         run: python3 --version
 
       # ---- repo-dockerfile-parser-rs only: fetch the ONE published lockfile ----
@@ -550,6 +596,41 @@ jobs:
           EOF
           ./gradlew --no-daemon test || true
 
+      - name: Trusted setup — prime repo-helm-values plugin/dependency resolution (repo-helm-values only)
+        if: matrix.case.case_id == 'repo-helm-values'
+        working-directory: ${{ runner.temp }}/source-artifact/${{ matrix.case.case_id }}/source
+        env:
+          JAVA_HOME: /usr/lib/jvm/java-21-openjdk-amd64
+        run: |
+          # Stage 2 authorization: repo-helm-values's :helm-values-shared:test
+          # task needs Kotlin JVM compilation, Dokka, maven-publish, and GPG
+          # signing plugins (all applied at the root build.gradle.kts, "apply
+          # false" there but resolved for the whole multi-module build) plus
+          # its own module's runtime dependencies (httpclient5, commons-
+          # compress, jackson, json-patch) -- none of which the confined,
+          # loopback-only network policy can reach. Same class of gap as
+          # repo-moshi's plugin-resolution finding above and repo-spotless's
+          # own since-revoked priming step: prime GRADLE_USER_HOME's cache by
+          # running the real frozen task once here, network allowed,
+          # --no-daemon; its own output is discarded, and the confined
+          # capture below always re-extracts a pristine source.tar into its
+          # own separate work_dir/source, so this priming run is not itself
+          # the captured execution.
+          #
+          # The SAME deterministic scheduling profile the confined capture
+          # uses (below, via run_pilot_case.py) is written here too, so any
+          # GRADLE_USER_HOME cache state this priming run populates was
+          # itself produced under the identical serial-scheduling regime.
+          mkdir -p "$HOME/.gradle"
+          cat > "$HOME/.gradle/gradle.properties" <<'EOF'
+          org.gradle.daemon=false
+          org.gradle.parallel=false
+          org.gradle.workers.max=1
+          org.gradle.console=plain
+          org.gradle.console.interactive=false
+          EOF
+          ./gradlew --no-daemon :helm-values-shared:test || true
+
       - name: Run the D1b generic capture (${{ matrix.job }})
         run: |
           # Fixed-visible-path discipline (D1b decision, 2026-07-15): the
@@ -565,7 +646,7 @@ jobs:
             published_lockfile_arg=(--published-lockfile "$RUNNER_TEMP/dfpr-published-lockfile/Cargo.lock")
           fi
           pinned_python_arg=()
-          if [ "${{ matrix.case.case_id }}" = "repo-pyflakes" ]; then
+          if [ "${{ matrix.case.case_id }}" = "repo-pyflakes" ] || [ "${{ matrix.case.case_id }}" = "repo-requests" ]; then
             pinned_python_arg=(
               --python-base-interpreter "$PYTHON_BASE_INTERPRETER"
               --setup-python-action-commit "a26af69be951a213d495a4c3e4e4022e16d87065"
@@ -616,6 +697,10 @@ jobs:
           - repo-kubeops-generator
           - repo-pyflakes
           - repo-moshi
+          - repo-rustlings
+          - repo-dockerfile-parser-rs
+          - repo-requests
+          - repo-helm-values
     runs-on: ubuntu-24.04
     steps:
       - name: Checkout 007

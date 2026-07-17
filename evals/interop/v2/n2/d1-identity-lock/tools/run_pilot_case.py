@@ -120,7 +120,18 @@ CASES = {
             "the test harness's own pass/fail report (the intended payload) goes to "
             "stdout, per standard cargo-test convention -- same rationale as repo-hyperfine."
         ),
-        "project_writable_dirs_relative": ["target"],
+        # Real CI evidence (Stage 2, first full 9-case run): rustlings' own
+        # integration tests (tests/integration_tests.rs) invoke the compiled
+        # `rustlings` binary with current_dir("tests/test_exercises") for
+        # every test that runs it successfully (hint, run_compilation_success,
+        # run_test_success) -- the binary writes its own .rustlings-state.txt
+        # into that exact directory, and failed with "Failed to open or
+        # create the state file .rustlings-state.txt / Permission denied
+        # (os error 13)" until this directory was writable, cascading into
+        # all 3 of those tests failing (the other cargo_test-family tests
+        # under the same dir all expect a NONZERO exit and so never reach the
+        # state-write step, which is why only these 3 were affected).
+        "project_writable_dirs_relative": ["target", "tests/test_exercises"],
         "requested_version_or_range": "stable",
         "resolver_mechanism": "rustup toolchain resolution (no rust-toolchain.toml present; --default-toolchain stable)",
     },
@@ -151,11 +162,32 @@ CASES = {
         # source tree itself is read-only under this policy, so this one
         # directory must be pre-created and writable.
         "project_writable_dirs_relative": [".pytest_cache"],
-        "requested_version_or_range": "3.x",
+        # D1b remediation (2026-07-17): the prior "3.x" range request never
+        # exact-matched toolchain_identity.classify()'s own wildcard-range
+        # grammar against the real resolved three-component version string
+        # ("3.12.3") -- classify()'s _range_matches() builds a fixed-shape
+        # regex from the request itself (one \d+ segment per "x"/"*" token
+        # in "3.x", i.e. "^3\.\d+$", which a THREE-component resolved
+        # version can never match), so every real run classified as
+        # toolchain_executed.classification="unexpected-resolution", not a
+        # hard failure but never accepted at face value either. Fixed the
+        # same way repo-pyflakes' own ambient-interpreter drift was fixed
+        # (D1b, 2026-07-16): pin the EXACT same actions/setup-python
+        # identity (tag v5.6.0, commit
+        # a26af69be951a213d495a4c3e4e4022e16d87065, python-version 3.12.3,
+        # x64) rather than the runner-ambient interpreter -- this runner's
+        # ambient python3 already happened to resolve to exactly 3.12.3, so
+        # pinning explicitly changes nothing about what actually executes,
+        # only makes the identity reproducible and exact-match-classifiable
+        # instead of implicit.
+        "requested_version_or_range": "3.12.3",
         "resolver_mechanism": (
-            "runner-preinstalled python3, installed into a dedicated venv via the "
-            "repo's own documented `pip install -r requirements-dev.txt` (installs "
-            "requests[socks] editable plus pytest/pytest-cov/pytest-httpbin/httpbin/trustme)"
+            "actions/setup-python (pinned commit a26af69be951a213d495a4c3e4e4022e16d87065, "
+            "tag v5.6.0), python-version 3.12.3, architecture x64 -- explicit pin, not the "
+            "runner-ambient interpreter (same identity repo-pyflakes uses); installed into a "
+            "dedicated venv (created FROM that resolved interpreter) via the repo's own "
+            "documented `pip install -r requirements-dev.txt` (installs requests[socks] "
+            "editable plus pytest/pytest-cov/pytest-httpbin/httpbin/trustme)"
         ),
     },
     "repo-moshi": {
@@ -188,6 +220,52 @@ CASES = {
             "examples/build",
         ],
         "requested_version_or_range": "9.5.1",
+        "resolver_mechanism": "gradle wrapper (gradlew) self-managed distribution fetch, JDK 21",
+    },
+    "repo-helm-values": {
+        "ecosystem": "jvm-gradle",
+        # Frozen exactly as evals/interop/v2/n2/source-freeze/source-manifests/
+        # alternate/repo-helm-values.json's execution_expectation.argv --
+        # this is the deterministically selected jvm-gradle repository-miner
+        # replacement for the permanently-rejected repo-spotless (see
+        # stage2-replacement-selection-v1.json). A scoped single-module
+        # test task, not the multi-module `test` moshi runs.
+        "frozen_argv": ["./gradlew", ":helm-values-shared:test"],
+        "canonical_stream": "stdout",
+        "canonical_stream_rationale": "Gradle's console output (per-module test task execution and JUnit summary) writes to stdout by documented convention -- same as repo-moshi.",
+        # Real CI evidence (Stage 2, first full 9-case run): even though the
+        # frozen argv scopes execution to :helm-values-shared:test alone,
+        # Gradle's own default eager configuration phase evaluates EVERY
+        # subproject listed in settings.gradle.kts (helm-values-gradle-plugin,
+        # helm-values-intellij-plugin, helm-values-shared, helm-values-test),
+        # not just the one whose task was requested. The build genuinely
+        # failed with "Cannot create directory '.../helm-values-intellij-
+        # plugin/build/tmp/generateManifest'" because that sibling module's
+        # own plugin (org.jetbrains.intellij.platform) eagerly creates its
+        # build output directory during plugin application, before any task
+        # selection narrows the build -- a real, load-bearing consequence of
+        # Gradle's own configuration model, not a defect in the frozen argv
+        # itself (which correctly excludes the IntelliJ-plugin module from
+        # its actual TEST target, per the source manifest's own
+        # size_estimation_basis). Every subproject's build dir must be
+        # writable for configuration to succeed, regardless of which one is
+        # actually tested.
+        # Real CI evidence (Stage 2, second full 9-case run, after the four
+        # subproject build dirs above resolved the first "Cannot create
+        # directory .../generateManifest" finding): the SAME plugin also
+        # needs its own root-level cache directory, ".intellijPlatform"
+        # (sibling to helm-values-intellij-plugin, not nested under any
+        # subproject's own build dir) -- the build failed a second time with
+        # a bare "/.../repo-helm-values/work/source/.intellijPlatform" error
+        # until this exact directory was writable too.
+        "project_writable_dirs_relative": [
+            "build", ".gradle", ".kotlin", ".intellijPlatform",
+            "helm-values-gradle-plugin/build",
+            "helm-values-intellij-plugin/build",
+            "helm-values-shared/build",
+            "helm-values-test/build",
+        ],
+        "requested_version_or_range": "9.5.0",
         "resolver_mechanism": "gradle wrapper (gradlew) self-managed distribution fetch, JDK 21",
     },
 }
@@ -228,6 +306,24 @@ def build_toolchain_fn_and_env(ecosystem: str, args) -> tuple:
         env_values = {"CARGO_HOME": cargo_home, "RUSTUP_HOME": rustup_home, "CARGO_NET_OFFLINE": "true"}
         if rustup_toolchain:
             env_values["RUSTUP_TOOLCHAIN"] = rustup_toolchain
+        # Real CI evidence (Stage 2, first full 9-case run): `cargo test`'s
+        # default multi-threaded test harness interleaves individual test
+        # result lines in a different, nondeterministic order between
+        # capture-a and capture-b -- a genuine pair-reproducibility failure
+        # for repo-rustlings and repo-dockerfile-parser-rs, the two cases
+        # whose frozen argv is exactly ["cargo", "test"]. Rust's own test
+        # harness documents RUST_TEST_THREADS as an environment-variable
+        # equivalent of --test-threads, taking effect with no change to the
+        # frozen argv itself -- same precedent as RUSTUP_TOOLCHAIN above, and
+        # the same class of fix as repo-moshi's deterministic Gradle
+        # scheduling profile (external configuration, never a frozen-argv
+        # edit). Authorized ONLY for these two exact case_ids, never the
+        # whole rust ecosystem (repo-hyperfine's frozen argv doesn't invoke
+        # the test harness at all, so this would be a no-op there, but scope
+        # stays case-id-exact per this task's own narrow-authorization rule).
+        DETERMINISTIC_CARGO_TEST_CASE_IDS = ("repo-rustlings", "repo-dockerfile-parser-rs")
+        if getattr(args, "case_id", None) in DETERMINISTIC_CARGO_TEST_CASE_IDS:
+            env_values["RUST_TEST_THREADS"] = "1"
         return (
             lambda source_root: et.capture_rust_toolchain_identity(cwd=source_root),
             env_values,
@@ -297,21 +393,25 @@ def build_toolchain_fn_and_env(ecosystem: str, args) -> tuple:
         # plain, non-interactive console renderer so task lines print in
         # one deterministic order, rather than building a broad
         # post-capture task-log reordering/multiset comparison. Scoped to
-        # repo-moshi ONLY (case_id-checked, never ecosystem-wide); frozen
-        # "./gradlew test" argv is unchanged.
+        # this exact case_id allowlist ONLY (case_id-checked, never
+        # ecosystem-wide) -- repo-moshi's original authorization, and
+        # repo-helm-values's separate Stage 2 authorization (same class of
+        # scheduling nondeterminism, independently authorized per case, not
+        # inherited); frozen argv for both is unchanged.
+        DETERMINISTIC_GRADLE_SCHEDULING_CASE_IDS = ("repo-moshi", "repo-helm-values")
         gradle_scheduling_profile_sha256 = None
         gradle_properties_text = "org.gradle.daemon=false\n"
-        if args.case_id == "repo-moshi":
+        if args.case_id in DETERMINISTIC_GRADLE_SCHEDULING_CASE_IDS:
             frozen_argv_for_case = CASES[args.case_id]["frozen_argv"]
             if any("--parallel" in tok or "--max-workers" in tok for tok in frozen_argv_for_case):
                 raise SystemExit(
-                    "repo-moshi: frozen argv contains a --parallel/--max-workers override that "
+                    f"{args.case_id}: frozen argv contains a --parallel/--max-workers override that "
                     "would conflict with the authorized deterministic scheduling profile"
                 )
             ambient_gradle_opts = os.environ.get("GRADLE_OPTS", "")
             if "org.gradle.parallel" in ambient_gradle_opts or "org.gradle.workers.max" in ambient_gradle_opts:
                 raise SystemExit(
-                    "repo-moshi: ambient GRADLE_OPTS conflicts with the authorized deterministic "
+                    f"{args.case_id}: ambient GRADLE_OPTS conflicts with the authorized deterministic "
                     f"scheduling profile: {ambient_gradle_opts!r}"
                 )
             gradle_properties_text = (
@@ -371,6 +471,26 @@ def build_toolchain_fn_and_env(ecosystem: str, args) -> tuple:
             # read by Python at runtime, so it is NOT added to env_allow.
             base_interpreter_root = str(Path(args.python_base_interpreter).parent.parent)
             env_values["PYTHON_BASE_INTERPRETER_ROOT"] = base_interpreter_root
+        if args.case_id == "repo-requests":
+            # Real CI evidence (Stage 2, third full run): repo-requests' own
+            # frozen, upstream-documented requirements-dev.txt reads
+            # "-e .[socks]" (an EDITABLE install of the package under test) --
+            # cannot be changed, it is frozen source content, not tooling.
+            # pip's editable-install metadata records the ABSOLUTE PATH of
+            # the directory `pip install` actually ran against during
+            # trusted setup ($RUNNER_TEMP/source-artifact/repo-requests/
+            # source), never the confined capture's own separately
+            # re-extracted work_dir/source -- the two extractions are
+            # intentionally independent (see the workflow's own comment).
+            # The confined run failed with "ModuleNotFoundError: No module
+            # named 'requests'" until this exact, already-populated priming
+            # directory was made fs_ro-visible too -- same class of forward
+            # as Maven's MAVEN_LOCAL_REPO_PATH/~/.m2 and Gradle's
+            # GRADLE_M2_REPO_PATH/GRADLE_USER_HOME (a real, trusted-setup-
+            # populated directory the confined process doesn't automatically
+            # see). Synthetic, policy-only key: never itself read by Python
+            # at runtime, so NOT added to env_allow.
+            env_values["PYTHON_EDITABLE_INSTALL_SOURCE_DIR"] = str(Path(args.source_artifact_dir) / "source")
         return (
             lambda source_root: et.capture_python_toolchain_identity(
                 python_bin,
@@ -407,6 +527,36 @@ def build_toolchain_fn_and_env(ecosystem: str, args) -> tuple:
     raise ValueError(f"unknown ecosystem {ecosystem!r}")
 
 
+def resolve_python_argv0_override(*, ecosystem: str, venv_python: str, frozen_argv: list[str]) -> str | None:
+    """Computes the argv[0] substitution target for a python-ecosystem case's
+    dedicated venv -- applied AFTER erratum resolution, never baked into the
+    frozen argv itself (see main()'s own comment for why).
+
+    Real CI evidence (Stage 2, first full 9-case run) showed two distinct
+    frozen-argv shapes need two distinct substitution targets:
+      - a "python <module> ..." style invocation (frozen_argv[0] == "python",
+        e.g. repo-pyflakes' ["python", "-m", "pyflakes", "src/"]) substitutes
+        argv[0] with the venv's own interpreter path -- the rest of argv is
+        the interpreter's own arguments and is untouched.
+      - a bare console-script invocation (e.g. repo-requests' ["pytest"])
+        must substitute argv[0] with that exact script's own path inside the
+        venv's bin/ directory. Substituting the interpreter path here instead
+        silently produced a bare `python3` invocation with NO further
+        arguments (frozen_argv[1:] is empty for a single-token argv) --
+        exits 0 with zero stdout on a closed stdin, never caught by exit-code
+        alone, exactly the failure mode content_acceptance.py exists to
+        catch.
+
+    Returns None if this case isn't a python-ecosystem case with a venv
+    (i.e. no substitution applies)."""
+    if ecosystem != "python" or not venv_python:
+        return None
+    if frozen_argv[0] == "python":
+        return venv_python
+    venv_root = str(Path(venv_python).parent.parent)
+    return str(Path(venv_root) / "bin" / frozen_argv[0])
+
+
 def main() -> int:
     import argparse
 
@@ -423,9 +573,10 @@ def main() -> int:
     ap.add_argument("--venv-python", default="")
     ap.add_argument("--python-base-interpreter", default="",
                      help="Absolute path of the actions/setup-python-resolved interpreter the venv "
-                          "(--venv-python) was created FROM -- repo-pyflakes only.")
+                          "(--venv-python) was created FROM -- repo-pyflakes and repo-requests only.")
     ap.add_argument("--setup-python-action-commit", default="",
-                     help="Exact pinned actions/setup-python commit SHA used -- repo-pyflakes only.")
+                     help="Exact pinned actions/setup-python commit SHA used -- repo-pyflakes and "
+                          "repo-requests only.")
     ap.add_argument("--java-home-11", default="")
     ap.add_argument("--java-home-21", default="")
     ap.add_argument(
@@ -447,8 +598,12 @@ def main() -> int:
     # substituted argv0 never matches the pure recorded original. The pure,
     # untouched frozen argv goes in; any interpreter-path substitution is
     # applied via argv0_override, AFTER erratum resolution, inside
-    # run_one_capture itself.
-    argv0_override = args.venv_python if args.ecosystem == "python" and args.venv_python else None
+    # run_one_capture itself. See resolve_python_argv0_override's own
+    # docstring for why two distinct python invocation shapes each need
+    # their own substitution target.
+    argv0_override = resolve_python_argv0_override(
+        ecosystem=args.ecosystem, venv_python=args.venv_python, frozen_argv=case["frozen_argv"]
+    )
 
     if case.get("requires_published_lockfile"):
         if not args.published_lockfile:

@@ -1,0 +1,3545 @@
+{
+  "already_used_jvm_gradle_case_ids": [
+    "repo-moshi",
+    "repo-spotless"
+  ],
+  "base_main_sha": "e7e6759298e7f5526a751bddac0cdafc3b6c28c3",
+  "candidate_registry_path": "evals/interop/v2/n2/source-freeze/candidate-registry.json",
+  "candidate_registry_sha256": "sha256:49d867f8c2878037230a303243fa826c3390a6a482bafe3b5abcd8867c7cd807",
+  "candidate_selection_policy_path": "evals/interop/v2/n2/source-freeze/candidate-selection-policy.json",
+  "candidate_selection_policy_sha256": "sha256:adbf1e55a9a0a8e7d6e6654ef4814492dfa68cde37ebb334f1a694965c408c5b",
+  "eligibility_tool_path": "evals/interop/v2/n2/miner/tools/eligibility.py",
+  "eligibility_tool_sha256": "sha256:43c46a429a265ce1fe504724e5325cb782955a23af91d1371bff2fc9af4c6517",
+  "eligible_candidate_ids": [
+    "bot-dependabot-black-5206",
+    "bot-syzbot-do-mkdirat",
+    "ci-log-jansson",
+    "ci-log-nlog",
+    "ci-log-nlohmann-json",
+    "ci-log-spdlog",
+    "dataset-loghub-v8",
+    "dataset-rtn-traffic-ids",
+    "repo-anyhow",
+    "repo-bats-core",
+    "repo-classgraph",
+    "repo-detekt",
+    "repo-docker-java-parser",
+    "repo-dockerfile-parse",
+    "repo-dockerfile-parser-rs",
+    "repo-dotnet-outdated",
+    "repo-fd",
+    "repo-flake8",
+    "repo-fzf",
+    "repo-gson",
+    "repo-hadolint-example",
+    "repo-helm-values",
+    "repo-hyperfine",
+    "repo-kubeops-generator",
+    "repo-kubernetes-validate",
+    "repo-moq",
+    "repo-moshi",
+    "repo-nuget-samples-cpm",
+    "repo-pip-tools",
+    "repo-procs",
+    "repo-pyflakes",
+    "repo-requests",
+    "repo-rustlings",
+    "repo-sds",
+    "repo-spotless",
+    "repo-terraform-example-module",
+    "research-corpus-loghub2"
+  ],
+  "forbidden_benchmark_signals_used": false,
+  "jvm_gradle_alternates_considered_in_rank_order": [
+    "repo-helm-values",
+    "repo-detekt"
+  ],
+  "quota_planner_tool_path": "evals/interop/v2/n2/miner/tools/quota_planner.py",
+  "quota_planner_tool_sha256": "sha256:a2bfcfa208ea8d32eacf993742397287e81c51ac0b351c244653f4a0b7f9e2df",
+  "quota_trace": {
+    "alternate_case_ids": [
+      "repo-sds",
+      "repo-pip-tools",
+      "repo-procs",
+      "repo-fd",
+      "repo-kubernetes-validate",
+      "repo-dockerfile-parse",
+      "repo-classgraph",
+      "repo-bats-core",
+      "repo-flake8",
+      "repo-hadolint-example",
+      "repo-fzf",
+      "repo-moq",
+      "repo-helm-values",
+      "repo-dotnet-outdated",
+      "repo-nuget-samples-cpm",
+      "repo-detekt",
+      "repo-gson",
+      "repo-anyhow",
+      "repo-terraform-example-module",
+      "ci-log-nlohmann-json"
+    ],
+    "alternate_count": 20,
+    "base_quota_plan": {
+      "eligible_alternatives": [
+        "repo-sds",
+        "repo-pip-tools",
+        "repo-procs",
+        "repo-fd",
+        "repo-kubeops-generator",
+        "repo-kubernetes-validate",
+        "repo-dockerfile-parse",
+        "repo-classgraph",
+        "repo-bats-core",
+        "repo-flake8",
+        "repo-hadolint-example",
+        "repo-fzf",
+        "repo-moq",
+        "repo-helm-values",
+        "repo-dotnet-outdated",
+        "repo-nuget-samples-cpm",
+        "repo-detekt",
+        "repo-gson",
+        "repo-anyhow",
+        "ci-log-nlog"
+      ],
+      "notes": [
+        "NOT A CORPUS FREEZE",
+        "NO QODEC/RTK EVALUATION PERFORMED"
+      ],
+      "proposed_selection": [
+        "repo-hyperfine",
+        "repo-terraform-example-module",
+        "repo-rustlings",
+        "repo-moshi",
+        "repo-docker-java-parser",
+        "repo-pyflakes",
+        "repo-requests",
+        "repo-dockerfile-parser-rs",
+        "repo-spotless",
+        "ci-log-jansson",
+        "ci-log-spdlog",
+        "ci-log-nlohmann-json",
+        "bot-dependabot-black-5206",
+        "bot-syzbot-do-mkdirat",
+        "dataset-rtn-traffic-ids",
+        "research-corpus-loghub2",
+        "dataset-loghub-v8"
+      ],
+      "selection_trace": [
+        {
+          "action": "held-as-alternative",
+          "candidate_id": "repo-sds",
+          "final_score": 0.8857142857142858,
+          "reason": "no unfilled quota dimension matches this candidate"
+        },
+        {
+          "action": "proposed",
+          "candidate_id": "repo-hyperfine",
+          "filled_quotas": {
+            "origin_family_group": "repository-miner::runtime"
+          },
+          "final_score": 0.8857142857142858
+        },
+        {
+          "action": "proposed",
+          "candidate_id": "repo-terraform-example-module",
+          "filled_quotas": {
+            "origin_family_group": "repository-miner::container-orchestration-deployment"
+          },
+          "final_score": 0.8857142857142858
+        },
+        {
+          "action": "proposed",
+          "candidate_id": "repo-rustlings",
+          "filled_quotas": {
+            "origin_family_group": "repository-miner::test"
+          },
+          "final_score": 0.8857142857142858
+        },
+        {
+          "action": "proposed",
+          "candidate_id": "repo-moshi",
+          "filled_quotas": {
+            "origin_family_group": "repository-miner::test"
+          },
+          "final_score": 0.8857142857142858
+        },
+        {
+          "action": "proposed",
+          "candidate_id": "repo-docker-java-parser",
+          "filled_quotas": {
+            "origin_family_group": "repository-miner::container-orchestration-deployment"
+          },
+          "final_score": 0.8857142857142858
+        },
+        {
+          "action": "held-as-alternative",
+          "candidate_id": "repo-pip-tools",
+          "final_score": 0.8857142857142858,
+          "reason": "no unfilled quota dimension matches this candidate"
+        },
+        {
+          "action": "proposed",
+          "candidate_id": "repo-pyflakes",
+          "filled_quotas": {
+            "origin_family_group": "repository-miner::static-analysis-lint-compiler"
+          },
+          "final_score": 0.8857142857142858
+        },
+        {
+          "action": "held-as-alternative",
+          "candidate_id": "repo-procs",
+          "final_score": 0.8857142857142858,
+          "reason": "no unfilled quota dimension matches this candidate"
+        },
+        {
+          "action": "proposed",
+          "candidate_id": "repo-requests",
+          "filled_quotas": {
+            "origin_family_group": "repository-miner::test"
+          },
+          "final_score": 0.8857142857142858
+        },
+        {
+          "action": "held-as-alternative",
+          "candidate_id": "repo-fd",
+          "final_score": 0.8857142857142858,
+          "reason": "no unfilled quota dimension matches this candidate"
+        },
+        {
+          "action": "proposed",
+          "candidate_id": "repo-dockerfile-parser-rs",
+          "filled_quotas": {
+            "origin_family_group": "repository-miner::container-orchestration-deployment"
+          },
+          "final_score": 0.8857142857142858
+        },
+        {
+          "action": "held-as-alternative",
+          "candidate_id": "repo-kubeops-generator",
+          "final_score": 0.8857142857142858,
+          "reason": "no unfilled quota dimension matches this candidate"
+        },
+        {
+          "action": "held-as-alternative",
+          "candidate_id": "repo-kubernetes-validate",
+          "final_score": 0.8857142857142858,
+          "reason": "no unfilled quota dimension matches this candidate"
+        },
+        {
+          "action": "held-as-alternative",
+          "candidate_id": "repo-dockerfile-parse",
+          "final_score": 0.8857142857142858,
+          "reason": "no unfilled quota dimension matches this candidate"
+        },
+        {
+          "action": "proposed",
+          "candidate_id": "repo-spotless",
+          "filled_quotas": {
+            "origin_family_group": "repository-miner::static-analysis-lint-compiler"
+          },
+          "final_score": 0.8857142857142858
+        },
+        {
+          "action": "held-as-alternative",
+          "candidate_id": "repo-classgraph",
+          "final_score": 0.8857142857142858,
+          "reason": "no unfilled quota dimension matches this candidate"
+        },
+        {
+          "action": "held-as-alternative",
+          "candidate_id": "repo-bats-core",
+          "final_score": 0.8857142857142858,
+          "reason": "no unfilled quota dimension matches this candidate"
+        },
+        {
+          "action": "held-as-alternative",
+          "candidate_id": "repo-flake8",
+          "final_score": 0.8857142857142858,
+          "reason": "no unfilled quota dimension matches this candidate"
+        },
+        {
+          "action": "held-as-alternative",
+          "candidate_id": "repo-hadolint-example",
+          "final_score": 0.8857142857142858,
+          "reason": "no unfilled quota dimension matches this candidate"
+        },
+        {
+          "action": "held-as-alternative",
+          "candidate_id": "repo-fzf",
+          "final_score": 0.8857142857142858,
+          "reason": "no unfilled quota dimension matches this candidate"
+        },
+        {
+          "action": "held-as-alternative",
+          "candidate_id": "repo-moq",
+          "final_score": 0.8857142857142858,
+          "reason": "no unfilled quota dimension matches this candidate"
+        },
+        {
+          "action": "held-as-alternative",
+          "candidate_id": "repo-helm-values",
+          "final_score": 0.8857142857142858,
+          "reason": "no unfilled quota dimension matches this candidate"
+        },
+        {
+          "action": "held-as-alternative",
+          "candidate_id": "repo-dotnet-outdated",
+          "final_score": 0.8857142857142858,
+          "reason": "no unfilled quota dimension matches this candidate"
+        },
+        {
+          "action": "held-as-alternative",
+          "candidate_id": "repo-nuget-samples-cpm",
+          "final_score": 0.8857142857142858,
+          "reason": "no unfilled quota dimension matches this candidate"
+        },
+        {
+          "action": "held-as-alternative",
+          "candidate_id": "repo-detekt",
+          "final_score": 0.8857142857142858,
+          "reason": "no unfilled quota dimension matches this candidate"
+        },
+        {
+          "action": "held-as-alternative",
+          "candidate_id": "repo-gson",
+          "final_score": 0.8857142857142858,
+          "reason": "no unfilled quota dimension matches this candidate"
+        },
+        {
+          "action": "held-as-alternative",
+          "candidate_id": "repo-anyhow",
+          "final_score": 0.8857142857142858,
+          "reason": "no unfilled quota dimension matches this candidate"
+        },
+        {
+          "action": "proposed",
+          "candidate_id": "ci-log-jansson",
+          "filled_quotas": {
+            "origin_family_group": "native-upstream-ci-log::ci-build"
+          },
+          "final_score": 0.8476190476190475
+        },
+        {
+          "action": "proposed",
+          "candidate_id": "ci-log-spdlog",
+          "filled_quotas": {
+            "origin_family_group": "native-upstream-ci-log::ci-build"
+          },
+          "final_score": 0.8476190476190475
+        },
+        {
+          "action": "proposed",
+          "candidate_id": "ci-log-nlohmann-json",
+          "filled_quotas": {
+            "origin_family_group": "native-upstream-ci-log::ci-build"
+          },
+          "final_score": 0.8476190476190475
+        },
+        {
+          "action": "held-as-alternative",
+          "candidate_id": "ci-log-nlog",
+          "final_score": 0.8476190476190475,
+          "reason": "no unfilled quota dimension matches this candidate"
+        },
+        {
+          "action": "proposed",
+          "candidate_id": "bot-dependabot-black-5206",
+          "filled_quotas": {
+            "origin_family_group": "kernel-or-infrastructure-bot::dependency-package-manager"
+          },
+          "final_score": 0.7999999999999998
+        },
+        {
+          "action": "proposed",
+          "candidate_id": "bot-syzbot-do-mkdirat",
+          "filled_quotas": {
+            "origin_family_group": "kernel-or-infrastructure-bot::search-listing-diagnostic"
+          },
+          "final_score": 0.7999999999999998
+        },
+        {
+          "action": "proposed",
+          "candidate_id": "dataset-rtn-traffic-ids",
+          "filled_quotas": {
+            "origin_family_group": "public-runtime-dataset::runtime"
+          },
+          "final_score": 0.7999999999999998
+        },
+        {
+          "action": "proposed",
+          "candidate_id": "research-corpus-loghub2",
+          "filled_quotas": {
+            "origin_family_group": "reproducible-research-corpus::search-listing-diagnostic"
+          },
+          "final_score": 0.7999999999999998
+        },
+        {
+          "action": "proposed",
+          "candidate_id": "dataset-loghub-v8",
+          "filled_quotas": {
+            "origin_family_group": "public-runtime-dataset::runtime"
+          },
+          "final_score": 0.7999999999999998
+        }
+      ],
+      "status": "PROVISIONAL",
+      "unfilled_quotas": {}
+    },
+    "ecosystem_distribution": {
+      "dotnet": 2,
+      "infrastructure-or-language-neutral": 6,
+      "jvm": 3,
+      "python": 3,
+      "rust": 3
+    },
+    "ecosystem_minimum_reconciliation_swaps": [
+      {
+        "added_case_id": "repo-kubeops-generator",
+        "bucket": "repository-miner::container-orchestration-deployment",
+        "reason": "ecosystem-minimum reconciliation for 'dotnet'",
+        "removed_case_id": "repo-terraform-example-module"
+      },
+      {
+        "added_case_id": "ci-log-nlog",
+        "bucket": "native-upstream-ci-log::ci-build",
+        "reason": "ecosystem-minimum reconciliation for 'dotnet'",
+        "removed_case_id": "ci-log-nlohmann-json"
+      }
+    ],
+    "minimum_alternates_satisfied": true,
+    "origin_kind_distribution": {
+      "kernel-or-infrastructure-bot": 2,
+      "native-upstream-ci-log": 3,
+      "public-runtime-dataset": 2,
+      "repository-miner": 9,
+      "reproducible-research-corpus": 1
+    },
+    "primary_case_ids": [
+      "repo-hyperfine",
+      "repo-rustlings",
+      "repo-moshi",
+      "repo-docker-java-parser",
+      "repo-pyflakes",
+      "repo-requests",
+      "repo-dockerfile-parser-rs",
+      "repo-spotless",
+      "ci-log-jansson",
+      "ci-log-spdlog",
+      "bot-dependabot-black-5206",
+      "bot-syzbot-do-mkdirat",
+      "dataset-rtn-traffic-ids",
+      "research-corpus-loghub2",
+      "dataset-loghub-v8",
+      "repo-kubeops-generator",
+      "ci-log-nlog"
+    ],
+    "primary_family_distribution": {
+      "ci-build": 3,
+      "container-orchestration-deployment": 3,
+      "dependency-package-manager": 1,
+      "runtime": 3,
+      "search-listing-diagnostic": 2,
+      "static-analysis-lint-compiler": 2,
+      "test": 3
+    },
+    "quota_deficit_topped_up_case_ids": [],
+    "ranked_order": [
+      "repo-sds",
+      "repo-hyperfine",
+      "repo-terraform-example-module",
+      "repo-rustlings",
+      "repo-moshi",
+      "repo-docker-java-parser",
+      "repo-pip-tools",
+      "repo-pyflakes",
+      "repo-procs",
+      "repo-requests",
+      "repo-fd",
+      "repo-dockerfile-parser-rs",
+      "repo-kubeops-generator",
+      "repo-kubernetes-validate",
+      "repo-dockerfile-parse",
+      "repo-spotless",
+      "repo-classgraph",
+      "repo-bats-core",
+      "repo-flake8",
+      "repo-hadolint-example",
+      "repo-fzf",
+      "repo-moq",
+      "repo-helm-values",
+      "repo-dotnet-outdated",
+      "repo-nuget-samples-cpm",
+      "repo-detekt",
+      "repo-gson",
+      "repo-anyhow",
+      "ci-log-jansson",
+      "ci-log-spdlog",
+      "ci-log-nlohmann-json",
+      "ci-log-nlog",
+      "bot-dependabot-black-5206",
+      "bot-syzbot-do-mkdirat",
+      "dataset-rtn-traffic-ids",
+      "research-corpus-loghub2",
+      "dataset-loghub-v8"
+    ],
+    "status": "FINAL",
+    "unmet_ecosystem_minimums": {},
+    "unmet_origin_kind_targets": {},
+    "unmet_primary_family_targets": {}
+  },
+  "ranking": [
+    {
+      "breakdown": [
+        {
+          "contribution": 10.0,
+          "feature": "license_clarity",
+          "value": 1.0,
+          "weight": 10
+        },
+        {
+          "contribution": 0.0,
+          "feature": "immutable_source_completeness",
+          "value": 0.0,
+          "weight": 8
+        },
+        {
+          "contribution": 10.0,
+          "feature": "offline_execution_feasibility",
+          "value": 1.0,
+          "weight": 10
+        },
+        {
+          "contribution": 2.4,
+          "feature": "dependency_lock_quality",
+          "value": 0.3,
+          "weight": 8
+        },
+        {
+          "contribution": 8.0,
+          "feature": "build_detector_confidence",
+          "value": 1.0,
+          "weight": 8
+        },
+        {
+          "contribution": 6.0,
+          "feature": "expected_family_coverage",
+          "value": 1.0,
+          "weight": 6
+        },
+        {
+          "contribution": 6.0,
+          "feature": "expected_ecosystem_coverage",
+          "value": 1.0,
+          "weight": 6
+        },
+        {
+          "contribution": 2.4,
+          "feature": "expected_size_bucket",
+          "value": 0.6,
+          "weight": 4
+        },
+        {
+          "contribution": 8.0,
+          "feature": "security_risk_inverse",
+          "value": 1.0,
+          "weight": 8
+        },
+        {
+          "contribution": 2.4,
+          "feature": "estimated_ci_resource_cost_inverse",
+          "value": 0.6,
+          "weight": 4
+        },
+        {
+          "contribution": 6.0,
+          "feature": "reproducibility_expectation",
+          "value": 1.0,
+          "weight": 6
+        },
+        {
+          "contribution": 6.0,
+          "feature": "source_provenance_completeness",
+          "value": 1.0,
+          "weight": 6
+        }
+      ],
+      "candidate_id": "bot-dependabot-black-5206",
+      "final_score": 0.7999999999999998,
+      "policy_version": "n2c-scoring-policy-v1",
+      "quota_group": "kernel-or-infrastructure-bot",
+      "rank_within_group": 1,
+      "tie_break": "01252765077b5fe626a2e8cce23a39dc9789c2079efdefa16ff335bd88dfdd66"
+    },
+    {
+      "breakdown": [
+        {
+          "contribution": 10.0,
+          "feature": "license_clarity",
+          "value": 1.0,
+          "weight": 10
+        },
+        {
+          "contribution": 0.0,
+          "feature": "immutable_source_completeness",
+          "value": 0.0,
+          "weight": 8
+        },
+        {
+          "contribution": 10.0,
+          "feature": "offline_execution_feasibility",
+          "value": 1.0,
+          "weight": 10
+        },
+        {
+          "contribution": 2.4,
+          "feature": "dependency_lock_quality",
+          "value": 0.3,
+          "weight": 8
+        },
+        {
+          "contribution": 8.0,
+          "feature": "build_detector_confidence",
+          "value": 1.0,
+          "weight": 8
+        },
+        {
+          "contribution": 6.0,
+          "feature": "expected_family_coverage",
+          "value": 1.0,
+          "weight": 6
+        },
+        {
+          "contribution": 6.0,
+          "feature": "expected_ecosystem_coverage",
+          "value": 1.0,
+          "weight": 6
+        },
+        {
+          "contribution": 2.4,
+          "feature": "expected_size_bucket",
+          "value": 0.6,
+          "weight": 4
+        },
+        {
+          "contribution": 8.0,
+          "feature": "security_risk_inverse",
+          "value": 1.0,
+          "weight": 8
+        },
+        {
+          "contribution": 2.4,
+          "feature": "estimated_ci_resource_cost_inverse",
+          "value": 0.6,
+          "weight": 4
+        },
+        {
+          "contribution": 6.0,
+          "feature": "reproducibility_expectation",
+          "value": 1.0,
+          "weight": 6
+        },
+        {
+          "contribution": 6.0,
+          "feature": "source_provenance_completeness",
+          "value": 1.0,
+          "weight": 6
+        }
+      ],
+      "candidate_id": "bot-syzbot-do-mkdirat",
+      "final_score": 0.7999999999999998,
+      "policy_version": "n2c-scoring-policy-v1",
+      "quota_group": "kernel-or-infrastructure-bot",
+      "rank_within_group": 2,
+      "tie_break": "0796d20ee2e80ad6aa8bd6ac85aade59f88f01d9cf5933569d2dbff0f2d8980d"
+    },
+    {
+      "breakdown": [
+        {
+          "contribution": 10.0,
+          "feature": "license_clarity",
+          "value": 1.0,
+          "weight": 10
+        },
+        {
+          "contribution": 4.0,
+          "feature": "immutable_source_completeness",
+          "value": 0.5,
+          "weight": 8
+        },
+        {
+          "contribution": 10.0,
+          "feature": "offline_execution_feasibility",
+          "value": 1.0,
+          "weight": 10
+        },
+        {
+          "contribution": 2.4,
+          "feature": "dependency_lock_quality",
+          "value": 0.3,
+          "weight": 8
+        },
+        {
+          "contribution": 8.0,
+          "feature": "build_detector_confidence",
+          "value": 1.0,
+          "weight": 8
+        },
+        {
+          "contribution": 6.0,
+          "feature": "expected_family_coverage",
+          "value": 1.0,
+          "weight": 6
+        },
+        {
+          "contribution": 6.0,
+          "feature": "expected_ecosystem_coverage",
+          "value": 1.0,
+          "weight": 6
+        },
+        {
+          "contribution": 2.4,
+          "feature": "expected_size_bucket",
+          "value": 0.6,
+          "weight": 4
+        },
+        {
+          "contribution": 8.0,
+          "feature": "security_risk_inverse",
+          "value": 1.0,
+          "weight": 8
+        },
+        {
+          "contribution": 2.4,
+          "feature": "estimated_ci_resource_cost_inverse",
+          "value": 0.6,
+          "weight": 4
+        },
+        {
+          "contribution": 6.0,
+          "feature": "reproducibility_expectation",
+          "value": 1.0,
+          "weight": 6
+        },
+        {
+          "contribution": 6.0,
+          "feature": "source_provenance_completeness",
+          "value": 1.0,
+          "weight": 6
+        }
+      ],
+      "candidate_id": "ci-log-jansson",
+      "final_score": 0.8476190476190475,
+      "policy_version": "n2c-scoring-policy-v1",
+      "quota_group": "native-upstream-ci-log",
+      "rank_within_group": 1,
+      "tie_break": "3b1d9b2001328db74e0bc33c251ee9cab9050da631aea8bf091e0984e4551708"
+    },
+    {
+      "breakdown": [
+        {
+          "contribution": 10.0,
+          "feature": "license_clarity",
+          "value": 1.0,
+          "weight": 10
+        },
+        {
+          "contribution": 4.0,
+          "feature": "immutable_source_completeness",
+          "value": 0.5,
+          "weight": 8
+        },
+        {
+          "contribution": 10.0,
+          "feature": "offline_execution_feasibility",
+          "value": 1.0,
+          "weight": 10
+        },
+        {
+          "contribution": 2.4,
+          "feature": "dependency_lock_quality",
+          "value": 0.3,
+          "weight": 8
+        },
+        {
+          "contribution": 8.0,
+          "feature": "build_detector_confidence",
+          "value": 1.0,
+          "weight": 8
+        },
+        {
+          "contribution": 6.0,
+          "feature": "expected_family_coverage",
+          "value": 1.0,
+          "weight": 6
+        },
+        {
+          "contribution": 6.0,
+          "feature": "expected_ecosystem_coverage",
+          "value": 1.0,
+          "weight": 6
+        },
+        {
+          "contribution": 2.4,
+          "feature": "expected_size_bucket",
+          "value": 0.6,
+          "weight": 4
+        },
+        {
+          "contribution": 8.0,
+          "feature": "security_risk_inverse",
+          "value": 1.0,
+          "weight": 8
+        },
+        {
+          "contribution": 2.4,
+          "feature": "estimated_ci_resource_cost_inverse",
+          "value": 0.6,
+          "weight": 4
+        },
+        {
+          "contribution": 6.0,
+          "feature": "reproducibility_expectation",
+          "value": 1.0,
+          "weight": 6
+        },
+        {
+          "contribution": 6.0,
+          "feature": "source_provenance_completeness",
+          "value": 1.0,
+          "weight": 6
+        }
+      ],
+      "candidate_id": "ci-log-spdlog",
+      "final_score": 0.8476190476190475,
+      "policy_version": "n2c-scoring-policy-v1",
+      "quota_group": "native-upstream-ci-log",
+      "rank_within_group": 2,
+      "tie_break": "76fb3ed4baf66e3d12763554dfd23ab3abfcbc1006d4ca9c7a4a240cac385fbe"
+    },
+    {
+      "breakdown": [
+        {
+          "contribution": 10.0,
+          "feature": "license_clarity",
+          "value": 1.0,
+          "weight": 10
+        },
+        {
+          "contribution": 4.0,
+          "feature": "immutable_source_completeness",
+          "value": 0.5,
+          "weight": 8
+        },
+        {
+          "contribution": 10.0,
+          "feature": "offline_execution_feasibility",
+          "value": 1.0,
+          "weight": 10
+        },
+        {
+          "contribution": 2.4,
+          "feature": "dependency_lock_quality",
+          "value": 0.3,
+          "weight": 8
+        },
+        {
+          "contribution": 8.0,
+          "feature": "build_detector_confidence",
+          "value": 1.0,
+          "weight": 8
+        },
+        {
+          "contribution": 6.0,
+          "feature": "expected_family_coverage",
+          "value": 1.0,
+          "weight": 6
+        },
+        {
+          "contribution": 6.0,
+          "feature": "expected_ecosystem_coverage",
+          "value": 1.0,
+          "weight": 6
+        },
+        {
+          "contribution": 2.4,
+          "feature": "expected_size_bucket",
+          "value": 0.6,
+          "weight": 4
+        },
+        {
+          "contribution": 8.0,
+          "feature": "security_risk_inverse",
+          "value": 1.0,
+          "weight": 8
+        },
+        {
+          "contribution": 2.4,
+          "feature": "estimated_ci_resource_cost_inverse",
+          "value": 0.6,
+          "weight": 4
+        },
+        {
+          "contribution": 6.0,
+          "feature": "reproducibility_expectation",
+          "value": 1.0,
+          "weight": 6
+        },
+        {
+          "contribution": 6.0,
+          "feature": "source_provenance_completeness",
+          "value": 1.0,
+          "weight": 6
+        }
+      ],
+      "candidate_id": "ci-log-nlohmann-json",
+      "final_score": 0.8476190476190475,
+      "policy_version": "n2c-scoring-policy-v1",
+      "quota_group": "native-upstream-ci-log",
+      "rank_within_group": 3,
+      "tie_break": "a3e6cf6d1d8525eca5c12eb43433703f363d041bfe3f9801f230f9e77a78403a"
+    },
+    {
+      "breakdown": [
+        {
+          "contribution": 10.0,
+          "feature": "license_clarity",
+          "value": 1.0,
+          "weight": 10
+        },
+        {
+          "contribution": 4.0,
+          "feature": "immutable_source_completeness",
+          "value": 0.5,
+          "weight": 8
+        },
+        {
+          "contribution": 10.0,
+          "feature": "offline_execution_feasibility",
+          "value": 1.0,
+          "weight": 10
+        },
+        {
+          "contribution": 2.4,
+          "feature": "dependency_lock_quality",
+          "value": 0.3,
+          "weight": 8
+        },
+        {
+          "contribution": 8.0,
+          "feature": "build_detector_confidence",
+          "value": 1.0,
+          "weight": 8
+        },
+        {
+          "contribution": 6.0,
+          "feature": "expected_family_coverage",
+          "value": 1.0,
+          "weight": 6
+        },
+        {
+          "contribution": 6.0,
+          "feature": "expected_ecosystem_coverage",
+          "value": 1.0,
+          "weight": 6
+        },
+        {
+          "contribution": 2.4,
+          "feature": "expected_size_bucket",
+          "value": 0.6,
+          "weight": 4
+        },
+        {
+          "contribution": 8.0,
+          "feature": "security_risk_inverse",
+          "value": 1.0,
+          "weight": 8
+        },
+        {
+          "contribution": 2.4,
+          "feature": "estimated_ci_resource_cost_inverse",
+          "value": 0.6,
+          "weight": 4
+        },
+        {
+          "contribution": 6.0,
+          "feature": "reproducibility_expectation",
+          "value": 1.0,
+          "weight": 6
+        },
+        {
+          "contribution": 6.0,
+          "feature": "source_provenance_completeness",
+          "value": 1.0,
+          "weight": 6
+        }
+      ],
+      "candidate_id": "ci-log-nlog",
+      "final_score": 0.8476190476190475,
+      "policy_version": "n2c-scoring-policy-v1",
+      "quota_group": "native-upstream-ci-log",
+      "rank_within_group": 4,
+      "tie_break": "bedcea896f6e7a5634e1c7a97e5e680dfdc898f5eab980e192cf47491789d1c8"
+    },
+    {
+      "breakdown": [
+        {
+          "contribution": 10.0,
+          "feature": "license_clarity",
+          "value": 1.0,
+          "weight": 10
+        },
+        {
+          "contribution": 0.0,
+          "feature": "immutable_source_completeness",
+          "value": 0.0,
+          "weight": 8
+        },
+        {
+          "contribution": 10.0,
+          "feature": "offline_execution_feasibility",
+          "value": 1.0,
+          "weight": 10
+        },
+        {
+          "contribution": 2.4,
+          "feature": "dependency_lock_quality",
+          "value": 0.3,
+          "weight": 8
+        },
+        {
+          "contribution": 8.0,
+          "feature": "build_detector_confidence",
+          "value": 1.0,
+          "weight": 8
+        },
+        {
+          "contribution": 6.0,
+          "feature": "expected_family_coverage",
+          "value": 1.0,
+          "weight": 6
+        },
+        {
+          "contribution": 6.0,
+          "feature": "expected_ecosystem_coverage",
+          "value": 1.0,
+          "weight": 6
+        },
+        {
+          "contribution": 2.4,
+          "feature": "expected_size_bucket",
+          "value": 0.6,
+          "weight": 4
+        },
+        {
+          "contribution": 8.0,
+          "feature": "security_risk_inverse",
+          "value": 1.0,
+          "weight": 8
+        },
+        {
+          "contribution": 2.4,
+          "feature": "estimated_ci_resource_cost_inverse",
+          "value": 0.6,
+          "weight": 4
+        },
+        {
+          "contribution": 6.0,
+          "feature": "reproducibility_expectation",
+          "value": 1.0,
+          "weight": 6
+        },
+        {
+          "contribution": 6.0,
+          "feature": "source_provenance_completeness",
+          "value": 1.0,
+          "weight": 6
+        }
+      ],
+      "candidate_id": "dataset-rtn-traffic-ids",
+      "final_score": 0.7999999999999998,
+      "policy_version": "n2c-scoring-policy-v1",
+      "quota_group": "public-runtime-dataset",
+      "rank_within_group": 1,
+      "tie_break": "309ab39d7a74947b2fc83bb1237b695f8a5fed57c07ae71bd0b69abae7b417bd"
+    },
+    {
+      "breakdown": [
+        {
+          "contribution": 10.0,
+          "feature": "license_clarity",
+          "value": 1.0,
+          "weight": 10
+        },
+        {
+          "contribution": 0.0,
+          "feature": "immutable_source_completeness",
+          "value": 0.0,
+          "weight": 8
+        },
+        {
+          "contribution": 10.0,
+          "feature": "offline_execution_feasibility",
+          "value": 1.0,
+          "weight": 10
+        },
+        {
+          "contribution": 2.4,
+          "feature": "dependency_lock_quality",
+          "value": 0.3,
+          "weight": 8
+        },
+        {
+          "contribution": 8.0,
+          "feature": "build_detector_confidence",
+          "value": 1.0,
+          "weight": 8
+        },
+        {
+          "contribution": 6.0,
+          "feature": "expected_family_coverage",
+          "value": 1.0,
+          "weight": 6
+        },
+        {
+          "contribution": 6.0,
+          "feature": "expected_ecosystem_coverage",
+          "value": 1.0,
+          "weight": 6
+        },
+        {
+          "contribution": 2.4,
+          "feature": "expected_size_bucket",
+          "value": 0.6,
+          "weight": 4
+        },
+        {
+          "contribution": 8.0,
+          "feature": "security_risk_inverse",
+          "value": 1.0,
+          "weight": 8
+        },
+        {
+          "contribution": 2.4,
+          "feature": "estimated_ci_resource_cost_inverse",
+          "value": 0.6,
+          "weight": 4
+        },
+        {
+          "contribution": 6.0,
+          "feature": "reproducibility_expectation",
+          "value": 1.0,
+          "weight": 6
+        },
+        {
+          "contribution": 6.0,
+          "feature": "source_provenance_completeness",
+          "value": 1.0,
+          "weight": 6
+        }
+      ],
+      "candidate_id": "dataset-loghub-v8",
+      "final_score": 0.7999999999999998,
+      "policy_version": "n2c-scoring-policy-v1",
+      "quota_group": "public-runtime-dataset",
+      "rank_within_group": 2,
+      "tie_break": "e5ab327f16184c28223019a55bb244dc1b6c542b126f8ec530e15b13f32b24d0"
+    },
+    {
+      "breakdown": [
+        {
+          "contribution": 10.0,
+          "feature": "license_clarity",
+          "value": 1.0,
+          "weight": 10
+        },
+        {
+          "contribution": 4.0,
+          "feature": "immutable_source_completeness",
+          "value": 0.5,
+          "weight": 8
+        },
+        {
+          "contribution": 10.0,
+          "feature": "offline_execution_feasibility",
+          "value": 1.0,
+          "weight": 10
+        },
+        {
+          "contribution": 2.4,
+          "feature": "dependency_lock_quality",
+          "value": 0.3,
+          "weight": 8
+        },
+        {
+          "contribution": 8.0,
+          "feature": "build_detector_confidence",
+          "value": 1.0,
+          "weight": 8
+        },
+        {
+          "contribution": 6.0,
+          "feature": "expected_family_coverage",
+          "value": 1.0,
+          "weight": 6
+        },
+        {
+          "contribution": 6.0,
+          "feature": "expected_ecosystem_coverage",
+          "value": 1.0,
+          "weight": 6
+        },
+        {
+          "contribution": 4.0,
+          "feature": "expected_size_bucket",
+          "value": 1.0,
+          "weight": 4
+        },
+        {
+          "contribution": 8.0,
+          "feature": "security_risk_inverse",
+          "value": 1.0,
+          "weight": 8
+        },
+        {
+          "contribution": 4.0,
+          "feature": "estimated_ci_resource_cost_inverse",
+          "value": 1.0,
+          "weight": 4
+        },
+        {
+          "contribution": 6.0,
+          "feature": "reproducibility_expectation",
+          "value": 1.0,
+          "weight": 6
+        },
+        {
+          "contribution": 6.0,
+          "feature": "source_provenance_completeness",
+          "value": 1.0,
+          "weight": 6
+        }
+      ],
+      "candidate_id": "repo-sds",
+      "final_score": 0.8857142857142858,
+      "policy_version": "n2c-scoring-policy-v1",
+      "quota_group": "repository-miner",
+      "rank_within_group": 1,
+      "tie_break": "09e91594311b0e74f456a00e0622be9275bdc9478cd96745e4b2160f22323bfc"
+    },
+    {
+      "breakdown": [
+        {
+          "contribution": 10.0,
+          "feature": "license_clarity",
+          "value": 1.0,
+          "weight": 10
+        },
+        {
+          "contribution": 4.0,
+          "feature": "immutable_source_completeness",
+          "value": 0.5,
+          "weight": 8
+        },
+        {
+          "contribution": 10.0,
+          "feature": "offline_execution_feasibility",
+          "value": 1.0,
+          "weight": 10
+        },
+        {
+          "contribution": 2.4,
+          "feature": "dependency_lock_quality",
+          "value": 0.3,
+          "weight": 8
+        },
+        {
+          "contribution": 8.0,
+          "feature": "build_detector_confidence",
+          "value": 1.0,
+          "weight": 8
+        },
+        {
+          "contribution": 6.0,
+          "feature": "expected_family_coverage",
+          "value": 1.0,
+          "weight": 6
+        },
+        {
+          "contribution": 6.0,
+          "feature": "expected_ecosystem_coverage",
+          "value": 1.0,
+          "weight": 6
+        },
+        {
+          "contribution": 4.0,
+          "feature": "expected_size_bucket",
+          "value": 1.0,
+          "weight": 4
+        },
+        {
+          "contribution": 8.0,
+          "feature": "security_risk_inverse",
+          "value": 1.0,
+          "weight": 8
+        },
+        {
+          "contribution": 4.0,
+          "feature": "estimated_ci_resource_cost_inverse",
+          "value": 1.0,
+          "weight": 4
+        },
+        {
+          "contribution": 6.0,
+          "feature": "reproducibility_expectation",
+          "value": 1.0,
+          "weight": 6
+        },
+        {
+          "contribution": 6.0,
+          "feature": "source_provenance_completeness",
+          "value": 1.0,
+          "weight": 6
+        }
+      ],
+      "candidate_id": "repo-hyperfine",
+      "final_score": 0.8857142857142858,
+      "policy_version": "n2c-scoring-policy-v1",
+      "quota_group": "repository-miner",
+      "rank_within_group": 2,
+      "tie_break": "1bbd63cfe137d085bf209a1d9ded8df3fea7f10f46359a5ca43f82ae4c829e2e"
+    },
+    {
+      "breakdown": [
+        {
+          "contribution": 10.0,
+          "feature": "license_clarity",
+          "value": 1.0,
+          "weight": 10
+        },
+        {
+          "contribution": 4.0,
+          "feature": "immutable_source_completeness",
+          "value": 0.5,
+          "weight": 8
+        },
+        {
+          "contribution": 10.0,
+          "feature": "offline_execution_feasibility",
+          "value": 1.0,
+          "weight": 10
+        },
+        {
+          "contribution": 2.4,
+          "feature": "dependency_lock_quality",
+          "value": 0.3,
+          "weight": 8
+        },
+        {
+          "contribution": 8.0,
+          "feature": "build_detector_confidence",
+          "value": 1.0,
+          "weight": 8
+        },
+        {
+          "contribution": 6.0,
+          "feature": "expected_family_coverage",
+          "value": 1.0,
+          "weight": 6
+        },
+        {
+          "contribution": 6.0,
+          "feature": "expected_ecosystem_coverage",
+          "value": 1.0,
+          "weight": 6
+        },
+        {
+          "contribution": 4.0,
+          "feature": "expected_size_bucket",
+          "value": 1.0,
+          "weight": 4
+        },
+        {
+          "contribution": 8.0,
+          "feature": "security_risk_inverse",
+          "value": 1.0,
+          "weight": 8
+        },
+        {
+          "contribution": 4.0,
+          "feature": "estimated_ci_resource_cost_inverse",
+          "value": 1.0,
+          "weight": 4
+        },
+        {
+          "contribution": 6.0,
+          "feature": "reproducibility_expectation",
+          "value": 1.0,
+          "weight": 6
+        },
+        {
+          "contribution": 6.0,
+          "feature": "source_provenance_completeness",
+          "value": 1.0,
+          "weight": 6
+        }
+      ],
+      "candidate_id": "repo-terraform-example-module",
+      "final_score": 0.8857142857142858,
+      "policy_version": "n2c-scoring-policy-v1",
+      "quota_group": "repository-miner",
+      "rank_within_group": 3,
+      "tie_break": "1cae82a4b205246e3a8f89788e29e5ca452a1ed8c41d05dd91c6361c5a7c7ad5"
+    },
+    {
+      "breakdown": [
+        {
+          "contribution": 10.0,
+          "feature": "license_clarity",
+          "value": 1.0,
+          "weight": 10
+        },
+        {
+          "contribution": 4.0,
+          "feature": "immutable_source_completeness",
+          "value": 0.5,
+          "weight": 8
+        },
+        {
+          "contribution": 10.0,
+          "feature": "offline_execution_feasibility",
+          "value": 1.0,
+          "weight": 10
+        },
+        {
+          "contribution": 2.4,
+          "feature": "dependency_lock_quality",
+          "value": 0.3,
+          "weight": 8
+        },
+        {
+          "contribution": 8.0,
+          "feature": "build_detector_confidence",
+          "value": 1.0,
+          "weight": 8
+        },
+        {
+          "contribution": 6.0,
+          "feature": "expected_family_coverage",
+          "value": 1.0,
+          "weight": 6
+        },
+        {
+          "contribution": 6.0,
+          "feature": "expected_ecosystem_coverage",
+          "value": 1.0,
+          "weight": 6
+        },
+        {
+          "contribution": 4.0,
+          "feature": "expected_size_bucket",
+          "value": 1.0,
+          "weight": 4
+        },
+        {
+          "contribution": 8.0,
+          "feature": "security_risk_inverse",
+          "value": 1.0,
+          "weight": 8
+        },
+        {
+          "contribution": 4.0,
+          "feature": "estimated_ci_resource_cost_inverse",
+          "value": 1.0,
+          "weight": 4
+        },
+        {
+          "contribution": 6.0,
+          "feature": "reproducibility_expectation",
+          "value": 1.0,
+          "weight": 6
+        },
+        {
+          "contribution": 6.0,
+          "feature": "source_provenance_completeness",
+          "value": 1.0,
+          "weight": 6
+        }
+      ],
+      "candidate_id": "repo-rustlings",
+      "final_score": 0.8857142857142858,
+      "policy_version": "n2c-scoring-policy-v1",
+      "quota_group": "repository-miner",
+      "rank_within_group": 4,
+      "tie_break": "20403d0a380bb6320aaaa1b6aed4618c6ae87b1a17e994eba6df4317eed0de94"
+    },
+    {
+      "breakdown": [
+        {
+          "contribution": 10.0,
+          "feature": "license_clarity",
+          "value": 1.0,
+          "weight": 10
+        },
+        {
+          "contribution": 4.0,
+          "feature": "immutable_source_completeness",
+          "value": 0.5,
+          "weight": 8
+        },
+        {
+          "contribution": 10.0,
+          "feature": "offline_execution_feasibility",
+          "value": 1.0,
+          "weight": 10
+        },
+        {
+          "contribution": 2.4,
+          "feature": "dependency_lock_quality",
+          "value": 0.3,
+          "weight": 8
+        },
+        {
+          "contribution": 8.0,
+          "feature": "build_detector_confidence",
+          "value": 1.0,
+          "weight": 8
+        },
+        {
+          "contribution": 6.0,
+          "feature": "expected_family_coverage",
+          "value": 1.0,
+          "weight": 6
+        },
+        {
+          "contribution": 6.0,
+          "feature": "expected_ecosystem_coverage",
+          "value": 1.0,
+          "weight": 6
+        },
+        {
+          "contribution": 4.0,
+          "feature": "expected_size_bucket",
+          "value": 1.0,
+          "weight": 4
+        },
+        {
+          "contribution": 8.0,
+          "feature": "security_risk_inverse",
+          "value": 1.0,
+          "weight": 8
+        },
+        {
+          "contribution": 4.0,
+          "feature": "estimated_ci_resource_cost_inverse",
+          "value": 1.0,
+          "weight": 4
+        },
+        {
+          "contribution": 6.0,
+          "feature": "reproducibility_expectation",
+          "value": 1.0,
+          "weight": 6
+        },
+        {
+          "contribution": 6.0,
+          "feature": "source_provenance_completeness",
+          "value": 1.0,
+          "weight": 6
+        }
+      ],
+      "candidate_id": "repo-moshi",
+      "final_score": 0.8857142857142858,
+      "policy_version": "n2c-scoring-policy-v1",
+      "quota_group": "repository-miner",
+      "rank_within_group": 5,
+      "tie_break": "210e67dcc69a8be1c49fe9c84d4007ba02274c1782e2f76e43c26d9c1d3e8abd"
+    },
+    {
+      "breakdown": [
+        {
+          "contribution": 10.0,
+          "feature": "license_clarity",
+          "value": 1.0,
+          "weight": 10
+        },
+        {
+          "contribution": 4.0,
+          "feature": "immutable_source_completeness",
+          "value": 0.5,
+          "weight": 8
+        },
+        {
+          "contribution": 10.0,
+          "feature": "offline_execution_feasibility",
+          "value": 1.0,
+          "weight": 10
+        },
+        {
+          "contribution": 2.4,
+          "feature": "dependency_lock_quality",
+          "value": 0.3,
+          "weight": 8
+        },
+        {
+          "contribution": 8.0,
+          "feature": "build_detector_confidence",
+          "value": 1.0,
+          "weight": 8
+        },
+        {
+          "contribution": 6.0,
+          "feature": "expected_family_coverage",
+          "value": 1.0,
+          "weight": 6
+        },
+        {
+          "contribution": 6.0,
+          "feature": "expected_ecosystem_coverage",
+          "value": 1.0,
+          "weight": 6
+        },
+        {
+          "contribution": 4.0,
+          "feature": "expected_size_bucket",
+          "value": 1.0,
+          "weight": 4
+        },
+        {
+          "contribution": 8.0,
+          "feature": "security_risk_inverse",
+          "value": 1.0,
+          "weight": 8
+        },
+        {
+          "contribution": 4.0,
+          "feature": "estimated_ci_resource_cost_inverse",
+          "value": 1.0,
+          "weight": 4
+        },
+        {
+          "contribution": 6.0,
+          "feature": "reproducibility_expectation",
+          "value": 1.0,
+          "weight": 6
+        },
+        {
+          "contribution": 6.0,
+          "feature": "source_provenance_completeness",
+          "value": 1.0,
+          "weight": 6
+        }
+      ],
+      "candidate_id": "repo-docker-java-parser",
+      "final_score": 0.8857142857142858,
+      "policy_version": "n2c-scoring-policy-v1",
+      "quota_group": "repository-miner",
+      "rank_within_group": 6,
+      "tie_break": "226d05373913b2f06462b72a32b6b1679e120a2fcaff0bd25aa7dae80083edf1"
+    },
+    {
+      "breakdown": [
+        {
+          "contribution": 10.0,
+          "feature": "license_clarity",
+          "value": 1.0,
+          "weight": 10
+        },
+        {
+          "contribution": 4.0,
+          "feature": "immutable_source_completeness",
+          "value": 0.5,
+          "weight": 8
+        },
+        {
+          "contribution": 10.0,
+          "feature": "offline_execution_feasibility",
+          "value": 1.0,
+          "weight": 10
+        },
+        {
+          "contribution": 2.4,
+          "feature": "dependency_lock_quality",
+          "value": 0.3,
+          "weight": 8
+        },
+        {
+          "contribution": 8.0,
+          "feature": "build_detector_confidence",
+          "value": 1.0,
+          "weight": 8
+        },
+        {
+          "contribution": 6.0,
+          "feature": "expected_family_coverage",
+          "value": 1.0,
+          "weight": 6
+        },
+        {
+          "contribution": 6.0,
+          "feature": "expected_ecosystem_coverage",
+          "value": 1.0,
+          "weight": 6
+        },
+        {
+          "contribution": 4.0,
+          "feature": "expected_size_bucket",
+          "value": 1.0,
+          "weight": 4
+        },
+        {
+          "contribution": 8.0,
+          "feature": "security_risk_inverse",
+          "value": 1.0,
+          "weight": 8
+        },
+        {
+          "contribution": 4.0,
+          "feature": "estimated_ci_resource_cost_inverse",
+          "value": 1.0,
+          "weight": 4
+        },
+        {
+          "contribution": 6.0,
+          "feature": "reproducibility_expectation",
+          "value": 1.0,
+          "weight": 6
+        },
+        {
+          "contribution": 6.0,
+          "feature": "source_provenance_completeness",
+          "value": 1.0,
+          "weight": 6
+        }
+      ],
+      "candidate_id": "repo-pip-tools",
+      "final_score": 0.8857142857142858,
+      "policy_version": "n2c-scoring-policy-v1",
+      "quota_group": "repository-miner",
+      "rank_within_group": 7,
+      "tie_break": "2963c74568e37a4f7dd2a15e3842e0249fda51ca991ea2547bfaa3a93a8b7a41"
+    },
+    {
+      "breakdown": [
+        {
+          "contribution": 10.0,
+          "feature": "license_clarity",
+          "value": 1.0,
+          "weight": 10
+        },
+        {
+          "contribution": 4.0,
+          "feature": "immutable_source_completeness",
+          "value": 0.5,
+          "weight": 8
+        },
+        {
+          "contribution": 10.0,
+          "feature": "offline_execution_feasibility",
+          "value": 1.0,
+          "weight": 10
+        },
+        {
+          "contribution": 2.4,
+          "feature": "dependency_lock_quality",
+          "value": 0.3,
+          "weight": 8
+        },
+        {
+          "contribution": 8.0,
+          "feature": "build_detector_confidence",
+          "value": 1.0,
+          "weight": 8
+        },
+        {
+          "contribution": 6.0,
+          "feature": "expected_family_coverage",
+          "value": 1.0,
+          "weight": 6
+        },
+        {
+          "contribution": 6.0,
+          "feature": "expected_ecosystem_coverage",
+          "value": 1.0,
+          "weight": 6
+        },
+        {
+          "contribution": 4.0,
+          "feature": "expected_size_bucket",
+          "value": 1.0,
+          "weight": 4
+        },
+        {
+          "contribution": 8.0,
+          "feature": "security_risk_inverse",
+          "value": 1.0,
+          "weight": 8
+        },
+        {
+          "contribution": 4.0,
+          "feature": "estimated_ci_resource_cost_inverse",
+          "value": 1.0,
+          "weight": 4
+        },
+        {
+          "contribution": 6.0,
+          "feature": "reproducibility_expectation",
+          "value": 1.0,
+          "weight": 6
+        },
+        {
+          "contribution": 6.0,
+          "feature": "source_provenance_completeness",
+          "value": 1.0,
+          "weight": 6
+        }
+      ],
+      "candidate_id": "repo-pyflakes",
+      "final_score": 0.8857142857142858,
+      "policy_version": "n2c-scoring-policy-v1",
+      "quota_group": "repository-miner",
+      "rank_within_group": 8,
+      "tie_break": "35755c655ae286197cea6ef89259566b97a60ba5906c99da4ed3551c90b353a7"
+    },
+    {
+      "breakdown": [
+        {
+          "contribution": 10.0,
+          "feature": "license_clarity",
+          "value": 1.0,
+          "weight": 10
+        },
+        {
+          "contribution": 4.0,
+          "feature": "immutable_source_completeness",
+          "value": 0.5,
+          "weight": 8
+        },
+        {
+          "contribution": 10.0,
+          "feature": "offline_execution_feasibility",
+          "value": 1.0,
+          "weight": 10
+        },
+        {
+          "contribution": 2.4,
+          "feature": "dependency_lock_quality",
+          "value": 0.3,
+          "weight": 8
+        },
+        {
+          "contribution": 8.0,
+          "feature": "build_detector_confidence",
+          "value": 1.0,
+          "weight": 8
+        },
+        {
+          "contribution": 6.0,
+          "feature": "expected_family_coverage",
+          "value": 1.0,
+          "weight": 6
+        },
+        {
+          "contribution": 6.0,
+          "feature": "expected_ecosystem_coverage",
+          "value": 1.0,
+          "weight": 6
+        },
+        {
+          "contribution": 4.0,
+          "feature": "expected_size_bucket",
+          "value": 1.0,
+          "weight": 4
+        },
+        {
+          "contribution": 8.0,
+          "feature": "security_risk_inverse",
+          "value": 1.0,
+          "weight": 8
+        },
+        {
+          "contribution": 4.0,
+          "feature": "estimated_ci_resource_cost_inverse",
+          "value": 1.0,
+          "weight": 4
+        },
+        {
+          "contribution": 6.0,
+          "feature": "reproducibility_expectation",
+          "value": 1.0,
+          "weight": 6
+        },
+        {
+          "contribution": 6.0,
+          "feature": "source_provenance_completeness",
+          "value": 1.0,
+          "weight": 6
+        }
+      ],
+      "candidate_id": "repo-procs",
+      "final_score": 0.8857142857142858,
+      "policy_version": "n2c-scoring-policy-v1",
+      "quota_group": "repository-miner",
+      "rank_within_group": 9,
+      "tie_break": "39a644a9847c9fa207d9d0f3ad555549a0c8481e1ad9f75383994af9168edcbe"
+    },
+    {
+      "breakdown": [
+        {
+          "contribution": 10.0,
+          "feature": "license_clarity",
+          "value": 1.0,
+          "weight": 10
+        },
+        {
+          "contribution": 4.0,
+          "feature": "immutable_source_completeness",
+          "value": 0.5,
+          "weight": 8
+        },
+        {
+          "contribution": 10.0,
+          "feature": "offline_execution_feasibility",
+          "value": 1.0,
+          "weight": 10
+        },
+        {
+          "contribution": 2.4,
+          "feature": "dependency_lock_quality",
+          "value": 0.3,
+          "weight": 8
+        },
+        {
+          "contribution": 8.0,
+          "feature": "build_detector_confidence",
+          "value": 1.0,
+          "weight": 8
+        },
+        {
+          "contribution": 6.0,
+          "feature": "expected_family_coverage",
+          "value": 1.0,
+          "weight": 6
+        },
+        {
+          "contribution": 6.0,
+          "feature": "expected_ecosystem_coverage",
+          "value": 1.0,
+          "weight": 6
+        },
+        {
+          "contribution": 4.0,
+          "feature": "expected_size_bucket",
+          "value": 1.0,
+          "weight": 4
+        },
+        {
+          "contribution": 8.0,
+          "feature": "security_risk_inverse",
+          "value": 1.0,
+          "weight": 8
+        },
+        {
+          "contribution": 4.0,
+          "feature": "estimated_ci_resource_cost_inverse",
+          "value": 1.0,
+          "weight": 4
+        },
+        {
+          "contribution": 6.0,
+          "feature": "reproducibility_expectation",
+          "value": 1.0,
+          "weight": 6
+        },
+        {
+          "contribution": 6.0,
+          "feature": "source_provenance_completeness",
+          "value": 1.0,
+          "weight": 6
+        }
+      ],
+      "candidate_id": "repo-requests",
+      "final_score": 0.8857142857142858,
+      "policy_version": "n2c-scoring-policy-v1",
+      "quota_group": "repository-miner",
+      "rank_within_group": 10,
+      "tie_break": "3e5bdb542f68386ffdf3d006eda42c98fa46c9f366524018a1bfecc1ff27c405"
+    },
+    {
+      "breakdown": [
+        {
+          "contribution": 10.0,
+          "feature": "license_clarity",
+          "value": 1.0,
+          "weight": 10
+        },
+        {
+          "contribution": 4.0,
+          "feature": "immutable_source_completeness",
+          "value": 0.5,
+          "weight": 8
+        },
+        {
+          "contribution": 10.0,
+          "feature": "offline_execution_feasibility",
+          "value": 1.0,
+          "weight": 10
+        },
+        {
+          "contribution": 2.4,
+          "feature": "dependency_lock_quality",
+          "value": 0.3,
+          "weight": 8
+        },
+        {
+          "contribution": 8.0,
+          "feature": "build_detector_confidence",
+          "value": 1.0,
+          "weight": 8
+        },
+        {
+          "contribution": 6.0,
+          "feature": "expected_family_coverage",
+          "value": 1.0,
+          "weight": 6
+        },
+        {
+          "contribution": 6.0,
+          "feature": "expected_ecosystem_coverage",
+          "value": 1.0,
+          "weight": 6
+        },
+        {
+          "contribution": 4.0,
+          "feature": "expected_size_bucket",
+          "value": 1.0,
+          "weight": 4
+        },
+        {
+          "contribution": 8.0,
+          "feature": "security_risk_inverse",
+          "value": 1.0,
+          "weight": 8
+        },
+        {
+          "contribution": 4.0,
+          "feature": "estimated_ci_resource_cost_inverse",
+          "value": 1.0,
+          "weight": 4
+        },
+        {
+          "contribution": 6.0,
+          "feature": "reproducibility_expectation",
+          "value": 1.0,
+          "weight": 6
+        },
+        {
+          "contribution": 6.0,
+          "feature": "source_provenance_completeness",
+          "value": 1.0,
+          "weight": 6
+        }
+      ],
+      "candidate_id": "repo-fd",
+      "final_score": 0.8857142857142858,
+      "policy_version": "n2c-scoring-policy-v1",
+      "quota_group": "repository-miner",
+      "rank_within_group": 11,
+      "tie_break": "3f11e3afa9a7c8e4e57aabc34993678704e703493a973f19606bd61955c581bf"
+    },
+    {
+      "breakdown": [
+        {
+          "contribution": 10.0,
+          "feature": "license_clarity",
+          "value": 1.0,
+          "weight": 10
+        },
+        {
+          "contribution": 4.0,
+          "feature": "immutable_source_completeness",
+          "value": 0.5,
+          "weight": 8
+        },
+        {
+          "contribution": 10.0,
+          "feature": "offline_execution_feasibility",
+          "value": 1.0,
+          "weight": 10
+        },
+        {
+          "contribution": 2.4,
+          "feature": "dependency_lock_quality",
+          "value": 0.3,
+          "weight": 8
+        },
+        {
+          "contribution": 8.0,
+          "feature": "build_detector_confidence",
+          "value": 1.0,
+          "weight": 8
+        },
+        {
+          "contribution": 6.0,
+          "feature": "expected_family_coverage",
+          "value": 1.0,
+          "weight": 6
+        },
+        {
+          "contribution": 6.0,
+          "feature": "expected_ecosystem_coverage",
+          "value": 1.0,
+          "weight": 6
+        },
+        {
+          "contribution": 4.0,
+          "feature": "expected_size_bucket",
+          "value": 1.0,
+          "weight": 4
+        },
+        {
+          "contribution": 8.0,
+          "feature": "security_risk_inverse",
+          "value": 1.0,
+          "weight": 8
+        },
+        {
+          "contribution": 4.0,
+          "feature": "estimated_ci_resource_cost_inverse",
+          "value": 1.0,
+          "weight": 4
+        },
+        {
+          "contribution": 6.0,
+          "feature": "reproducibility_expectation",
+          "value": 1.0,
+          "weight": 6
+        },
+        {
+          "contribution": 6.0,
+          "feature": "source_provenance_completeness",
+          "value": 1.0,
+          "weight": 6
+        }
+      ],
+      "candidate_id": "repo-dockerfile-parser-rs",
+      "final_score": 0.8857142857142858,
+      "policy_version": "n2c-scoring-policy-v1",
+      "quota_group": "repository-miner",
+      "rank_within_group": 12,
+      "tie_break": "438636b978ce9c2dbfd025389d1736c6ebbac5692ffb4896d077c32f8753913c"
+    },
+    {
+      "breakdown": [
+        {
+          "contribution": 10.0,
+          "feature": "license_clarity",
+          "value": 1.0,
+          "weight": 10
+        },
+        {
+          "contribution": 4.0,
+          "feature": "immutable_source_completeness",
+          "value": 0.5,
+          "weight": 8
+        },
+        {
+          "contribution": 10.0,
+          "feature": "offline_execution_feasibility",
+          "value": 1.0,
+          "weight": 10
+        },
+        {
+          "contribution": 2.4,
+          "feature": "dependency_lock_quality",
+          "value": 0.3,
+          "weight": 8
+        },
+        {
+          "contribution": 8.0,
+          "feature": "build_detector_confidence",
+          "value": 1.0,
+          "weight": 8
+        },
+        {
+          "contribution": 6.0,
+          "feature": "expected_family_coverage",
+          "value": 1.0,
+          "weight": 6
+        },
+        {
+          "contribution": 6.0,
+          "feature": "expected_ecosystem_coverage",
+          "value": 1.0,
+          "weight": 6
+        },
+        {
+          "contribution": 4.0,
+          "feature": "expected_size_bucket",
+          "value": 1.0,
+          "weight": 4
+        },
+        {
+          "contribution": 8.0,
+          "feature": "security_risk_inverse",
+          "value": 1.0,
+          "weight": 8
+        },
+        {
+          "contribution": 4.0,
+          "feature": "estimated_ci_resource_cost_inverse",
+          "value": 1.0,
+          "weight": 4
+        },
+        {
+          "contribution": 6.0,
+          "feature": "reproducibility_expectation",
+          "value": 1.0,
+          "weight": 6
+        },
+        {
+          "contribution": 6.0,
+          "feature": "source_provenance_completeness",
+          "value": 1.0,
+          "weight": 6
+        }
+      ],
+      "candidate_id": "repo-kubeops-generator",
+      "final_score": 0.8857142857142858,
+      "policy_version": "n2c-scoring-policy-v1",
+      "quota_group": "repository-miner",
+      "rank_within_group": 13,
+      "tie_break": "4595f93b2f02a4fac38cdb1434801019c1828391daa9eee1e8be713aa844f816"
+    },
+    {
+      "breakdown": [
+        {
+          "contribution": 10.0,
+          "feature": "license_clarity",
+          "value": 1.0,
+          "weight": 10
+        },
+        {
+          "contribution": 4.0,
+          "feature": "immutable_source_completeness",
+          "value": 0.5,
+          "weight": 8
+        },
+        {
+          "contribution": 10.0,
+          "feature": "offline_execution_feasibility",
+          "value": 1.0,
+          "weight": 10
+        },
+        {
+          "contribution": 2.4,
+          "feature": "dependency_lock_quality",
+          "value": 0.3,
+          "weight": 8
+        },
+        {
+          "contribution": 8.0,
+          "feature": "build_detector_confidence",
+          "value": 1.0,
+          "weight": 8
+        },
+        {
+          "contribution": 6.0,
+          "feature": "expected_family_coverage",
+          "value": 1.0,
+          "weight": 6
+        },
+        {
+          "contribution": 6.0,
+          "feature": "expected_ecosystem_coverage",
+          "value": 1.0,
+          "weight": 6
+        },
+        {
+          "contribution": 4.0,
+          "feature": "expected_size_bucket",
+          "value": 1.0,
+          "weight": 4
+        },
+        {
+          "contribution": 8.0,
+          "feature": "security_risk_inverse",
+          "value": 1.0,
+          "weight": 8
+        },
+        {
+          "contribution": 4.0,
+          "feature": "estimated_ci_resource_cost_inverse",
+          "value": 1.0,
+          "weight": 4
+        },
+        {
+          "contribution": 6.0,
+          "feature": "reproducibility_expectation",
+          "value": 1.0,
+          "weight": 6
+        },
+        {
+          "contribution": 6.0,
+          "feature": "source_provenance_completeness",
+          "value": 1.0,
+          "weight": 6
+        }
+      ],
+      "candidate_id": "repo-kubernetes-validate",
+      "final_score": 0.8857142857142858,
+      "policy_version": "n2c-scoring-policy-v1",
+      "quota_group": "repository-miner",
+      "rank_within_group": 14,
+      "tie_break": "563b7180102088a9acacbe5ad491092d56339fa78e5c8b560567868d8a39358e"
+    },
+    {
+      "breakdown": [
+        {
+          "contribution": 10.0,
+          "feature": "license_clarity",
+          "value": 1.0,
+          "weight": 10
+        },
+        {
+          "contribution": 4.0,
+          "feature": "immutable_source_completeness",
+          "value": 0.5,
+          "weight": 8
+        },
+        {
+          "contribution": 10.0,
+          "feature": "offline_execution_feasibility",
+          "value": 1.0,
+          "weight": 10
+        },
+        {
+          "contribution": 2.4,
+          "feature": "dependency_lock_quality",
+          "value": 0.3,
+          "weight": 8
+        },
+        {
+          "contribution": 8.0,
+          "feature": "build_detector_confidence",
+          "value": 1.0,
+          "weight": 8
+        },
+        {
+          "contribution": 6.0,
+          "feature": "expected_family_coverage",
+          "value": 1.0,
+          "weight": 6
+        },
+        {
+          "contribution": 6.0,
+          "feature": "expected_ecosystem_coverage",
+          "value": 1.0,
+          "weight": 6
+        },
+        {
+          "contribution": 4.0,
+          "feature": "expected_size_bucket",
+          "value": 1.0,
+          "weight": 4
+        },
+        {
+          "contribution": 8.0,
+          "feature": "security_risk_inverse",
+          "value": 1.0,
+          "weight": 8
+        },
+        {
+          "contribution": 4.0,
+          "feature": "estimated_ci_resource_cost_inverse",
+          "value": 1.0,
+          "weight": 4
+        },
+        {
+          "contribution": 6.0,
+          "feature": "reproducibility_expectation",
+          "value": 1.0,
+          "weight": 6
+        },
+        {
+          "contribution": 6.0,
+          "feature": "source_provenance_completeness",
+          "value": 1.0,
+          "weight": 6
+        }
+      ],
+      "candidate_id": "repo-dockerfile-parse",
+      "final_score": 0.8857142857142858,
+      "policy_version": "n2c-scoring-policy-v1",
+      "quota_group": "repository-miner",
+      "rank_within_group": 15,
+      "tie_break": "629f1e7bc1be97aebf4cea6715a4411818445443763bfbabb55374752202ed43"
+    },
+    {
+      "breakdown": [
+        {
+          "contribution": 10.0,
+          "feature": "license_clarity",
+          "value": 1.0,
+          "weight": 10
+        },
+        {
+          "contribution": 4.0,
+          "feature": "immutable_source_completeness",
+          "value": 0.5,
+          "weight": 8
+        },
+        {
+          "contribution": 10.0,
+          "feature": "offline_execution_feasibility",
+          "value": 1.0,
+          "weight": 10
+        },
+        {
+          "contribution": 2.4,
+          "feature": "dependency_lock_quality",
+          "value": 0.3,
+          "weight": 8
+        },
+        {
+          "contribution": 8.0,
+          "feature": "build_detector_confidence",
+          "value": 1.0,
+          "weight": 8
+        },
+        {
+          "contribution": 6.0,
+          "feature": "expected_family_coverage",
+          "value": 1.0,
+          "weight": 6
+        },
+        {
+          "contribution": 6.0,
+          "feature": "expected_ecosystem_coverage",
+          "value": 1.0,
+          "weight": 6
+        },
+        {
+          "contribution": 4.0,
+          "feature": "expected_size_bucket",
+          "value": 1.0,
+          "weight": 4
+        },
+        {
+          "contribution": 8.0,
+          "feature": "security_risk_inverse",
+          "value": 1.0,
+          "weight": 8
+        },
+        {
+          "contribution": 4.0,
+          "feature": "estimated_ci_resource_cost_inverse",
+          "value": 1.0,
+          "weight": 4
+        },
+        {
+          "contribution": 6.0,
+          "feature": "reproducibility_expectation",
+          "value": 1.0,
+          "weight": 6
+        },
+        {
+          "contribution": 6.0,
+          "feature": "source_provenance_completeness",
+          "value": 1.0,
+          "weight": 6
+        }
+      ],
+      "candidate_id": "repo-spotless",
+      "final_score": 0.8857142857142858,
+      "policy_version": "n2c-scoring-policy-v1",
+      "quota_group": "repository-miner",
+      "rank_within_group": 16,
+      "tie_break": "6a100f2fcdcc7364cbed730d29196e70c86a8c7ba8f197f0f60ca684965ff968"
+    },
+    {
+      "breakdown": [
+        {
+          "contribution": 10.0,
+          "feature": "license_clarity",
+          "value": 1.0,
+          "weight": 10
+        },
+        {
+          "contribution": 4.0,
+          "feature": "immutable_source_completeness",
+          "value": 0.5,
+          "weight": 8
+        },
+        {
+          "contribution": 10.0,
+          "feature": "offline_execution_feasibility",
+          "value": 1.0,
+          "weight": 10
+        },
+        {
+          "contribution": 2.4,
+          "feature": "dependency_lock_quality",
+          "value": 0.3,
+          "weight": 8
+        },
+        {
+          "contribution": 8.0,
+          "feature": "build_detector_confidence",
+          "value": 1.0,
+          "weight": 8
+        },
+        {
+          "contribution": 6.0,
+          "feature": "expected_family_coverage",
+          "value": 1.0,
+          "weight": 6
+        },
+        {
+          "contribution": 6.0,
+          "feature": "expected_ecosystem_coverage",
+          "value": 1.0,
+          "weight": 6
+        },
+        {
+          "contribution": 4.0,
+          "feature": "expected_size_bucket",
+          "value": 1.0,
+          "weight": 4
+        },
+        {
+          "contribution": 8.0,
+          "feature": "security_risk_inverse",
+          "value": 1.0,
+          "weight": 8
+        },
+        {
+          "contribution": 4.0,
+          "feature": "estimated_ci_resource_cost_inverse",
+          "value": 1.0,
+          "weight": 4
+        },
+        {
+          "contribution": 6.0,
+          "feature": "reproducibility_expectation",
+          "value": 1.0,
+          "weight": 6
+        },
+        {
+          "contribution": 6.0,
+          "feature": "source_provenance_completeness",
+          "value": 1.0,
+          "weight": 6
+        }
+      ],
+      "candidate_id": "repo-classgraph",
+      "final_score": 0.8857142857142858,
+      "policy_version": "n2c-scoring-policy-v1",
+      "quota_group": "repository-miner",
+      "rank_within_group": 17,
+      "tie_break": "77ba0c5dabca3cb30cfd31673167546d05e44f13f3b37e5e9ff36939e4161b7b"
+    },
+    {
+      "breakdown": [
+        {
+          "contribution": 10.0,
+          "feature": "license_clarity",
+          "value": 1.0,
+          "weight": 10
+        },
+        {
+          "contribution": 4.0,
+          "feature": "immutable_source_completeness",
+          "value": 0.5,
+          "weight": 8
+        },
+        {
+          "contribution": 10.0,
+          "feature": "offline_execution_feasibility",
+          "value": 1.0,
+          "weight": 10
+        },
+        {
+          "contribution": 2.4,
+          "feature": "dependency_lock_quality",
+          "value": 0.3,
+          "weight": 8
+        },
+        {
+          "contribution": 8.0,
+          "feature": "build_detector_confidence",
+          "value": 1.0,
+          "weight": 8
+        },
+        {
+          "contribution": 6.0,
+          "feature": "expected_family_coverage",
+          "value": 1.0,
+          "weight": 6
+        },
+        {
+          "contribution": 6.0,
+          "feature": "expected_ecosystem_coverage",
+          "value": 1.0,
+          "weight": 6
+        },
+        {
+          "contribution": 4.0,
+          "feature": "expected_size_bucket",
+          "value": 1.0,
+          "weight": 4
+        },
+        {
+          "contribution": 8.0,
+          "feature": "security_risk_inverse",
+          "value": 1.0,
+          "weight": 8
+        },
+        {
+          "contribution": 4.0,
+          "feature": "estimated_ci_resource_cost_inverse",
+          "value": 1.0,
+          "weight": 4
+        },
+        {
+          "contribution": 6.0,
+          "feature": "reproducibility_expectation",
+          "value": 1.0,
+          "weight": 6
+        },
+        {
+          "contribution": 6.0,
+          "feature": "source_provenance_completeness",
+          "value": 1.0,
+          "weight": 6
+        }
+      ],
+      "candidate_id": "repo-bats-core",
+      "final_score": 0.8857142857142858,
+      "policy_version": "n2c-scoring-policy-v1",
+      "quota_group": "repository-miner",
+      "rank_within_group": 18,
+      "tie_break": "8a894d7367c689e11b12044a0e479c70178fb2329c7857cfa168a74d81131864"
+    },
+    {
+      "breakdown": [
+        {
+          "contribution": 10.0,
+          "feature": "license_clarity",
+          "value": 1.0,
+          "weight": 10
+        },
+        {
+          "contribution": 4.0,
+          "feature": "immutable_source_completeness",
+          "value": 0.5,
+          "weight": 8
+        },
+        {
+          "contribution": 10.0,
+          "feature": "offline_execution_feasibility",
+          "value": 1.0,
+          "weight": 10
+        },
+        {
+          "contribution": 2.4,
+          "feature": "dependency_lock_quality",
+          "value": 0.3,
+          "weight": 8
+        },
+        {
+          "contribution": 8.0,
+          "feature": "build_detector_confidence",
+          "value": 1.0,
+          "weight": 8
+        },
+        {
+          "contribution": 6.0,
+          "feature": "expected_family_coverage",
+          "value": 1.0,
+          "weight": 6
+        },
+        {
+          "contribution": 6.0,
+          "feature": "expected_ecosystem_coverage",
+          "value": 1.0,
+          "weight": 6
+        },
+        {
+          "contribution": 4.0,
+          "feature": "expected_size_bucket",
+          "value": 1.0,
+          "weight": 4
+        },
+        {
+          "contribution": 8.0,
+          "feature": "security_risk_inverse",
+          "value": 1.0,
+          "weight": 8
+        },
+        {
+          "contribution": 4.0,
+          "feature": "estimated_ci_resource_cost_inverse",
+          "value": 1.0,
+          "weight": 4
+        },
+        {
+          "contribution": 6.0,
+          "feature": "reproducibility_expectation",
+          "value": 1.0,
+          "weight": 6
+        },
+        {
+          "contribution": 6.0,
+          "feature": "source_provenance_completeness",
+          "value": 1.0,
+          "weight": 6
+        }
+      ],
+      "candidate_id": "repo-flake8",
+      "final_score": 0.8857142857142858,
+      "policy_version": "n2c-scoring-policy-v1",
+      "quota_group": "repository-miner",
+      "rank_within_group": 19,
+      "tie_break": "90743a509f9ef01463e800abc7eeb7cda43c41309d3f294a33eeb36072307ed6"
+    },
+    {
+      "breakdown": [
+        {
+          "contribution": 10.0,
+          "feature": "license_clarity",
+          "value": 1.0,
+          "weight": 10
+        },
+        {
+          "contribution": 4.0,
+          "feature": "immutable_source_completeness",
+          "value": 0.5,
+          "weight": 8
+        },
+        {
+          "contribution": 10.0,
+          "feature": "offline_execution_feasibility",
+          "value": 1.0,
+          "weight": 10
+        },
+        {
+          "contribution": 2.4,
+          "feature": "dependency_lock_quality",
+          "value": 0.3,
+          "weight": 8
+        },
+        {
+          "contribution": 8.0,
+          "feature": "build_detector_confidence",
+          "value": 1.0,
+          "weight": 8
+        },
+        {
+          "contribution": 6.0,
+          "feature": "expected_family_coverage",
+          "value": 1.0,
+          "weight": 6
+        },
+        {
+          "contribution": 6.0,
+          "feature": "expected_ecosystem_coverage",
+          "value": 1.0,
+          "weight": 6
+        },
+        {
+          "contribution": 4.0,
+          "feature": "expected_size_bucket",
+          "value": 1.0,
+          "weight": 4
+        },
+        {
+          "contribution": 8.0,
+          "feature": "security_risk_inverse",
+          "value": 1.0,
+          "weight": 8
+        },
+        {
+          "contribution": 4.0,
+          "feature": "estimated_ci_resource_cost_inverse",
+          "value": 1.0,
+          "weight": 4
+        },
+        {
+          "contribution": 6.0,
+          "feature": "reproducibility_expectation",
+          "value": 1.0,
+          "weight": 6
+        },
+        {
+          "contribution": 6.0,
+          "feature": "source_provenance_completeness",
+          "value": 1.0,
+          "weight": 6
+        }
+      ],
+      "candidate_id": "repo-hadolint-example",
+      "final_score": 0.8857142857142858,
+      "policy_version": "n2c-scoring-policy-v1",
+      "quota_group": "repository-miner",
+      "rank_within_group": 20,
+      "tie_break": "a5de1ac828248c02775db72f0070a124e96aa8884e3e6ffbdeddc41c3207ed91"
+    },
+    {
+      "breakdown": [
+        {
+          "contribution": 10.0,
+          "feature": "license_clarity",
+          "value": 1.0,
+          "weight": 10
+        },
+        {
+          "contribution": 4.0,
+          "feature": "immutable_source_completeness",
+          "value": 0.5,
+          "weight": 8
+        },
+        {
+          "contribution": 10.0,
+          "feature": "offline_execution_feasibility",
+          "value": 1.0,
+          "weight": 10
+        },
+        {
+          "contribution": 2.4,
+          "feature": "dependency_lock_quality",
+          "value": 0.3,
+          "weight": 8
+        },
+        {
+          "contribution": 8.0,
+          "feature": "build_detector_confidence",
+          "value": 1.0,
+          "weight": 8
+        },
+        {
+          "contribution": 6.0,
+          "feature": "expected_family_coverage",
+          "value": 1.0,
+          "weight": 6
+        },
+        {
+          "contribution": 6.0,
+          "feature": "expected_ecosystem_coverage",
+          "value": 1.0,
+          "weight": 6
+        },
+        {
+          "contribution": 4.0,
+          "feature": "expected_size_bucket",
+          "value": 1.0,
+          "weight": 4
+        },
+        {
+          "contribution": 8.0,
+          "feature": "security_risk_inverse",
+          "value": 1.0,
+          "weight": 8
+        },
+        {
+          "contribution": 4.0,
+          "feature": "estimated_ci_resource_cost_inverse",
+          "value": 1.0,
+          "weight": 4
+        },
+        {
+          "contribution": 6.0,
+          "feature": "reproducibility_expectation",
+          "value": 1.0,
+          "weight": 6
+        },
+        {
+          "contribution": 6.0,
+          "feature": "source_provenance_completeness",
+          "value": 1.0,
+          "weight": 6
+        }
+      ],
+      "candidate_id": "repo-fzf",
+      "final_score": 0.8857142857142858,
+      "policy_version": "n2c-scoring-policy-v1",
+      "quota_group": "repository-miner",
+      "rank_within_group": 21,
+      "tie_break": "a7f28a61cdff29a3c8e2f2b6ce5e4f566afea73694e2ddd25638ae5e5e2e7481"
+    },
+    {
+      "breakdown": [
+        {
+          "contribution": 10.0,
+          "feature": "license_clarity",
+          "value": 1.0,
+          "weight": 10
+        },
+        {
+          "contribution": 4.0,
+          "feature": "immutable_source_completeness",
+          "value": 0.5,
+          "weight": 8
+        },
+        {
+          "contribution": 10.0,
+          "feature": "offline_execution_feasibility",
+          "value": 1.0,
+          "weight": 10
+        },
+        {
+          "contribution": 2.4,
+          "feature": "dependency_lock_quality",
+          "value": 0.3,
+          "weight": 8
+        },
+        {
+          "contribution": 8.0,
+          "feature": "build_detector_confidence",
+          "value": 1.0,
+          "weight": 8
+        },
+        {
+          "contribution": 6.0,
+          "feature": "expected_family_coverage",
+          "value": 1.0,
+          "weight": 6
+        },
+        {
+          "contribution": 6.0,
+          "feature": "expected_ecosystem_coverage",
+          "value": 1.0,
+          "weight": 6
+        },
+        {
+          "contribution": 4.0,
+          "feature": "expected_size_bucket",
+          "value": 1.0,
+          "weight": 4
+        },
+        {
+          "contribution": 8.0,
+          "feature": "security_risk_inverse",
+          "value": 1.0,
+          "weight": 8
+        },
+        {
+          "contribution": 4.0,
+          "feature": "estimated_ci_resource_cost_inverse",
+          "value": 1.0,
+          "weight": 4
+        },
+        {
+          "contribution": 6.0,
+          "feature": "reproducibility_expectation",
+          "value": 1.0,
+          "weight": 6
+        },
+        {
+          "contribution": 6.0,
+          "feature": "source_provenance_completeness",
+          "value": 1.0,
+          "weight": 6
+        }
+      ],
+      "candidate_id": "repo-moq",
+      "final_score": 0.8857142857142858,
+      "policy_version": "n2c-scoring-policy-v1",
+      "quota_group": "repository-miner",
+      "rank_within_group": 22,
+      "tie_break": "af5d8efca31b3528856f666df06c172ab4b2adcb328f1ae17482e037974d62fa"
+    },
+    {
+      "breakdown": [
+        {
+          "contribution": 10.0,
+          "feature": "license_clarity",
+          "value": 1.0,
+          "weight": 10
+        },
+        {
+          "contribution": 4.0,
+          "feature": "immutable_source_completeness",
+          "value": 0.5,
+          "weight": 8
+        },
+        {
+          "contribution": 10.0,
+          "feature": "offline_execution_feasibility",
+          "value": 1.0,
+          "weight": 10
+        },
+        {
+          "contribution": 2.4,
+          "feature": "dependency_lock_quality",
+          "value": 0.3,
+          "weight": 8
+        },
+        {
+          "contribution": 8.0,
+          "feature": "build_detector_confidence",
+          "value": 1.0,
+          "weight": 8
+        },
+        {
+          "contribution": 6.0,
+          "feature": "expected_family_coverage",
+          "value": 1.0,
+          "weight": 6
+        },
+        {
+          "contribution": 6.0,
+          "feature": "expected_ecosystem_coverage",
+          "value": 1.0,
+          "weight": 6
+        },
+        {
+          "contribution": 4.0,
+          "feature": "expected_size_bucket",
+          "value": 1.0,
+          "weight": 4
+        },
+        {
+          "contribution": 8.0,
+          "feature": "security_risk_inverse",
+          "value": 1.0,
+          "weight": 8
+        },
+        {
+          "contribution": 4.0,
+          "feature": "estimated_ci_resource_cost_inverse",
+          "value": 1.0,
+          "weight": 4
+        },
+        {
+          "contribution": 6.0,
+          "feature": "reproducibility_expectation",
+          "value": 1.0,
+          "weight": 6
+        },
+        {
+          "contribution": 6.0,
+          "feature": "source_provenance_completeness",
+          "value": 1.0,
+          "weight": 6
+        }
+      ],
+      "candidate_id": "repo-helm-values",
+      "final_score": 0.8857142857142858,
+      "policy_version": "n2c-scoring-policy-v1",
+      "quota_group": "repository-miner",
+      "rank_within_group": 23,
+      "tie_break": "b8eb31109c31c64f3dc20b206e0d601772f68fe75ca1aa1cadd89d5d91867369"
+    },
+    {
+      "breakdown": [
+        {
+          "contribution": 10.0,
+          "feature": "license_clarity",
+          "value": 1.0,
+          "weight": 10
+        },
+        {
+          "contribution": 4.0,
+          "feature": "immutable_source_completeness",
+          "value": 0.5,
+          "weight": 8
+        },
+        {
+          "contribution": 10.0,
+          "feature": "offline_execution_feasibility",
+          "value": 1.0,
+          "weight": 10
+        },
+        {
+          "contribution": 2.4,
+          "feature": "dependency_lock_quality",
+          "value": 0.3,
+          "weight": 8
+        },
+        {
+          "contribution": 8.0,
+          "feature": "build_detector_confidence",
+          "value": 1.0,
+          "weight": 8
+        },
+        {
+          "contribution": 6.0,
+          "feature": "expected_family_coverage",
+          "value": 1.0,
+          "weight": 6
+        },
+        {
+          "contribution": 6.0,
+          "feature": "expected_ecosystem_coverage",
+          "value": 1.0,
+          "weight": 6
+        },
+        {
+          "contribution": 4.0,
+          "feature": "expected_size_bucket",
+          "value": 1.0,
+          "weight": 4
+        },
+        {
+          "contribution": 8.0,
+          "feature": "security_risk_inverse",
+          "value": 1.0,
+          "weight": 8
+        },
+        {
+          "contribution": 4.0,
+          "feature": "estimated_ci_resource_cost_inverse",
+          "value": 1.0,
+          "weight": 4
+        },
+        {
+          "contribution": 6.0,
+          "feature": "reproducibility_expectation",
+          "value": 1.0,
+          "weight": 6
+        },
+        {
+          "contribution": 6.0,
+          "feature": "source_provenance_completeness",
+          "value": 1.0,
+          "weight": 6
+        }
+      ],
+      "candidate_id": "repo-dotnet-outdated",
+      "final_score": 0.8857142857142858,
+      "policy_version": "n2c-scoring-policy-v1",
+      "quota_group": "repository-miner",
+      "rank_within_group": 24,
+      "tie_break": "b90dcb88d56f0bef724747ba92f941d87566b17ba31a9b6efef646e45c5efb02"
+    },
+    {
+      "breakdown": [
+        {
+          "contribution": 10.0,
+          "feature": "license_clarity",
+          "value": 1.0,
+          "weight": 10
+        },
+        {
+          "contribution": 4.0,
+          "feature": "immutable_source_completeness",
+          "value": 0.5,
+          "weight": 8
+        },
+        {
+          "contribution": 10.0,
+          "feature": "offline_execution_feasibility",
+          "value": 1.0,
+          "weight": 10
+        },
+        {
+          "contribution": 2.4,
+          "feature": "dependency_lock_quality",
+          "value": 0.3,
+          "weight": 8
+        },
+        {
+          "contribution": 8.0,
+          "feature": "build_detector_confidence",
+          "value": 1.0,
+          "weight": 8
+        },
+        {
+          "contribution": 6.0,
+          "feature": "expected_family_coverage",
+          "value": 1.0,
+          "weight": 6
+        },
+        {
+          "contribution": 6.0,
+          "feature": "expected_ecosystem_coverage",
+          "value": 1.0,
+          "weight": 6
+        },
+        {
+          "contribution": 4.0,
+          "feature": "expected_size_bucket",
+          "value": 1.0,
+          "weight": 4
+        },
+        {
+          "contribution": 8.0,
+          "feature": "security_risk_inverse",
+          "value": 1.0,
+          "weight": 8
+        },
+        {
+          "contribution": 4.0,
+          "feature": "estimated_ci_resource_cost_inverse",
+          "value": 1.0,
+          "weight": 4
+        },
+        {
+          "contribution": 6.0,
+          "feature": "reproducibility_expectation",
+          "value": 1.0,
+          "weight": 6
+        },
+        {
+          "contribution": 6.0,
+          "feature": "source_provenance_completeness",
+          "value": 1.0,
+          "weight": 6
+        }
+      ],
+      "candidate_id": "repo-nuget-samples-cpm",
+      "final_score": 0.8857142857142858,
+      "policy_version": "n2c-scoring-policy-v1",
+      "quota_group": "repository-miner",
+      "rank_within_group": 25,
+      "tie_break": "c2c76a12f466482d122d0d78496b2ebbee3f337307781e04beae5cc09a2b0d0a"
+    },
+    {
+      "breakdown": [
+        {
+          "contribution": 10.0,
+          "feature": "license_clarity",
+          "value": 1.0,
+          "weight": 10
+        },
+        {
+          "contribution": 4.0,
+          "feature": "immutable_source_completeness",
+          "value": 0.5,
+          "weight": 8
+        },
+        {
+          "contribution": 10.0,
+          "feature": "offline_execution_feasibility",
+          "value": 1.0,
+          "weight": 10
+        },
+        {
+          "contribution": 2.4,
+          "feature": "dependency_lock_quality",
+          "value": 0.3,
+          "weight": 8
+        },
+        {
+          "contribution": 8.0,
+          "feature": "build_detector_confidence",
+          "value": 1.0,
+          "weight": 8
+        },
+        {
+          "contribution": 6.0,
+          "feature": "expected_family_coverage",
+          "value": 1.0,
+          "weight": 6
+        },
+        {
+          "contribution": 6.0,
+          "feature": "expected_ecosystem_coverage",
+          "value": 1.0,
+          "weight": 6
+        },
+        {
+          "contribution": 4.0,
+          "feature": "expected_size_bucket",
+          "value": 1.0,
+          "weight": 4
+        },
+        {
+          "contribution": 8.0,
+          "feature": "security_risk_inverse",
+          "value": 1.0,
+          "weight": 8
+        },
+        {
+          "contribution": 4.0,
+          "feature": "estimated_ci_resource_cost_inverse",
+          "value": 1.0,
+          "weight": 4
+        },
+        {
+          "contribution": 6.0,
+          "feature": "reproducibility_expectation",
+          "value": 1.0,
+          "weight": 6
+        },
+        {
+          "contribution": 6.0,
+          "feature": "source_provenance_completeness",
+          "value": 1.0,
+          "weight": 6
+        }
+      ],
+      "candidate_id": "repo-detekt",
+      "final_score": 0.8857142857142858,
+      "policy_version": "n2c-scoring-policy-v1",
+      "quota_group": "repository-miner",
+      "rank_within_group": 26,
+      "tie_break": "c90f968544f5491465b544760925d7d244409bc65369ad43cee96a967fe7bdde"
+    },
+    {
+      "breakdown": [
+        {
+          "contribution": 10.0,
+          "feature": "license_clarity",
+          "value": 1.0,
+          "weight": 10
+        },
+        {
+          "contribution": 4.0,
+          "feature": "immutable_source_completeness",
+          "value": 0.5,
+          "weight": 8
+        },
+        {
+          "contribution": 10.0,
+          "feature": "offline_execution_feasibility",
+          "value": 1.0,
+          "weight": 10
+        },
+        {
+          "contribution": 2.4,
+          "feature": "dependency_lock_quality",
+          "value": 0.3,
+          "weight": 8
+        },
+        {
+          "contribution": 8.0,
+          "feature": "build_detector_confidence",
+          "value": 1.0,
+          "weight": 8
+        },
+        {
+          "contribution": 6.0,
+          "feature": "expected_family_coverage",
+          "value": 1.0,
+          "weight": 6
+        },
+        {
+          "contribution": 6.0,
+          "feature": "expected_ecosystem_coverage",
+          "value": 1.0,
+          "weight": 6
+        },
+        {
+          "contribution": 4.0,
+          "feature": "expected_size_bucket",
+          "value": 1.0,
+          "weight": 4
+        },
+        {
+          "contribution": 8.0,
+          "feature": "security_risk_inverse",
+          "value": 1.0,
+          "weight": 8
+        },
+        {
+          "contribution": 4.0,
+          "feature": "estimated_ci_resource_cost_inverse",
+          "value": 1.0,
+          "weight": 4
+        },
+        {
+          "contribution": 6.0,
+          "feature": "reproducibility_expectation",
+          "value": 1.0,
+          "weight": 6
+        },
+        {
+          "contribution": 6.0,
+          "feature": "source_provenance_completeness",
+          "value": 1.0,
+          "weight": 6
+        }
+      ],
+      "candidate_id": "repo-gson",
+      "final_score": 0.8857142857142858,
+      "policy_version": "n2c-scoring-policy-v1",
+      "quota_group": "repository-miner",
+      "rank_within_group": 27,
+      "tie_break": "eb55a7c629060845166a77ae304ee9a1c91228458f4d4a6f5070988a6386e981"
+    },
+    {
+      "breakdown": [
+        {
+          "contribution": 10.0,
+          "feature": "license_clarity",
+          "value": 1.0,
+          "weight": 10
+        },
+        {
+          "contribution": 4.0,
+          "feature": "immutable_source_completeness",
+          "value": 0.5,
+          "weight": 8
+        },
+        {
+          "contribution": 10.0,
+          "feature": "offline_execution_feasibility",
+          "value": 1.0,
+          "weight": 10
+        },
+        {
+          "contribution": 2.4,
+          "feature": "dependency_lock_quality",
+          "value": 0.3,
+          "weight": 8
+        },
+        {
+          "contribution": 8.0,
+          "feature": "build_detector_confidence",
+          "value": 1.0,
+          "weight": 8
+        },
+        {
+          "contribution": 6.0,
+          "feature": "expected_family_coverage",
+          "value": 1.0,
+          "weight": 6
+        },
+        {
+          "contribution": 6.0,
+          "feature": "expected_ecosystem_coverage",
+          "value": 1.0,
+          "weight": 6
+        },
+        {
+          "contribution": 4.0,
+          "feature": "expected_size_bucket",
+          "value": 1.0,
+          "weight": 4
+        },
+        {
+          "contribution": 8.0,
+          "feature": "security_risk_inverse",
+          "value": 1.0,
+          "weight": 8
+        },
+        {
+          "contribution": 4.0,
+          "feature": "estimated_ci_resource_cost_inverse",
+          "value": 1.0,
+          "weight": 4
+        },
+        {
+          "contribution": 6.0,
+          "feature": "reproducibility_expectation",
+          "value": 1.0,
+          "weight": 6
+        },
+        {
+          "contribution": 6.0,
+          "feature": "source_provenance_completeness",
+          "value": 1.0,
+          "weight": 6
+        }
+      ],
+      "candidate_id": "repo-anyhow",
+      "final_score": 0.8857142857142858,
+      "policy_version": "n2c-scoring-policy-v1",
+      "quota_group": "repository-miner",
+      "rank_within_group": 28,
+      "tie_break": "fd8eae01df864bb7dd4df026a13daf167601d82a02abd1ac2e0f00e9e59c9b8e"
+    },
+    {
+      "breakdown": [
+        {
+          "contribution": 10.0,
+          "feature": "license_clarity",
+          "value": 1.0,
+          "weight": 10
+        },
+        {
+          "contribution": 0.0,
+          "feature": "immutable_source_completeness",
+          "value": 0.0,
+          "weight": 8
+        },
+        {
+          "contribution": 10.0,
+          "feature": "offline_execution_feasibility",
+          "value": 1.0,
+          "weight": 10
+        },
+        {
+          "contribution": 2.4,
+          "feature": "dependency_lock_quality",
+          "value": 0.3,
+          "weight": 8
+        },
+        {
+          "contribution": 8.0,
+          "feature": "build_detector_confidence",
+          "value": 1.0,
+          "weight": 8
+        },
+        {
+          "contribution": 6.0,
+          "feature": "expected_family_coverage",
+          "value": 1.0,
+          "weight": 6
+        },
+        {
+          "contribution": 6.0,
+          "feature": "expected_ecosystem_coverage",
+          "value": 1.0,
+          "weight": 6
+        },
+        {
+          "contribution": 2.4,
+          "feature": "expected_size_bucket",
+          "value": 0.6,
+          "weight": 4
+        },
+        {
+          "contribution": 8.0,
+          "feature": "security_risk_inverse",
+          "value": 1.0,
+          "weight": 8
+        },
+        {
+          "contribution": 2.4,
+          "feature": "estimated_ci_resource_cost_inverse",
+          "value": 0.6,
+          "weight": 4
+        },
+        {
+          "contribution": 6.0,
+          "feature": "reproducibility_expectation",
+          "value": 1.0,
+          "weight": 6
+        },
+        {
+          "contribution": 6.0,
+          "feature": "source_provenance_completeness",
+          "value": 1.0,
+          "weight": 6
+        }
+      ],
+      "candidate_id": "research-corpus-loghub2",
+      "final_score": 0.7999999999999998,
+      "policy_version": "n2c-scoring-policy-v1",
+      "quota_group": "reproducible-research-corpus",
+      "rank_within_group": 1,
+      "tie_break": "a9936ab6407ca2b13efa0b2fe8407bbcf96a40967189c6d083d1759d41ecc447"
+    }
+  ],
+  "record_sha256": "sha256:e42854a50701176de68ab7f2c96d1f36eefdcd1837f1f2b51754e2daf2262e6a",
+  "record_type": "n2d1b-stage2-replacement-selection-v1",
+  "rejected_case_id": "repo-spotless",
+  "rejection_record_path": "evals/interop/v2/n2/d1-identity-lock/repo-spotless-rejection-record.json",
+  "rejection_record_sha256": "sha256:d0ad686d08b4bdd06d7be683e791ec6f0d8cbe355655ea919594d1ce62d1d4cd",
+  "replacement_case_id": "repo-helm-values",
+  "replacement_durable_asset_name": "n2c-acquisition-repo-helm-values.zip",
+  "replacement_durable_asset_sha256": "sha256:005dd900fba6d10becac8e470e0510d1a6a8502cac0427a052cba0dda02465ec",
+  "replacement_fallback_rank_position": 13,
+  "replacement_source_commit_sha": "bcc4dc7cd7cd667995a9e6f1811335d8a239bc5c",
+  "replacement_source_manifest": "evals/interop/v2/n2/source-freeze/source-manifests/alternate/repo-helm-values.json",
+  "repository": "PhysShell/qodec",
+  "schema_version": 1,
+  "scorer_tool_path": "evals/interop/v2/n2/miner/tools/scorer.py",
+  "scorer_tool_sha256": "sha256:ba06ecf767fd0721bdbe60d26e3f6a57682b525ec8c5e6bab46bb19bfd919ef4",
+  "selection_is_deterministic": true,
+  "selection_scope": "frozen eligible jvm-gradle repository-miner alternates"
+}

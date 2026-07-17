@@ -268,6 +268,17 @@ class TestNetworkEnforcementModeIsCaseIdScoped(unittest.TestCase):
         self.assertIn("tcp_connect = []", text)
         self.assertIn("tcp_bind = []", text)
 
+    def test_repo_requests_receives_the_exception(self):
+        # D1b remediation (2026-07-17): pytest-httpbin's own local WSGI test
+        # server hit the identical class of loopback-bind PermissionError
+        # as repo-kubeops-generator's VSTest test-host and repo-moshi's/
+        # repo-helm-values's Gradle daemon -- authorized separately, not
+        # inherited from any of those entries.
+        text = self._build(ecosystem="python", case_id="repo-requests")
+        self.assertIn('network_enforcement_mode = "outer-netns-loopback-only"', text)
+        self.assertIn("tcp_connect = []", text)
+        self.assertIn("tcp_bind = []", text)
+
     def test_repo_spotless_is_not_restored_to_the_authorized_set(self):
         # repo-spotless is REJECTED_ACQUISITION_MODEL_INCOMPATIBLE (see
         # repo-spotless-rejection-record.json) for a reason entirely
@@ -297,13 +308,19 @@ class TestNetworkEnforcementModeIsCaseIdScoped(unittest.TestCase):
             text = self._build(ecosystem=ecosystem, case_id="repo-totally-unauthorized-case")
             self.assertNotIn("network_enforcement_mode", text, f"ecosystem={ecosystem}")
 
-    def test_only_the_two_authorized_cases_exist(self):
+    def test_only_the_four_authorized_cases_exist(self):
         self.assertEqual(
             set(gsp.NETWORK_ENFORCEMENT_AUTHORIZED_CASES),
-            {"repo-moshi", "repo-kubeops-generator"},
+            {"repo-moshi", "repo-kubeops-generator", "repo-helm-values", "repo-requests"},
         )
 
-    def test_both_authorized_cases_grant_read_access_to_probe_script_directories(self):
+    def test_repo_requests_has_an_explicit_approval_identity(self):
+        self.assertEqual(
+            gsp.NETWORK_ENFORCEMENT_APPROVAL_IDENTITIES.get("repo-requests"),
+            "n2d1b-repo-requests-loopback-only-authorization-2026-07-17",
+        )
+
+    def test_all_authorized_cases_grant_read_access_to_probe_script_directories(self):
         # Real evidence (CI run #14): the network-enforcement probes
         # (canary/tools/network_probe.py, d1-identity-lock/tools/
         # loopback_bind_probe.py) run through the SAME policy as the real
@@ -311,8 +328,15 @@ class TestNetworkEnforcementModeIsCaseIdScoped(unittest.TestCase):
         # checkout's own tools directories -- confined python3 failed with
         # "can't open file '.../network_probe.py': [Errno 13] Permission
         # denied" (exit code 2, Python's own convention for a script it
-        # can't open -- not Sandboy's).
-        for ecosystem, case_id in (("jvm-gradle", "repo-moshi"), ("dotnet", "repo-kubeops-generator")):
+        # can't open -- not Sandboy's). repo-helm-values (Stage 2) shares
+        # repo-moshi's jvm-gradle ecosystem and the same daemon-bind
+        # requirement.
+        for ecosystem, case_id in (
+            ("jvm-gradle", "repo-moshi"),
+            ("dotnet", "repo-kubeops-generator"),
+            ("jvm-gradle", "repo-helm-values"),
+            ("python", "repo-requests"),
+        ):
             text = self._build(ecosystem=ecosystem, case_id=case_id)
             fs_ro_line = next(line for line in text.splitlines() if line.startswith("fs_ro"))
             self.assertIn(str(gsp.CANARY_TOOLS_DIR), fs_ro_line)
@@ -322,6 +346,66 @@ class TestNetworkEnforcementModeIsCaseIdScoped(unittest.TestCase):
         text = self._build(ecosystem="dotnet", case_id="repo-some-other-dotnet-case")
         fs_ro_line = next(line for line in text.splitlines() if line.startswith("fs_ro"))
         self.assertNotIn(str(gsp.CANARY_TOOLS_DIR), fs_ro_line)
+
+
+class TestTimeoutSinkFixtureIsCaseIdScopedAndSeparateFromNetworkEnforcement(unittest.TestCase):
+    """D1b remediation round 2 (2026-07-17): TIMEOUT_SINK_AUTHORIZED_CASES is
+    a SEPARATE, ADDITIONAL authorization layer from
+    NETWORK_ENFORCEMENT_AUTHORIZED_CASES -- never merged into it, never
+    inherited by an ecosystem sibling, and case-id-scoped exactly like the
+    network-enforcement exception."""
+
+    def test_only_repo_requests_is_authorized(self):
+        self.assertEqual(set(gsp.TIMEOUT_SINK_AUTHORIZED_CASES), {"repo-requests"})
+
+    def test_repo_requests_sink_target_is_the_exact_documented_address(self):
+        # 10.255.255.1 -- the same address the `requests` library's own
+        # upstream test suite hardcodes for exactly this "expected to time
+        # out, never connect" purpose in a normal, non-sandboxed
+        # environment.
+        self.assertEqual(gsp.TIMEOUT_SINK_AUTHORIZED_CASES["repo-requests"], "10.255.255.1")
+
+    def test_repo_requests_has_its_own_distinct_approval_identity(self):
+        self.assertEqual(
+            gsp.TIMEOUT_SINK_APPROVAL_IDENTITIES.get("repo-requests"),
+            "n2d1b-repo-requests-timeout-sink-v1-authorization-2026-07-17",
+        )
+
+    def test_timeout_sink_approval_identity_is_distinct_from_network_enforcement_identity(self):
+        self.assertNotEqual(
+            gsp.TIMEOUT_SINK_APPROVAL_IDENTITIES["repo-requests"],
+            gsp.NETWORK_ENFORCEMENT_APPROVAL_IDENTITIES["repo-requests"],
+        )
+
+    def test_repo_requests_has_a_distinct_test_network_fixture_name(self):
+        self.assertEqual(
+            gsp.TIMEOUT_SINK_TEST_NETWORK_FIXTURE_NAMES.get("repo-requests"),
+            "repo-requests-timeout-sink-v1",
+        )
+
+    def test_an_unauthorized_case_is_absent_from_every_timeout_sink_dict(self):
+        for d in (
+            gsp.TIMEOUT_SINK_AUTHORIZED_CASES,
+            gsp.TIMEOUT_SINK_APPROVAL_IDENTITIES,
+            gsp.TIMEOUT_SINK_TEST_NETWORK_FIXTURE_NAMES,
+        ):
+            self.assertNotIn("repo-some-other-python-case", d)
+            self.assertNotIn("repo-moshi", d)
+            self.assertNotIn("repo-kubeops-generator", d)
+
+    def test_build_policy_never_emits_a_timeout_sink_toml_key(self):
+        # The timeout-sink fixture is implemented entirely OUTSIDE Sandboy's
+        # own policy.toml (it is a run_confined_build.sh outer-netns route,
+        # set up before Sandboy ever starts) -- build_policy's TOML output
+        # must never reference it.
+        text = gsp.build_policy(
+            ecosystem="python", case_id="repo-requests", source_root=Path("/src"), home_dir=Path("/h"),
+            tmp_dir=Path("/t"), capture_out_dir=Path("/o"),
+            project_writable_dirs=[], env_values={},
+        )
+        self.assertNotIn("timeout_sink", text)
+        self.assertNotIn("10.255.255.1", text)
+        self.assertNotIn("N2D1B_TIMEOUT_SINK_TARGET", text)
 
 
 class TestWritePolicy(unittest.TestCase):

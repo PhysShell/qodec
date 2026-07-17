@@ -99,7 +99,11 @@ class TestRunOneCaptureContentGate(unittest.TestCase):
 
         with tempfile.TemporaryDirectory() as tmp:
             tmp_path = Path(tmp)
-            valid_stdout = b"running 3 tests\ntest result: ok. 3 passed; 0 failed; 0 ignored\n"
+            valid_stdout = (
+                b"running 3 tests\n"
+                b"test result: ok. 3 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; "
+                b"finished in 0.02s\n"
+            )
             receipt, out_dir = self._run(tmp_path, raw_stdout=valid_stdout, raw_stderr=b"", exit_code=0)
             self.assertTrue((out_dir / "receipt.json").exists())
             report = json.loads((out_dir / "content-validation-report.json").read_text())
@@ -661,13 +665,18 @@ class TestMavenCanonicalizationWiring(unittest.TestCase):
             source_artifact_dir = self._make_source_artifact_dir(tmp_path)
             work_dir = tmp_path / "work"
             out_dir = tmp_path / "out"
-            raw = b"running 3 tests\ntest result: ok. 3 passed; 0 failed; 0 ignored\n"
+            # repo-hyperfine, NOT repo-rustlings: repo-rustlings now has its
+            # own cargo-test canonicalization profile (D1b Stage 2) --
+            # repo-hyperfine's own frozen argv (cargo run -- --version)
+            # remains genuinely uncanonicalized and is this test's actual
+            # subject.
+            raw = b"hyperfine 1.19.0\n"
             fake_result = {"raw_stdout": raw, "raw_stderr": b"", "exit_code": 0, "wall_time_s": 1.0, "peak_rss_kb": 1024}
             with mock.patch.object(gc.capture_build, "run_real_build", return_value=fake_result):
                 receipt = gc.run_one_capture(
-                    case_id="repo-rustlings", ecosystem="rust", job_name="capture-a",
+                    case_id="repo-hyperfine", ecosystem="rust", job_name="capture-a",
                     source_artifact_dir=source_artifact_dir, work_dir=work_dir, out_dir=out_dir,
-                    frozen_argv=["cargo", "test"], errata_path=REAL_ERRATA_PATH,
+                    frozen_argv=["cargo", "run", "--", "--version"], errata_path=REAL_ERRATA_PATH,
                     sandboy_bin=Path("/nonexistent/sandboy"), sandboy_commit_sha="e" * 40,
                     toolchain_capture_fn=lambda source_root: {
                         "resolved_version": "1.97.0", "runtime_identifier": "x86_64-unknown-linux-gnu",
@@ -924,6 +933,189 @@ class TestGradleCanonicalizationWiring(unittest.TestCase):
             canonical_bytes = (out_dir / "canonical-raw-input.bin").read_bytes()
             self.assertNotIn(b"2m", canonical_bytes)
             self.assertIn(b"<ELAPSED>", canonical_bytes)
+
+
+class TestGradleHelmValuesCanonicalizationWiring(unittest.TestCase):
+    """repo-helm-values (N2-D1b Stage 2's deterministically selected
+    jvm-gradle replacement for the permanently-rejected repo-spotless --
+    see stage2-replacement-selection-v1.json) must dispatch to its OWN
+    canonicalizer module (gradle_canonicalizer_helm_values_v1.py /
+    gradle-capture-canonicalization-policy-helm-values-v1.json), never to
+    repo-moshi's v2 module, even though both are independently confirmed to
+    implement the identical closed Gradle duration grammar (Gradle 9.5.0 vs
+    9.5.1's byte-for-byte identical TimeFormatting.java)."""
+
+    def _make_source_artifact_dir(self, tmp_path):
+        import hashlib
+        import tarfile
+
+        source_artifact_dir = tmp_path / "source-artifact"
+        source_artifact_dir.mkdir(exist_ok=True)
+        tar_path = source_artifact_dir / "source.tar"
+        src_file = tmp_path / "hello.txt"
+        src_file.write_text("hello\n")
+        gradlew_file = tmp_path / "gradlew"
+        gradlew_file.write_text("#!/bin/sh\n")
+        with tarfile.open(tar_path, "w") as tar:
+            tar.add(src_file, arcname="hello.txt")
+            tar.add(gradlew_file, arcname="gradlew")
+        archive_sha256 = hashlib.sha256(tar_path.read_bytes()).hexdigest()
+        (source_artifact_dir / "acquisition-receipt.json").write_text(json.dumps({
+            "actual_head_sha": "deadbeef" * 5,
+            "normalized_archive_sha256": archive_sha256,
+            "license_sha256": "cafe" * 16,
+        }))
+        return source_artifact_dir
+
+    def _run(self, tmp_path, *, job_name: str, stdout: bytes, source_artifact_dir=None):
+        probe_report = {
+            "report_type": "n2d1b-network-enforcement-probe-v1",
+            "authorized_case_id": "repo-helm-values",
+            "network_enforcement_mode": "outer-netns-loopback-only",
+            "negative_external_connectivity_probe": {"exit_code": 0},
+            "positive_loopback_bind_connect_probe": {"exit_code": 0},
+            "external_connectivity_confirmed_blocked": True,
+            "loopback_bind_connect_confirmed_allowed": True,
+            "enforcement_exception_verified": True,
+        }
+        if source_artifact_dir is None:
+            source_artifact_dir = self._make_source_artifact_dir(tmp_path)
+        work_dir = tmp_path / f"work-{job_name}"
+        out_dir = tmp_path / f"out-{job_name}"
+        fake_result = {"raw_stdout": stdout, "raw_stderr": b"", "exit_code": 0, "wall_time_s": 1.0, "peak_rss_kb": 1024}
+        with mock.patch.object(gc, "network_enforcement_probe") as fake_probe_module, \
+                mock.patch.object(gc.capture_build, "run_real_build", return_value=fake_result):
+            fake_probe_module.run_network_enforcement_checks.return_value = probe_report
+            receipt = gc.run_one_capture(
+                case_id="repo-helm-values", ecosystem="jvm-gradle", job_name=job_name,
+                source_artifact_dir=source_artifact_dir, work_dir=work_dir, out_dir=out_dir,
+                frozen_argv=["./gradlew", ":helm-values-shared:test"], errata_path=REAL_ERRATA_PATH,
+                sandboy_bin=Path("/nonexistent/sandboy"), sandboy_commit_sha="e" * 40,
+                toolchain_capture_fn=lambda source_root: {
+                    "resolved_version": "9.5.0", "runtime_identifier": "21",
+                    "gradle_binary_path": "/usr/bin/true", "gradle_binary_sha256": "a" * 64,
+                },
+                toolchain_env_values={"JAVA_HOME": "/usr/lib/jvm/java-21"},
+                canonical_stream="stdout", primary_stream_rationale="test",
+                project_writable_dirs_relative=[],
+                requested_version_or_range="9.5.0", resolver_mechanism="test",
+            )
+        return receipt, out_dir
+
+    def test_canonical_benchmark_input_is_the_gradle_canonicalized_stream(self):
+        import tempfile
+
+        with tempfile.TemporaryDirectory() as tmp:
+            tmp_path = Path(tmp)
+            stdout = b"BUILD SUCCESSFUL in 1h 59s\n12 actionable tasks: 12 executed\n"
+            receipt, out_dir = self._run(tmp_path, job_name="capture-a", stdout=stdout)
+            self.assertEqual(receipt["canonical_input_derivation"], "case-specific-deterministic-canonicalization")
+            self.assertIsNotNone(receipt["canonicalization_policy_sha256"])
+            canonical_bytes = (out_dir / "canonical-raw-input.bin").read_bytes()
+            self.assertNotIn(b"1h 59s", canonical_bytes)
+            self.assertIn(b"<ELAPSED>", canonical_bytes)
+            self.assertEqual((out_dir / "raw.stdout").read_bytes(), stdout)
+
+    def test_capture_a_and_capture_b_canonicalize_to_identical_bytes(self):
+        import tempfile
+
+        with tempfile.TemporaryDirectory() as tmp:
+            tmp_path = Path(tmp)
+            stdout_a = b"BUILD SUCCESSFUL in 1m 50s\n12 actionable tasks: 12 executed\n"
+            stdout_b = b"BUILD SUCCESSFUL in 1m 11s\n12 actionable tasks: 12 executed\n"
+            self.assertNotEqual(stdout_a, stdout_b)
+            shared_source = self._make_source_artifact_dir(tmp_path)
+            _, out_dir_a = self._run(tmp_path, job_name="capture-a", stdout=stdout_a, source_artifact_dir=shared_source)
+            _, out_dir_b = self._run(tmp_path, job_name="capture-b", stdout=stdout_b, source_artifact_dir=shared_source)
+            canonical_a = (out_dir_a / "canonical-raw-input.bin").read_bytes()
+            canonical_b = (out_dir_b / "canonical-raw-input.bin").read_bytes()
+            self.assertEqual(canonical_a, canonical_b)
+
+    def test_uses_helm_values_module_not_moshi_maven_or_vstest_module(self):
+        module = gc.CANONICALIZATION_MODULE_BY_CASE_ID["repo-helm-values"]
+        self.assertIs(module, gc.gradle_canonicalizer_helm_values_v1)
+        self.assertIsNot(module, gc.gradle_canonicalizer_v2)
+        self.assertIsNot(module, gc.maven_canonicalizer)
+        self.assertIsNot(module, gc.vstest_canonicalizer)
+
+    def test_repo_moshi_and_repo_helm_values_never_share_a_module_or_policy(self):
+        # Even though the underlying Gradle duration grammar is confirmed
+        # byte-for-byte identical between the two cases' pinned Gradle
+        # versions, the two case_ids must never resolve to the same module
+        # object or the same policy_sha256 -- each is its own separately
+        # authorized identity.
+        self.assertIsNot(
+            gc.CANONICALIZATION_MODULE_BY_CASE_ID["repo-helm-values"],
+            gc.CANONICALIZATION_MODULE_BY_CASE_ID["repo-moshi"],
+        )
+        self.assertNotEqual(
+            gc.CANONICALIZATION_POLICY_SHA256_BY_CASE_ID["repo-helm-values"],
+            gc.CANONICALIZATION_POLICY_SHA256_BY_CASE_ID["repo-moshi"],
+        )
+
+
+class TestCargoTestCanonicalizationWiring(unittest.TestCase):
+    """repo-rustlings and repo-dockerfile-parser-rs (N2-D1b Stage 2, real CI
+    evidence: cargo test's own summary-line duration was the sole remaining
+    raw difference after RUST_TEST_THREADS=1 made ordering deterministic)
+    must both dispatch to cargo_test_canonicalizer.py, sharing ONE identity
+    (unlike the Gradle 9.5.0/9.5.1 replacement scenario, there is no
+    separate replacement-selection concern here), never to maven/vstest/
+    gradle modules."""
+
+    def test_both_cases_use_the_cargo_test_module(self):
+        for case_id in ("repo-rustlings", "repo-dockerfile-parser-rs"):
+            module = gc.CANONICALIZATION_MODULE_BY_CASE_ID[case_id]
+            self.assertIs(module, gc.cargo_test_canonicalizer)
+            self.assertIsNot(module, gc.maven_canonicalizer)
+            self.assertIsNot(module, gc.vstest_canonicalizer)
+            self.assertIsNot(module, gc.gradle_canonicalizer_v2)
+            self.assertIsNot(module, gc.gradle_canonicalizer_helm_values_v1)
+
+    def test_both_cases_share_the_same_policy_identity(self):
+        self.assertEqual(
+            gc.CANONICALIZATION_POLICY_SHA256_BY_CASE_ID["repo-rustlings"],
+            gc.CANONICALIZATION_POLICY_SHA256_BY_CASE_ID["repo-dockerfile-parser-rs"],
+        )
+
+    def test_repo_hyperfine_is_not_canonicalized(self):
+        # Same rust ecosystem, different frozen argv (cargo run -- --version,
+        # not cargo test) -- never silently broadened to the whole ecosystem.
+        self.assertNotIn("repo-hyperfine", gc.CANONICALIZED_CASE_IDS)
+
+
+class TestPytestRequestsCanonicalizationV1IsRejectedHistoricalEvidence(unittest.TestCase):
+    """D1b remediation (2026-07-17): repo-requests' prior canonicalization
+    policy (pytest_requests_canonicalizer.py, v1) was derived from run
+    29544801640, in which repo-requests genuinely FAILED (30 failed, 205
+    errors from a sandbox-confinement gap, not a real test defect) and was
+    wrongly accepted as final evidence -- see
+    pytest-requests-canonicalization-v1-rejection-record.json. That module
+    and policy remain on disk, byte-for-byte, as rejected historical
+    evidence, and remain permanently unimported/undispatched."""
+
+    def test_pytest_requests_canonicalizer_module_is_not_imported_by_generic_capture(self):
+        self.assertFalse(hasattr(gc, "pytest_requests_canonicalizer"))
+
+
+class TestPytestRequestsDurationCanonicalizationV1Wiring(unittest.TestCase):
+    """D1b remediation round 2 (2026-07-17): after the timeout-sink and
+    source-mtime fixes, the first genuinely successful repo-requests
+    capture pair (focused diagnostic probe run 29549403465) differed in
+    exactly one line -- pytest's own final-summary duration.
+    pytest_requests_duration_canonicalizer_v1.py is a NEW, separate policy
+    identity (never a revival of the rejected v1 module above) covering
+    only that one duration token."""
+
+    def test_repo_requests_uses_the_duration_canonicalizer_v1(self):
+        module = gc.CANONICALIZATION_MODULE_BY_CASE_ID["repo-requests"]
+        self.assertIs(module, gc.pytest_requests_duration_canonicalizer_v1)
+        self.assertIn("repo-requests", gc.CANONICALIZED_CASE_IDS)
+
+    def test_repo_requests_is_the_only_case_using_this_module(self):
+        for case_id, module in gc.CANONICALIZATION_MODULE_BY_CASE_ID.items():
+            if module is gc.pytest_requests_duration_canonicalizer_v1:
+                self.assertEqual(case_id, "repo-requests")
 
 
 if __name__ == "__main__":

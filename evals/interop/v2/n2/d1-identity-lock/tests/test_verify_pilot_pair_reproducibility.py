@@ -95,6 +95,12 @@ def _run_real_maven_capture(tmp_path, *, job_name: str, stdout: bytes, source_ar
 
 
 def _run_real_rust_capture(tmp_path, *, job_name: str, stdout: bytes, source_artifact_dir=None) -> Path:
+    # repo-hyperfine, NOT repo-rustlings/repo-dockerfile-parser-rs: those two
+    # now have their own cargo-test summary-line canonicalization profile
+    # (cargo_test_canonicalizer.py, D1b Stage 2) -- repo-hyperfine's own
+    # frozen argv (cargo run -- --version) is genuinely uncanonicalized and
+    # is this test's actual subject: a case with NO canonicalization profile
+    # requires exact raw byte equality.
     if source_artifact_dir is None:
         source_artifact_dir = _make_source_artifact_dir(tmp_path)
     work_dir = tmp_path / f"work-{job_name}"
@@ -102,9 +108,9 @@ def _run_real_rust_capture(tmp_path, *, job_name: str, stdout: bytes, source_art
     fake_result = {"raw_stdout": stdout, "raw_stderr": b"", "exit_code": 0, "wall_time_s": 1.0, "peak_rss_kb": 1024}
     with mock.patch.object(gc.capture_build, "run_real_build", return_value=fake_result):
         gc.run_one_capture(
-            case_id="repo-rustlings", ecosystem="rust", job_name=job_name,
+            case_id="repo-hyperfine", ecosystem="rust", job_name=job_name,
             source_artifact_dir=source_artifact_dir, work_dir=work_dir, out_dir=out_dir,
-            frozen_argv=["cargo", "test"], errata_path=REAL_ERRATA_PATH,
+            frozen_argv=["cargo", "run", "--", "--version"], errata_path=REAL_ERRATA_PATH,
             sandboy_bin=Path("/nonexistent/sandboy"), sandboy_commit_sha="e" * 40,
             toolchain_capture_fn=lambda source_root: {
                 "resolved_version": "1.97.0", "runtime_identifier": "x86_64-unknown-linux-gnu",
@@ -207,7 +213,7 @@ class TestVerifyPairHappyPath(unittest.TestCase):
     def test_non_canonicalized_case_requires_exact_raw_equality(self):
         with tempfile.TemporaryDirectory() as tmp:
             tmp_path = Path(tmp)
-            raw = b"running 3 tests\ntest result: ok. 3 passed; 0 failed; 0 ignored\n"
+            raw = b"hyperfine 1.19.0\n"
             shared_source = _make_source_artifact_dir(tmp_path)
             dir_a = _run_real_rust_capture(tmp_path, job_name="capture-a", stdout=raw,
                                             source_artifact_dir=shared_source)
@@ -823,6 +829,26 @@ class TestIdempotence(unittest.TestCase):
         self.assertFalse(
             verifier._is_idempotent("case-specific-deterministic-canonicalization", "repo-nonexistent", b"anything")
         )
+
+
+class TestPytestRequestsDurationDispatchV1(unittest.TestCase):
+    """D1b remediation round 2 (2026-07-17): repo-requests' prior
+    canonicalization policy (pytest_requests_canonicalizer.py, v1) remains
+    REJECTED -- derived from run 29544801640, in which repo-requests
+    genuinely FAILED and was wrongly accepted as final evidence. See
+    generic_capture.py's identical comment and pytest-requests-
+    canonicalization-v1-rejection-record.json. repo-requests now dispatches
+    to a NEW, separate module (pytest_requests_duration_canonicalizer_v1),
+    built from the first genuinely successful capture pair -- never a
+    revival of the rejected v1 module."""
+
+    def test_repo_requests_resolves_to_the_duration_canonicalizer_v1(self):
+        module, policy_path = verifier._canonicalizer_for_case_id("repo-requests")
+        self.assertIs(module, verifier.pytest_requests_duration_canonicalizer_v1)
+        self.assertEqual(policy_path, verifier.PYTEST_REQUESTS_DURATION_POLICY_PATH)
+
+    def test_rejected_v1_pytest_requests_canonicalizer_module_is_not_imported_by_the_verifier(self):
+        self.assertFalse(hasattr(verifier, "pytest_requests_canonicalizer"))
 
 
 if __name__ == "__main__":

@@ -35,17 +35,27 @@ for p in (CANARY_TOOLS, MINER_TOOLS, CORPUS_TOOLS, TOOLS_DIR):
     sys.path.insert(0, str(p))
 
 import capture_build  # noqa: E402
+import cargo_test_canonicalizer  # noqa: E402
 import content_acceptance  # noqa: E402
 import generic_sandbox_policy as gsp  # noqa: E402
+import gradle_canonicalizer_helm_values_v1  # noqa: E402
 import gradle_canonicalizer_v2  # noqa: E402
 import maven_canonicalizer  # noqa: E402
 import network_enforcement_probe  # noqa: E402
+import pytest_requests_duration_canonicalizer_v1  # noqa: E402
 import receipt_contract  # noqa: E402
+import source_mtime_materialization  # noqa: E402
+import timeout_sink_probe  # noqa: E402
 import toolchain_identity  # noqa: E402
 import vstest_canonicalizer  # noqa: E402
 from sanitizer import sanitize  # noqa: E402
 
 MAXIMUM_EXTRACTED_SOURCE_BYTES = 4194304  # 4 MiB -- same durable-input cap as derive_raw_input.py
+
+SOURCE_MTIME_MATERIALIZATION_POLICY_PATH = TOOLS_DIR.parent / "source-mtime-materialization-policy-v1.json"
+_SOURCE_MTIME_MATERIALIZATION_POLICY = source_mtime_materialization.load_and_verify_policy(
+    SOURCE_MTIME_MATERIALIZATION_POLICY_PATH
+)
 
 CANONICALIZATION_POLICY_PATH = TOOLS_DIR.parent / "capture-canonicalization-policy.json"
 VSTEST_CANONICALIZATION_POLICY_PATH = TOOLS_DIR.parent / "vstest-capture-canonicalization-policy.json"
@@ -57,6 +67,51 @@ VSTEST_CANONICALIZATION_POLICY_PATH = TOOLS_DIR.parent / "vstest-capture-canonic
 # authorization -- it is simply no longer imported or dispatched by any
 # active capture/verification path. Do not silently re-add it here.
 GRADLE_CANONICALIZATION_POLICY_V2_PATH = TOOLS_DIR.parent / "gradle-capture-canonicalization-policy-v2.json"
+# N2-D1b Stage 2 (2026-07-16): repo-helm-values (the deterministically
+# selected jvm-gradle replacement for the permanently-rejected repo-spotless
+# -- see stage2-replacement-selection-v1.json) runs Gradle 9.5.0, confirmed
+# byte-for-byte identical in its TimeFormatting.java to repo-moshi's
+# authorized 9.5.1. Per this task's explicit requirement, this is its OWN,
+# wholly separate policy/module/approval identity -- never a broadening of
+# repo-moshi's v2 profile, even though the underlying grammar is the same.
+GRADLE_CANONICALIZATION_POLICY_HELM_VALUES_V1_PATH = (
+    TOOLS_DIR.parent / "gradle-capture-canonicalization-policy-helm-values-v1.json"
+)
+# N2-D1b Stage 2 (2026-07-16): repo-rustlings and repo-dockerfile-parser-rs
+# share a single cargo-test canonicalization identity -- both invoke the
+# identical frozen ["cargo", "test"] argv against the identical rustup
+# "stable" toolchain, so (unlike the Gradle 9.5.0/9.5.1 replacement
+# scenario) there is no separate replacement-selection identity to keep
+# isolated here.
+CARGO_TEST_CANONICALIZATION_POLICY_PATH = (
+    TOOLS_DIR.parent / "cargo-test-capture-canonicalization-policy.json"
+)
+PYTEST_REQUESTS_DURATION_CANONICALIZATION_POLICY_PATH = (
+    TOOLS_DIR.parent / "pytest-requests-duration-capture-canonicalization-policy-v1.json"
+)
+# N2-D1b Stage 2 remediation (2026-07-17): repo-requests' pytest_requests_
+# canonicalizer.py / pytest-requests-capture-canonicalization-policy.json
+# (policy_sha256 8670190615b541db18e4ae2e13379f9477f38fa023ae342d30d85bbd1d
+# 78f16f) is REJECTED -- see pytest-requests-canonicalization-v1-rejection-
+# record.json. It was derived from run 29544801640, in which repo-requests
+# genuinely FAILED (30 failed, 205 errors -- pytest-httpbin's own local WSGI
+# server hitting a sandbox-confinement socket.bind PermissionError under
+# network denial, not a real test-suite defect) and only ever compared two
+# identically-broken captures to each other; its object-address and thread-
+# ident rules primarily canonicalized repeated traceback material from
+# those 205 fixture errors. Left byte-for-byte untouched on disk as rejected
+# historical evidence -- no longer imported by the active capture/pair-
+# verify dispatch.
+#
+# N2-D1b Stage 2 remediation round 2 (2026-07-17): after the timeout-sink
+# and source-mtime fixes, focused diagnostic probe run 29549403465 (commit
+# c75c60d) produced the first ever genuinely successful repo-requests
+# capture pair (zero failed, zero errors, exit_code 0 on both sides),
+# differing in EXACTLY one line -- pytest's own final-summary duration.
+# pytest_requests_duration_canonicalizer_v1.py is a NEW, separate policy
+# identity (never a revival of the rejected v1 module above, no object-
+# address or thread-ident rule carried forward) covering only that one
+# duration token.
 
 # D1b decision (2026-07-16): for the case_id(s) each policy below names, the
 # canonical benchmark input is a deterministic derivation of the raw,
@@ -76,10 +131,24 @@ GRADLE_CANONICALIZATION_POLICY_V2_PATH = TOOLS_DIR.parent / "gradle-capture-cano
 _CANONICALIZATION_POLICY = maven_canonicalizer.load_and_verify_policy(CANONICALIZATION_POLICY_PATH)
 _VSTEST_CANONICALIZATION_POLICY = vstest_canonicalizer.load_and_verify_policy(VSTEST_CANONICALIZATION_POLICY_PATH)
 _GRADLE_CANONICALIZATION_POLICY_V2 = gradle_canonicalizer_v2.load_and_verify_policy(GRADLE_CANONICALIZATION_POLICY_V2_PATH)
+_GRADLE_CANONICALIZATION_POLICY_HELM_VALUES_V1 = gradle_canonicalizer_helm_values_v1.load_and_verify_policy(
+    GRADLE_CANONICALIZATION_POLICY_HELM_VALUES_V1_PATH
+)
+_CARGO_TEST_CANONICALIZATION_POLICY = cargo_test_canonicalizer.load_and_verify_policy(
+    CARGO_TEST_CANONICALIZATION_POLICY_PATH
+)
+_PYTEST_REQUESTS_DURATION_CANONICALIZATION_POLICY = (
+    pytest_requests_duration_canonicalizer_v1.load_and_verify_policy(
+        PYTEST_REQUESTS_DURATION_CANONICALIZATION_POLICY_PATH
+    )
+)
 _CANONICALIZATION_PROFILES = [
     (_CANONICALIZATION_POLICY, maven_canonicalizer),
     (_VSTEST_CANONICALIZATION_POLICY, vstest_canonicalizer),
     (_GRADLE_CANONICALIZATION_POLICY_V2, gradle_canonicalizer_v2),
+    (_GRADLE_CANONICALIZATION_POLICY_HELM_VALUES_V1, gradle_canonicalizer_helm_values_v1),
+    (_CARGO_TEST_CANONICALIZATION_POLICY, cargo_test_canonicalizer),
+    (_PYTEST_REQUESTS_DURATION_CANONICALIZATION_POLICY, pytest_requests_duration_canonicalizer_v1),
 ]
 _all_canonicalized_case_ids = [
     cid for policy, _module in _CANONICALIZATION_PROFILES for cid in policy["applicable_case_ids"]
@@ -207,6 +276,22 @@ def run_one_capture(*, case_id: str, ecosystem: str, job_name: str,
     source_root = work_dir / "source"
     verify_and_extract_source(source_tar, receipt_json["normalized_archive_sha256"], source_root)
 
+    # D1b remediation round 2 (2026-07-17): applied immediately AFTER
+    # source archive hash verification + extraction, BEFORE trusted setup
+    # or confined execution -- see source_mtime_materialization.py's own
+    # module docstring for why this belongs at the shared acquisition
+    # boundary, case-scoped, never a patch to any case's own upstream test
+    # file. `None` for every case not in
+    # source_mtime_materialization.MTIME_MATERIALIZATION_AUTHORIZED_CASES.
+    source_mtime_materialization_report = None
+    if case_id in source_mtime_materialization.MTIME_MATERIALIZATION_AUTHORIZED_CASES:
+        source_mtime_materialization_report = source_mtime_materialization.materialize_source_mtimes(
+            case_id=case_id, source_root=source_root,
+        )
+        (out_dir / "source-mtime-materialization-report.json").write_text(
+            json.dumps(source_mtime_materialization_report, indent=2, sort_keys=True) + "\n"
+        )
+
     effective_argv, resolution, erratum_sha256 = resolve_effective_argv(case_id, frozen_argv, errata_path)
     if argv0_override:
         effective_argv = [argv0_override, *effective_argv[1:]]
@@ -300,6 +385,39 @@ def run_one_capture(*, case_id: str, ecosystem: str, job_name: str,
                 f"{network_enforcement_report['external_connectivity_confirmed_blocked']} "
                 f"loopback_bind_connect_confirmed_allowed="
                 f"{network_enforcement_report['loopback_bind_connect_confirmed_allowed']}"
+            )
+
+    # D1b remediation round 2 (2026-07-17): a SEPARATE, ADDITIONAL
+    # authorization layer from the network_enforcement_mode exception above
+    # -- never a broadening of it, per exact case_id
+    # (gsp.TIMEOUT_SINK_AUTHORIZED_CASES is the single source of truth,
+    # mirroring gsp.NETWORK_ENFORCEMENT_AUTHORIZED_CASES's own discipline).
+    # Sets N2D1B_TIMEOUT_SINK_TARGET in launcher_env BEFORE both the probe
+    # and the real capture run that follows, so run_confined_build.sh's own
+    # conditional veth-pair route setup is present for both -- see that
+    # script's comment block and timeout_sink_probe.py's three-probe live
+    # verification. The workload never starts if the probe fails.
+    test_network_fixture_report = None
+    if case_id in gsp.TIMEOUT_SINK_AUTHORIZED_CASES:
+        sink_target = gsp.TIMEOUT_SINK_AUTHORIZED_CASES[case_id]
+        test_network_fixture_name = gsp.TIMEOUT_SINK_TEST_NETWORK_FIXTURE_NAMES[case_id]
+        launcher_env["N2D1B_TIMEOUT_SINK_TARGET"] = sink_target
+        test_network_fixture_report = timeout_sink_probe.run_timeout_sink_checks(
+            case_id=case_id, sink_target=sink_target, test_network_fixture=test_network_fixture_name,
+            sandboy_bin=sandboy_bin, policy_path=policy_path, cwd=source_root, env=launcher_env,
+        )
+        (out_dir / "timeout-sink-probe-report.json").write_text(
+            json.dumps(test_network_fixture_report, indent=2, sort_keys=True) + "\n"
+        )
+        if not test_network_fixture_report["timeout_sink_verified"]:
+            raise GenericCaptureFailure(
+                f"{case_id}/{job_name}: test_network_fixture={test_network_fixture_name!r} failed live "
+                f"verification: sink_target_confirmed_genuine_timeout="
+                f"{test_network_fixture_report['sink_target_confirmed_genuine_timeout']} "
+                f"other_external_connectivity_confirmed_blocked="
+                f"{test_network_fixture_report['other_external_connectivity_confirmed_blocked']} "
+                f"loopback_bind_connect_confirmed_allowed="
+                f"{test_network_fixture_report['loopback_bind_connect_confirmed_allowed']}"
             )
 
     verify_relative_argv0_exists(effective_argv[0], source_root)
@@ -404,12 +522,13 @@ def run_one_capture(*, case_id: str, ecosystem: str, job_name: str,
             "executed_venv_interpreter_sha256": toolchain_identity_raw.get("executed_venv_interpreter_sha256"),
             "setup_python_action_commit": toolchain_identity_raw.get("setup_python_action_commit"),
         },
-        # D1b authorization (2026-07-16, repo-moshi only): a deterministic
-        # Gradle scheduling profile (org.gradle.parallel=false,
-        # org.gradle.workers.max=1, plain non-interactive console) forces
-        # single-threaded, deterministic task-log ordering -- present
-        # (non-None) only for the case_id(s) run_pilot_case.py authorizes
-        # this for, never inferred or reconstructed here.
+        # D1b authorization (2026-07-16, repo-moshi; extended 2026-07-16 to
+        # repo-helm-values): a deterministic Gradle scheduling profile
+        # (org.gradle.parallel=false, org.gradle.workers.max=1, plain
+        # non-interactive console) forces single-threaded, deterministic
+        # task-log ordering -- present (non-None) only for the case_id(s)
+        # run_pilot_case.py's DETERMINISTIC_GRADLE_SCHEDULING_CASE_IDS
+        # authorizes this for, never inferred or reconstructed here.
         "gradle_scheduling_profile": (
             {
                 "profile_sha256": toolchain_identity_raw["gradle_scheduling_profile_sha256"],
@@ -484,6 +603,24 @@ def run_one_capture(*, case_id: str, ecosystem: str, job_name: str,
             (json.dumps(content_report, indent=2, sort_keys=True) + "\n").encode()
         ),
         "network_enforcement_exception": network_enforcement_report,
+        # Distinct from network_enforcement_mode / network_enforcement_
+        # exception above by design -- a separate, additional authorization
+        # layer (D1b remediation round 2, 2026-07-17), never silently folded
+        # into the existing loopback-only exception. `test_network_fixture`
+        # is None for every case not in gsp.TIMEOUT_SINK_AUTHORIZED_CASES.
+        "test_network_fixture": (
+            gsp.TIMEOUT_SINK_TEST_NETWORK_FIXTURE_NAMES.get(case_id)
+            if test_network_fixture_report is not None else None
+        ),
+        "test_network_fixture_approval_identity": (
+            gsp.TIMEOUT_SINK_APPROVAL_IDENTITIES.get(case_id)
+            if test_network_fixture_report is not None else None
+        ),
+        "test_network_fixture_probe_report": test_network_fixture_report,
+        # D1b remediation round 2 (2026-07-17): None for every case not in
+        # source_mtime_materialization.MTIME_MATERIALIZATION_AUTHORIZED_
+        # CASES -- see that module's own docstring.
+        "source_mtime_materialization": source_mtime_materialization_report,
     }
     schema_errors = receipt_contract.validate_receipt(receipt)
     if schema_errors:

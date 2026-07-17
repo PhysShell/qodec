@@ -34,6 +34,7 @@ def _args(**overrides):
         "python_base_interpreter": "",
         "setup_python_action_commit": "",
         "case_id": "repo-hyperfine",
+        "source_artifact_dir": "/fake/source-artifact/repo-requests",
     }
     base.update(overrides)
     return argparse.Namespace(**base)
@@ -82,6 +83,34 @@ class TestPythonVenvRootComputation(unittest.TestCase):
                 env_values["PYTHON_BASE_INTERPRETER_ROOT"],
                 str(tmp_path / "hostedtoolcache" / "Python" / "3.12.3" / "x64"),
             )
+
+
+class TestRequestsEditableInstallSourceDirExposure(unittest.TestCase):
+    """Real CI evidence (Stage 2, third full run): repo-requests' own frozen
+    requirements-dev.txt reads "-e .[socks]" (editable) -- pip's
+    editable-install metadata records the absolute path of the trusted-setup
+    extraction directory `pip install` actually ran against, which the
+    confined capture's own separately re-extracted work_dir/source never
+    automatically sees. Failed with "ModuleNotFoundError: No module named
+    'requests'" until this exact directory was exposed."""
+
+    def test_repo_requests_gets_the_editable_install_source_dir(self):
+        _toolchain_fn, env_values = rpc.build_toolchain_fn_and_env(
+            "python", _args(case_id="repo-requests", source_artifact_dir="/fake/source-artifact/repo-requests")
+        )
+        self.assertEqual(
+            env_values["PYTHON_EDITABLE_INSTALL_SOURCE_DIR"],
+            str(Path("/fake/source-artifact/repo-requests") / "source"),
+        )
+
+    def test_repo_pyflakes_does_not_get_it(self):
+        # Same ecosystem, different case_id -- repo-pyflakes' own
+        # `pip install .` is a regular (non-editable) install, self-contained
+        # in the venv's site-packages; never silently broadened.
+        _toolchain_fn, env_values = rpc.build_toolchain_fn_and_env(
+            "python", _args(case_id="repo-pyflakes")
+        )
+        self.assertNotIn("PYTHON_EDITABLE_INSTALL_SOURCE_DIR", env_values)
 
 
 class TestMavenLocalRepoExposure(unittest.TestCase):
@@ -194,6 +223,162 @@ class TestGradleDeterministicSchedulingProfile(unittest.TestCase):
                     mock.patch.dict(os.environ, {"GRADLE_OPTS": "-Dorg.gradle.workers.max=4"}):
                 with self.assertRaises(SystemExit):
                     rpc.build_toolchain_fn_and_env("jvm-gradle", _args(case_id="repo-moshi"))
+
+
+class TestHelmValuesSubprojectBuildDirsWritable(unittest.TestCase):
+    """Real CI evidence (Stage 2, first full 9-case run): even though the
+    frozen argv scopes execution to :helm-values-shared:test alone, Gradle's
+    default eager configuration phase evaluates every subproject listed in
+    settings.gradle.kts -- the build genuinely failed with "Cannot create
+    directory '.../helm-values-intellij-plugin/build/tmp/generateManifest'"
+    because that sibling module's own plugin creates its build dir during
+    configuration, before any task selection narrows the build."""
+
+    def test_every_subproject_build_dir_is_writable(self):
+        dirs = rpc.CASES["repo-helm-values"]["project_writable_dirs_relative"]
+        for subproject in ("helm-values-gradle-plugin", "helm-values-intellij-plugin",
+                           "helm-values-shared", "helm-values-test"):
+            self.assertIn(f"{subproject}/build", dirs)
+
+    def test_root_build_and_gradle_dirs_still_writable(self):
+        dirs = rpc.CASES["repo-helm-values"]["project_writable_dirs_relative"]
+        self.assertIn("build", dirs)
+        self.assertIn(".gradle", dirs)
+        self.assertIn(".kotlin", dirs)
+
+
+class TestRustlingsTestExercisesWritable(unittest.TestCase):
+    """Real CI evidence (Stage 2, first full 9-case run): rustlings' own
+    integration tests invoke the compiled binary with
+    current_dir("tests/test_exercises"), which writes its own
+    .rustlings-state.txt there -- 3 tests failed with "Permission denied
+    (os error 13)" until this directory was writable."""
+
+    def test_tests_test_exercises_is_writable(self):
+        dirs = rpc.CASES["repo-rustlings"]["project_writable_dirs_relative"]
+        self.assertIn("tests/test_exercises", dirs)
+
+    def test_target_dir_still_writable(self):
+        dirs = rpc.CASES["repo-rustlings"]["project_writable_dirs_relative"]
+        self.assertIn("target", dirs)
+
+    def test_dockerfile_parser_rs_does_not_get_the_rustlings_specific_dir(self):
+        # Different case, own crate layout -- never silently broadened.
+        dirs = rpc.CASES["repo-dockerfile-parser-rs"]["project_writable_dirs_relative"]
+        self.assertNotIn("tests/test_exercises", dirs)
+
+
+class TestDeterministicCargoTestScheduling(unittest.TestCase):
+    """D1b authorization (2026-07-16, repo-rustlings + repo-dockerfile-parser-
+    rs only): real CI evidence showed cargo test's default multi-threaded
+    test harness interleave individual test-result lines nondeterministically
+    between capture-a and capture-b. RUST_TEST_THREADS=1 is Rust's own
+    documented environment-variable equivalent of --test-threads=1, taking
+    effect with no change to the frozen ["cargo", "test"] argv itself --
+    same class of fix as repo-moshi's deterministic Gradle scheduling
+    profile (external configuration, never a frozen-argv edit)."""
+
+    def test_repo_rustlings_gets_rust_test_threads_1(self):
+        _toolchain_fn, env_values = rpc.build_toolchain_fn_and_env("rust", _args(case_id="repo-rustlings"))
+        self.assertEqual(env_values["RUST_TEST_THREADS"], "1")
+
+    def test_repo_dockerfile_parser_rs_gets_rust_test_threads_1(self):
+        _toolchain_fn, env_values = rpc.build_toolchain_fn_and_env(
+            "rust", _args(case_id="repo-dockerfile-parser-rs")
+        )
+        self.assertEqual(env_values["RUST_TEST_THREADS"], "1")
+
+    def test_repo_hyperfine_does_not_get_rust_test_threads(self):
+        # Same ecosystem, different case_id, not a cargo-test invocation --
+        # never silently broadened to the whole rust ecosystem.
+        _toolchain_fn, env_values = rpc.build_toolchain_fn_and_env("rust", _args(case_id="repo-hyperfine"))
+        self.assertNotIn("RUST_TEST_THREADS", env_values)
+
+
+class TestPythonArgv0OverrideSelection(unittest.TestCase):
+    """Real CI evidence (Stage 2, first full 9-case run): repo-requests'
+    frozen argv is a bare console-script invocation (["pytest"]), not a
+    "python <module>" invocation like repo-pyflakes' -- each needs its own
+    argv[0] substitution target. See resolve_python_argv0_override's own
+    docstring for the full failure-mode analysis."""
+
+    def test_python_module_style_substitutes_the_interpreter_itself(self):
+        override = rpc.resolve_python_argv0_override(
+            ecosystem="python",
+            venv_python="/tmp/venv-repo-pyflakes/bin/python",
+            frozen_argv=["python", "-m", "pyflakes", "src/"],
+        )
+        self.assertEqual(override, "/tmp/venv-repo-pyflakes/bin/python")
+
+    def test_bare_console_script_style_substitutes_the_sibling_script_not_the_interpreter(self):
+        override = rpc.resolve_python_argv0_override(
+            ecosystem="python",
+            venv_python="/tmp/venv-repo-requests/bin/python",
+            frozen_argv=["pytest"],
+        )
+        self.assertEqual(override, "/tmp/venv-repo-requests/bin/pytest")
+        # The bug this guards against: overriding with the bare interpreter
+        # path here would silently drop "pytest" as an argument entirely.
+        self.assertNotEqual(override, "/tmp/venv-repo-requests/bin/python")
+
+    def test_no_venv_python_means_no_override(self):
+        override = rpc.resolve_python_argv0_override(
+            ecosystem="python", venv_python="", frozen_argv=["pytest"]
+        )
+        self.assertIsNone(override)
+
+    def test_non_python_ecosystem_means_no_override_even_with_venv_python_set(self):
+        override = rpc.resolve_python_argv0_override(
+            ecosystem="rust", venv_python="/tmp/venv-x/bin/python", frozen_argv=["cargo", "test"]
+        )
+        self.assertIsNone(override)
+
+
+class TestRepoRequestsToolchainIdentityIsExactMatchClassifiable(unittest.TestCase):
+    """D1b remediation (2026-07-17): the prior "3.x" requested_version_or_
+    range never exact/compatible-matched toolchain_identity.classify()'s own
+    wildcard-range grammar against a real three-component resolved version
+    ("3.12.3") -- every real repo-requests run classified as
+    toolchain_executed.classification="unexpected-resolution". Fixed by
+    pinning the exact same actions/setup-python identity repo-pyflakes
+    already uses (python-version 3.12.3), so requested_version_or_range now
+    literally equals the pinned, always-resolved version."""
+
+    def test_requested_version_or_range_is_the_exact_pinned_version(self):
+        self.assertEqual(rpc.CASES["repo-requests"]["requested_version_or_range"], "3.12.3")
+
+    def test_resolver_mechanism_documents_the_pinned_setup_python_identity(self):
+        mechanism = rpc.CASES["repo-requests"]["resolver_mechanism"]
+        self.assertIn("a26af69be951a213d495a4c3e4e4022e16d87065", mechanism)
+        self.assertIn("3.12.3", mechanism)
+
+    def test_classify_against_the_real_pinned_resolution_is_exact_match(self):
+        import toolchain_identity as ti  # noqa: E402 -- available via generic_capture's sys.path setup
+
+        classification = ti.classify(
+            requested_version_or_range=rpc.CASES["repo-requests"]["requested_version_or_range"],
+            resolved_version="3.12.3",
+            runtime_identifier="cpython-3.12.3-cpython-312-cpython-312-x86_64-linux-gnu-linux-x86_64",
+            resolved_executable_path="/opt/hostedtoolcache/Python/3.12.3/x64/bin/python3",
+            executed_binary_absolute_path="/home/runner/work/_temp/venv-repo-requests/bin/python",
+            executed_binary_sha256="a" * 64,
+        )
+        self.assertEqual(classification, "exact-match")
+
+    def test_the_prior_wildcard_range_would_have_been_unexpected_resolution(self):
+        # Documents the actual bug: "3.x" against a real three-component
+        # resolved version never matches classify()'s own range grammar.
+        import toolchain_identity as ti  # noqa: E402
+
+        classification = ti.classify(
+            requested_version_or_range="3.x",
+            resolved_version="3.12.3",
+            runtime_identifier="cpython-3.12.3-cpython-312-cpython-312-x86_64-linux-gnu-linux-x86_64",
+            resolved_executable_path="/usr/bin/python3",
+            executed_binary_absolute_path="/home/runner/work/_temp/venv-repo-requests/bin/python",
+            executed_binary_sha256="a" * 64,
+        )
+        self.assertEqual(classification, "unexpected-resolution")
 
 
 if __name__ == "__main__":
