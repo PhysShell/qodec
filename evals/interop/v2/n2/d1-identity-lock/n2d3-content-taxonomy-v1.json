@@ -1,0 +1,620 @@
+{
+  "authorized_content_families": [
+    "binary-archive-container",
+    "canary-ci-log",
+    "cargo-test-output",
+    "ci-build-log",
+    "cli-tool-output",
+    "dependency-bot-report",
+    "dotnet-test-output",
+    "gradle-test-output",
+    "kernel-bug-report",
+    "maven-test-output",
+    "pytest-output",
+    "static-log-dataset"
+  ],
+  "authorized_origin_kinds": [
+    "bot-output",
+    "canary",
+    "ci-log",
+    "repository-command-output",
+    "research-corpus",
+    "static-dataset"
+  ],
+  "authorized_payload_kinds": [
+    "binary-container",
+    "utf8-text"
+  ],
+  "authorized_producer_families": [
+    "bot",
+    "cargo",
+    "dataset",
+    "dotnet",
+    "generic-ci",
+    "generic-cli",
+    "gradle",
+    "maven",
+    "none",
+    "pytest"
+  ],
+  "canonical_benchmark_link": {
+    "path": "evals/interop/v2/n2/d1-identity-lock/n2d3-primary-token-benchmark-v1.json",
+    "record_sha256": "sha256:c00d2ff8f4883c964fbd05d46840763826806ea73357511e6f38a882aaf0e1cd"
+  },
+  "cases": {
+    "bot-dependabot-black-5206": {
+      "case_id": "bot-dependabot-black-5206",
+      "classification_evidence": {
+        "acquisition_mode": "static-content-acquisition",
+        "canonical_benchmark_input_sha256": "6ae3029791fb9ec1ea9422ddc2eccd2cf7a694a5ed92c8e0f020d12ce079df0e",
+        "canonicalization_policy_identity": null,
+        "contained_input_path": "bot-dependabot-black-5206/normalized-source.tar",
+        "ecosystem": null,
+        "effective_argv": null,
+        "frozen_argv": null,
+        "raw_acquisition_origin_kind": "kernel-or-infrastructure-bot",
+        "rtk_argv": [
+          "pipe",
+          "--passthrough"
+        ],
+        "selected_stream": null,
+        "source_evidence_record_path": "evals/interop/v2/n2/d0-durable-evidence/durable-input-manifest.json",
+        "source_evidence_record_sha256": "d48d1b1fe3ce6d0cc46af31c73155802d6eb11aa83e8b6550be37c3cfcde0a53",
+        "utf8_valid": true
+      },
+      "content_family": "dependency-bot-report",
+      "origin_kind": "bot-output",
+      "payload_kind": "utf8-text",
+      "producer_family": "bot",
+      "rationale": "static content acquisition (no frozen command); canonical input is the archived 'bot-dependabot-black-5206/normalized-source.tar' member described in evals/interop/v2/n2/d0-durable-evidence/durable-input-manifest.json. Classified as dependency-bot-report (bot-output/bot)."
+    },
+    "bot-syzbot-do-mkdirat": {
+      "case_id": "bot-syzbot-do-mkdirat",
+      "classification_evidence": {
+        "acquisition_mode": "static-content-acquisition",
+        "canonical_benchmark_input_sha256": "24090fa8bbd949ba39bf93d72535322a98f41ddd6da5ad55ce154f5683eddf6f",
+        "canonicalization_policy_identity": null,
+        "contained_input_path": "bot-syzbot-do-mkdirat/normalized-source.tar",
+        "ecosystem": null,
+        "effective_argv": null,
+        "frozen_argv": null,
+        "raw_acquisition_origin_kind": "kernel-or-infrastructure-bot",
+        "rtk_argv": [
+          "pipe",
+          "--passthrough"
+        ],
+        "selected_stream": null,
+        "source_evidence_record_path": "evals/interop/v2/n2/d0-durable-evidence/durable-input-manifest.json",
+        "source_evidence_record_sha256": "d48d1b1fe3ce6d0cc46af31c73155802d6eb11aa83e8b6550be37c3cfcde0a53",
+        "utf8_valid": true
+      },
+      "content_family": "kernel-bug-report",
+      "origin_kind": "bot-output",
+      "payload_kind": "utf8-text",
+      "producer_family": "bot",
+      "rationale": "static content acquisition (no frozen command); canonical input is the archived 'bot-syzbot-do-mkdirat/normalized-source.tar' member described in evals/interop/v2/n2/d0-durable-evidence/durable-input-manifest.json. Classified as kernel-bug-report (bot-output/bot)."
+    },
+    "ci-log-jansson": {
+      "case_id": "ci-log-jansson",
+      "classification_evidence": {
+        "acquisition_mode": "static-content-acquisition",
+        "canonical_benchmark_input_sha256": "68fd60be3c3c6fbfe08d3b67d7166444fa67c5ea90eb448df61dcea56aa81626",
+        "canonicalization_policy_identity": null,
+        "contained_input_path": "ci-log-jansson/normalized-source.tar",
+        "ecosystem": null,
+        "effective_argv": null,
+        "frozen_argv": null,
+        "raw_acquisition_origin_kind": "native-upstream-ci-log",
+        "rtk_argv": [
+          "pipe",
+          "--passthrough"
+        ],
+        "selected_stream": null,
+        "source_evidence_record_path": "evals/interop/v2/n2/d0-durable-evidence/durable-input-manifest.json",
+        "source_evidence_record_sha256": "d48d1b1fe3ce6d0cc46af31c73155802d6eb11aa83e8b6550be37c3cfcde0a53",
+        "utf8_valid": true
+      },
+      "content_family": "ci-build-log",
+      "origin_kind": "ci-log",
+      "payload_kind": "utf8-text",
+      "producer_family": "generic-ci",
+      "rationale": "static content acquisition (no frozen command); canonical input is the archived 'ci-log-jansson/normalized-source.tar' member described in evals/interop/v2/n2/d0-durable-evidence/durable-input-manifest.json. Classified as ci-build-log (ci-log/generic-ci)."
+    },
+    "ci-log-nlog": {
+      "case_id": "ci-log-nlog",
+      "classification_evidence": {
+        "acquisition_mode": "static-content-acquisition",
+        "canonical_benchmark_input_sha256": "1de6a6f1a38d917ca69536e5b7aa16bd584aa90a7517390c0f5c6e9c6dfdbef4",
+        "canonicalization_policy_identity": null,
+        "contained_input_path": "ci-log-nlog/normalized-source.tar",
+        "ecosystem": null,
+        "effective_argv": null,
+        "frozen_argv": null,
+        "raw_acquisition_origin_kind": "native-upstream-ci-log",
+        "rtk_argv": [
+          "pipe",
+          "--passthrough"
+        ],
+        "selected_stream": null,
+        "source_evidence_record_path": "evals/interop/v2/n2/d0-durable-evidence/durable-input-manifest.json",
+        "source_evidence_record_sha256": "d48d1b1fe3ce6d0cc46af31c73155802d6eb11aa83e8b6550be37c3cfcde0a53",
+        "utf8_valid": true
+      },
+      "content_family": "ci-build-log",
+      "origin_kind": "ci-log",
+      "payload_kind": "utf8-text",
+      "producer_family": "generic-ci",
+      "rationale": "static content acquisition (no frozen command); canonical input is the archived 'ci-log-nlog/normalized-source.tar' member described in evals/interop/v2/n2/d0-durable-evidence/durable-input-manifest.json. Classified as ci-build-log (ci-log/generic-ci)."
+    },
+    "ci-log-spdlog": {
+      "case_id": "ci-log-spdlog",
+      "classification_evidence": {
+        "acquisition_mode": "static-content-acquisition",
+        "canonical_benchmark_input_sha256": "50ca37a1f64ee8101ec321519cb27752e888acc1aff8166328160a98001e1a96",
+        "canonicalization_policy_identity": null,
+        "contained_input_path": "ci-log-spdlog/normalized-source.tar",
+        "ecosystem": null,
+        "effective_argv": null,
+        "frozen_argv": null,
+        "raw_acquisition_origin_kind": "native-upstream-ci-log",
+        "rtk_argv": [
+          "pipe",
+          "--passthrough"
+        ],
+        "selected_stream": null,
+        "source_evidence_record_path": "evals/interop/v2/n2/d0-durable-evidence/durable-input-manifest.json",
+        "source_evidence_record_sha256": "d48d1b1fe3ce6d0cc46af31c73155802d6eb11aa83e8b6550be37c3cfcde0a53",
+        "utf8_valid": true
+      },
+      "content_family": "ci-build-log",
+      "origin_kind": "ci-log",
+      "payload_kind": "utf8-text",
+      "producer_family": "generic-ci",
+      "rationale": "static content acquisition (no frozen command); canonical input is the archived 'ci-log-spdlog/normalized-source.tar' member described in evals/interop/v2/n2/d0-durable-evidence/durable-input-manifest.json. Classified as ci-build-log (ci-log/generic-ci)."
+    },
+    "dataset-loghub-v8": {
+      "case_id": "dataset-loghub-v8",
+      "classification_evidence": {
+        "acquisition_mode": "static-content-acquisition",
+        "canonical_benchmark_input_sha256": "5687c565e2eddd71f8f6278061906402682ac9ab27cf9b40f700258d08273686",
+        "canonicalization_policy_identity": null,
+        "contained_input_path": "dataset-loghub-v8/normalized-source.tar",
+        "ecosystem": null,
+        "effective_argv": null,
+        "frozen_argv": null,
+        "raw_acquisition_origin_kind": "public-runtime-dataset",
+        "rtk_argv": [
+          "pipe",
+          "--passthrough"
+        ],
+        "selected_stream": null,
+        "source_evidence_record_path": "evals/interop/v2/n2/d0-durable-evidence/durable-input-manifest.json",
+        "source_evidence_record_sha256": "d48d1b1fe3ce6d0cc46af31c73155802d6eb11aa83e8b6550be37c3cfcde0a53",
+        "utf8_valid": false
+      },
+      "content_family": "binary-archive-container",
+      "origin_kind": "static-dataset",
+      "payload_kind": "binary-container",
+      "producer_family": "dataset",
+      "rationale": "static content acquisition (no frozen command); canonical input is the archived 'dataset-loghub-v8/normalized-source.tar' member described in evals/interop/v2/n2/d0-durable-evidence/durable-input-manifest.json. The case's own primary source-freeze manifest recorded an extraction_recipe intending to extract a named plain-text archive member, but the committed canonical_benchmark_input is the un-extracted original compressed archive re-wrapped in normalized-source.tar (utf8_valid=False) -- a genuine binary archive container, not a semantic judgment about the underlying logs, which is why this case is a typed UNMEASURABLE_NON_UTF8 refusal rather than a measured row."
+    },
+    "dataset-rtn-traffic-ids": {
+      "case_id": "dataset-rtn-traffic-ids",
+      "classification_evidence": {
+        "acquisition_mode": "static-content-acquisition",
+        "canonical_benchmark_input_sha256": "dafad1bc279d7b72c4113d733b560a4b0f4b989fb0f11dd8377a86d39a5f237a",
+        "canonicalization_policy_identity": null,
+        "contained_input_path": "dataset-rtn-traffic-ids/normalized-source.tar",
+        "ecosystem": null,
+        "effective_argv": null,
+        "frozen_argv": null,
+        "raw_acquisition_origin_kind": "public-runtime-dataset",
+        "rtk_argv": [
+          "pipe",
+          "--passthrough"
+        ],
+        "selected_stream": null,
+        "source_evidence_record_path": "evals/interop/v2/n2/d0-durable-evidence/durable-input-manifest.json",
+        "source_evidence_record_sha256": "d48d1b1fe3ce6d0cc46af31c73155802d6eb11aa83e8b6550be37c3cfcde0a53",
+        "utf8_valid": true
+      },
+      "content_family": "static-log-dataset",
+      "origin_kind": "static-dataset",
+      "payload_kind": "utf8-text",
+      "producer_family": "dataset",
+      "rationale": "static content acquisition (no frozen command); canonical input is the archived 'dataset-rtn-traffic-ids/normalized-source.tar' member described in evals/interop/v2/n2/d0-durable-evidence/durable-input-manifest.json. Classified as static-log-dataset (static-dataset/dataset)."
+    },
+    "n2a-miner-canary": {
+      "case_id": "n2a-miner-canary",
+      "classification_evidence": {
+        "acquisition_mode": "command-invocation",
+        "canonical_benchmark_input_sha256": "09b023837a4a969f9bf12401595429aeefe65263a2705e8e3a3e62ee5aa437db",
+        "canonicalization_policy_identity": null,
+        "contained_input_path": "raw.stdout",
+        "ecosystem": "dotnet",
+        "effective_argv": [
+          "dotnet",
+          "build",
+          "EncryptAesApp/EncryptAesApp.csproj",
+          "--configuration",
+          "Release",
+          "--no-restore",
+          "--nologo",
+          "--verbosity",
+          "normal",
+          "-p:UseSharedCompilation=false",
+          "--disable-build-servers",
+          "-m:1",
+          "-p:BuildInParallel=false",
+          "-p:RunAnalyzersInParallel=false"
+        ],
+        "frozen_argv": [
+          "dotnet",
+          "build",
+          "EncryptAesApp/EncryptAesApp.csproj",
+          "--configuration",
+          "Release",
+          "--no-restore",
+          "--nologo",
+          "--verbosity",
+          "normal",
+          "-p:UseSharedCompilation=false",
+          "--disable-build-servers",
+          "-m:1",
+          "-p:BuildInParallel=false",
+          "-p:RunAnalyzersInParallel=false"
+        ],
+        "raw_acquisition_origin_kind": "generated-first-party-from-public-source",
+        "rtk_argv": [
+          "pipe",
+          "--passthrough"
+        ],
+        "selected_stream": "stdout",
+        "source_evidence_record_path": "evals/interop/v2/n2/canary/source-manifest.json",
+        "source_evidence_record_sha256": "d48d1b1fe3ce6d0cc46af31c73155802d6eb11aa83e8b6550be37c3cfcde0a53",
+        "utf8_valid": true
+      },
+      "content_family": "canary-ci-log",
+      "origin_kind": "canary",
+      "payload_kind": "utf8-text",
+      "producer_family": "dotnet",
+      "rationale": "frozen canary command ['dotnet', 'build', 'EncryptAesApp/EncryptAesApp.csproj', '--configuration', 'Release', '--no-restore', '--nologo', '--verbosity', 'normal', '-p:UseSharedCompilation=false', '--disable-build-servers', '-m:1', '-p:BuildInParallel=false', '-p:RunAnalyzersInParallel=false'] (stdout), per evals/interop/v2/n2/canary/source-manifest.json. Classified as canary-ci-log (canary/dotnet)."
+    },
+    "repo-docker-java-parser": {
+      "case_id": "repo-docker-java-parser",
+      "classification_evidence": {
+        "acquisition_mode": "command-invocation",
+        "canonical_benchmark_input_sha256": "6ec603bdb9461abfc170dcc4a3ab562883b8d02b6af4aabb6a421bc57b45dd36",
+        "canonicalization_policy_identity": "maven",
+        "contained_input_path": "raw.stdout",
+        "ecosystem": "jvm-maven",
+        "effective_argv": [
+          "mvn",
+          "test"
+        ],
+        "frozen_argv": [
+          "mvn",
+          "test"
+        ],
+        "raw_acquisition_origin_kind": "n2d1b-stage2-repository-miner",
+        "rtk_argv": [
+          "pipe",
+          "--passthrough"
+        ],
+        "selected_stream": "stdout",
+        "source_evidence_record_path": "evals/interop/v2/n2/d1-identity-lock/stage2-full-matrix-acceptance.json",
+        "source_evidence_record_sha256": "sha256:1c722a31b836dbe1f68b6c4fb9d224f70077859772121cfc636076160ae8b6cd",
+        "utf8_valid": true
+      },
+      "content_family": "maven-test-output",
+      "origin_kind": "repository-command-output",
+      "payload_kind": "utf8-text",
+      "producer_family": "maven",
+      "rationale": "frozen command ['mvn', 'test'] (stdout), per evals/interop/v2/n2/d1-identity-lock/stage2-full-matrix-acceptance.json. Classified as maven-test-output (repository-command-output/maven)."
+    },
+    "repo-dockerfile-parser-rs": {
+      "case_id": "repo-dockerfile-parser-rs",
+      "classification_evidence": {
+        "acquisition_mode": "command-invocation",
+        "canonical_benchmark_input_sha256": "d6100fd52cb44f1e76632430cdf1087c5442c59ab402387c735aac576a52684a",
+        "canonicalization_policy_identity": "cargo_test",
+        "contained_input_path": "raw.stdout",
+        "ecosystem": "rust",
+        "effective_argv": [
+          "cargo",
+          "test"
+        ],
+        "frozen_argv": [
+          "cargo",
+          "test"
+        ],
+        "raw_acquisition_origin_kind": "n2d1b-stage2-repository-miner",
+        "rtk_argv": [
+          "pipe",
+          "--filter",
+          "cargo-test"
+        ],
+        "selected_stream": "stdout",
+        "source_evidence_record_path": "evals/interop/v2/n2/d1-identity-lock/stage2-full-matrix-acceptance.json",
+        "source_evidence_record_sha256": "sha256:1c722a31b836dbe1f68b6c4fb9d224f70077859772121cfc636076160ae8b6cd",
+        "utf8_valid": true
+      },
+      "content_family": "cargo-test-output",
+      "origin_kind": "repository-command-output",
+      "payload_kind": "utf8-text",
+      "producer_family": "cargo",
+      "rationale": "frozen command ['cargo', 'test'] (stdout), per evals/interop/v2/n2/d1-identity-lock/stage2-full-matrix-acceptance.json. Classified as cargo-test-output (repository-command-output/cargo)."
+    },
+    "repo-helm-values": {
+      "case_id": "repo-helm-values",
+      "classification_evidence": {
+        "acquisition_mode": "command-invocation",
+        "canonical_benchmark_input_sha256": "cf967cb267dd5d59c7d0b4f56f7a34fde10ed7129297882233d56202fdd81694",
+        "canonicalization_policy_identity": "gradle_helm_values_v1",
+        "contained_input_path": "raw.stdout",
+        "ecosystem": "jvm-gradle",
+        "effective_argv": [
+          "./gradlew",
+          ":helm-values-shared:test"
+        ],
+        "frozen_argv": [
+          "./gradlew",
+          ":helm-values-shared:test"
+        ],
+        "raw_acquisition_origin_kind": "n2d1b-stage2-repository-miner",
+        "rtk_argv": [
+          "pipe",
+          "--passthrough"
+        ],
+        "selected_stream": "stdout",
+        "source_evidence_record_path": "evals/interop/v2/n2/d1-identity-lock/stage2-full-matrix-acceptance.json",
+        "source_evidence_record_sha256": "sha256:1c722a31b836dbe1f68b6c4fb9d224f70077859772121cfc636076160ae8b6cd",
+        "utf8_valid": true
+      },
+      "content_family": "gradle-test-output",
+      "origin_kind": "repository-command-output",
+      "payload_kind": "utf8-text",
+      "producer_family": "gradle",
+      "rationale": "frozen command ['./gradlew', ':helm-values-shared:test'] (stdout), per evals/interop/v2/n2/d1-identity-lock/stage2-full-matrix-acceptance.json. Classified as gradle-test-output (repository-command-output/gradle)."
+    },
+    "repo-hyperfine": {
+      "case_id": "repo-hyperfine",
+      "classification_evidence": {
+        "acquisition_mode": "command-invocation",
+        "canonical_benchmark_input_sha256": "3ecde90858d8ec63c1eafbc0e9945547b4bef7c2fcf6741934421bc18276b48d",
+        "canonicalization_policy_identity": null,
+        "contained_input_path": "raw.stdout",
+        "ecosystem": "rust",
+        "effective_argv": [
+          "cargo",
+          "run",
+          "--",
+          "--version"
+        ],
+        "frozen_argv": [
+          "cargo",
+          "run",
+          "--",
+          "--version"
+        ],
+        "raw_acquisition_origin_kind": "n2d1b-stage2-repository-miner",
+        "rtk_argv": [
+          "pipe",
+          "--passthrough"
+        ],
+        "selected_stream": "stdout",
+        "source_evidence_record_path": "evals/interop/v2/n2/d1-identity-lock/stage2-full-matrix-acceptance.json",
+        "source_evidence_record_sha256": "sha256:1c722a31b836dbe1f68b6c4fb9d224f70077859772121cfc636076160ae8b6cd",
+        "utf8_valid": true
+      },
+      "content_family": "cli-tool-output",
+      "origin_kind": "repository-command-output",
+      "payload_kind": "utf8-text",
+      "producer_family": "generic-cli",
+      "rationale": "frozen command ['cargo', 'run', '--', '--version'] (stdout), per evals/interop/v2/n2/d1-identity-lock/stage2-full-matrix-acceptance.json. Classified as cli-tool-output (repository-command-output/generic-cli)."
+    },
+    "repo-kubeops-generator": {
+      "case_id": "repo-kubeops-generator",
+      "classification_evidence": {
+        "acquisition_mode": "command-invocation",
+        "canonical_benchmark_input_sha256": "e38369406a00c3d049970971e5b13b9c0ed4b834ee0b7d4e309809932ee4cf4b",
+        "canonicalization_policy_identity": "vstest",
+        "contained_input_path": "raw.stdout",
+        "ecosystem": "dotnet",
+        "effective_argv": [
+          "dotnet",
+          "test",
+          "test/KubeOps.Generator.Test/KubeOps.Generator.Test.csproj",
+          "--no-restore"
+        ],
+        "frozen_argv": [
+          "dotnet",
+          "test",
+          "test/KubeOps.Generator.Test/KubeOps.Generator.Test.csproj"
+        ],
+        "raw_acquisition_origin_kind": "n2d1b-stage2-repository-miner",
+        "rtk_argv": [
+          "pipe",
+          "--passthrough"
+        ],
+        "selected_stream": "stdout",
+        "source_evidence_record_path": "evals/interop/v2/n2/d1-identity-lock/stage2-full-matrix-acceptance.json",
+        "source_evidence_record_sha256": "sha256:1c722a31b836dbe1f68b6c4fb9d224f70077859772121cfc636076160ae8b6cd",
+        "utf8_valid": true
+      },
+      "content_family": "dotnet-test-output",
+      "origin_kind": "repository-command-output",
+      "payload_kind": "utf8-text",
+      "producer_family": "dotnet",
+      "rationale": "frozen command ['dotnet', 'test', 'test/KubeOps.Generator.Test/KubeOps.Generator.Test.csproj'] (stdout), per evals/interop/v2/n2/d1-identity-lock/stage2-full-matrix-acceptance.json. Classified as dotnet-test-output (repository-command-output/dotnet)."
+    },
+    "repo-moshi": {
+      "case_id": "repo-moshi",
+      "classification_evidence": {
+        "acquisition_mode": "command-invocation",
+        "canonical_benchmark_input_sha256": "c98f69759fb34ade6cbb60fe0d4632f9d906de5474c6e358359c2fd60293eb84",
+        "canonicalization_policy_identity": "gradle_v2",
+        "contained_input_path": "raw.stdout",
+        "ecosystem": "jvm-gradle",
+        "effective_argv": [
+          "./gradlew",
+          "test"
+        ],
+        "frozen_argv": [
+          "./gradlew",
+          "test"
+        ],
+        "raw_acquisition_origin_kind": "n2d1b-stage2-repository-miner",
+        "rtk_argv": [
+          "pipe",
+          "--passthrough"
+        ],
+        "selected_stream": "stdout",
+        "source_evidence_record_path": "evals/interop/v2/n2/d1-identity-lock/stage2-full-matrix-acceptance.json",
+        "source_evidence_record_sha256": "sha256:1c722a31b836dbe1f68b6c4fb9d224f70077859772121cfc636076160ae8b6cd",
+        "utf8_valid": true
+      },
+      "content_family": "gradle-test-output",
+      "origin_kind": "repository-command-output",
+      "payload_kind": "utf8-text",
+      "producer_family": "gradle",
+      "rationale": "frozen command ['./gradlew', 'test'] (stdout), per evals/interop/v2/n2/d1-identity-lock/stage2-full-matrix-acceptance.json. Classified as gradle-test-output (repository-command-output/gradle)."
+    },
+    "repo-pyflakes": {
+      "case_id": "repo-pyflakes",
+      "classification_evidence": {
+        "acquisition_mode": "command-invocation",
+        "canonical_benchmark_input_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "canonicalization_policy_identity": null,
+        "contained_input_path": "raw.stdout",
+        "ecosystem": "python",
+        "effective_argv": [
+          "/home/runner/work/_temp/venv-repo-pyflakes/bin/python",
+          "-m",
+          "pyflakes",
+          "pyflakes/"
+        ],
+        "frozen_argv": [
+          "python",
+          "-m",
+          "pyflakes",
+          "src/"
+        ],
+        "raw_acquisition_origin_kind": "n2d1b-stage2-repository-miner",
+        "rtk_argv": [
+          "pipe",
+          "--passthrough"
+        ],
+        "selected_stream": "stdout",
+        "source_evidence_record_path": "evals/interop/v2/n2/d1-identity-lock/stage2-full-matrix-acceptance.json",
+        "source_evidence_record_sha256": "sha256:1c722a31b836dbe1f68b6c4fb9d224f70077859772121cfc636076160ae8b6cd",
+        "utf8_valid": true
+      },
+      "content_family": "cli-tool-output",
+      "origin_kind": "repository-command-output",
+      "payload_kind": "utf8-text",
+      "producer_family": "generic-cli",
+      "rationale": "frozen command ['python', '-m', 'pyflakes', 'src/'] (stdout), per evals/interop/v2/n2/d1-identity-lock/stage2-full-matrix-acceptance.json. Classified as cli-tool-output (repository-command-output/generic-cli)."
+    },
+    "repo-requests": {
+      "case_id": "repo-requests",
+      "classification_evidence": {
+        "acquisition_mode": "command-invocation",
+        "canonical_benchmark_input_sha256": "cf78ccb2ec1f801530576a96d25cda8d9a92399759e6f5cf2c13ebeac2d92c27",
+        "canonicalization_policy_identity": "pytest_requests_duration_v1",
+        "contained_input_path": "raw.stdout",
+        "ecosystem": "python",
+        "effective_argv": [
+          "/home/runner/work/_temp/venv-repo-requests/bin/pytest"
+        ],
+        "frozen_argv": [
+          "pytest"
+        ],
+        "raw_acquisition_origin_kind": "n2d1b-stage2-repository-miner",
+        "rtk_argv": [
+          "pipe",
+          "--passthrough"
+        ],
+        "selected_stream": "stdout",
+        "source_evidence_record_path": "evals/interop/v2/n2/d1-identity-lock/stage2-full-matrix-acceptance.json",
+        "source_evidence_record_sha256": "sha256:1c722a31b836dbe1f68b6c4fb9d224f70077859772121cfc636076160ae8b6cd",
+        "utf8_valid": true
+      },
+      "content_family": "pytest-output",
+      "origin_kind": "repository-command-output",
+      "payload_kind": "utf8-text",
+      "producer_family": "pytest",
+      "rationale": "frozen command ['pytest'] (stdout), per evals/interop/v2/n2/d1-identity-lock/stage2-full-matrix-acceptance.json. Classified as pytest-output (repository-command-output/pytest)."
+    },
+    "repo-rustlings": {
+      "case_id": "repo-rustlings",
+      "classification_evidence": {
+        "acquisition_mode": "command-invocation",
+        "canonical_benchmark_input_sha256": "11e611c7c40807f5be8639c9e6b511649ea4b8617c998786e97c8b8f0892dcaf",
+        "canonicalization_policy_identity": "cargo_test",
+        "contained_input_path": "raw.stdout",
+        "ecosystem": "rust",
+        "effective_argv": [
+          "cargo",
+          "test"
+        ],
+        "frozen_argv": [
+          "cargo",
+          "test"
+        ],
+        "raw_acquisition_origin_kind": "n2d1b-stage2-repository-miner",
+        "rtk_argv": [
+          "pipe",
+          "--filter",
+          "cargo-test"
+        ],
+        "selected_stream": "stdout",
+        "source_evidence_record_path": "evals/interop/v2/n2/d1-identity-lock/stage2-full-matrix-acceptance.json",
+        "source_evidence_record_sha256": "sha256:1c722a31b836dbe1f68b6c4fb9d224f70077859772121cfc636076160ae8b6cd",
+        "utf8_valid": true
+      },
+      "content_family": "cargo-test-output",
+      "origin_kind": "repository-command-output",
+      "payload_kind": "utf8-text",
+      "producer_family": "cargo",
+      "rationale": "frozen command ['cargo', 'test'] (stdout), per evals/interop/v2/n2/d1-identity-lock/stage2-full-matrix-acceptance.json. Classified as cargo-test-output (repository-command-output/cargo)."
+    },
+    "research-corpus-loghub2": {
+      "case_id": "research-corpus-loghub2",
+      "classification_evidence": {
+        "acquisition_mode": "static-content-acquisition",
+        "canonical_benchmark_input_sha256": "46a2a9329aa467a60339e9604c870b9c0ad315dae0326a287dd421f46e2c81a7",
+        "canonicalization_policy_identity": null,
+        "contained_input_path": "research-corpus-loghub2/normalized-source.tar",
+        "ecosystem": null,
+        "effective_argv": null,
+        "frozen_argv": null,
+        "raw_acquisition_origin_kind": "reproducible-research-corpus",
+        "rtk_argv": [
+          "pipe",
+          "--passthrough"
+        ],
+        "selected_stream": null,
+        "source_evidence_record_path": "evals/interop/v2/n2/d0-durable-evidence/durable-input-manifest.json",
+        "source_evidence_record_sha256": "d48d1b1fe3ce6d0cc46af31c73155802d6eb11aa83e8b6550be37c3cfcde0a53",
+        "utf8_valid": false
+      },
+      "content_family": "binary-archive-container",
+      "origin_kind": "research-corpus",
+      "payload_kind": "binary-container",
+      "producer_family": "none",
+      "rationale": "static content acquisition (no frozen command); canonical input is the archived 'research-corpus-loghub2/normalized-source.tar' member described in evals/interop/v2/n2/d0-durable-evidence/durable-input-manifest.json. The case's own primary source-freeze manifest recorded an extraction_recipe intending to extract a named plain-text archive member, but the committed canonical_benchmark_input is the un-extracted original compressed archive re-wrapped in normalized-source.tar (utf8_valid=False) -- a genuine binary archive container, not a semantic judgment about the underlying logs, which is why this case is a typed UNMEASURABLE_NON_UTF8 refusal rather than a measured row."
+    }
+  },
+  "classification_basis": {
+    "actual_canonical_payload": "the real committed canonical_benchmark_input bytes and their utf8_valid outcome, read from the input bundle's own manifest.json -- never inferred from a file extension or repository name",
+    "committed_acquisition_or_stage2_records": "stage2-full-matrix-acceptance.json (9 repository-miner cases), durable-input-manifest.json + source-freeze/source-manifests/primary/*.json (8 static N2-C acquisitions), evals/interop/v2/n2/canary/source-manifest.json (N2-A canary)",
+    "frozen_argv": "the exact command argv recorded as frozen in stage2-full-matrix-acceptance.json (repository-miner cases) or the N2-A canary's own source-manifest.json build.argv -- null for the 8 static N2-C acquisitions, which invoke no command",
+    "selected_stream": "always 'stdout' for command-invocation cases; null for static content acquisitions"
+  },
+  "post_hoc_exploratory": true,
+  "record_sha256": "sha256:c7272585cc44c4bb308ccd49095f4af62228b38cf28330a1ef30098d68735de4",
+  "record_type": "n2d3-content-taxonomy-v1",
+  "record_version": 1,
+  "schema_version": 1
+}
