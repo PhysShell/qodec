@@ -1,0 +1,117 @@
+# N2-D2/N2-D3 — bounded RTK filter determinism probes, the full-pipeline
+# determinism canary, and the model-free primary token benchmark.
+#
+# Nix-driven, same discipline as qodec-v2.yml: committed flake.lock is
+# mandatory (--no-update-lock-file), third-party actions pinned to full
+# commit SHAs. Performs no model or agent calls. Consumes exactly one
+# committed input: n2d3-model-free-input-bundle-v1.tar -- no job
+# reacquires or derives its own variant of any case's benchmark input.
+name: qodec-n2d-canary-benchmark
+
+on:
+  workflow_dispatch:
+permissions:
+  contents: read
+concurrency:
+  group: qodec-n2d-canary-benchmark-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  LC_ALL: C.UTF-8
+  LANG: C.UTF-8
+  TZ: UTC
+
+jobs:
+  rtk-determinism-probes:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - name: Checkout
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        with:
+          persist-credentials: false
+      - name: Install Nix
+        uses: cachix/install-nix-action@08dcb3a5e62fa31e2da3d490afc4176ef55ecd72 # v30
+      - name: Build qodec (explicit out-link)
+        run: nix build .#qodec --out-link qodec-result --no-update-lock-file --print-build-logs
+      - name: Build rtk-pinned (explicit out-link)
+        run: nix build .#rtk-pinned --out-link rtk-result --no-update-lock-file --print-build-logs
+      - name: Bounded git-diff filter determinism probe (20 repetitions, real fixture)
+        run: |
+          python3 evals/interop/v2/n2/d1-identity-lock/tools/rtk_filter_determinism_probe.py \
+            --rtk-bin "$(pwd)/rtk-result/bin/rtk" --qodec-bin "$(pwd)/qodec-result/bin/qodec" \
+            --input-file corpus/git-diff.txt \
+            --filter-argv-tail "pipe,--filter,git-diff" \
+            --repeats 20 \
+            --out git-diff-probe-report.canonical.json
+      - name: Bounded cargo-test filter determinism probe (20 repetitions, real fixture)
+        run: |
+          python3 evals/interop/v2/n2/d1-identity-lock/tools/rtk_filter_determinism_probe.py \
+            --rtk-bin "$(pwd)/rtk-result/bin/rtk" --qodec-bin "$(pwd)/qodec-result/bin/qodec" \
+            --input-file evals/interop/v2/smoke/fixtures/test-runner.txt \
+            --filter-argv-tail "pipe,--filter,cargo-test" \
+            --repeats 20 \
+            --out cargo-test-probe-report.canonical.json
+      - name: Upload canonical probe reports
+        uses: actions/upload-artifact@b4b15b8c7c6ac21ea08fcf65892d2ee8f75cf882 # v4.4.3
+        with:
+          name: n2d-rtk-determinism-probes-canonical
+          path: |
+            git-diff-probe-report.canonical.json
+            cargo-test-probe-report.canonical.json
+          if-no-files-found: error
+
+  n2d2-canary:
+    runs-on: ubuntu-latest
+    timeout-minutes: 180
+    steps:
+      - name: Checkout
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        with:
+          persist-credentials: false
+      - name: Install Nix
+        uses: cachix/install-nix-action@08dcb3a5e62fa31e2da3d490afc4176ef55ecd72 # v30
+      - name: Build qodec (explicit out-link)
+        run: nix build .#qodec --out-link qodec-result --no-update-lock-file --print-build-logs
+      - name: Build rtk-pinned (explicit out-link)
+        run: nix build .#rtk-pinned --out-link rtk-result --no-update-lock-file --print-build-logs
+      - name: N2-D2 determinism canary (20 repetitions/case, all 18 primary cases)
+        run: |
+          python3 evals/interop/v2/n2/d1-identity-lock/tools/n2d2_determinism_canary.py \
+            --qodec-bin "$(pwd)/qodec-result/bin/qodec" --rtk-bin "$(pwd)/rtk-result/bin/rtk" \
+            --repetitions 20 \
+            --out n2d2-determinism-canary-report.canonical.json
+      - name: Upload canonical N2-D2 canary report
+        if: always()
+        uses: actions/upload-artifact@b4b15b8c7c6ac21ea08fcf65892d2ee8f75cf882 # v4.4.3
+        with:
+          name: n2d2-determinism-canary-report-canonical
+          path: n2d2-determinism-canary-report.canonical.json
+          if-no-files-found: error
+
+  n2d3-benchmark:
+    needs: n2d2-canary
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - name: Checkout
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        with:
+          persist-credentials: false
+      - name: Download canonical N2-D2 canary report
+        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4
+        with:
+          name: n2d2-determinism-canary-report-canonical
+      - name: N2-D3 model-free primary token benchmark (gated on N2-D2)
+        run: |
+          cp n2d2-determinism-canary-report.canonical.json \
+            evals/interop/v2/n2/d1-identity-lock/n2d2-determinism-canary-report-v1.json
+          python3 evals/interop/v2/n2/d1-identity-lock/tools/build_n2d3_token_benchmark.py
+      - name: Upload canonical N2-D3 benchmark
+        uses: actions/upload-artifact@b4b15b8c7c6ac21ea08fcf65892d2ee8f75cf882 # v4.4.3
+        with:
+          name: n2d3-primary-token-benchmark-canonical
+          path: |
+            evals/interop/v2/n2/d1-identity-lock/n2d3-primary-token-benchmark-v1.json
+            evals/interop/v2/n2/d1-identity-lock/n2d3-primary-token-benchmark-v1.md
+          if-no-files-found: error
