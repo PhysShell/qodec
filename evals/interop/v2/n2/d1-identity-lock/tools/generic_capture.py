@@ -42,6 +42,7 @@ import gradle_canonicalizer_helm_values_v1  # noqa: E402
 import gradle_canonicalizer_v2  # noqa: E402
 import maven_canonicalizer  # noqa: E402
 import network_enforcement_probe  # noqa: E402
+import pytest_requests_duration_canonicalizer_v1  # noqa: E402
 import receipt_contract  # noqa: E402
 import source_mtime_materialization  # noqa: E402
 import timeout_sink_probe  # noqa: E402
@@ -85,6 +86,9 @@ GRADLE_CANONICALIZATION_POLICY_HELM_VALUES_V1_PATH = (
 CARGO_TEST_CANONICALIZATION_POLICY_PATH = (
     TOOLS_DIR.parent / "cargo-test-capture-canonicalization-policy.json"
 )
+PYTEST_REQUESTS_DURATION_CANONICALIZATION_POLICY_PATH = (
+    TOOLS_DIR.parent / "pytest-requests-duration-capture-canonicalization-policy-v1.json"
+)
 # N2-D1b Stage 2 remediation (2026-07-17): repo-requests' pytest_requests_
 # canonicalizer.py / pytest-requests-capture-canonicalization-policy.json
 # (policy_sha256 8670190615b541db18e4ae2e13379f9477f38fa023ae342d30d85bbd1d
@@ -97,10 +101,17 @@ CARGO_TEST_CANONICALIZATION_POLICY_PATH = (
 # ident rules primarily canonicalized repeated traceback material from
 # those 205 fixture errors. Left byte-for-byte untouched on disk as rejected
 # historical evidence -- no longer imported by the active capture/pair-
-# verify dispatch. repo-requests runs UNCANONICALIZED (raw-capped-stream)
-# until a genuinely successful (zero-failure, exit-0) capture pair is
-# observed and a new, separately-reviewed policy identity is built from
-# that real evidence.
+# verify dispatch.
+#
+# N2-D1b Stage 2 remediation round 2 (2026-07-17): after the timeout-sink
+# and source-mtime fixes, focused diagnostic probe run 29549403465 (commit
+# c75c60d) produced the first ever genuinely successful repo-requests
+# capture pair (zero failed, zero errors, exit_code 0 on both sides),
+# differing in EXACTLY one line -- pytest's own final-summary duration.
+# pytest_requests_duration_canonicalizer_v1.py is a NEW, separate policy
+# identity (never a revival of the rejected v1 module above, no object-
+# address or thread-ident rule carried forward) covering only that one
+# duration token.
 
 # D1b decision (2026-07-16): for the case_id(s) each policy below names, the
 # canonical benchmark input is a deterministic derivation of the raw,
@@ -126,12 +137,18 @@ _GRADLE_CANONICALIZATION_POLICY_HELM_VALUES_V1 = gradle_canonicalizer_helm_value
 _CARGO_TEST_CANONICALIZATION_POLICY = cargo_test_canonicalizer.load_and_verify_policy(
     CARGO_TEST_CANONICALIZATION_POLICY_PATH
 )
+_PYTEST_REQUESTS_DURATION_CANONICALIZATION_POLICY = (
+    pytest_requests_duration_canonicalizer_v1.load_and_verify_policy(
+        PYTEST_REQUESTS_DURATION_CANONICALIZATION_POLICY_PATH
+    )
+)
 _CANONICALIZATION_PROFILES = [
     (_CANONICALIZATION_POLICY, maven_canonicalizer),
     (_VSTEST_CANONICALIZATION_POLICY, vstest_canonicalizer),
     (_GRADLE_CANONICALIZATION_POLICY_V2, gradle_canonicalizer_v2),
     (_GRADLE_CANONICALIZATION_POLICY_HELM_VALUES_V1, gradle_canonicalizer_helm_values_v1),
     (_CARGO_TEST_CANONICALIZATION_POLICY, cargo_test_canonicalizer),
+    (_PYTEST_REQUESTS_DURATION_CANONICALIZATION_POLICY, pytest_requests_duration_canonicalizer_v1),
 ]
 _all_canonicalized_case_ids = [
     cid for policy, _module in _CANONICALIZATION_PROFILES for cid in policy["applicable_case_ids"]

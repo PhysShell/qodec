@@ -49,6 +49,7 @@ import cargo_test_canonicalizer  # noqa: E402
 import gradle_canonicalizer_helm_values_v1  # noqa: E402
 import gradle_canonicalizer_v2  # noqa: E402
 import maven_canonicalizer  # noqa: E402
+import pytest_requests_duration_canonicalizer_v1  # noqa: E402
 import receipt_contract  # noqa: E402
 import vstest_canonicalizer  # noqa: E402
 
@@ -74,9 +75,16 @@ CARGO_TEST_POLICY_PATH = TOOLS_DIR.parent / "cargo-test-capture-canonicalization
 # heavy run) -- see generic_capture.py's identical comment and
 # pytest-requests-canonicalization-v1-rejection-record.json. Left byte-for-
 # byte untouched on disk as rejected historical evidence, no longer
-# imported or dispatched here; repo-requests is verified as raw-capped-
-# stream (uncanonicalized) until a new policy is built from a genuinely
-# successful capture pair.
+# imported or dispatched here.
+#
+# N2-D1b Stage 2 remediation round 2 (2026-07-17): repo-requests is now
+# verified against pytest_requests_duration_canonicalizer_v1.py -- a NEW,
+# separate policy identity built from the first genuinely successful
+# capture pair (focused diagnostic probe run 29549403465). See
+# generic_capture.py's identical comment.
+PYTEST_REQUESTS_DURATION_POLICY_PATH = (
+    TOOLS_DIR.parent / "pytest-requests-duration-capture-canonicalization-policy-v1.json"
+)
 
 # Case-id-scoped dispatch -- mirrors generic_capture.py's own
 # CANONICALIZATION_MODULE_BY_CASE_ID single source of truth. Each profile is
@@ -92,6 +100,7 @@ _CANONICALIZER_MODULES_BY_CASE_ID = {
     "repo-helm-values": gradle_canonicalizer_helm_values_v1,
     "repo-rustlings": cargo_test_canonicalizer,
     "repo-dockerfile-parser-rs": cargo_test_canonicalizer,
+    "repo-requests": pytest_requests_duration_canonicalizer_v1,
 }
 
 
@@ -107,6 +116,8 @@ def _canonicalizer_for_case_id(case_id: str):
         return module, GRADLE_POLICY_HELM_VALUES_V1_PATH
     if module is cargo_test_canonicalizer:
         return module, CARGO_TEST_POLICY_PATH
+    if module is pytest_requests_duration_canonicalizer_v1:
+        return module, PYTEST_REQUESTS_DURATION_POLICY_PATH
     return None, None
 
 # Dotted paths, not whole nested dicts -- sandbox_identity.policy_sha256 in

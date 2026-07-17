@@ -831,20 +831,23 @@ class TestIdempotence(unittest.TestCase):
         )
 
 
-class TestPytestRequestsDispatchIsUnwiredPendingValidEvidence(unittest.TestCase):
-    """D1b remediation (2026-07-17): repo-requests' prior canonicalization
-    policy (pytest_requests_canonicalizer.py) is REJECTED -- derived from
-    run 29544801640, in which repo-requests genuinely FAILED and was
-    wrongly accepted as final evidence. See generic_capture.py's identical
-    comment and pytest-requests-canonicalization-v1-rejection-record.json.
-    repo-requests no longer dispatches to any canonicalizer module."""
+class TestPytestRequestsDurationDispatchV1(unittest.TestCase):
+    """D1b remediation round 2 (2026-07-17): repo-requests' prior
+    canonicalization policy (pytest_requests_canonicalizer.py, v1) remains
+    REJECTED -- derived from run 29544801640, in which repo-requests
+    genuinely FAILED and was wrongly accepted as final evidence. See
+    generic_capture.py's identical comment and pytest-requests-
+    canonicalization-v1-rejection-record.json. repo-requests now dispatches
+    to a NEW, separate module (pytest_requests_duration_canonicalizer_v1),
+    built from the first genuinely successful capture pair -- never a
+    revival of the rejected v1 module."""
 
-    def test_repo_requests_resolves_to_no_canonicalizer(self):
+    def test_repo_requests_resolves_to_the_duration_canonicalizer_v1(self):
         module, policy_path = verifier._canonicalizer_for_case_id("repo-requests")
-        self.assertIsNone(module)
-        self.assertIsNone(policy_path)
+        self.assertIs(module, verifier.pytest_requests_duration_canonicalizer_v1)
+        self.assertEqual(policy_path, verifier.PYTEST_REQUESTS_DURATION_POLICY_PATH)
 
-    def test_pytest_requests_canonicalizer_module_is_not_imported_by_the_verifier(self):
+    def test_rejected_v1_pytest_requests_canonicalizer_module_is_not_imported_by_the_verifier(self):
         self.assertFalse(hasattr(verifier, "pytest_requests_canonicalizer"))
 
 
