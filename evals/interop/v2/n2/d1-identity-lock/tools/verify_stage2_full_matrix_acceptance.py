@@ -31,7 +31,8 @@ VSTEST_POLICY_PATH = BASE_DIR / "vstest-capture-canonicalization-policy.json"
 GRADLE_V2_POLICY_PATH = BASE_DIR / "gradle-capture-canonicalization-policy-v2.json"
 GRADLE_HELM_VALUES_V1_POLICY_PATH = BASE_DIR / "gradle-capture-canonicalization-policy-helm-values-v1.json"
 CARGO_TEST_POLICY_PATH = BASE_DIR / "cargo-test-capture-canonicalization-policy.json"
-PYTEST_REQUESTS_POLICY_PATH = BASE_DIR / "pytest-requests-capture-canonicalization-policy.json"
+PYTEST_REQUESTS_DURATION_V1_POLICY_PATH = BASE_DIR / "pytest-requests-duration-capture-canonicalization-policy-v1.json"
+REPLACEMENT_SELECTION_RECORD_PATH = BASE_DIR / "stage2-replacement-selection-v1.json"
 
 REQUIRED_CASE_IDS = {
     "repo-docker-java-parser", "repo-dockerfile-parser-rs", "repo-helm-values",
@@ -45,10 +46,10 @@ REQUIRED_WORKFLOW_FILE = ".github/workflows/qodec-n2d1b-miner-pilot.yml"
 # Internal consistency alone would pass a record that is self-consistent
 # but simply wrong (e.g. describing a different, unauthorized run).
 REQUIRED_BASE_MAIN_SHA = "e7e6759298e7f5526a751bddac0cdafc3b6c28c3"
-REQUIRED_IMPLEMENTATION_SHA = "1a4c3635abeaedfc585874c2e375326566d07c78"
-REQUIRED_EXECUTION_TRIGGER_SHA = "ad628f716c50b042867eac972bb95e1c7f24229c"
-REQUIRED_TRIGGER_BRANCH = "ci-trigger/n2d1b-stage2-1a4c363"
-REQUIRED_WORKFLOW_RUN_ID = 29544801640
+REQUIRED_IMPLEMENTATION_SHA = "478d70b87d76fb57bdc6e118fde7c4521eb177be"
+REQUIRED_EXECUTION_TRIGGER_SHA = "c430812a604ec25fa68d40e55a5df156f6029707"
+REQUIRED_TRIGGER_BRANCH = "ci-trigger/n2d1b-stage2-478d70b"
+REQUIRED_WORKFLOW_RUN_ID = 29550102525
 REQUIRED_WORKFLOW_NAME = "qodec-n2d1b-miner-pilot"
 REQUIRED_PULL_REQUEST_NUMBER = 3
 REQUIRED_REDERIVATION_KEYS = {"method"} | REQUIRED_CASE_IDS
@@ -58,7 +59,10 @@ REQUIRED_VSTEST_POLICY_SHA256 = "c6728ad1447dc9ab328bee526f60fb33b29d3346f0db8d3
 REQUIRED_GRADLE_V2_POLICY_SHA256 = "ba7f088d56aca7255c274b1b9a17f07fd64d65d77fd24577700f90b82c53e248"
 REQUIRED_GRADLE_HELM_VALUES_V1_POLICY_SHA256 = "27038e648e4b476dc62c60e1cf4107f4f1dce38dcdbccae4a01da334218ebe09"
 REQUIRED_CARGO_TEST_POLICY_SHA256 = "adba425839a3cab23874eada88e63d471958f0611e3833d06125605bf696e5d6"
-REQUIRED_PYTEST_REQUESTS_POLICY_SHA256 = "8670190615b541db18e4ae2e13379f9477f38fa023ae342d30d85bbd1d78f16f"
+REQUIRED_PYTEST_REQUESTS_DURATION_V1_POLICY_SHA256 = "21543de45468f51c103d078f78acd3079bfd1d9e1b8927722913add6e16f3597"
+
+REQUIRED_REPLACEMENT_CASE_ID = "repo-helm-values"
+REQUIRED_REJECTED_CASE_ID = "repo-spotless"
 
 
 def compute_record_sha256(body: dict) -> str:
@@ -132,7 +136,7 @@ def _check_trigger_patch_content(patch_text: str) -> str | None:
 
     expected_added = [
         "  push:",
-        "    branches: [ci-trigger/n2d1b-stage2-1a4c363]",
+        "    branches: [ci-trigger/n2d1b-stage2-478d70b]",
     ]
     if added_lines != expected_added:
         return f"trigger patch adds {added_lines!r}, expected exactly {expected_added!r}"
@@ -166,8 +170,10 @@ def verify(record_path: Path = RECORD_PATH, trigger_patch_path: Path = TRIGGER_P
         return False, f"self-hash mismatch: recorded={recorded} recomputed={recomputed}"
 
     # --- record identity -------------------------------------------------
-    if record.get("schema_version") != 1:
+    if record.get("schema_version") != 2:
         return False, f"unexpected schema_version: {record.get('schema_version')!r}"
+    if record.get("record_version") != 2:
+        return False, f"unexpected record_version: {record.get('record_version')!r}"
     if record.get("record_type") != "n2d1b-stage2-full-matrix-acceptance-v1":
         return False, f"unexpected record_type: {record.get('record_type')!r}"
     if record.get("repository") != "PhysShell/qodec":
@@ -351,7 +357,7 @@ def verify(record_path: Path = RECORD_PATH, trigger_patch_path: Path = TRIGGER_P
     import gradle_canonicalizer_helm_values_v1  # noqa: E402
     import gradle_canonicalizer_v2  # noqa: E402
     import maven_canonicalizer  # noqa: E402
-    import pytest_requests_canonicalizer  # noqa: E402
+    import pytest_requests_duration_canonicalizer_v1  # noqa: E402
     import vstest_canonicalizer  # noqa: E402
     from maven_canonicalizer import PolicyIntegrityError  # noqa: E402
 
@@ -363,8 +369,8 @@ def verify(record_path: Path = RECORD_PATH, trigger_patch_path: Path = TRIGGER_P
         ("gradle_helm_values_v1", gradle_canonicalizer_helm_values_v1,
          GRADLE_HELM_VALUES_V1_POLICY_PATH, REQUIRED_GRADLE_HELM_VALUES_V1_POLICY_SHA256),
         ("cargo_test", cargo_test_canonicalizer, CARGO_TEST_POLICY_PATH, REQUIRED_CARGO_TEST_POLICY_SHA256),
-        ("pytest_requests", pytest_requests_canonicalizer,
-         PYTEST_REQUESTS_POLICY_PATH, REQUIRED_PYTEST_REQUESTS_POLICY_SHA256),
+        ("pytest_requests_duration_v1", pytest_requests_duration_canonicalizer_v1,
+         PYTEST_REQUESTS_DURATION_V1_POLICY_PATH, REQUIRED_PYTEST_REQUESTS_DURATION_V1_POLICY_SHA256),
     ]
     if set(policies.keys()) != {key for key, *_ in policy_checks}:
         return False, f"canonicalization_policies keys {sorted(policies.keys())} != required {sorted(k for k, *_ in policy_checks)}"
@@ -431,6 +437,148 @@ def verify(record_path: Path = RECORD_PATH, trigger_patch_path: Path = TRIGGER_P
     content_err = _check_trigger_patch_content(patch_bytes.decode("utf-8"))
     if content_err:
         return False, content_err
+
+    # --- per-case canonical benchmark input map -------------------------------
+    cases = record.get("cases", {})
+    if set(cases.keys()) != REQUIRED_CASE_IDS:
+        return False, f"cases keys {sorted(cases.keys())} != required {sorted(REQUIRED_CASE_IDS)}"
+
+    sha256_by_case = record.get("canonical_benchmark_input_sha256_by_case_id", {})
+    if set(sha256_by_case.keys()) != REQUIRED_CASE_IDS:
+        return False, (
+            f"canonical_benchmark_input_sha256_by_case_id keys {sorted(sha256_by_case.keys())} != "
+            f"required {sorted(REQUIRED_CASE_IDS)}"
+        )
+
+    for case_id in REQUIRED_CASE_IDS:
+        case = cases[case_id]
+        if case.get("canonical_bytes_equal") is not True:
+            return False, f"cases[{case_id!r}].canonical_bytes_equal must be true"
+        if case.get("canonical_capture") != "capture_a":
+            return False, f"cases[{case_id!r}].canonical_capture must be 'capture_a'"
+        final_sha = case.get("canonical_benchmark_input_sha256_final", "")
+        if len(final_sha) != 64 or final_sha != final_sha.lower():
+            return False, f"cases[{case_id!r}].canonical_benchmark_input_sha256_final is not 64 lowercase hex chars"
+        per_capture = case.get("canonical_benchmark_input_sha256", {})
+        if per_capture.get("capture_a") != final_sha or per_capture.get("capture_b") != final_sha:
+            return False, (
+                f"cases[{case_id!r}]: capture_a/capture_b canonical sha256 must both equal "
+                f"canonical_benchmark_input_sha256_final"
+            )
+        if sha256_by_case.get(case_id) != final_sha:
+            return False, (
+                f"canonical_benchmark_input_sha256_by_case_id[{case_id!r}] "
+                f"{sha256_by_case.get(case_id)!r} != cases[{case_id!r}].canonical_benchmark_input_sha256_final "
+                f"{final_sha!r}"
+            )
+        capture_ids = case.get("capture_artifact_ids", {})
+        if not isinstance(capture_ids.get("capture_a"), int) or not isinstance(capture_ids.get("capture_b"), int):
+            return False, f"cases[{case_id!r}].capture_artifact_ids must have integer capture_a/capture_b artifact IDs"
+
+    # --- repo-requests detailed content-acceptance / canonicalization binding -
+    rr = record.get("repo_requests_detailed_acceptance", {})
+    if rr.get("case_id") != "repo-requests":
+        return False, "repo_requests_detailed_acceptance.case_id must be 'repo-requests'"
+    for flag in (
+        "exit_code_zero_both_captures", "zero_failed_zero_errors_both_captures",
+        "content_accepted_both_captures", "timeout_sink_verified_both_captures",
+        "loopback_bind_connect_confirmed_allowed_both_captures",
+        "other_external_connectivity_confirmed_blocked_both_captures",
+        "network_enforcement_distinct_from_test_network_fixture",
+        "canonical_bytes_equal", "raw_ab_diff_is_exactly_the_pytest_duration_token",
+    ):
+        if rr.get(flag) is not True:
+            return False, f"repo_requests_detailed_acceptance.{flag} must be true"
+    if rr.get("toolchain_classification_both_captures") != "exact-match":
+        return False, "repo_requests_detailed_acceptance.toolchain_classification_both_captures must be 'exact-match'"
+    if rr.get("content_classification_both_captures") != "genuine-workload-output":
+        return False, (
+            "repo_requests_detailed_acceptance.content_classification_both_captures "
+            "must be 'genuine-workload-output'"
+        )
+    if rr.get("canonicalization_replacement_count") != 1:
+        return False, "repo_requests_detailed_acceptance.canonicalization_replacement_count must be exactly 1"
+    if rr.get("raw_ab_diff_line_count") != 1:
+        return False, "repo_requests_detailed_acceptance.raw_ab_diff_line_count must be exactly 1"
+    if rr.get("canonical_capture") != "capture_a":
+        return False, "repo_requests_detailed_acceptance.canonical_capture must be 'capture_a'"
+    if rr.get("canonicalization_policy_identity") != "pytest_requests_duration_v1":
+        return False, (
+            "repo_requests_detailed_acceptance.canonicalization_policy_identity must be 'pytest_requests_duration_v1'"
+        )
+    if rr.get("canonical_benchmark_input_sha256") != cases["repo-requests"]["canonical_benchmark_input_sha256_final"]:
+        return False, "repo_requests_detailed_acceptance.canonical_benchmark_input_sha256 does not match cases map"
+    if rr.get("timeout_sink_target") != "10.255.255.1":
+        return False, "repo_requests_detailed_acceptance.timeout_sink_target must be '10.255.255.1'"
+    expected_probe_argv = [
+        "python3",
+        "evals/interop/v2/n2/d1-identity-lock/tools/timeout_sink_target_probe.py",
+        "10.255.255.1",
+    ]
+    if rr.get("timeout_sink_probe_argv") != expected_probe_argv:
+        return False, f"repo_requests_detailed_acceptance.timeout_sink_probe_argv != required {expected_probe_argv!r}"
+    if rr.get("network_enforcement_mode") != "outer-netns-loopback-only":
+        return False, "repo_requests_detailed_acceptance.network_enforcement_mode must be 'outer-netns-loopback-only'"
+    if not rr.get("test_network_fixture") or not rr.get("test_network_fixture_approval_identity"):
+        return False, "repo_requests_detailed_acceptance test_network_fixture / its approval identity must be set"
+    if not rr.get("network_enforcement_approval_identity"):
+        return False, "repo_requests_detailed_acceptance.network_enforcement_approval_identity must be set"
+    if rr.get("test_network_fixture_approval_identity") == rr.get("network_enforcement_approval_identity"):
+        return False, (
+            "repo_requests_detailed_acceptance: test_network_fixture_approval_identity must NOT be silently "
+            "merged with network_enforcement_approval_identity -- these are distinct authorizations"
+        )
+    if rr.get("source_mtime_materialization_fixed_timestamp_epoch_seconds") != 946684800:
+        return False, "repo_requests_detailed_acceptance source_mtime epoch must be 946684800 (2000-01-01T00:00:00Z)"
+    if rr.get("source_mtime_materialization_fixed_timestamp_iso8601_utc") != "2000-01-01T00:00:00Z":
+        return False, "repo_requests_detailed_acceptance source_mtime iso8601 must be '2000-01-01T00:00:00Z'"
+    if not isinstance(rr.get("source_mtime_materialization_affected_file_count_both_captures"), int) or (
+        rr.get("source_mtime_materialization_affected_file_count_both_captures") <= 0
+    ):
+        return False, "repo_requests_detailed_acceptance source_mtime affected file count must be a positive int"
+
+    # --- timeout-sink / network-enforcement / mtime authorization maps --------
+    if record.get("timeout_sink_authorized_cases", {}).get("repo-requests") != "10.255.255.1":
+        return False, "timeout_sink_authorized_cases['repo-requests'] must be '10.255.255.1'"
+    if "repo-requests" not in record.get("network_enforcement_authorized_cases", {}):
+        return False, "network_enforcement_authorized_cases must include 'repo-requests'"
+    if record.get("source_mtime_materialization_authorized_cases", {}).get("repo-requests") != "2000-01-01T00:00:00Z":
+        return False, "source_mtime_materialization_authorized_cases['repo-requests'] must be '2000-01-01T00:00:00Z'"
+    net_approvals = record.get("network_enforcement_approval_identities", {})
+    sink_approvals = record.get("timeout_sink_approval_identities", {})
+    fixture_names = record.get("timeout_sink_test_network_fixture_names", {})
+    if net_approvals.get("repo-requests") != rr.get("network_enforcement_approval_identity"):
+        return False, "network_enforcement_approval_identities['repo-requests'] does not match repo_requests_detailed_acceptance"
+    if sink_approvals.get("repo-requests") != rr.get("test_network_fixture_approval_identity"):
+        return False, "timeout_sink_approval_identities['repo-requests'] does not match repo_requests_detailed_acceptance"
+    if fixture_names.get("repo-requests") != rr.get("test_network_fixture"):
+        return False, "timeout_sink_test_network_fixture_names['repo-requests'] does not match repo_requests_detailed_acceptance"
+
+    # --- replacement-selection link: re-verify the linked record itself, ------
+    # independently of the builder's own build-time check.
+    linked = record.get("replacement_selection", {})
+    if linked.get("replacement_case_id") != REQUIRED_REPLACEMENT_CASE_ID:
+        return False, f"replacement_selection.replacement_case_id != required {REQUIRED_REPLACEMENT_CASE_ID!r}"
+    if linked.get("rejected_case_id") != REQUIRED_REJECTED_CASE_ID:
+        return False, f"replacement_selection.rejected_case_id != required {REQUIRED_REJECTED_CASE_ID!r}"
+    if linked.get("verified_by_its_own_verifier_at_build_time") is not True:
+        return False, "replacement_selection.verified_by_its_own_verifier_at_build_time must be true"
+    linked_path = linked.get("record_path", "")
+    if linked_path != "evals/interop/v2/n2/d1-identity-lock/stage2-replacement-selection-v1.json":
+        return False, f"replacement_selection.record_path unexpected: {linked_path!r}"
+    if not REPLACEMENT_SELECTION_RECORD_PATH.is_file():
+        return False, f"{REPLACEMENT_SELECTION_RECORD_PATH} does not exist"
+    replacement_record = json.loads(REPLACEMENT_SELECTION_RECORD_PATH.read_text())
+    if replacement_record.get("record_sha256") != linked.get("record_sha256"):
+        return False, (
+            "replacement_selection.record_sha256 does not match the actual committed "
+            "stage2-replacement-selection-v1.json file's own record_sha256"
+        )
+    sys.path.insert(0, str(TOOLS_DIR))
+    import verify_stage2_replacement_selection  # noqa: E402
+    repl_ok, repl_message = verify_stage2_replacement_selection.verify(REPLACEMENT_SELECTION_RECORD_PATH)
+    if not repl_ok:
+        return False, f"replacement-selection record failed independent re-verification: {repl_message}"
 
     return True, "OK"
 

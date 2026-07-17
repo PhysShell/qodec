@@ -76,7 +76,11 @@ class TestMutationsAreCaught(unittest.TestCase):
         self.assertIn("self-hash mismatch", message)
 
     def test_tampered_schema_version_fails(self):
-        ok, message = self._verify_mutated_record(lambda r: r.__setitem__("schema_version", 2))
+        ok, message = self._verify_mutated_record(lambda r: r.__setitem__("schema_version", 3))
+        self.assertFalse(ok)
+
+    def test_tampered_record_version_fails(self):
+        ok, message = self._verify_mutated_record(lambda r: r.__setitem__("record_version", 1))
         self.assertFalse(ok)
 
     def test_tampered_base_main_sha_fails(self):
@@ -89,9 +93,9 @@ class TestMutationsAreCaught(unittest.TestCase):
         )
         self.assertFalse(ok)
 
-    def test_tampered_pytest_requests_policy_hash_in_record_fails(self):
+    def test_tampered_pytest_requests_duration_v1_policy_hash_in_record_fails(self):
         def mutate(r):
-            r["canonicalization_policies"]["pytest_requests"]["policy_sha256"] = "0" * 64
+            r["canonicalization_policies"]["pytest_requests_duration_v1"]["policy_sha256"] = "0" * 64
 
         ok, message = self._verify_mutated_record(mutate)
         self.assertFalse(ok)
@@ -306,6 +310,144 @@ class TestMutationsAreCaught(unittest.TestCase):
         ok, message = self._verify_mutated_record(mutate)
         self.assertFalse(ok)
         self.assertIn("pull_request.number", message)
+
+    def test_missing_case_from_cases_map_fails(self):
+        def mutate(r):
+            del r["cases"]["repo-requests"]
+
+        ok, message = self._verify_mutated_record(mutate)
+        self.assertFalse(ok)
+        self.assertIn("cases", message)
+
+    def test_case_canonical_bytes_equal_false_fails(self):
+        def mutate(r):
+            r["cases"]["repo-hyperfine"]["canonical_bytes_equal"] = False
+
+        ok, message = self._verify_mutated_record(mutate)
+        self.assertFalse(ok)
+        self.assertIn("canonical_bytes_equal", message)
+
+    def test_case_canonical_capture_not_capture_a_fails(self):
+        def mutate(r):
+            r["cases"]["repo-moshi"]["canonical_capture"] = "capture_b"
+
+        ok, message = self._verify_mutated_record(mutate)
+        self.assertFalse(ok)
+        self.assertIn("canonical_capture", message)
+
+    def test_case_final_sha256_diverges_from_by_case_id_map_fails(self):
+        # Only the per-case field is mutated; canonical_benchmark_input_sha256_by_case_id
+        # is left untouched, so the two must be cross-checked against each other, not
+        # merely each independently well-formed.
+        def mutate(r):
+            r["cases"]["repo-pyflakes"]["canonical_benchmark_input_sha256_final"] = "1" * 64
+            r["cases"]["repo-pyflakes"]["canonical_benchmark_input_sha256"]["capture_a"] = "1" * 64
+            r["cases"]["repo-pyflakes"]["canonical_benchmark_input_sha256"]["capture_b"] = "1" * 64
+
+        ok, message = self._verify_mutated_record(mutate)
+        self.assertFalse(ok)
+        self.assertIn("canonical_benchmark_input_sha256_by_case_id", message)
+
+    def test_canonical_benchmark_input_sha256_by_case_id_diverges_from_case_fails(self):
+        def mutate(r):
+            r["canonical_benchmark_input_sha256_by_case_id"]["repo-rustlings"] = "2" * 64
+
+        ok, message = self._verify_mutated_record(mutate)
+        self.assertFalse(ok)
+        self.assertIn("canonical_benchmark_input_sha256_by_case_id", message)
+
+    def test_repo_requests_detailed_acceptance_exit_code_false_fails(self):
+        def mutate(r):
+            r["repo_requests_detailed_acceptance"]["exit_code_zero_both_captures"] = False
+
+        ok, message = self._verify_mutated_record(mutate)
+        self.assertFalse(ok)
+        self.assertIn("exit_code_zero_both_captures", message)
+
+    def test_repo_requests_detailed_acceptance_replacement_count_not_one_fails(self):
+        def mutate(r):
+            r["repo_requests_detailed_acceptance"]["canonicalization_replacement_count"] = 2
+
+        ok, message = self._verify_mutated_record(mutate)
+        self.assertFalse(ok)
+        self.assertIn("canonicalization_replacement_count", message)
+
+    def test_repo_requests_detailed_acceptance_raw_diff_count_not_one_fails(self):
+        def mutate(r):
+            r["repo_requests_detailed_acceptance"]["raw_ab_diff_line_count"] = 0
+
+        ok, message = self._verify_mutated_record(mutate)
+        self.assertFalse(ok)
+        self.assertIn("raw_ab_diff_line_count", message)
+
+    def test_repo_requests_detailed_acceptance_timeout_sink_target_wrong_fails(self):
+        def mutate(r):
+            r["repo_requests_detailed_acceptance"]["timeout_sink_target"] = "10.0.0.1"
+
+        ok, message = self._verify_mutated_record(mutate)
+        self.assertFalse(ok)
+        self.assertIn("timeout_sink_target", message)
+
+    def test_repo_requests_detailed_acceptance_timeout_sink_argv_wrong_fails(self):
+        def mutate(r):
+            r["repo_requests_detailed_acceptance"]["timeout_sink_probe_argv"] = ["python3", "wrong.py"]
+
+        ok, message = self._verify_mutated_record(mutate)
+        self.assertFalse(ok)
+        self.assertIn("timeout_sink_probe_argv", message)
+
+    def test_repo_requests_detailed_acceptance_timeout_sink_verified_false_fails(self):
+        def mutate(r):
+            r["repo_requests_detailed_acceptance"]["timeout_sink_verified_both_captures"] = False
+
+        ok, message = self._verify_mutated_record(mutate)
+        self.assertFalse(ok)
+        self.assertIn("timeout_sink_verified_both_captures", message)
+
+    def test_repo_requests_network_enforcement_approval_silently_merged_with_fixture_fails(self):
+        # Setting the two distinct authorization identities to the SAME string
+        # is exactly the forbidden "silently broaden the existing loopback-only
+        # approval into this behavior" shape the user explicitly ruled out.
+        def mutate(r):
+            same = r["repo_requests_detailed_acceptance"]["network_enforcement_approval_identity"]
+            r["repo_requests_detailed_acceptance"]["test_network_fixture_approval_identity"] = same
+            r["timeout_sink_approval_identities"]["repo-requests"] = same
+
+        ok, message = self._verify_mutated_record(mutate)
+        self.assertFalse(ok)
+        self.assertIn("distinct authorizations", message)
+
+    def test_repo_requests_detailed_acceptance_mtime_epoch_wrong_fails(self):
+        def mutate(r):
+            r["repo_requests_detailed_acceptance"]["source_mtime_materialization_fixed_timestamp_epoch_seconds"] = 0
+
+        ok, message = self._verify_mutated_record(mutate)
+        self.assertFalse(ok)
+        self.assertIn("source_mtime", message)
+
+    def test_replacement_selection_wrong_replacement_case_id_fails(self):
+        def mutate(r):
+            r["replacement_selection"]["replacement_case_id"] = "repo-something-else"
+
+        ok, message = self._verify_mutated_record(mutate)
+        self.assertFalse(ok)
+        self.assertIn("replacement_case_id", message)
+
+    def test_replacement_selection_record_sha256_mismatch_fails(self):
+        def mutate(r):
+            r["replacement_selection"]["record_sha256"] = "sha256:" + "0" * 64
+
+        ok, message = self._verify_mutated_record(mutate)
+        self.assertFalse(ok)
+        self.assertIn("record_sha256", message)
+
+    def test_replacement_selection_not_verified_at_build_time_fails(self):
+        def mutate(r):
+            r["replacement_selection"]["verified_by_its_own_verifier_at_build_time"] = False
+
+        ok, message = self._verify_mutated_record(mutate)
+        self.assertFalse(ok)
+        self.assertIn("verified_by_its_own_verifier_at_build_time", message)
 
 
 class TestExternalFileMutationsAreCaught(unittest.TestCase):
