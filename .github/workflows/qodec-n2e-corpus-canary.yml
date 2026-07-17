@@ -1,10 +1,12 @@
 name: qodec-n2e-corpus-canary
 
-# Manual-only. Runs the frozen 12-case N2-E acceptance canary: builds the pinned
-# RTK + QODEC substrate, executes each canary case (RAW x3 + RTK x3 + o200k +
-# oracle) in its own matrix job, aggregates independently self-hash-verified
-# per-case evidence, and runs the acceptance verifier. No push / pull_request
-# triggers for external-corpus execution.
+# Manual-only canonical trigger. The disposable trigger branch (ci-trigger/
+# n2e-canary-<shortI>) carries an ADDITIVE push stanza (the only difference vs the
+# implementation commit I); every job checks out I explicitly, never the trigger
+# commit T. Runs the frozen 12-case N2-E acceptance canary: builds and EXPORTS the
+# pinned RTK+QODEC Nix closures once, imports them per matrix job, executes each
+# case (RAW x3 -> gate -> RTK x3 + o200k + oracle) in its own timeout-tiered job,
+# and independently re-derives acceptance from primary evidence.
 on:
   workflow_dispatch: {}
 
@@ -12,14 +14,42 @@ permissions:
   contents: read
 
 env:
+  LC_ALL: C.UTF-8
+  LANG: C.UTF-8
+  TZ: UTC
   N2E: evals/interop/v2/n2/e-rtk-native-corpus
+  RTK_SHA: "41f316adf7b30a568208a0a4f824bffb266ecb6d01bd9de81bed58e1d469dfcf"
 
 jobs:
-  frozen:
-    runs-on: ubuntu-latest
+  resolve:
+    runs-on: ubuntu-24.04
+    outputs:
+      impl: ${{ steps.i.outputs.impl }}
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-python@v5
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        with:
+          fetch-depth: 2
+          persist-credentials: false
+      - id: i
+        name: Resolve implementation commit I (parent of trigger commit T on push)
+        run: |
+          if [ "${{ github.event_name }}" = "push" ] && echo "${{ github.ref }}" | grep -q 'ci-trigger/'; then
+            impl="$(git rev-parse HEAD~1)"
+          else
+            impl="${{ github.sha }}"
+          fi
+          echo "impl=$impl" >> "$GITHUB_OUTPUT"
+          echo "implementation commit I = $impl"
+
+  frozen:
+    runs-on: ubuntu-24.04
+    needs: [resolve]
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        with:
+          ref: ${{ needs.resolve.outputs.impl }}
+          persist-credentials: false
+      - uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065 # v5.6.0
         with:
           python-version: "3.11"
       - name: Verify frozen Phase A records
@@ -31,123 +61,161 @@ jobs:
           python3 tools/verify_n2e_command_scenarios.py
 
   substrate:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
+    needs: [resolve]
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        with:
+          ref: ${{ needs.resolve.outputs.impl }}
+          persist-credentials: false
       - uses: cachix/install-nix-action@08dcb3a5e62fa31e2da3d490afc4176ef55ecd72 # v30
         with:
           extra_nix_config: |
             experimental-features = nix-command flakes
             sandbox = true
-      - name: Build pinned RTK + QODEC and assert RTK identity
+      - name: Build + export pinned RTK/QODEC closures; assert RTK identity
         run: |
-          nix build .#rtk-pinned .#qodec -L
-          RTK="$(nix path-info .#rtk-pinned)/bin/rtk"
-          QODEC="$(nix path-info .#qodec)/bin/qodec"
-          SHA="$(sha256sum "$RTK" | cut -d' ' -f1)"
-          echo "rtk sha256=$SHA"
-          test "$SHA" = "41f316adf7b30a568208a0a4f824bffb266ecb6d01bd9de81bed58e1d469dfcf"
-          mkdir -p substrate/bin
-          cp "$RTK" substrate/bin/rtk
-          cp "$QODEC" substrate/bin/qodec
-          chmod +x substrate/bin/*
-      - uses: actions/upload-artifact@v4
+          nix build .#rtk-pinned .#qodec -L --no-update-lock-file
+          RTK="$(nix path-info .#rtk-pinned)"
+          QODEC="$(nix path-info .#qodec)"
+          SHA="$(sha256sum "$RTK/bin/rtk" | cut -d' ' -f1)"
+          echo "rtk sha256=$SHA"; test "$SHA" = "$RTK_SHA"
+          mkdir -p substrate
+          echo "$RTK"   > substrate/rtk.storepath
+          echo "$QODEC" > substrate/qodec.storepath
+          nix-store --query --requisites "$RTK" "$QODEC" > substrate/closure-paths.txt
+          nix-store --export $(cat substrate/closure-paths.txt) | zstd -T0 -19 > substrate/closure.nar.zst
+          sha256sum substrate/closure.nar.zst > substrate/closure.nar.zst.sha256
+          nix path-info --json --recursive "$RTK" "$QODEC" > substrate/path-info.json
+      - uses: actions/upload-artifact@b4b15b8c7c6ac21ea08fcf65892d2ee8f75cf882 # v4.6.2
         with:
           name: substrate
           path: substrate
+          if-no-files-found: error
           retention-days: 3
 
   matrix-gen:
-    runs-on: ubuntu-latest
-    needs: [frozen]
+    runs-on: ubuntu-24.04
+    needs: [resolve, frozen]
     outputs:
-      cases: "${{ steps.gen.outputs.cases }}"
+      cases: ${{ steps.gen.outputs.cases }}
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        with:
+          ref: ${{ needs.resolve.outputs.impl }}
+          persist-credentials: false
       - id: gen
         run: |
           cases="$(python3 -c "import json;print(json.dumps([m['case_id'] for m in json.load(open('$N2E/n2e-canary-membership-v1.json'))['membership']]))")"
           echo "cases=$cases" >> "$GITHUB_OUTPUT"
 
   canary:
-    runs-on: ubuntu-latest
-    needs: [substrate, matrix-gen]
+    runs-on: ubuntu-24.04
+    needs: [resolve, substrate, matrix-gen]
     strategy:
       fail-fast: false
       matrix:
-        case_id: "${{ fromJson(needs.matrix-gen.outputs.cases) }}"
-    timeout-minutes: 40
+        case_id: ${{ fromJson(needs.matrix-gen.outputs.cases) }}
+    timeout-minutes: 45
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-python@v5
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        with:
+          ref: ${{ needs.resolve.outputs.impl }}
+          persist-credentials: false
+      - uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065 # v5.6.0
         with:
           python-version: "3.11"
-      - uses: actions/download-artifact@v4
+      - uses: cachix/install-nix-action@08dcb3a5e62fa31e2da3d490afc4176ef55ecd72 # v30
+      - uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4.3.0
         with:
           name: substrate
           path: substrate
-      - name: Toolchains (best-effort; per-case families vary)
+      - name: Import + verify closure identity; prove binaries run
+        id: sub
         run: |
-          chmod +x substrate/bin/* || true
-          rustup default stable 2>/dev/null || true
-      - name: Run canary case
-        env:
-          RTK_BIN: "${{ github.workspace }}/substrate/bin/rtk"
-          QODEC_BIN: "${{ github.workspace }}/substrate/bin/qodec"
-          CASE_ID: "${{ matrix.case_id }}"
+          sha="$(cut -d' ' -f1 substrate/closure.nar.zst.sha256)"
+          test "$sha" = "$(sha256sum substrate/closure.nar.zst | cut -d' ' -f1)"
+          zstd -d -c substrate/closure.nar.zst | nix-store --import
+          RTK="$(cat substrate/rtk.storepath)/bin/rtk"
+          QODEC="$(cat substrate/qodec.storepath)/bin/qodec"
+          test "$(sha256sum "$RTK" | cut -d' ' -f1)" = "$RTK_SHA"
+          "$RTK" --version >/dev/null
+          "$QODEC" --help >/dev/null
+          echo "RTK_BIN=$RTK" >> "$GITHUB_ENV"
+          echo "QODEC_BIN=$QODEC" >> "$GITHUB_ENV"
+      - name: Toolchains
+        run: rustup default stable 2>/dev/null || true
+      - name: Run canary case (RAW gate -> RTK -> oracle)
         run: |
           cd "$N2E"
           mkdir -p out
-          safe="$(python3 -c "import os;print(os.environ['CASE_ID'].replace('::','__').replace('/','_'))")"
-          python3 tools/run_canary_case.py "$CASE_ID" --out "out/n2e-canary-case-$safe.json"
-      - uses: actions/upload-artifact@v4
+          safe="$(python3 -c "import os;print(os.environ['CID'].replace('::','__').replace('/','_'))")"
+          python3 tools/run_canary_case.py "$CID" --out "out/n2e-canary-case-$safe.json"
+        env:
+          CID: ${{ matrix.case_id }}
+      - uses: actions/upload-artifact@b4b15b8c7c6ac21ea08fcf65892d2ee8f75cf882 # v4.6.2
+        if: always()
         with:
-          name: "case-${{ strategy.job-index }}"
-          path: "evals/interop/v2/n2/e-rtk-native-corpus/out/*.json"
-          retention-days: 3
+          name: case-${{ strategy.job-index }}
+          path: ${{ env.N2E }}/out/*.json
+          if-no-files-found: error
+          retention-days: 7
 
   aggregate:
-    runs-on: ubuntu-latest
-    needs: [canary]
+    runs-on: ubuntu-24.04
+    needs: [resolve, canary]
     if: always()
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-python@v5
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        with:
+          ref: ${{ needs.resolve.outputs.impl }}
+          persist-credentials: false
+      - uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065 # v5.6.0
         with:
           python-version: "3.11"
-      - uses: actions/download-artifact@v4
+      - uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4.3.0
         with:
           path: cases
           pattern: case-*
           merge-multiple: true
-      - name: Aggregate + acceptance
-        env:
-          RUN_ID: "${{ github.run_id }}"
+      - name: Aggregate (primitive re-derivation) + Markdown
         run: |
           cd "$N2E"
-          python3 tools/build_n2e_canary_acceptance.py "$GITHUB_WORKSPACE/cases" "$RUN_ID"
+          python3 tools/build_n2e_canary_acceptance.py "$GITHUB_WORKSPACE/cases" \
+            --run-id "${{ github.run_id }}" --impl-sha "${{ needs.resolve.outputs.impl }}" \
+            --trigger-sha "${{ github.sha }}"
+          cp n2e-canary-acceptance-v1.json "$GITHUB_WORKSPACE/cases/"
           cat n2e-canary-results-v1.md
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@b4b15b8c7c6ac21ea08fcf65892d2ee8f75cf882 # v4.6.2
         with:
           name: canary-acceptance
           path: |
-            evals/interop/v2/n2/e-rtk-native-corpus/n2e-canary-acceptance-v1.json
-            evals/interop/v2/n2/e-rtk-native-corpus/n2e-canary-results-v1.md
-          retention-days: 7
+            ${{ env.N2E }}/n2e-canary-acceptance-v1.json
+            ${{ env.N2E }}/n2e-canary-results-v1.md
+          if-no-files-found: error
+          retention-days: 30
 
   accept:
-    runs-on: ubuntu-latest
-    needs: [aggregate]
+    runs-on: ubuntu-24.04
+    needs: [resolve, aggregate]
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-python@v5
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        with:
+          ref: ${{ needs.resolve.outputs.impl }}
+          persist-credentials: false
+      - uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065 # v5.6.0
         with:
           python-version: "3.11"
-      - uses: actions/download-artifact@v4
+      - uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4.3.0
+        with:
+          pattern: case-*
+          path: evidence
+          merge-multiple: true
+      - uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4.3.0
         with:
           name: canary-acceptance
-          path: evals/interop/v2/n2/e-rtk-native-corpus
-      - name: Independent acceptance verification
+          path: evidence
+      - name: Independent acceptance from primary evidence
         run: |
           cd "$N2E"
-          python3 tools/verify_n2e_canary_acceptance.py
+          python3 tools/verify_n2e_canary_acceptance.py "$GITHUB_WORKSPACE/evidence"
