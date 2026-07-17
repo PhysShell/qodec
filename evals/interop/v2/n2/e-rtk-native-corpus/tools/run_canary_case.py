@@ -402,7 +402,7 @@ def _warm_test_env(fam, sub, scen, repo_dir: Path, home: Path):
     elif fam == "go":
         step(["go", "mod", "download"])
         offline_env = {"GOFLAGS": "-mod=mod", "GOPROXY": "off"}
-        policy = canon.policy_for("go", sub)
+        policy = canon.policy_for("go", sub, case_id=scen["case_id"])
     elif fam == "js_ts":
         pj = repo_dir / "package.json"
         pj_txt = pj.read_text(errors="replace") if pj.exists() else ""

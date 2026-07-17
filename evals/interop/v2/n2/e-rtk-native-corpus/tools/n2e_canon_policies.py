@@ -13,23 +13,79 @@ cannot mask a real difference).
 """
 from __future__ import annotations
 
+import json as _json
 import re
 
+# --------------------------------------------------------------------------
+# Scoped, parser-bounded Caddy policy (caddy-go-test-v1).
+#
+# Bound ONLY to the exact Caddy scenario (never selected from family/subfamily).
+# For every candidate line it: parses the FULL JSON object with a real parser;
+# requires the exact zap schema/context (level, numeric ts, logger, msg) before
+# touching anything; replaces only the proven wall-clock `ts`; sorts the parsed
+# `origins` string array preserving its EXACT multiset; serializes through ONE
+# declared canonical JSON encoding. Malformed JSON, unexpected types, duplicate
+# keys, and unrelated objects (even ones that merely contain `ts`/`origins`) are
+# left byte-identical. It never sorts or reorders whole lines, so residual
+# goroutine line-interleaving stays observable (i.e. remains nondeterministic).
+# --------------------------------------------------------------------------
 
-def _sort_json_str_array(mobj: "re.Match") -> bytes:
-    """Sort the comma-separated JSON string elements of a matched `"key":[...]`
-    array while preserving the EXACT multiset (a value that changes/appears/
-    disappears still changes the bytes). Used only for keys whose Go source is an
-    unordered map (set semantics), never for ordered output."""
-    prefix, body, suffix = mobj.group(1), mobj.group(2), mobj.group(3)
-    if not body.strip():
-        return mobj.group(0)
-    elems = body.split(b",")
-    return prefix + b",".join(sorted(elems)) + suffix
+def _reject_dupes(pairs):
+    d = {}
+    for k, v in pairs:
+        if k in d:
+            raise ValueError("duplicate key")  # duplicate-key ambiguity -> reject
+        d[k] = v
+    return d
 
-# Each policy: id -> list of (compiled_pattern, replacement). Patterns must be
-# anchored to the tool's exact duration grammar. Replacements are fixed tokens.
-_POLICIES: dict[str, list[tuple[re.Pattern, bytes]]] = {
+
+def _is_caddy_zap(obj: dict) -> bool:
+    return (isinstance(obj.get("level"), str) and isinstance(obj.get("ts"), (int, float))
+            and not isinstance(obj.get("ts"), bool)
+            and isinstance(obj.get("logger"), str) and isinstance(obj.get("msg"), str))
+
+
+def _caddy_line(line: bytes) -> bytes:
+    # only a whole-line JSON object (no surrounding whitespace) is a candidate
+    if not (line[:1] == b"{" and line[-1:] == b"}"):
+        return line
+    try:
+        obj = _json.loads(line.decode("utf-8"), object_pairs_hook=_reject_dupes)
+    except Exception:
+        return line  # malformed / non-utf8 / duplicate key -> byte-identical
+    if not isinstance(obj, dict) or not _is_caddy_zap(obj):
+        return line  # unrelated object (even if it has ts/origins) -> byte-identical
+    obj = dict(obj)
+    obj["ts"] = "<ts>"  # schema proved ts is a wall-clock number
+    if "origins" in obj:
+        og = obj["origins"]
+        if not (isinstance(og, list) and all(isinstance(x, str) for x in og)):
+            return line  # unexpected type -> leave unchanged
+        obj["origins"] = sorted(og)  # preserve exact multiset
+    return _json.dumps(obj, sort_keys=True, separators=(",", ":"),
+                       ensure_ascii=False).encode("utf-8")
+
+
+def _caddy_go_test_canon(data: bytes) -> bytes:
+    # tool-level go-test duration/cache normalization first (the case is still
+    # `go test ./...`), THEN the scoped per-line zap-log JSON canon.
+    for pat, repl in _GO_TEST_RULES:
+        data = pat.sub(repl, data)
+    return b"\n".join(_caddy_line(ln) for ln in data.split(b"\n"))
+
+
+# go test tool-level grammar (durations + cache marker) -- shared by go-test-v1
+# and the Caddy scoped policy; NOTHING case-specific lives here.
+_GO_TEST_RULES = [
+    (re.compile(rb"\t\d+\.\d+s\b"), b"\t<dur>"),
+    (re.compile(rb"\(\d+\.\d+s\)"), b"(<dur>)"),
+    (re.compile(rb"\(cached\)"), b"(<dur>)"),
+]
+
+# Each policy: id -> list of (compiled_pattern, replacement) OR a callable
+# (bytes)->bytes. Regex patterns are anchored to the tool's exact duration
+# grammar; replacements are fixed tokens.
+_POLICIES: dict[str, object] = {
     "identity-v1": [],
     # cargo test: "test result: ok. 5 passed; 0 failed; ... finished in 0.12s"
     #             "   Running unittests src/lib.rs (target/debug/deps/...-<hash>)"
@@ -42,20 +98,11 @@ _POLICIES: dict[str, list[tuple[re.Pattern, bytes]]] = {
         (re.compile(rb"in \d+\.\d+s\b"), b"in <dur>"),
         (re.compile(rb"in \d+m \d+\.\d+s\b"), b"in <dur>"),
     ],
-    # go test: "ok  \tpkg\t0.123s" ; "--- FAIL: TestX (0.00s)". Also bounded rules
-    # for structured (zap) app logs a tested server emits: the wall-clock "ts"
-    # epoch float (metadata the test_oracle never reads) and the "origins" array,
-    # which Go renders from an unordered map -- sorted here preserving the exact
-    # multiset (NOT a general line sort).
-    "go-test-v1": [
-        (re.compile(rb"\t\d+\.\d+s\b"), b"\t<dur>"),
-        (re.compile(rb"\(\d+\.\d+s\)"), b"(<dur>)"),
-        (re.compile(rb"\(cached\)"), b"(<dur>)"),
-        (re.compile(rb'("ts":)\d+\.\d+\b'), rb"\1<ts>"),
-        # closing bracket anchored to the JSON boundary (`]` before `,` or `}`) so
-        # `]` chars inside elements (e.g. "//[::1]:2019") do not end the match early.
-        (re.compile(rb'("origins":\[)(.*?)(\](?=[,}]))'), _sort_json_str_array),
-    ],
+    # go test (tool-level ONLY): "ok  \tpkg\t0.123s" ; "--- FAIL: TestX (0.00s)" ;
+    # "(cached)". No case-specific (app-log) rules live here.
+    "go-test-v1": _GO_TEST_RULES,
+    # Caddy-only scoped policy: go-test durations + real-JSON zap-log canon.
+    "caddy-go-test-v1": _caddy_go_test_canon,
     # go vet: diagnostics only; no durations expected -> identity but declared for clarity
     "go-vet-v1": [],
     # pytest: "===== 3 passed in 0.12s =====" ; "0.12s call     test_x"
@@ -75,15 +122,13 @@ _POLICIES: dict[str, list[tuple[re.Pattern, bytes]]] = {
         (re.compile(rb"(\)\s*)\d+\.\d+s\b"), rb"\1<dur>"),
         (re.compile(rb"(\btests?\b.*?\s)\d+ms\b"), rb"\1<dur>"),
         # vitest summary "Start at  HH:MM:SS" (wall-clock) and the per-phase Duration
-        # breakdown "(transform 5.92s, setup 643ms, collect .., tests .., ..)".
+        # breakdown "(transform 5.92s, setup 643ms, collect .., tests .., ..)" -- these
+        # are vitest's OWN summary grammar (tool-level). Case-specific cross-tool noise
+        # (e.g. a puppeteer/chromium crash from a browser-backed test) is NOT normalized
+        # here; such a case is classified on its merits, not masked by a generic policy.
         (re.compile(rb"Start at\s+\d{1,2}:\d{2}:\d{2}"), b"Start at <time>"),
         (re.compile(rb"\b(transform|setup|collect|tests|environment|prepare)\s+\d+(?:\.\d+)?\s?m?s\b"),
          rb"\1 <dur>"),
-        # chromium/zygote crash logs from browser-backed tests fail CONSISTENTLY under
-        # the sandboxless netns; only the PID:TID and MMDD/HHMMSS.micro timestamps vary
-        # (pure process/wall-clock metadata -- the "No usable sandbox" text is kept).
-        (re.compile(rb"\[\d+:\d+:\d{4}/\d{6}\.\d+:"), b"[<proc>:<time>:"),
-        (re.compile(rb"\[\d{4}/\d{6}\.\d+:"), b"[<time>:"),
     ],
     # gradle test: "BUILD SUCCESSFUL in 12s" ; "> Task :test"
     "gradle-test-v1": [
@@ -129,7 +174,18 @@ _FAMILY_SUB_POLICY = {
 }
 
 
-def policy_for(family: str, subfamily: str, git: bool = False, jvm_build: str | None = None) -> str:
+# Case-SCOPED policy bindings: an exact case_id explicitly references a distinct
+# policy that must NOT be selected from family/subfamily alone. This is the
+# per-case canonicalization contract, keyed on the immutable frozen case_id.
+_CASE_POLICY = {
+    "caddyserver__caddy-5870::go::test::buggy": "caddy-go-test-v1",
+}
+
+
+def policy_for(family: str, subfamily: str, git: bool = False,
+               jvm_build: str | None = None, case_id: str | None = None) -> str:
+    if case_id and case_id in _CASE_POLICY:
+        return _CASE_POLICY[case_id]
     if git:
         return "git-v1"
     if family == "jvm" and subfamily == "test":
@@ -142,8 +198,11 @@ def policy_for(family: str, subfamily: str, git: bool = False, jvm_build: str | 
 def canonicalize(data: bytes, policy_id: str) -> bytes:
     if policy_id not in _POLICIES:
         raise KeyError(f"unknown canonicalization policy {policy_id!r}")
+    spec = _POLICIES[policy_id]
+    if callable(spec):
+        return spec(data)
     out = data
-    for pat, repl in _POLICIES[policy_id]:
+    for pat, repl in spec:
         out = pat.sub(repl, out)  # repl may be bytes or a callable(match)->bytes
     return out
 

@@ -34,28 +34,65 @@ class TestCanonPolicies(unittest.TestCase):
         b = canon.canonicalize(b"===== 3 passed in 5.00s =====", "pytest-v1")
         self.assertEqual(a, b)
 
-    def test_go_zap_ts_and_origins_normalized(self):
-        # a tested server's zap logs: wall-clock ts float + map-ordered origins set
-        a = b'{"ts":1784320522.46,"msg":"x","origins":["//localhost:2019","//[::1]:2019"]}'
-        b = b'{"ts":1784320599.99,"msg":"x","origins":["//[::1]:2019","//localhost:2019"]}'
-        self.assertEqual(canon.canonicalize(a, "go-test-v1"), canon.canonicalize(b, "go-test-v1"))
-        # a dropped/changed origin (semantic multiset change) must remain observable
-        c1 = canon.canonicalize(a, "go-test-v1")
-        c2 = canon.canonicalize(b'{"ts":1.0,"msg":"x","origins":["//[::1]:2019"]}', "go-test-v1")
-        self.assertNotEqual(c1, c2)
-        # a changed msg must remain observable
-        c3 = canon.canonicalize(b'{"ts":1.0,"msg":"y","origins":["//localhost:2019","//[::1]:2019"]}', "go-test-v1")
-        self.assertNotEqual(canon.canonicalize(a, "go-test-v1"), c3)
+    def test_go_test_v1_is_duration_cache_only(self):
+        # generic go-test-v1 must NOT touch app-log ts/origins (that is scoped to
+        # the Caddy policy). It only normalizes go's own duration/cache grammar.
+        z = b'{"level":"info","ts":1784320522.46,"logger":"admin","msg":"x","origins":["//b","//a"]}'
+        self.assertEqual(canon.canonicalize(z, "go-test-v1"), z)  # untouched
+        a = canon.canonicalize(b"ok  \tpkg\t0.123s", "go-test-v1")
+        b = canon.canonicalize(b"ok  \tpkg\t9.999s", "go-test-v1")
+        self.assertEqual(a, b)
 
-    def test_vitest_walltime_phases_and_chromium_ids_normalized(self):
-        a = (b"   Start at  21:37:10\n   Duration 1.2s (transform 5.92s, setup 643ms, tests 9.28s)\n"
-             b"[4945:4945:0717/213801.172445:FATAL:zygote.cc(126)] No usable sandbox!\n")
-        b = (b"   Start at  21:38:45\n   Duration 1.3s (transform 6.19s, setup 619ms, tests 9.30s)\n"
-             b"[7774:7774:0717/213936.290729:FATAL:zygote.cc(126)] No usable sandbox!\n")
-        self.assertEqual(canon.canonicalize(a, "vitest-v1"), canon.canonicalize(b, "vitest-v1"))
-        # the semantic crash reason must remain observable
-        self.assertNotEqual(canon.canonicalize(a, "vitest-v1"),
-                            canon.canonicalize(a.replace(b"No usable sandbox!", b"Segfault!"), "vitest-v1"))
+    def test_caddy_policy_is_case_scoped(self):
+        # bound only to the exact Caddy case_id, never selected from family/subfamily
+        self.assertEqual(canon.policy_for("go", "test",
+                         case_id="caddyserver__caddy-5870::go::test::buggy"), "caddy-go-test-v1")
+        self.assertEqual(canon.policy_for("go", "test", case_id="gohugoio__hugo-12768::go::test::buggy"),
+                         "go-test-v1")
+        self.assertEqual(canon.policy_for("go", "test"), "go-test-v1")
+
+    def test_caddy_zap_ts_and_origins_parser_bounded(self):
+        P = "caddy-go-test-v1"
+        base = b'{"level":"info","ts":1784320522.46,"logger":"admin","msg":"started","origins":["//localhost:2019","//[::1]:2019","//127.0.0.1:2019"]}'
+        reordered = b'{"level":"info","ts":1784320599.99,"logger":"admin","msg":"started","origins":["//[::1]:2019","//127.0.0.1:2019","//localhost:2019"]}'
+        self.assertEqual(canon.canonicalize(base, P), canon.canonicalize(reordered, P))  # ts + reorder normalized
+        # commas + escaped quotes inside an origin string (real parser, not comma-split)
+        weird = b'{"level":"info","ts":1.0,"logger":"admin","msg":"m","origins":["//a,b:1","//c\\"d:2"]}'
+        weird2 = b'{"level":"info","ts":2.0,"logger":"admin","msg":"m","origins":["//c\\"d:2","//a,b:1"]}'
+        self.assertEqual(canon.canonicalize(weird, P), canon.canonicalize(weird2, P))
+        # duplicate origins: exact multiset preserved (dropping one differs)
+        dup = b'{"level":"info","ts":1.0,"logger":"admin","msg":"m","origins":["//a","//a"]}'
+        one = b'{"level":"info","ts":1.0,"logger":"admin","msg":"m","origins":["//a"]}'
+        self.assertNotEqual(canon.canonicalize(dup, P), canon.canonicalize(one, P))
+        # changed/removed origin, changed msg, changed level/logger all survive
+        for mutated in (
+            b'{"level":"info","ts":1.0,"logger":"admin","msg":"started","origins":["//localhost:2019","//[::1]:2019"]}',
+            b'{"level":"info","ts":1.0,"logger":"admin","msg":"stopped","origins":["//localhost:2019","//[::1]:2019","//127.0.0.1:2019"]}',
+            b'{"level":"error","ts":1.0,"logger":"admin","msg":"started","origins":["//localhost:2019","//[::1]:2019","//127.0.0.1:2019"]}',
+            b'{"level":"info","ts":1.0,"logger":"http","msg":"started","origins":["//localhost:2019","//[::1]:2019","//127.0.0.1:2019"]}',
+        ):
+            self.assertNotEqual(canon.canonicalize(base, P), canon.canonicalize(mutated, P))
+
+    def test_caddy_policy_leaves_unrelated_and_malformed_untouched(self):
+        P = "caddy-go-test-v1"
+        # an unrelated JSON object that merely has a "ts" field (no zap schema) is untouched
+        unrelated_a = b'{"ts":123,"data":"x"}'
+        unrelated_b = b'{"ts":999,"data":"x"}'
+        self.assertEqual(canon.canonicalize(unrelated_a, P), unrelated_a)
+        self.assertNotEqual(canon.canonicalize(unrelated_a, P), canon.canonicalize(unrelated_b, P))
+        # malformed JSON is byte-identical
+        bad = b'{"level":"info","ts":1.0,"logger":"admin","msg":'
+        self.assertEqual(canon.canonicalize(bad, P), bad)
+        # a plain go-test line is untouched by the zap canon (only duration normalized)
+        self.assertEqual(canon.canonicalize(b"?   \tpkg\t[no test files]", P), b"?   \tpkg\t[no test files]")
+
+    def test_caddy_policy_does_not_reorder_lines(self):
+        # residual goroutine LINE interleaving must remain observable (nondeterministic)
+        P = "caddy-go-test-v1"
+        l1 = b'{"level":"info","ts":1.0,"logger":"admin","msg":"started"}'
+        l2 = b'{"level":"info","ts":2.0,"logger":"admin","msg":"stopped"}'
+        self.assertNotEqual(canon.canonicalize(l1 + b"\n" + l2, P),
+                            canon.canonicalize(l2 + b"\n" + l1, P))
 
     def test_vitest_per_file_duration_normalized(self):
         # per-file trailing elapsed ("(150 tests) 110ms") is pure duration jitter
