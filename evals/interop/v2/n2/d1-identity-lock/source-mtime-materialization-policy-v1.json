@@ -1,0 +1,26 @@
+{
+  "applicable_case_ids": {
+    "repo-requests": "2000-01-01T00:00:00Z"
+  },
+  "policy_identity": "n2d1b-repo-requests-source-mtime-materialization-v1",
+  "policy_sha256": "148c783da27778c8712801f89658929b787b8cfa181db5968037cf1a72d42bf8",
+  "policy_type": "n2d1b-source-mtime-materialization-policy-v1",
+  "prohibited_workarounds": [
+    "patching requests' own tests/test_utils.py individually",
+    "applying this policy to any case other than the ones listed in applicable_case_ids",
+    "changing file bytes, paths, permission bits, or symlink targets",
+    "using a timestamp that is not a fixed, single, documented value shared by both captures"
+  ],
+  "rationale": "The durable N2-D0 source tar preserves (or was built with) mtime=0 (Unix epoch, 1970-01-01) for every extracted file. Python's zipfile.ZipInfo rejects any date_time[0] < 1980 ('ZIP does not support timestamps before 1980') -- confirmed against real CI run 29547420247's artifact bytes: repo-requests' own test_zipped_paths_extracted failed with exactly this ValueError. This is a genuine acquisition-metadata incompatibility, not a defect in the requests test suite -- the fix is applied at the shared acquisition boundary (generic_capture.py, immediately after source archive hash verification and extraction, before trusted setup or confined execution), scoped to repo-requests only, never a patch to requests' own tests/test_utils.py.",
+  "requirements": [
+    "set every extracted regular file's mtime to one fixed, documented, ZIP-safe timestamp",
+    "the fixed timestamp must be safely later than 1980 in every timezone",
+    "do not change file bytes",
+    "do not change paths",
+    "do not change executable bits or other permission bits",
+    "do not dereference or rewrite symlinks (symlinks are skipped entirely)",
+    "apply the identical timestamp in capture-a and capture-b",
+    "record the exact epoch and affected-file count in the receipt",
+    "this policy cannot apply to any case_id not listed in applicable_case_ids"
+  ]
+}

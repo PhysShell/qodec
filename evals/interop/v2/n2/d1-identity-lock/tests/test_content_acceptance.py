@@ -257,6 +257,32 @@ class TestValidateCaptureContent(unittest.TestCase):
         self.assertFalse(report["checks"]["case_semantic_marker_found"])
         self.assertEqual(report["content_classification"], "rejected")
 
+    def test_real_stage2_run6_timeout_and_mtime_failure_is_rejected_end_to_end(self):
+        # D1b remediation round 2 (2026-07-17): the exact real raw.stdout
+        # final-summary shape from run 29547420247's repo-requests
+        # capture-a, AFTER the run-5 (29544801640) remediation above was
+        # applied -- the fixed content gate correctly rejected it too. Two
+        # NEW, genuine execution-environment incompatibilities caused this
+        # (four TestTimeout tests hitting an immediate ENETUNREACH instead
+        # of a socket.timeout against 10.255.255.1; test_zipped_paths_
+        # extracted hitting Python zipfile's 1980 timestamp floor against
+        # the source tar's epoch-0 mtimes) -- neither is an infrastructure-
+        # failure-signature match (no socket.bind PermissionError here), so
+        # this must be rejected purely on the summary's own failed count,
+        # exactly like a genuine upstream test regression would be.
+        stdout = (
+            b"= 5 failed, 614 passed, 15 skipped, 1 xfailed, 18 warnings in 78.62s =\n"
+        )
+        report = ca.validate_capture_content(
+            case_id="repo-requests", canonical_stream_bytes=stdout,
+            raw_stdout=stdout, raw_stderr=b"", exit_code=1,
+        )
+        self.assertFalse(report["accepted"])
+        self.assertFalse(report["checks"]["termination_allowed"])
+        self.assertFalse(report["checks"]["case_semantic_marker_found"])
+        self.assertEqual(report["content_classification"], "rejected")
+        self.assertIn("exit code 1 != 0", report["rejection_reasons"][0])
+
     def test_pytest_passed_with_one_error_is_rejected_end_to_end(self):
         stdout = b"===== 10 passed, 1 error in 1.0s =====\n"
         report = ca.validate_capture_content(

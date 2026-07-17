@@ -43,11 +43,18 @@ import gradle_canonicalizer_v2  # noqa: E402
 import maven_canonicalizer  # noqa: E402
 import network_enforcement_probe  # noqa: E402
 import receipt_contract  # noqa: E402
+import source_mtime_materialization  # noqa: E402
+import timeout_sink_probe  # noqa: E402
 import toolchain_identity  # noqa: E402
 import vstest_canonicalizer  # noqa: E402
 from sanitizer import sanitize  # noqa: E402
 
 MAXIMUM_EXTRACTED_SOURCE_BYTES = 4194304  # 4 MiB -- same durable-input cap as derive_raw_input.py
+
+SOURCE_MTIME_MATERIALIZATION_POLICY_PATH = TOOLS_DIR.parent / "source-mtime-materialization-policy-v1.json"
+_SOURCE_MTIME_MATERIALIZATION_POLICY = source_mtime_materialization.load_and_verify_policy(
+    SOURCE_MTIME_MATERIALIZATION_POLICY_PATH
+)
 
 CANONICALIZATION_POLICY_PATH = TOOLS_DIR.parent / "capture-canonicalization-policy.json"
 VSTEST_CANONICALIZATION_POLICY_PATH = TOOLS_DIR.parent / "vstest-capture-canonicalization-policy.json"
@@ -252,6 +259,22 @@ def run_one_capture(*, case_id: str, ecosystem: str, job_name: str,
     source_root = work_dir / "source"
     verify_and_extract_source(source_tar, receipt_json["normalized_archive_sha256"], source_root)
 
+    # D1b remediation round 2 (2026-07-17): applied immediately AFTER
+    # source archive hash verification + extraction, BEFORE trusted setup
+    # or confined execution -- see source_mtime_materialization.py's own
+    # module docstring for why this belongs at the shared acquisition
+    # boundary, case-scoped, never a patch to any case's own upstream test
+    # file. `None` for every case not in
+    # source_mtime_materialization.MTIME_MATERIALIZATION_AUTHORIZED_CASES.
+    source_mtime_materialization_report = None
+    if case_id in source_mtime_materialization.MTIME_MATERIALIZATION_AUTHORIZED_CASES:
+        source_mtime_materialization_report = source_mtime_materialization.materialize_source_mtimes(
+            case_id=case_id, source_root=source_root,
+        )
+        (out_dir / "source-mtime-materialization-report.json").write_text(
+            json.dumps(source_mtime_materialization_report, indent=2, sort_keys=True) + "\n"
+        )
+
     effective_argv, resolution, erratum_sha256 = resolve_effective_argv(case_id, frozen_argv, errata_path)
     if argv0_override:
         effective_argv = [argv0_override, *effective_argv[1:]]
@@ -345,6 +368,39 @@ def run_one_capture(*, case_id: str, ecosystem: str, job_name: str,
                 f"{network_enforcement_report['external_connectivity_confirmed_blocked']} "
                 f"loopback_bind_connect_confirmed_allowed="
                 f"{network_enforcement_report['loopback_bind_connect_confirmed_allowed']}"
+            )
+
+    # D1b remediation round 2 (2026-07-17): a SEPARATE, ADDITIONAL
+    # authorization layer from the network_enforcement_mode exception above
+    # -- never a broadening of it, per exact case_id
+    # (gsp.TIMEOUT_SINK_AUTHORIZED_CASES is the single source of truth,
+    # mirroring gsp.NETWORK_ENFORCEMENT_AUTHORIZED_CASES's own discipline).
+    # Sets N2D1B_TIMEOUT_SINK_TARGET in launcher_env BEFORE both the probe
+    # and the real capture run that follows, so run_confined_build.sh's own
+    # conditional veth-pair route setup is present for both -- see that
+    # script's comment block and timeout_sink_probe.py's three-probe live
+    # verification. The workload never starts if the probe fails.
+    test_network_fixture_report = None
+    if case_id in gsp.TIMEOUT_SINK_AUTHORIZED_CASES:
+        sink_target = gsp.TIMEOUT_SINK_AUTHORIZED_CASES[case_id]
+        test_network_fixture_name = gsp.TIMEOUT_SINK_TEST_NETWORK_FIXTURE_NAMES[case_id]
+        launcher_env["N2D1B_TIMEOUT_SINK_TARGET"] = sink_target
+        test_network_fixture_report = timeout_sink_probe.run_timeout_sink_checks(
+            case_id=case_id, sink_target=sink_target, test_network_fixture=test_network_fixture_name,
+            sandboy_bin=sandboy_bin, policy_path=policy_path, cwd=source_root, env=launcher_env,
+        )
+        (out_dir / "timeout-sink-probe-report.json").write_text(
+            json.dumps(test_network_fixture_report, indent=2, sort_keys=True) + "\n"
+        )
+        if not test_network_fixture_report["timeout_sink_verified"]:
+            raise GenericCaptureFailure(
+                f"{case_id}/{job_name}: test_network_fixture={test_network_fixture_name!r} failed live "
+                f"verification: sink_target_confirmed_genuine_timeout="
+                f"{test_network_fixture_report['sink_target_confirmed_genuine_timeout']} "
+                f"other_external_connectivity_confirmed_blocked="
+                f"{test_network_fixture_report['other_external_connectivity_confirmed_blocked']} "
+                f"loopback_bind_connect_confirmed_allowed="
+                f"{test_network_fixture_report['loopback_bind_connect_confirmed_allowed']}"
             )
 
     verify_relative_argv0_exists(effective_argv[0], source_root)
@@ -530,6 +586,24 @@ def run_one_capture(*, case_id: str, ecosystem: str, job_name: str,
             (json.dumps(content_report, indent=2, sort_keys=True) + "\n").encode()
         ),
         "network_enforcement_exception": network_enforcement_report,
+        # Distinct from network_enforcement_mode / network_enforcement_
+        # exception above by design -- a separate, additional authorization
+        # layer (D1b remediation round 2, 2026-07-17), never silently folded
+        # into the existing loopback-only exception. `test_network_fixture`
+        # is None for every case not in gsp.TIMEOUT_SINK_AUTHORIZED_CASES.
+        "test_network_fixture": (
+            gsp.TIMEOUT_SINK_TEST_NETWORK_FIXTURE_NAMES.get(case_id)
+            if test_network_fixture_report is not None else None
+        ),
+        "test_network_fixture_approval_identity": (
+            gsp.TIMEOUT_SINK_APPROVAL_IDENTITIES.get(case_id)
+            if test_network_fixture_report is not None else None
+        ),
+        "test_network_fixture_probe_report": test_network_fixture_report,
+        # D1b remediation round 2 (2026-07-17): None for every case not in
+        # source_mtime_materialization.MTIME_MATERIALIZATION_AUTHORIZED_
+        # CASES -- see that module's own docstring.
+        "source_mtime_materialization": source_mtime_materialization_report,
     }
     schema_errors = receipt_contract.validate_receipt(receipt)
     if schema_errors:

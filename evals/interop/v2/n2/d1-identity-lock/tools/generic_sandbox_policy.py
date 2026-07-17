@@ -265,6 +265,60 @@ NETWORK_ENFORCEMENT_APPROVAL_IDENTITIES = {
     "repo-requests": "n2d1b-repo-requests-loopback-only-authorization-2026-07-17",
 }
 
+# D1b remediation round 2 (2026-07-17): a SEPARATE, ADDITIONAL authorization
+# layer, never a broadening of NETWORK_ENFORCEMENT_AUTHORIZED_CASES /
+# NETWORK_ENFORCEMENT_APPROVAL_IDENTITIES above. repo-requests' frozen
+# `pytest` argv also runs four TestTimeout tests that hardcode
+# `10.255.255.1` -- the SAME address the `requests` library's own upstream
+# test suite hardcodes for exactly this "expected to time out, never
+# connect" purpose in a normal, non-sandboxed environment (not an arbitrary
+# test-suite artifact) -- and require a genuine `socket.timeout`, not an
+# immediate `OSError: [Errno 101] Network is unreachable` (confirmed via
+# real CI run 29547420247's artifact bytes: all four TestTimeout tests
+# failed with exactly this synchronous errno inside the isolated netns,
+# which has no route to that address at all).
+#
+# The fix (empirically validated via a local live probe before any
+# production change, per this task's own explicit requirement) is a
+# veth-pair route, deliberately NOT a `blackhole`/`unreachable`/`prohibit`
+# Linux route type: those return a SYNCHRONOUS errno at connect()-time
+# (the kernel's route-lookup path short-circuits before any L2
+# transmission), which is exactly the wrong semantics here. A veth pair
+# with both ends brought up but no IP address assigned to either, and a
+# directly-connected, gateway-less /32 route to the authorized target via
+# the local end, forces a genuine (never-completing) ARP resolution --
+# nothing ever answers -- so connect() genuinely blocks until the CALLER's
+# own socket.settimeout() fires, independent of any kernel-level ARP-
+# failure timeout. See run_confined_build.sh's own conditional route setup
+# (gated on the N2D1B_TIMEOUT_SINK_TARGET env var) and
+# timeout_sink_probe.py's three-probe live verification.
+#
+# Authorized strictly per exact case_id, exactly like
+# NETWORK_ENFORCEMENT_AUTHORIZED_CASES above -- never inherited by an
+# ecosystem sibling. Maps case_id -> the single exact target IP address
+# this fixture is authorized to route (never a network range, never
+# arbitrary RFC1918 connectivity).
+TIMEOUT_SINK_AUTHORIZED_CASES = {
+    "repo-requests": "10.255.255.1",
+}
+
+# Approving-decision identities for each timeout-sink authorization above --
+# mirrors NETWORK_ENFORCEMENT_APPROVAL_IDENTITIES's own pattern, but
+# recorded under its own distinct name so the two authorization layers are
+# never conflated in the receipt or in review.
+TIMEOUT_SINK_APPROVAL_IDENTITIES = {
+    "repo-requests": "n2d1b-repo-requests-timeout-sink-v1-authorization-2026-07-17",
+}
+
+# The receipt's own `test_network_fixture` field value for each authorized
+# case_id -- distinct from `network_enforcement_mode` (see generic_capture.
+# py's receipt-building comment). Named per-fixture (not merely "v1") so a
+# future, differently-scoped timeout-sink fixture for another case_id would
+# get its own name here, never silently reusing this one.
+TIMEOUT_SINK_TEST_NETWORK_FIXTURE_NAMES = {
+    "repo-requests": "repo-requests-timeout-sink-v1",
+}
+
 
 def _toml_str_list(paths: list[Path]) -> str:
     return "[" + ", ".join(f'"{p}"' for p in paths) + "]"
