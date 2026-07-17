@@ -183,6 +183,17 @@ def acquire_swebench_test(scen: dict, workroot: Path) -> dict:
         result["resolved_raw_argv"] = ["npx", runner]
         result["resolved_rtk_argv"] = ["rtk", runner]
         result["js_test_runner"] = runner
+    if scen["command_family"] == "jvm":
+        # detect Maven vs Gradle (e.g. apache/lucene uses Gradle, not Maven)
+        if (workroot / "pom.xml").exists():
+            build_sys, raw, rtk = "maven", ["mvn", scen["command_subfamily"]], ["rtk", "mvn", scen["command_subfamily"]]
+        elif (workroot / "gradlew").exists() or (workroot / "build.gradle").exists() or (workroot / "build.gradle.kts").exists():
+            build_sys, raw, rtk = "gradle", ["./gradlew", scen["command_subfamily"]], ["rtk", "gradlew", scen["command_subfamily"]]
+        else:
+            build_sys, raw, rtk = "unknown", scen["original_argv"], scen["explicit_rtk_argv"]
+        result["jvm_build_system"] = build_sys
+        result["resolved_raw_argv"] = raw
+        result["resolved_rtk_argv"] = rtk
     return result
 
 
