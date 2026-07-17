@@ -44,6 +44,18 @@ N2D1_CONTRACT_PATH = IDENTITY_LOCK_DIR / "n2d1-contract.json"
 RTK_APPLICABILITY_MAP_PATH = IDENTITY_LOCK_DIR / "rtk-applicability-map-v1.json"
 N2D2_REPORT_PATH = IDENTITY_LOCK_DIR / "n2d2-determinism-canary-report-v1.json"
 N2D3_BENCHMARK_PATH = IDENTITY_LOCK_DIR / "n2d3-primary-token-benchmark-v1.json"
+N2D_RUN_JOBS_MANIFEST_PATH = IDENTITY_LOCK_DIR / "n2d-run-29575975971-jobs-manifest-v1.json"
+N2D_RUN_ARTIFACTS_MANIFEST_PATH = IDENTITY_LOCK_DIR / "n2d-run-29575975971-artifacts-manifest-v1.json"
+N2D_TRIGGER_PATCH_PROOF_PATH = IDENTITY_LOCK_DIR / "n2d-trigger-patch-proof-v1.json"
+N2D3_LEG_EVIDENCE_PATH = IDENTITY_LOCK_DIR / "n2d3-run-29575975971-leg-evidence-v1.json"
+N2D3_WEIGHTED_BOOTSTRAP_SUPPLEMENT_PATH = IDENTITY_LOCK_DIR / "n2d3-weighted-total-bootstrap-supplement-v1.json"
+
+N2D_RUN_EVIDENCE_IMPLEMENTATION_SHA = "0abdde6723574e908415835612e8f520d85c33e7"
+N2D_RUN_EVIDENCE_TRIGGER_SHA = "46a7986967c1837797f5edc32e79122d839c3de3"
+N2D_RUN_EVIDENCE_RUN_ID = 29575975971
+N2D_RUN_EVIDENCE_TRIGGER_BRANCH = "n2d/ci-trigger-full-run"
+N2D_RUN_EVIDENCE_ORIGINALLY_REQUESTED_BOOTSTRAP_SEED = 20260717
+N2D_RUN_EVIDENCE_CANONICAL_BOOTSTRAP_SEED = 20260716
 
 N2D_BASE_MAIN_SHA = "6be63689c1553c4a97411f9d6fbb733ee87ebf34"
 REQUIRED_STAGE2_RECORD_SHA256 = "sha256:1c722a31b836dbe1f68b6c4fb9d224f70077859772121cfc636076160ae8b6cd"
@@ -184,6 +196,90 @@ def _build_rtk_applicability_map_link() -> dict:
         "cargo_test_filter_verified_deterministic": True,
         "log_filter_prohibited": True,
         "verified_by_its_own_verifier_at_build_time": True,
+    }
+
+
+def _n2d_run_evidence_link() -> dict | None:
+    """Links (and re-verifies) the evidence-only closure for CI run
+    29575975971: the jobs manifest, artifacts manifest, trigger patch
+    proof, N2-D3 leg-evidence record, and the separate weighted-total
+    bootstrap reporting supplement. Never copies per-job/per-artifact/
+    per-case content here; only paths, each record's own independently
+    recomputed self-hash, and the two verifiers' pass/fail outcome. This
+    does not modify QODEC/RTK runtime, the input bundle, the benchmark
+    workflow, the applicability map, any measurement row, implementation
+    SHA 0abdde6, or any canonical token count -- it only adds proof around
+    the already-accepted n2d3-primary-token-benchmark-v1.json."""
+    if not (
+        N2D_RUN_JOBS_MANIFEST_PATH.is_file()
+        and N2D_RUN_ARTIFACTS_MANIFEST_PATH.is_file()
+        and N2D_TRIGGER_PATCH_PROOF_PATH.is_file()
+        and N2D3_LEG_EVIDENCE_PATH.is_file()
+        and N2D3_WEIGHTED_BOOTSTRAP_SUPPLEMENT_PATH.is_file()
+    ):
+        return None
+
+    import verify_n2d3_weighted_bootstrap_supplement
+    import verify_n2d_run_evidence
+
+    ok, message = verify_n2d_run_evidence.verify()
+    if not ok:
+        raise RuntimeError(f"n2d run evidence (run {N2D_RUN_EVIDENCE_RUN_ID}) failed its own verifier: {message}")
+    supp_ok, supp_message = verify_n2d3_weighted_bootstrap_supplement.verify()
+    if not supp_ok:
+        raise RuntimeError(f"n2d3 weighted-total bootstrap supplement failed its own verifier: {supp_message}")
+
+    jobs = json.loads(N2D_RUN_JOBS_MANIFEST_PATH.read_text())
+    artifacts = json.loads(N2D_RUN_ARTIFACTS_MANIFEST_PATH.read_text())
+    trigger_proof = json.loads(N2D_TRIGGER_PATCH_PROOF_PATH.read_text())
+    leg_evidence = json.loads(N2D3_LEG_EVIDENCE_PATH.read_text())
+    supplement = json.loads(N2D3_WEIGHTED_BOOTSTRAP_SUPPLEMENT_PATH.read_text())
+
+    return {
+        "run_id": N2D_RUN_EVIDENCE_RUN_ID,
+        "trigger_branch": N2D_RUN_EVIDENCE_TRIGGER_BRANCH,
+        "trigger_sha": N2D_RUN_EVIDENCE_TRIGGER_SHA,
+        "implementation_sha": N2D_RUN_EVIDENCE_IMPLEMENTATION_SHA,
+        "jobs_manifest": {
+            "record_path": "evals/interop/v2/n2/d1-identity-lock/n2d-run-29575975971-jobs-manifest-v1.json",
+            "record_sha256": jobs["record_sha256"],
+            "job_count": jobs["job_count"],
+        },
+        "artifacts_manifest": {
+            "record_path": "evals/interop/v2/n2/d1-identity-lock/n2d-run-29575975971-artifacts-manifest-v1.json",
+            "record_sha256": artifacts["record_sha256"],
+            "artifact_count": artifacts["artifact_count"],
+        },
+        "trigger_patch_proof": {
+            "record_path": "evals/interop/v2/n2/d1-identity-lock/n2d-trigger-patch-proof-v1.json",
+            "record_sha256": trigger_proof["record_sha256"],
+            "additive_only": trigger_proof["additive_only"],
+        },
+        "leg_evidence": {
+            "record_path": "evals/interop/v2/n2/d1-identity-lock/n2d3-run-29575975971-leg-evidence-v1.json",
+            "record_sha256": leg_evidence["record_sha256"],
+            "case_count": leg_evidence["case_count"],
+        },
+        "weighted_bootstrap_supplement": {
+            "record_path": "evals/interop/v2/n2/d1-identity-lock/n2d3-weighted-total-bootstrap-supplement-v1.json",
+            "record_sha256": supplement["record_sha256"],
+            "canonical": supplement["canonical"],
+        },
+        "bootstrap_seed_deviation": {
+            "originally_requested_seed": N2D_RUN_EVIDENCE_ORIGINALLY_REQUESTED_BOOTSTRAP_SEED,
+            "canonical_record_committed_seed": N2D_RUN_EVIDENCE_CANONICAL_BOOTSTRAP_SEED,
+            "accepted_as_predeclared_deviation": True,
+            "reason": (
+                f"seed {N2D_RUN_EVIDENCE_CANONICAL_BOOTSTRAP_SEED} was committed in implementation SHA "
+                f"{N2D_RUN_EVIDENCE_IMPLEMENTATION_SHA} before the canonical CI run that produced "
+                "n2d3-primary-token-benchmark-v1.json, so it is accepted as a predeclared deviation from the "
+                f"earlier-requested seed {N2D_RUN_EVIDENCE_ORIGINALLY_REQUESTED_BOOTSTRAP_SEED}; the canonical "
+                "record's seed was NOT changed post-run. The weighted-total bootstrap supplement is a fresh, "
+                f"separate computation unconstrained by that deviation, so it uses seed "
+                f"{N2D_RUN_EVIDENCE_ORIGINALLY_REQUESTED_BOOTSTRAP_SEED}."
+            ),
+        },
+        "verified_by_its_own_verifiers_at_build_time": True,
     }
 
 
@@ -355,6 +451,7 @@ def build_record() -> dict:
         "n2d3_gate_status": n2d3_gate_status,
         "n2d3_benchmark_link": n2d3_link,
         "token_counts_computed": token_counts_computed,
+        "n2d_run_evidence": _n2d_run_evidence_link(),
         "not_yet_authorized": [
             "model-based quality evaluation",
             "leaderboard construction",

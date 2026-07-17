@@ -36,6 +36,13 @@ REQUIRED_RTK_BINARY_SHA256 = "41f316adf7b30a568208a0a4f824bffb266ecb6d01bd9de81b
 REQUIRED_RTK_SOURCE_SHA = "5d32d0736f686b69d1e8b9dc45c007d4eb77a0a2"
 REQUIRED_LIVE_CAPTURE_WORKFLOW_RUN_ID = 29553837144
 
+REQUIRED_N2D_RUN_EVIDENCE_IMPLEMENTATION_SHA = "0abdde6723574e908415835612e8f520d85c33e7"
+REQUIRED_N2D_RUN_EVIDENCE_TRIGGER_SHA = "46a7986967c1837797f5edc32e79122d839c3de3"
+REQUIRED_N2D_RUN_EVIDENCE_RUN_ID = 29575975971
+REQUIRED_N2D_RUN_EVIDENCE_TRIGGER_BRANCH = "n2d/ci-trigger-full-run"
+REQUIRED_N2D_RUN_EVIDENCE_ORIGINALLY_REQUESTED_BOOTSTRAP_SEED = 20260717
+REQUIRED_N2D_RUN_EVIDENCE_CANONICAL_BOOTSTRAP_SEED = 20260716
+
 REQUIRED_18_CASE_IDS = [
     "n2a-miner-canary",
     "bot-dependabot-black-5206", "bot-syzbot-do-mkdirat", "ci-log-jansson",
@@ -290,6 +297,67 @@ def verify(record_path: Path = RECORD_PATH) -> tuple[bool, str]:
             return False, "n2d3_gate_status=='passed' but the benchmark's own corpus breakdown is not 18/16/2/0"
         if n2d3_link.get("corpus") != corpus:
             return False, "n2d3_benchmark_link.corpus does not match the real committed benchmark's own corpus breakdown"
+
+    # --- n2d_run_evidence: the evidence-only closure for CI run 29575975971
+    n2d_run_evidence = record.get("n2d_run_evidence")
+    if n2d_run_evidence is not None:
+        if n2d_run_evidence.get("run_id") != REQUIRED_N2D_RUN_EVIDENCE_RUN_ID:
+            return False, "n2d_run_evidence.run_id != required run id"
+        if n2d_run_evidence.get("trigger_branch") != REQUIRED_N2D_RUN_EVIDENCE_TRIGGER_BRANCH:
+            return False, "n2d_run_evidence.trigger_branch != required trigger branch"
+        if n2d_run_evidence.get("trigger_sha") != REQUIRED_N2D_RUN_EVIDENCE_TRIGGER_SHA:
+            return False, "n2d_run_evidence.trigger_sha != required trigger sha"
+        if n2d_run_evidence.get("implementation_sha") != REQUIRED_N2D_RUN_EVIDENCE_IMPLEMENTATION_SHA:
+            return False, "n2d_run_evidence.implementation_sha != required implementation sha"
+        if n2d_run_evidence.get("verified_by_its_own_verifiers_at_build_time") is not True:
+            return False, "n2d_run_evidence.verified_by_its_own_verifiers_at_build_time must be true"
+
+        jobs_manifest_path = IDENTITY_LOCK_DIR / "n2d-run-29575975971-jobs-manifest-v1.json"
+        artifacts_manifest_path = IDENTITY_LOCK_DIR / "n2d-run-29575975971-artifacts-manifest-v1.json"
+        trigger_patch_proof_path = IDENTITY_LOCK_DIR / "n2d-trigger-patch-proof-v1.json"
+        leg_evidence_path = IDENTITY_LOCK_DIR / "n2d3-run-29575975971-leg-evidence-v1.json"
+        weighted_supplement_path = IDENTITY_LOCK_DIR / "n2d3-weighted-total-bootstrap-supplement-v1.json"
+        for path in (jobs_manifest_path, artifacts_manifest_path, trigger_patch_proof_path,
+                     leg_evidence_path, weighted_supplement_path):
+            if not path.is_file():
+                return False, f"{path} does not exist"
+
+        jobs_record = json.loads(jobs_manifest_path.read_text())
+        artifacts_record = json.loads(artifacts_manifest_path.read_text())
+        trigger_record = json.loads(trigger_patch_proof_path.read_text())
+        leg_record = json.loads(leg_evidence_path.read_text())
+        supplement_record = json.loads(weighted_supplement_path.read_text())
+
+        if n2d_run_evidence["jobs_manifest"].get("record_sha256") != jobs_record.get("record_sha256"):
+            return False, "n2d_run_evidence.jobs_manifest.record_sha256 does not match the real committed jobs manifest"
+        if n2d_run_evidence["artifacts_manifest"].get("record_sha256") != artifacts_record.get("record_sha256"):
+            return False, "n2d_run_evidence.artifacts_manifest.record_sha256 does not match the real committed artifacts manifest"
+        if n2d_run_evidence["trigger_patch_proof"].get("record_sha256") != trigger_record.get("record_sha256"):
+            return False, "n2d_run_evidence.trigger_patch_proof.record_sha256 does not match the real committed trigger patch proof"
+        if n2d_run_evidence["leg_evidence"].get("record_sha256") != leg_record.get("record_sha256"):
+            return False, "n2d_run_evidence.leg_evidence.record_sha256 does not match the real committed leg-evidence record"
+        if n2d_run_evidence["weighted_bootstrap_supplement"].get("record_sha256") != supplement_record.get("record_sha256"):
+            return False, "n2d_run_evidence.weighted_bootstrap_supplement.record_sha256 does not match the real committed supplement"
+        if n2d_run_evidence["weighted_bootstrap_supplement"].get("canonical") is not False:
+            return False, "n2d_run_evidence.weighted_bootstrap_supplement.canonical must be false"
+
+        deviation = n2d_run_evidence.get("bootstrap_seed_deviation", {})
+        if deviation.get("originally_requested_seed") != REQUIRED_N2D_RUN_EVIDENCE_ORIGINALLY_REQUESTED_BOOTSTRAP_SEED:
+            return False, "n2d_run_evidence.bootstrap_seed_deviation.originally_requested_seed != required 20260717"
+        if deviation.get("canonical_record_committed_seed") != REQUIRED_N2D_RUN_EVIDENCE_CANONICAL_BOOTSTRAP_SEED:
+            return False, "n2d_run_evidence.bootstrap_seed_deviation.canonical_record_committed_seed != required 20260716"
+        if deviation.get("accepted_as_predeclared_deviation") is not True:
+            return False, "n2d_run_evidence.bootstrap_seed_deviation.accepted_as_predeclared_deviation must be true"
+
+        sys.path.insert(0, str(TOOLS_DIR))
+        import verify_n2d3_weighted_bootstrap_supplement  # noqa: E402
+        import verify_n2d_run_evidence  # noqa: E402
+        run_ok, run_msg = verify_n2d_run_evidence.verify()
+        if not run_ok:
+            return False, f"n2d run evidence failed independent re-verification: {run_msg}"
+        supp_ok, supp_msg = verify_n2d3_weighted_bootstrap_supplement.verify()
+        if not supp_ok:
+            return False, f"weighted-total bootstrap supplement failed independent re-verification: {supp_msg}"
 
     return True, "OK"
 

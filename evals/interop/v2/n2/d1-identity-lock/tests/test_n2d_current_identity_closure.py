@@ -251,6 +251,96 @@ class TestMutationsAreCaught(unittest.TestCase):
         self.assertFalse(ok)
         self.assertIn("n2d3_benchmark_link.corpus", message)
 
+    def test_n2d_run_evidence_run_id_wrong_fails(self):
+        ok, message = self._verify_mutated_record(
+            lambda r: r["n2d_run_evidence"].__setitem__("run_id", 1)
+        )
+        self.assertFalse(ok)
+        self.assertIn("n2d_run_evidence.run_id", message)
+
+    def test_n2d_run_evidence_trigger_sha_wrong_fails(self):
+        ok, message = self._verify_mutated_record(
+            lambda r: r["n2d_run_evidence"].__setitem__("trigger_sha", "0" * 40)
+        )
+        self.assertFalse(ok)
+        self.assertIn("n2d_run_evidence.trigger_sha", message)
+
+    def test_n2d_run_evidence_implementation_sha_wrong_fails(self):
+        ok, message = self._verify_mutated_record(
+            lambda r: r["n2d_run_evidence"].__setitem__("implementation_sha", "1" * 40)
+        )
+        self.assertFalse(ok)
+        self.assertIn("n2d_run_evidence.implementation_sha", message)
+
+    def test_n2d_run_evidence_jobs_manifest_link_sha256_mismatch_fails(self):
+        ok, message = self._verify_mutated_record(
+            lambda r: r["n2d_run_evidence"]["jobs_manifest"].__setitem__("record_sha256", "sha256:" + "2" * 64)
+        )
+        self.assertFalse(ok)
+        self.assertIn("jobs_manifest", message)
+
+    def test_n2d_run_evidence_artifacts_manifest_link_sha256_mismatch_fails(self):
+        ok, message = self._verify_mutated_record(
+            lambda r: r["n2d_run_evidence"]["artifacts_manifest"].__setitem__("record_sha256", "sha256:" + "3" * 64)
+        )
+        self.assertFalse(ok)
+        self.assertIn("artifacts_manifest", message)
+
+    def test_n2d_run_evidence_trigger_patch_proof_link_sha256_mismatch_fails(self):
+        ok, message = self._verify_mutated_record(
+            lambda r: r["n2d_run_evidence"]["trigger_patch_proof"].__setitem__("record_sha256", "sha256:" + "4" * 64)
+        )
+        self.assertFalse(ok)
+        self.assertIn("trigger_patch_proof", message)
+
+    def test_n2d_run_evidence_leg_evidence_link_sha256_mismatch_fails(self):
+        ok, message = self._verify_mutated_record(
+            lambda r: r["n2d_run_evidence"]["leg_evidence"].__setitem__("record_sha256", "sha256:" + "5" * 64)
+        )
+        self.assertFalse(ok)
+        self.assertIn("leg_evidence", message)
+
+    def test_n2d_run_evidence_weighted_supplement_link_sha256_mismatch_fails(self):
+        ok, message = self._verify_mutated_record(
+            lambda r: r["n2d_run_evidence"]["weighted_bootstrap_supplement"].__setitem__(
+                "record_sha256", "sha256:" + "6" * 64
+            )
+        )
+        self.assertFalse(ok)
+        self.assertIn("weighted_bootstrap_supplement", message)
+
+    def test_n2d_run_evidence_weighted_supplement_canonical_flipped_true_fails(self):
+        ok, message = self._verify_mutated_record(
+            lambda r: r["n2d_run_evidence"]["weighted_bootstrap_supplement"].__setitem__("canonical", True)
+        )
+        self.assertFalse(ok)
+        self.assertIn("canonical", message)
+
+    def test_n2d_run_evidence_bootstrap_seed_deviation_tampered_fails(self):
+        ok, message = self._verify_mutated_record(
+            lambda r: r["n2d_run_evidence"]["bootstrap_seed_deviation"].__setitem__(
+                "originally_requested_seed", 1
+            )
+        )
+        self.assertFalse(ok)
+        self.assertIn("bootstrap_seed_deviation", message)
+
+    def test_n2d_run_evidence_bootstrap_seed_deviation_not_accepted_fails(self):
+        ok, message = self._verify_mutated_record(
+            lambda r: r["n2d_run_evidence"]["bootstrap_seed_deviation"].__setitem__(
+                "accepted_as_predeclared_deviation", False
+            )
+        )
+        self.assertFalse(ok)
+        self.assertIn("accepted_as_predeclared_deviation", message)
+
+    def test_n2d_run_evidence_not_verified_at_build_time_fails(self):
+        ok, message = self._verify_mutated_record(
+            lambda r: r["n2d_run_evidence"].__setitem__("verified_by_its_own_verifiers_at_build_time", False)
+        )
+        self.assertFalse(ok)
+        self.assertIn("verified_by_its_own_verifiers_at_build_time", message)
+
 
 if __name__ == "__main__":
     unittest.main()

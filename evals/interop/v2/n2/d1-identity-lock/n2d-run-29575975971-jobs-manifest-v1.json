@@ -1,0 +1,259 @@
+{
+  "head_branch": "n2d/ci-trigger-full-run",
+  "head_sha": "46a7986967c1837797f5edc32e79122d839c3de3",
+  "job_count": 41,
+  "jobs": [
+    {
+      "conclusion": "success",
+      "id": 87870384663,
+      "name": "n2d2-canary-leg-b",
+      "status": "completed"
+    },
+    {
+      "conclusion": "success",
+      "id": 87870384670,
+      "name": "rtk-determinism-probes",
+      "status": "completed"
+    },
+    {
+      "conclusion": "success",
+      "id": 87870384680,
+      "name": "n2d2-canary-leg-a",
+      "status": "completed"
+    },
+    {
+      "conclusion": "success",
+      "id": 87871893888,
+      "name": "n2d2-combine",
+      "status": "completed"
+    },
+    {
+      "conclusion": "success",
+      "id": 87871918169,
+      "name": "n2d3-measure (bot-dependabot-black-5206, a, 30, 1200)",
+      "status": "completed"
+    },
+    {
+      "conclusion": "success",
+      "id": 87871918196,
+      "name": "n2d3-measure (bot-syzbot-do-mkdirat, b, 30, 1200)",
+      "status": "completed"
+    },
+    {
+      "conclusion": "success",
+      "id": 87871918199,
+      "name": "n2d3-measure (ci-log-jansson, b, 30, 1200)",
+      "status": "completed"
+    },
+    {
+      "conclusion": "success",
+      "id": 87871918209,
+      "name": "n2d3-measure (bot-syzbot-do-mkdirat, a, 30, 1200)",
+      "status": "completed"
+    },
+    {
+      "conclusion": "success",
+      "id": 87871918217,
+      "name": "n2d3-measure (ci-log-spdlog, b, 30, 1200)",
+      "status": "completed"
+    },
+    {
+      "conclusion": "success",
+      "id": 87871918241,
+      "name": "n2d3-measure (n2a-miner-canary, b, 30, 1200)",
+      "status": "completed"
+    },
+    {
+      "conclusion": "success",
+      "id": 87871918245,
+      "name": "n2d3-measure (ci-log-jansson, a, 30, 1200)",
+      "status": "completed"
+    },
+    {
+      "conclusion": "success",
+      "id": 87871918250,
+      "name": "n2d3-measure (dataset-loghub-v8, a, 30, 1200)",
+      "status": "completed"
+    },
+    {
+      "conclusion": "success",
+      "id": 87871918263,
+      "name": "n2d3-measure (dataset-rtn-traffic-ids, a, 240, 5400)",
+      "status": "completed"
+    },
+    {
+      "conclusion": "success",
+      "id": 87871918264,
+      "name": "n2d3-measure (ci-log-nlog, a, 30, 1200)",
+      "status": "completed"
+    },
+    {
+      "conclusion": "success",
+      "id": 87871918276,
+      "name": "n2d3-measure (repo-pyflakes, a, 30, 1200)",
+      "status": "completed"
+    },
+    {
+      "conclusion": "success",
+      "id": 87871918282,
+      "name": "n2d3-measure (ci-log-nlog, b, 30, 1200)",
+      "status": "completed"
+    },
+    {
+      "conclusion": "success",
+      "id": 87871918288,
+      "name": "n2d3-measure (repo-kubeops-generator, a, 30, 1200)",
+      "status": "completed"
+    },
+    {
+      "conclusion": "success",
+      "id": 87871918289,
+      "name": "n2d3-measure (repo-docker-java-parser, b, 30, 1200)",
+      "status": "completed"
+    },
+    {
+      "conclusion": "success",
+      "id": 87871918295,
+      "name": "n2d3-measure (bot-dependabot-black-5206, b, 30, 1200)",
+      "status": "completed"
+    },
+    {
+      "conclusion": "success",
+      "id": 87871918300,
+      "name": "n2d3-measure (ci-log-spdlog, a, 30, 1200)",
+      "status": "completed"
+    },
+    {
+      "conclusion": "success",
+      "id": 87871918320,
+      "name": "n2d3-measure (dataset-rtn-traffic-ids, b, 240, 5400)",
+      "status": "completed"
+    },
+    {
+      "conclusion": "success",
+      "id": 87871918340,
+      "name": "n2d3-measure (repo-kubeops-generator, b, 30, 1200)",
+      "status": "completed"
+    },
+    {
+      "conclusion": "success",
+      "id": 87871918341,
+      "name": "n2d3-measure (repo-requests, a, 30, 1200)",
+      "status": "completed"
+    },
+    {
+      "conclusion": "success",
+      "id": 87871918345,
+      "name": "n2d3-measure (dataset-loghub-v8, b, 30, 1200)",
+      "status": "completed"
+    },
+    {
+      "conclusion": "success",
+      "id": 87871918351,
+      "name": "n2d3-measure (repo-helm-values, a, 30, 1200)",
+      "status": "completed"
+    },
+    {
+      "conclusion": "success",
+      "id": 87871918353,
+      "name": "n2d3-measure (repo-rustlings, b, 30, 1200)",
+      "status": "completed"
+    },
+    {
+      "conclusion": "success",
+      "id": 87871918354,
+      "name": "n2d3-measure (repo-rustlings, a, 30, 1200)",
+      "status": "completed"
+    },
+    {
+      "conclusion": "success",
+      "id": 87871918356,
+      "name": "n2d3-measure (repo-helm-values, b, 30, 1200)",
+      "status": "completed"
+    },
+    {
+      "conclusion": "success",
+      "id": 87871918358,
+      "name": "n2d3-measure (repo-pyflakes, b, 30, 1200)",
+      "status": "completed"
+    },
+    {
+      "conclusion": "success",
+      "id": 87871918361,
+      "name": "n2d3-measure (repo-dockerfile-parser-rs, a, 30, 1200)",
+      "status": "completed"
+    },
+    {
+      "conclusion": "success",
+      "id": 87871918362,
+      "name": "n2d3-measure (research-corpus-loghub2, b, 30, 1200)",
+      "status": "completed"
+    },
+    {
+      "conclusion": "success",
+      "id": 87871918386,
+      "name": "n2d3-measure (repo-moshi, b, 30, 1200)",
+      "status": "completed"
+    },
+    {
+      "conclusion": "success",
+      "id": 87871918387,
+      "name": "n2d3-measure (repo-requests, b, 30, 1200)",
+      "status": "completed"
+    },
+    {
+      "conclusion": "success",
+      "id": 87871918389,
+      "name": "n2d3-measure (repo-dockerfile-parser-rs, b, 30, 1200)",
+      "status": "completed"
+    },
+    {
+      "conclusion": "success",
+      "id": 87871918391,
+      "name": "n2d3-measure (repo-docker-java-parser, a, 30, 1200)",
+      "status": "completed"
+    },
+    {
+      "conclusion": "success",
+      "id": 87871918393,
+      "name": "n2d3-measure (n2a-miner-canary, a, 30, 1200)",
+      "status": "completed"
+    },
+    {
+      "conclusion": "success",
+      "id": 87871918397,
+      "name": "n2d3-measure (repo-hyperfine, a, 30, 1200)",
+      "status": "completed"
+    },
+    {
+      "conclusion": "success",
+      "id": 87871918415,
+      "name": "n2d3-measure (repo-hyperfine, b, 30, 1200)",
+      "status": "completed"
+    },
+    {
+      "conclusion": "success",
+      "id": 87871918442,
+      "name": "n2d3-measure (repo-moshi, a, 30, 1200)",
+      "status": "completed"
+    },
+    {
+      "conclusion": "success",
+      "id": 87871918479,
+      "name": "n2d3-measure (research-corpus-loghub2, a, 30, 1200)",
+      "status": "completed"
+    },
+    {
+      "conclusion": "success",
+      "id": 87884150234,
+      "name": "n2d3-aggregate",
+      "status": "completed"
+    }
+  ],
+  "record_sha256": "sha256:b8e522b2e64b4550e018e37325577e9d8cb5e6830ca5f51e9c650c8638292012",
+  "record_type": "n2d-run-jobs-manifest-v1",
+  "record_version": 1,
+  "run_id": 29575975971,
+  "schema_version": 1,
+  "workflow_name": "qodec-n2d-canary-benchmark"
+}

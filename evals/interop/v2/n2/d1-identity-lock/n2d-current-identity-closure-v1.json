@@ -269,6 +269,44 @@
     "record_sha256": "sha256:c00d2ff8f4883c964fbd05d46840763826806ea73357511e6f38a882aaf0e1cd"
   },
   "n2d3_gate_status": "passed",
+  "n2d_run_evidence": {
+    "artifacts_manifest": {
+      "artifact_count": 41,
+      "record_path": "evals/interop/v2/n2/d1-identity-lock/n2d-run-29575975971-artifacts-manifest-v1.json",
+      "record_sha256": "sha256:ea55b2990a81df44692ee5b5fcba125f84072bfa9afef076897224ece649c9d2"
+    },
+    "bootstrap_seed_deviation": {
+      "accepted_as_predeclared_deviation": true,
+      "canonical_record_committed_seed": 20260716,
+      "originally_requested_seed": 20260717,
+      "reason": "seed 20260716 was committed in implementation SHA 0abdde6723574e908415835612e8f520d85c33e7 before the canonical CI run that produced n2d3-primary-token-benchmark-v1.json, so it is accepted as a predeclared deviation from the earlier-requested seed 20260717; the canonical record's seed was NOT changed post-run. The weighted-total bootstrap supplement is a fresh, separate computation unconstrained by that deviation, so it uses seed 20260717."
+    },
+    "implementation_sha": "0abdde6723574e908415835612e8f520d85c33e7",
+    "jobs_manifest": {
+      "job_count": 41,
+      "record_path": "evals/interop/v2/n2/d1-identity-lock/n2d-run-29575975971-jobs-manifest-v1.json",
+      "record_sha256": "sha256:b8e522b2e64b4550e018e37325577e9d8cb5e6830ca5f51e9c650c8638292012"
+    },
+    "leg_evidence": {
+      "case_count": 18,
+      "record_path": "evals/interop/v2/n2/d1-identity-lock/n2d3-run-29575975971-leg-evidence-v1.json",
+      "record_sha256": "sha256:61b0d39423fce7ab8188ab83eba1835e42017af0a80a02df426dceda1924b358"
+    },
+    "run_id": 29575975971,
+    "trigger_branch": "n2d/ci-trigger-full-run",
+    "trigger_patch_proof": {
+      "additive_only": true,
+      "record_path": "evals/interop/v2/n2/d1-identity-lock/n2d-trigger-patch-proof-v1.json",
+      "record_sha256": "sha256:f13f0f75570be65e6903c9f9405e4c4ec273d4c67705ffedc42ebb5d7ed9bad3"
+    },
+    "trigger_sha": "46a7986967c1837797f5edc32e79122d839c3de3",
+    "verified_by_its_own_verifiers_at_build_time": true,
+    "weighted_bootstrap_supplement": {
+      "canonical": false,
+      "record_path": "evals/interop/v2/n2/d1-identity-lock/n2d3-weighted-total-bootstrap-supplement-v1.json",
+      "record_sha256": "sha256:c8612d1cc48c700cb08b09607cc26cb363cfcf1c4109005ee09afecb853fc2fe"
+    }
+  },
   "not_yet_authorized": [
     "model-based quality evaluation",
     "leaderboard construction",
@@ -296,7 +334,7 @@
     "qodec_tree_sha": "0cb1ac5ea13d6333365ee98273e402c03b8d1aade2a0ce3d64bd602dbc638e0b",
     "rust_toolchain_requested_file_sha256": "f72fb053f443640dd84234abf7450e350015972506de06a4ed22e8b0df3f6bcb"
   },
-  "record_sha256": "sha256:86f9e9272a820ea542083b0f75bf1415d03bb6f75e3fcc6cf5f4dc913b0f77a7",
+  "record_sha256": "sha256:9f05903013c3c41ac644a549a23337d4cf7640f5da1e7c62fd6ef6cd6aff01db",
   "record_type": "n2d-current-identity-closure-v1",
   "record_version": 1,
   "repo_spotless_status": {
