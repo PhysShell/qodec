@@ -25,6 +25,7 @@ import argparse
 import hashlib
 import json
 import os
+import platform
 import shutil
 import subprocess
 import sys
@@ -59,6 +60,141 @@ def _git_env(home: Path | None = None) -> dict:
     if home:
         e["HOME"] = str(home)
     return e
+
+
+# ---- correction #2: exact environment identity + protected-file mutation guards ----
+_PROTECTED_FILES = {
+    "rust_cargo": ["Cargo.lock", "Cargo.toml"],
+    "go": ["go.mod", "go.sum"],
+    "js_ts": ["package.json", "pnpm-lock.yaml", "package-lock.json", "yarn.lock"],
+    "python": ["requirements.txt", "setup.py", "setup.cfg", "pyproject.toml", "poetry.lock"],
+    "jvm": ["build.gradle", "build.gradle.kts", "settings.gradle", "gradle.lockfile", "pom.xml"],
+}
+_TOOL_VERSION_ARGV = {"rustc": ["-Vv"], "cargo": ["--version"], "go": ["version"],
+                      "node": ["--version"], "corepack": ["--version"], "java": ["-version"],
+                      "python3": ["-VV"], "pip": ["--version"]}
+
+
+def _tool_identity(exe: str, path: str | None = None) -> dict:
+    path = path or shutil.which(exe)
+    if not path or not Path(path).exists():
+        return {"present": False}
+    try:
+        p = subprocess.run([path] + _TOOL_VERSION_ARGV.get(exe, ["--version"]),
+                           capture_output=True, text=True, timeout=60)
+        ver = (p.stdout + p.stderr).strip()
+    except Exception as e:  # noqa: BLE001
+        ver = f"<version error: {e}>"
+    return {"present": True, "path": path, "sha256": c.sha256_file(path), "version": ver}
+
+
+def _toolchain_identity(fam: str, repo_dir: Path) -> dict:
+    tc: dict = {}
+    if fam == "rust_cargo":
+        tc["rustc"], tc["cargo"] = _tool_identity("rustc"), _tool_identity("cargo")
+    elif fam == "go":
+        tc["go"] = _tool_identity("go")
+    elif fam == "js_ts":
+        tc["node"], tc["corepack"] = _tool_identity("node"), _tool_identity("corepack")
+    elif fam == "python":
+        tc["python3"], tc["pip"] = _tool_identity("python3"), _tool_identity("pip")
+    elif fam == "jvm":
+        tc["java"] = _tool_identity("java")
+        gw = repo_dir / "gradlew"
+        props = repo_dir / "gradle" / "wrapper" / "gradle-wrapper.properties"
+        if gw.exists():
+            dist = None
+            if props.exists():
+                for ln in props.read_text(errors="replace").splitlines():
+                    if ln.startswith("distributionUrl"):
+                        dist = ln.split("=", 1)[1].strip()
+            tc["gradlew_or_mvn"] = {"present": True, "path": str(gw), "sha256": c.sha256_file(str(gw)),
+                                    "version": dist or "gradle-wrapper", "kind": "gradle-wrapper",
+                                    "wrapper_properties_sha256": c.sha256_file(str(props)) if props.exists() else None}
+        else:
+            tc["gradlew_or_mvn"] = _tool_identity("mvn")
+    return tc
+
+
+def _protected_hashes(repo_dir: Path, fam: str) -> dict:
+    out = {}
+    for rel in _PROTECTED_FILES.get(fam, []):
+        f = repo_dir / rel
+        out[rel] = c.sha256_file(str(f)) if f.is_file() else None
+    return out
+
+
+def _worktree_modified(repo_dir: Path, home: Path) -> list:
+    """Tracked files MODIFIED/DELETED in the worktree (untracked acquisition
+    artifacts like .egg-info or build dirs are not a mutation of frozen inputs)."""
+    p = subprocess.run(["git", "-C", str(repo_dir), "status", "--porcelain", "--untracked-files=no"],
+                       capture_output=True, text=True, env=_git_env(home))
+    return [ln for ln in p.stdout.splitlines() if ln.strip()]
+
+
+def _platform_identity(fam: str) -> dict:
+    ident = {"uname": platform.platform(), "machine": platform.machine(), "system": platform.system()}
+    if fam == "go":
+        for k in ("GOOS", "GOARCH"):
+            r = subprocess.run(["go", "env", k], capture_output=True, text=True)
+            ident[k] = r.stdout.strip()
+    if fam == "rust_cargo":
+        r = subprocess.run(["rustc", "-vV"], capture_output=True, text=True)
+        for ln in r.stdout.splitlines():
+            if ln.startswith("host:"):
+                ident["rust_target"] = ln.split(":", 1)[1].strip()
+    return ident
+
+
+def _git_acquisition_evidence(repo_dir: Path, home: Path, commit: str, sub: str,
+                              depth: int, effective_argv: list) -> dict:
+    """Correction #2 (RuboCop `git show` merge representation): capture the pinned
+    commit, its EXACT direct parent list, the fetch depth + fetched-object evidence,
+    the effective `git show` argv, and the canonical byte length + SHA-256 of the
+    output. This proves the emitted diff is the intended *merge* representation
+    (parents present -> history-relative combined diff) and not a shallow-root
+    whole-tree dump. Byte-length shrinkage alone is diagnostic, not sufficient; the
+    parent list + object count + reproducible SHA-256 are the semantic proof."""
+    ge = _git_env(home)
+
+    def _git(*args):
+        return subprocess.run(["git", "-C", str(repo_dir), *args],
+                              capture_output=True, text=True, env=ge)
+
+    parents_line = _git("rev-list", "--parents", "-n", "1", "HEAD").stdout.strip().split()
+    parents = parents_line[1:] if parents_line else []
+    commit_type = _git("cat-file", "-t", "HEAD").stdout.strip()
+    is_merge = len(parents) >= 2
+    # parents must actually be present as objects (depth>=2 guarantees this); if a
+    # parent object is missing the tip is treated as a root -> whole-tree diff.
+    parents_present = {}
+    for p in parents:
+        parents_present[p] = _git("cat-file", "-e", p).returncode == 0
+    obj_count = _git("rev-list", "--objects", "--all").stdout.count("\n")
+    ev = {
+        "pinned_commit": commit,
+        "head_matches_pin": _git("rev-parse", "HEAD").stdout.strip() == commit,
+        "commit_type": commit_type,
+        "direct_parents": parents,
+        "parent_count": len(parents),
+        "is_merge_commit": is_merge,
+        "parents_present_as_objects": parents_present,
+        "all_parents_present": bool(parents) and all(parents_present.values()),
+        "fetch_depth": depth,
+        "fetched_object_count": obj_count,
+    }
+    if sub == "show":
+        # exact effective argv + reproducible output identity for the show output
+        p = _git(*effective_argv[1:]) if effective_argv and effective_argv[0] == "git" \
+            else _git("show")
+        out = (p.stdout + p.stderr).encode("utf-8", "replace")
+        ev["show_effective_argv"] = effective_argv or ["git", "show"]
+        ev["show_output_bytes"] = len(out)
+        ev["show_output_sha256"] = hashlib.sha256(out).hexdigest()
+        ev["show_exit_code"] = p.returncode
+        ev["intended_merge_representation"] = (
+            (not is_merge) or ev["all_parents_present"])
+    return ev
 
 
 # ---- network isolation: run a child with no network + a positive denial probe ----
@@ -254,11 +390,15 @@ def acquire_git(scen, workroot):
     home = workroot / ".home"
     home.mkdir()
     repo_dir = workroot / "repo"
-    _git_fetch_checkout(f"https://github.com/{repo}.git", commit, repo_dir, home)
+    depth = 2
+    _git_fetch_checkout(f"https://github.com/{repo}.git", commit, repo_dir, home, depth=depth)
     sub = scen["command_subfamily"]
     applied = _construct_git_state(scen, repo_dir, home)
+    git_ev = _git_acquisition_evidence(repo_dir, home, commit, sub, depth,
+                                       scen.get("original_argv") or ["git", sub])
     return {"identity_verified": True, "repository": repo, "commit": commit,
             "git_state": applied, "workdir": "repo", "home_local": True,
+            "git_acquisition_evidence": git_ev,
             "policy": canon.policy_for("git", sub, git=True)}
 
 
@@ -333,11 +473,12 @@ def acquire_swebench(scen, workroot):
         pf.write_bytes(blob)
         subprocess.run(["git", "-C", str(repo_dir), "apply", str(pf)], check=True, env=_git_env(home))
         applied.append({name: hashlib.sha256(blob).hexdigest()})
-    warm, policy, offline_env, resolved = _warm_test_env(fam, sub, scen, repo_dir, home)
+    warm, policy, offline_env, resolved, env_identity = _warm_test_env(fam, sub, scen, repo_dir, home)
     return {"identity_verified": True, "repository": repo, "base_commit": base,
             "instance_id": instance_id, "applied_patches": applied, "warm": warm,
             "resolved_raw_argv": resolved.get("raw_argv"), "resolved_rtk_argv": resolved.get("rtk_argv"),
-            "offline_env": offline_env, "workdir": "repo", "home_local": True, "policy": policy}
+            "offline_env": offline_env, "environment_identity": env_identity,
+            "workdir": "repo", "home_local": True, "policy": policy}
 
 
 def acquire_bugsinpy(scen, workroot):
@@ -352,10 +493,12 @@ def acquire_bugsinpy(scen, workroot):
     home.mkdir()
     repo_dir = workroot / "repo"
     _git_fetch_checkout(f"{gh}.git", commit, repo_dir, home)
-    warm, policy, offline_env, resolved = _warm_test_env("python", scen["command_subfamily"], scen, repo_dir, home)
+    warm, policy, offline_env, resolved, env_identity = _warm_test_env(
+        "python", scen["command_subfamily"], scen, repo_dir, home)
     return {"identity_verified": True, "repository": repo, "github_url": gh, "commit": commit,
             "warm": warm, "resolved_raw_argv": resolved.get("raw_argv"), "resolved_rtk_argv": resolved.get("rtk_argv"),
-            "offline_env": offline_env, "workdir": "repo", "home_local": True, "policy": policy}
+            "offline_env": offline_env, "environment_identity": env_identity,
+            "workdir": "repo", "home_local": True, "policy": policy}
 
 
 def _warm_test_env(fam, sub, scen, repo_dir: Path, home: Path):
@@ -380,6 +523,7 @@ def _warm_test_env(fam, sub, scen, repo_dir: Path, home: Path):
             warm_extra[k] = os.environ[k]
     env = m.measurement_env(warm_extra)
     warm = {"steps": []}
+    protected_before = _protected_hashes(repo_dir, fam)  # BEFORE any warm cache-population
 
     def step(cmd, tmo=1200):
         try:
@@ -431,7 +575,20 @@ def _warm_test_env(fam, sub, scen, repo_dir: Path, home: Path):
     resolved = {"raw_argv": r["effective_raw_argv"], "rtk_argv": r["effective_rtk_argv"]}
     offline_env = r["scheduler_env"]
     warm["ok"] = all(s.get("exit") == 0 for s in warm["steps"])
-    return warm, policy, offline_env, resolved
+    protected_after = _protected_hashes(repo_dir, fam)  # AFTER acquisition/warm
+    env_identity = {
+        "toolchain": _toolchain_identity(fam, repo_dir),
+        "platform": _platform_identity(fam),
+        "dependencies": {
+            "protected_files": _PROTECTED_FILES.get(fam, []),
+            "before_acquisition": protected_before,
+            "after_acquisition": protected_after,
+            "mutation_guard_ok": protected_before == protected_after,
+        },
+        "worktree_modified_tracked": _worktree_modified(repo_dir, home),
+        "warm_commands": [{"cmd": s["cmd"], "exit": s.get("exit")} for s in warm["steps"]],
+    }
+    return warm, policy, offline_env, resolved, env_identity
 
 
 ADAPTERS = {"logs": acquire_loghub, "git": acquire_git, "files_search": acquire_git,
@@ -496,6 +653,18 @@ def main() -> int:
         if warm is not None and not warm.get("ok", True):
             emit("REJECTED_WARM", acquisition=acq, isolation=iso,
                  rejection_reasons=["offline dependency preparation (warm) failed"])
+            return 1
+        # protected-file mutation guard: a change to a frozen dependency/build input
+        # during acquisition is a typed harness rejection, even on success exit.
+        env_id = acq.get("environment_identity") or {}
+        deps = env_id.get("dependencies") or {}
+        if deps and deps.get("mutation_guard_ok") is False:
+            emit("REJECTED_MUTATION", acquisition=acq, isolation=iso,
+                 rejection_reasons=["protected dependency/build file mutated during acquisition"])
+            return 1
+        if env_id.get("worktree_modified_tracked"):
+            emit("REJECTED_MUTATION", acquisition=acq, isolation=iso,
+                 rejection_reasons=["frozen tracked worktree inputs mutated during acquisition"])
             return 1
         policy = acq["policy"]
         frozen = workroot / acq.get("workdir", ".")
