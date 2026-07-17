@@ -59,6 +59,12 @@ jobs:
           python3 tools/verify_n2e_candidate_inventory.py
           python3 tools/verify_n2e_selection.py
           python3 tools/verify_n2e_command_scenarios.py
+      - name: Verify execution contract (offline; correction #3)
+        run: |
+          cd "$N2E"
+          # self-hash + independent per-case re-derivation + _CASE_POLICY agreement
+          # (caddy MUST be the case-scoped caddy-go-test-v1, never the family generic).
+          python3 tools/verify_n2e_execution_contract.py
 
   substrate:
     runs-on: ubuntu-24.04
@@ -222,6 +228,14 @@ jobs:
         with:
           name: canary-acceptance
           path: evidence
+      - name: Execution-contract runtime checks (correction #2/#3)
+        run: |
+          cd "$N2E"
+          # per-case: effective argv derivable from the frozen contract; no family-
+          # generic canon substituted for a required case policy; membership-preserving
+          # scheduler flags only; pinned toolchain identity (sha256+version) present;
+          # protected-file mutation guard held. Offline gate re-runs first.
+          python3 tools/verify_n2e_execution_contract.py "$GITHUB_WORKSPACE/evidence"
       - name: Independent acceptance from primary evidence
         run: |
           cd "$N2E"
