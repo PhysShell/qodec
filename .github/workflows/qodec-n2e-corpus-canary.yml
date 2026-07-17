@@ -144,7 +144,13 @@ jobs:
           echo "RTK_BIN=$RTK" >> "$GITHUB_ENV"
           echo "QODEC_BIN=$QODEC" >> "$GITHUB_ENV"
       - name: Toolchains
-        run: rustup default stable 2>/dev/null || true
+        run: |
+          rustup default stable 2>/dev/null || true
+          # gradle/maven cases (e.g. lucene) require JDK 21+; the runner defaults to 17.
+          if [ -n "$JAVA_HOME_21_X64" ]; then
+            echo "JAVA_HOME=$JAVA_HOME_21_X64" >> "$GITHUB_ENV"
+            echo "$JAVA_HOME_21_X64/bin" >> "$GITHUB_PATH"
+          fi
       - name: Run canary case (RAW gate -> RTK -> oracle)
         run: |
           cd "$N2E"

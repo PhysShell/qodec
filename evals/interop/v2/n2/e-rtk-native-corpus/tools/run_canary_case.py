@@ -322,9 +322,17 @@ def acquire_bugsinpy(scen, workroot):
 def _warm_test_env(fam, sub, scen, repo_dir: Path, home: Path):
     """Install deps + prebuild during the network-enabled acquisition phase so
     the measurement runs offline. Returns (warm_evidence, raw_argv, rtk_argv, policy)."""
-    env = m.measurement_env({"HOME": str(home), "CARGO_HOME": str(home / ".cargo"),
-                             "GOFLAGS": "-mod=mod", "GOPATH": str(home / "go"),
-                             "npm_config_cache": str(home / ".npm")})
+    warm_extra = {"HOME": str(home), "CARGO_HOME": str(home / ".cargo"),
+                  "GOFLAGS": "-mod=mod", "GOPATH": str(home / "go"),
+                  "npm_config_cache": str(home / ".npm"),
+                  # HOME override hides rustup's default-toolchain config (~/.rustup);
+                  # pin the toolchain explicitly so cargo can choose one offline.
+                  "RUSTUP_TOOLCHAIN": os.environ.get("RUSTUP_TOOLCHAIN", "stable")}
+    # gradle/maven honour JAVA_HOME; forward the CI-selected JDK (lucene needs 21+).
+    for k in ("JAVA_HOME", "RUSTUP_HOME"):
+        if os.environ.get(k):
+            warm_extra[k] = os.environ[k]
+    env = m.measurement_env(warm_extra)
     warm = {"steps": []}
 
     def step(cmd, tmo=1200):
@@ -353,18 +361,26 @@ def _warm_test_env(fam, sub, scen, repo_dir: Path, home: Path):
         rtk = ["rtk", "go"] + raw[1:]
         policy = canon.policy_for("go", sub)
     elif fam == "js_ts":
-        step(["npm", "install", "--no-audit", "--no-fund"], tmo=1800)
-        runner = "vitest"
+        # pnpm workspaces (vue/core etc.) use `catalog:`/`workspace:` protocols npm
+        # cannot parse; pick the package manager the repo actually declares.
         pj = repo_dir / "package.json"
-        if pj.exists():
-            txt = pj.read_text(errors="replace")
-            runner = "jest" if '"jest"' in txt and "vitest" not in txt else ("vitest" if "vitest" in txt else "jest")
-        if sub == "test":
-            raw, rtk = ["npx", runner, "run"], ["rtk", runner]
-        elif sub == "tsc":
-            raw, rtk = ["npx", "tsc", "--noEmit"], ["rtk", "tsc"]
+        pj_txt = pj.read_text(errors="replace") if pj.exists() else ""
+        pnpm = (repo_dir / "pnpm-lock.yaml").exists() or "catalog:" in pj_txt or '"workspace:' in pj_txt
+        if pnpm:
+            step(["corepack", "pnpm", "install", "--frozen-lockfile=false"], tmo=1800)
+            exec_pfx = ["corepack", "pnpm", "exec"]
+            warm["js_package_manager"] = "pnpm"
         else:
-            raw, rtk = ["npx", "eslint", "."], ["rtk", "lint", "."]
+            step(["npm", "install", "--no-audit", "--no-fund"], tmo=1800)
+            exec_pfx = ["npx"]
+            warm["js_package_manager"] = "npm"
+        runner = "jest" if '"jest"' in pj_txt and "vitest" not in pj_txt else ("vitest" if "vitest" in pj_txt else "jest")
+        if sub == "test":
+            raw, rtk = exec_pfx + [runner, "run"], ["rtk", runner]
+        elif sub == "tsc":
+            raw, rtk = exec_pfx + ["tsc", "--noEmit"], ["rtk", "tsc"]
+        else:
+            raw, rtk = exec_pfx + ["eslint", "."], ["rtk", "lint", "."]
         policy = canon.policy_for("js_ts", sub)
         warm["js_test_runner"] = runner
     elif fam == "jvm":
@@ -457,6 +473,15 @@ def main() -> int:
         raw_argv = acq.get("resolved_raw_argv") or scen["original_argv"]
         rtk_argv = acq.get("resolved_rtk_argv") or scen["explicit_rtk_argv"]
         env_extra = {"HOME": str(workroot / ".home")} if acq.get("home_local") else None
+        if fam in ("rust_cargo", "go", "jvm", "js_ts", "python"):
+            # the offline measurement runs under `env -i`; forward the toolchain
+            # selectors resolved during warm so cargo/gradle can run offline.
+            tc = {"RUSTUP_TOOLCHAIN": os.environ.get("RUSTUP_TOOLCHAIN", "stable"),
+                  "GOFLAGS": "-mod=mod"}
+            for k in ("JAVA_HOME", "RUSTUP_HOME"):
+                if os.environ.get(k):
+                    tc[k] = os.environ[k]
+            env_extra = {**(env_extra or {}), **tc}
         if fam in ("git", "files_search"):
             # git needs a repository-local, fixed identity in the measurement env
             env_extra = {**(env_extra or {}),
@@ -507,6 +532,12 @@ def main() -> int:
              acceptance_note="RTK savings reporting-only; never a gate (§15/§19).")
         print(f"{args.case_id}: {status} raw={raw_tokens} rtk={rtk_tokens} savings={savings}")
         return 0 if status == "PASS" else 1
+    except Exception as e:  # noqa: BLE001 -- fail closed WITH a record, never crash recordless
+        import traceback
+        emit("REJECTED_ERROR", isolation=iso,
+             rejection_reasons=[f"unhandled measurement error: {type(e).__name__}: {e}"],
+             error_traceback=traceback.format_exc()[-2000:])
+        return 1
     finally:
         shutil.rmtree(workroot, ignore_errors=True)
         if fam == "containers":
