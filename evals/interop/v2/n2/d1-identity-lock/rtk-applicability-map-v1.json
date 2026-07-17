@@ -1,0 +1,160 @@
+{
+  "cases": {
+    "bot-dependabot-black-5206": {
+      "rationale": "not grep-shaped (no case is), not verified-deterministic-git-diff-shaped (no case's raw input is a git diff), and --filter log is unconditionally prohibited regardless of shape fit -- passthrough is the only remaining deterministic-by-construction option",
+      "rtk_argv": [
+        "pipe",
+        "--passthrough"
+      ]
+    },
+    "bot-syzbot-do-mkdirat": {
+      "rationale": "not grep-shaped (no case is), not verified-deterministic-git-diff-shaped (no case's raw input is a git diff), and --filter log is unconditionally prohibited regardless of shape fit -- passthrough is the only remaining deterministic-by-construction option",
+      "rtk_argv": [
+        "pipe",
+        "--passthrough"
+      ]
+    },
+    "ci-log-jansson": {
+      "rationale": "not grep-shaped (no case is), not verified-deterministic-git-diff-shaped (no case's raw input is a git diff), and --filter log is unconditionally prohibited regardless of shape fit -- passthrough is the only remaining deterministic-by-construction option",
+      "rtk_argv": [
+        "pipe",
+        "--passthrough"
+      ]
+    },
+    "ci-log-nlog": {
+      "rationale": "not grep-shaped (no case is), not verified-deterministic-git-diff-shaped (no case's raw input is a git diff), and --filter log is unconditionally prohibited regardless of shape fit -- passthrough is the only remaining deterministic-by-construction option",
+      "rtk_argv": [
+        "pipe",
+        "--passthrough"
+      ]
+    },
+    "ci-log-spdlog": {
+      "rationale": "not grep-shaped (no case is), not verified-deterministic-git-diff-shaped (no case's raw input is a git diff), and --filter log is unconditionally prohibited regardless of shape fit -- passthrough is the only remaining deterministic-by-construction option",
+      "rtk_argv": [
+        "pipe",
+        "--passthrough"
+      ]
+    },
+    "dataset-loghub-v8": {
+      "rationale": "not grep-shaped (no case is), not verified-deterministic-git-diff-shaped (no case's raw input is a git diff), and --filter log is unconditionally prohibited regardless of shape fit -- passthrough is the only remaining deterministic-by-construction option",
+      "rtk_argv": [
+        "pipe",
+        "--passthrough"
+      ]
+    },
+    "dataset-rtn-traffic-ids": {
+      "rationale": "not grep-shaped (no case is), not verified-deterministic-git-diff-shaped (no case's raw input is a git diff), and --filter log is unconditionally prohibited regardless of shape fit -- passthrough is the only remaining deterministic-by-construction option",
+      "rtk_argv": [
+        "pipe",
+        "--passthrough"
+      ]
+    },
+    "n2a-miner-canary": {
+      "rationale": "not grep-shaped (no case is), not verified-deterministic-git-diff-shaped (no case's raw input is a git diff), and --filter log is unconditionally prohibited regardless of shape fit -- passthrough is the only remaining deterministic-by-construction option",
+      "rtk_argv": [
+        "pipe",
+        "--passthrough"
+      ]
+    },
+    "repo-docker-java-parser": {
+      "rationale": "not grep-shaped (no case is), not verified-deterministic-git-diff-shaped (no case's raw input is a git diff), and --filter log is unconditionally prohibited regardless of shape fit -- passthrough is the only remaining deterministic-by-construction option",
+      "rtk_argv": [
+        "pipe",
+        "--passthrough"
+      ]
+    },
+    "repo-dockerfile-parser-rs": {
+      "rationale": "frozen execution argv is ['cargo','test'] (stage2-full-matrix-acceptance.json); raw captured input is genuine cargo-test output; filter newly verified deterministic by this record's own bounded 20-repetition probe",
+      "rtk_argv": [
+        "pipe",
+        "--filter",
+        "cargo-test"
+      ]
+    },
+    "repo-helm-values": {
+      "rationale": "not grep-shaped (no case is), not verified-deterministic-git-diff-shaped (no case's raw input is a git diff), and --filter log is unconditionally prohibited regardless of shape fit -- passthrough is the only remaining deterministic-by-construction option",
+      "rtk_argv": [
+        "pipe",
+        "--passthrough"
+      ]
+    },
+    "repo-hyperfine": {
+      "rationale": "not grep-shaped (no case is), not verified-deterministic-git-diff-shaped (no case's raw input is a git diff), and --filter log is unconditionally prohibited regardless of shape fit -- passthrough is the only remaining deterministic-by-construction option",
+      "rtk_argv": [
+        "pipe",
+        "--passthrough"
+      ]
+    },
+    "repo-kubeops-generator": {
+      "rationale": "not grep-shaped (no case is), not verified-deterministic-git-diff-shaped (no case's raw input is a git diff), and --filter log is unconditionally prohibited regardless of shape fit -- passthrough is the only remaining deterministic-by-construction option",
+      "rtk_argv": [
+        "pipe",
+        "--passthrough"
+      ]
+    },
+    "repo-moshi": {
+      "rationale": "not grep-shaped (no case is), not verified-deterministic-git-diff-shaped (no case's raw input is a git diff), and --filter log is unconditionally prohibited regardless of shape fit -- passthrough is the only remaining deterministic-by-construction option",
+      "rtk_argv": [
+        "pipe",
+        "--passthrough"
+      ]
+    },
+    "repo-pyflakes": {
+      "rationale": "not grep-shaped (no case is), not verified-deterministic-git-diff-shaped (no case's raw input is a git diff), and --filter log is unconditionally prohibited regardless of shape fit -- passthrough is the only remaining deterministic-by-construction option",
+      "rtk_argv": [
+        "pipe",
+        "--passthrough"
+      ]
+    },
+    "repo-requests": {
+      "rationale": "not grep-shaped (no case is), not verified-deterministic-git-diff-shaped (no case's raw input is a git diff), and --filter log is unconditionally prohibited regardless of shape fit -- passthrough is the only remaining deterministic-by-construction option",
+      "rtk_argv": [
+        "pipe",
+        "--passthrough"
+      ]
+    },
+    "repo-rustlings": {
+      "rationale": "frozen execution argv is ['cargo','test'] (stage2-full-matrix-acceptance.json); raw captured input is genuine cargo-test output; filter newly verified deterministic by this record's own bounded 20-repetition probe",
+      "rtk_argv": [
+        "pipe",
+        "--filter",
+        "cargo-test"
+      ]
+    },
+    "research-corpus-loghub2": {
+      "rationale": "not grep-shaped (no case is), not verified-deterministic-git-diff-shaped (no case's raw input is a git diff), and --filter log is unconditionally prohibited regardless of shape fit -- passthrough is the only remaining deterministic-by-construction option",
+      "rtk_argv": [
+        "pipe",
+        "--passthrough"
+      ]
+    }
+  },
+  "newly_verified_deterministic_filters": {
+    "cargo-test": {
+      "canonical_o200k_token_count": 47,
+      "canonical_stdout_sha256": "a340058ce57fbb80c37ee10ab7229b071db86363cde0d9054c001880cbb983e9",
+      "cross_confirmed_against_canonical_nix_build": "the canonical Nix-built rtk-pinned binary (live-captured in workflow run 29553837144's qodec-rtk-smoke-report artifact) independently produced the exact same stdout_sha256 (a340058ce57fbb80c37ee10ab7229b071db86363cde0d9054c001880cbb983e9) and token count (47) for this same fixture on its own single real invocation",
+      "fixture_path": "evals/interop/v2/smoke/fixtures/test-runner.txt",
+      "probe_report_path": "evals/interop/v2/n2/d1-identity-lock/evidence/rtk-cargo-test-determinism-probe-report.json",
+      "probe_report_sha256": "de32041db43dd6f8c67273c927995cd43ddef049411976e01c2a736c46d00a9b",
+      "repetitions": 20
+    },
+    "git-diff": {
+      "canonical_o200k_token_count": 289,
+      "canonical_stdout_sha256": "729f1eb6262ebfdef2352f1fe0f19964cf4e7be1aac306342bec0025b990a05c",
+      "fixture_path": "corpus/git-diff.txt",
+      "probe_report_path": "evals/interop/v2/n2/d1-identity-lock/evidence/rtk-git-diff-determinism-probe-report.json",
+      "probe_report_sha256": "7dbcd2a61756f0ee8af1ff5e038f6351df637a07c5a359f38e8de8e21c99c784",
+      "repetitions": 20
+    }
+  },
+  "probe_binary_provenance": "ad hoc `cargo build --release` of rtk source commit 5d32d0736f686b69d1e8b9dc45c007d4eb77a0a2 (the exact pinned rtk-src commit) in this sandbox, for verification only -- NOT the canonical Nix build (packages.rtk-pinned). Same provenance pattern as n2d1-contract.json's own tokenizer conformance fixtures. The one available real canonical-Nix-build data point (cargo-test filter over test-runner.txt, from the qodec-rtk-smoke-report artifact) is byte-identical to this ad hoc build's result across all 20 repetitions, cross-confirming the ad hoc build's behavior.",
+  "prohibited_filters": [
+    "log"
+  ],
+  "record_sha256": "sha256:1e3f81a00c10e74625bf91256aa4f9f152095d471b99d81f3208f8f886b4cfcb",
+  "record_type": "n2d-rtk-applicability-map-v1",
+  "record_version": 1,
+  "schema_version": 1,
+  "selection_policy_summary": "1) grep only if genuinely grep-shaped (none are). 2) log unconditionally prohibited. 3) git-diff usable only for genuinely git-diff-shaped input, now verified deterministic (none of the 18 cases are this shape). 4) cargo-test usable only for genuine cargo-test output, now verified deterministic (repo-rustlings, repo-dockerfile-parser-rs). 5) passthrough otherwise."
+}

@@ -1,0 +1,1940 @@
+{
+  "bootstrap_policy": {
+    "min_measured_case_count": 3,
+    "note": "same seed as the canonical corpus-wide bootstrap, but this is a fresh, independent, per-group computation over different (per-family) subsets of the same measured cases -- not a retrofit of the canonical interval. No CI is computed for any group below the minimum measured case count.",
+    "resamples": 10000,
+    "resampling_unit": "case_id",
+    "seed": 20260716
+  },
+  "canonical_benchmark_link": {
+    "path": "evals/interop/v2/n2/d1-identity-lock/n2d3-primary-token-benchmark-v1.json",
+    "record_sha256": "sha256:c00d2ff8f4883c964fbd05d46840763826806ea73357511e6f38a882aaf0e1cd"
+  },
+  "corpus_measured_raw_total_tokens_n16": 20140741,
+  "dominance_sensitivity_analysis": {
+    "canonical_measured_subset_n16": {
+      "n": 16,
+      "qodec": {
+        "macro_savings_pct": 20.5224,
+        "median_savings_pct": 13.058,
+        "weighted_savings_pct": 60.395
+      },
+      "qodec_total_tokens": 7976738,
+      "raw_total_tokens": 20140741,
+      "rtk": {
+        "macro_savings_pct": 12.1146,
+        "median_savings_pct": 0.0,
+        "weighted_savings_pct": 0.0053
+      },
+      "rtk_plus_qodec": {
+        "macro_savings_pct": 31.7567,
+        "median_savings_pct": 25.2968,
+        "weighted_savings_pct": 60.3999
+      },
+      "rtk_plus_qodec_total_tokens": 7975762,
+      "rtk_total_tokens": 20139667
+    },
+    "dataset_rtn_traffic_ids_share_of_total_qodec_savings_pct": 99.6091,
+    "dataset_rtn_traffic_ids_share_of_total_raw_tokens_pct": 99.1744,
+    "label": "post-hoc dominance sensitivity analysis",
+    "measured_subset_excluding_dataset_rtn_n15": {
+      "n": 15,
+      "qodec": {
+        "macro_savings_pct": 17.8466,
+        "median_savings_pct": 10.0446,
+        "weighted_savings_pct": 28.5947
+      },
+      "qodec_total_tokens": 118727,
+      "raw_total_tokens": 166272,
+      "rtk": {
+        "macro_savings_pct": 12.9222,
+        "median_savings_pct": 0.0,
+        "weighted_savings_pct": 0.6459
+      },
+      "rtk_plus_qodec": {
+        "macro_savings_pct": 29.8298,
+        "median_savings_pct": 20.0772,
+        "weighted_savings_pct": 29.1817
+      },
+      "rtk_plus_qodec_total_tokens": 117751,
+      "rtk_total_tokens": 165198
+    }
+  },
+  "equal_family_exploratory_summary": {
+    "does_not_replace_corpus_weighted_or_case_macro_results": true,
+    "families_excluded_zero_measured_cases": [
+      "binary-archive-container"
+    ],
+    "families_included": [
+      "canary-ci-log",
+      "cargo-test-output",
+      "ci-build-log",
+      "cli-tool-output",
+      "dependency-bot-report",
+      "dotnet-test-output",
+      "gradle-test-output",
+      "kernel-bug-report",
+      "maven-test-output",
+      "pytest-output",
+      "static-log-dataset"
+    ],
+    "families_included_count": 11,
+    "is_canonical_benchmark_result": false,
+    "label": "exploratory equal-content-family summary",
+    "note": "gives every measured content family equal weight regardless of case count or token mass, then averages each family's own weighted savings percentage. Families with a single measured case receive the same family weight as families with more cases, so this metric is sensitive to taxonomy granularity. Not a leaderboard; not a substitute for the corpus-weighted or case-macro canonical results.",
+    "per_family_weighted_savings_pct": {
+      "canary-ci-log": {
+        "qodec": 0.0,
+        "rtk": 0.0,
+        "rtk_plus_qodec": 0.0
+      },
+      "cargo-test-output": {
+        "qodec": 8.958,
+        "rtk": 98.1718,
+        "rtk_plus_qodec": 98.1718
+      },
+      "ci-build-log": {
+        "qodec": 38.585,
+        "rtk": 0.0,
+        "rtk_plus_qodec": 38.585
+      },
+      "cli-tool-output": {
+        "qodec": 0.0,
+        "rtk": 0.0,
+        "rtk_plus_qodec": 0.0
+      },
+      "dependency-bot-report": {
+        "qodec": 30.5165,
+        "rtk": 0.0,
+        "rtk_plus_qodec": 30.5165
+      },
+      "dotnet-test-output": {
+        "qodec": 0.0,
+        "rtk": 0.0,
+        "rtk_plus_qodec": 0.0
+      },
+      "gradle-test-output": {
+        "qodec": 38.5579,
+        "rtk": 0.0,
+        "rtk_plus_qodec": 38.5579
+      },
+      "kernel-bug-report": {
+        "qodec": 20.0772,
+        "rtk": 0.0,
+        "rtk_plus_qodec": 20.0772
+      },
+      "maven-test-output": {
+        "qodec": 4.9923,
+        "rtk": 0.0,
+        "rtk_plus_qodec": 4.9923
+      },
+      "pytest-output": {
+        "qodec": 7.8318,
+        "rtk": 0.0,
+        "rtk_plus_qodec": 7.8318
+      },
+      "static-log-dataset": {
+        "qodec": 60.6597,
+        "rtk": 0.0,
+        "rtk_plus_qodec": 60.6597
+      }
+    },
+    "post_hoc_exploratory": true,
+    "qodec_mean_family_weighted_savings_pct": 19.1071,
+    "rtk_mean_family_weighted_savings_pct": 8.9247,
+    "rtk_plus_qodec_mean_family_weighted_savings_pct": 27.2175
+  },
+  "non_utf8_refusal_policy": {
+    "case_ids": [
+      "dataset-loghub-v8",
+      "research-corpus-loghub2"
+    ],
+    "excluded_from": [
+      "token totals",
+      "savings denominators"
+    ],
+    "never_assigned_zero_tokens": true,
+    "note": "binary-container is a measurement-domain classification, not evidence that the underlying archived logs are semantically binary. The canonical measured bytes for these two cases are archive containers and are therefore invalid for the current UTF-8 text meter.",
+    "remain_part_of": [
+      "total_case_count",
+      "refusal_count",
+      "payload_kind=binary-container"
+    ]
+  },
+  "post_hoc_exploratory": true,
+  "primary_view": "content_family",
+  "record_sha256": "sha256:933c4a96abc9e07ba184986c662f9c2727067fb9b8b503da2082ab9a1a2d8b28",
+  "record_type": "n2d3-token-results-by-content-family-v1",
+  "record_version": 1,
+  "sample_size_policy": {
+    "descriptive-case-study": "measured_case_count == 1",
+    "exploratory-group": "measured_case_count >= 3",
+    "exploratory-small-group": "measured_case_count == 2",
+    "non-measurable-group": "measured_case_count == 0",
+    "note": "no strong statistical conclusions are drawn for n=1 or n=2 groups anywhere in this report"
+  },
+  "schema_version": 1,
+  "secondary_views": [
+    "origin_kind",
+    "producer_family",
+    "payload_kind"
+  ],
+  "taxonomy_link": {
+    "path": "evals/interop/v2/n2/d1-identity-lock/n2d3-content-taxonomy-v1.json",
+    "record_sha256": "sha256:c7272585cc44c4bb308ccd49095f4af62228b38cf28330a1ef30098d68735de4"
+  },
+  "views": {
+    "content_family": {
+      "binary-archive-container": {
+        "case_ids": [
+          "dataset-loghub-v8",
+          "research-corpus-loghub2"
+        ],
+        "dominant_case": null,
+        "exact_roundtrip_count_where_measurable": 0,
+        "group_id": "binary-archive-container",
+        "measured_case_count": 0,
+        "qodec": {
+          "bootstrap_ci95": null,
+          "macro_savings_pct": null,
+          "max_case_savings_pct": null,
+          "median_savings_pct": null,
+          "min_case_savings_pct": null,
+          "total_tokens": 0,
+          "weighted_savings_pct": null
+        },
+        "qodec_encoded_count": 0,
+        "qodec_passthrough_count": 0,
+        "qodec_total_tokens": 0,
+        "raw_token_share_of_measured_corpus_pct": 0.0,
+        "raw_total_tokens": 0,
+        "refusal_count": 2,
+        "rtk": {
+          "bootstrap_ci95": null,
+          "macro_savings_pct": null,
+          "max_case_savings_pct": null,
+          "median_savings_pct": null,
+          "min_case_savings_pct": null,
+          "total_tokens": 0,
+          "weighted_savings_pct": null
+        },
+        "rtk_filtered_count": 0,
+        "rtk_passthrough_count": 0,
+        "rtk_plus_qodec": {
+          "bootstrap_ci95": null,
+          "macro_savings_pct": null,
+          "max_case_savings_pct": null,
+          "median_savings_pct": null,
+          "min_case_savings_pct": null,
+          "total_tokens": 0,
+          "weighted_savings_pct": null
+        },
+        "rtk_plus_qodec_total_tokens": 0,
+        "rtk_total_tokens": 0,
+        "runtime_failure_count": 0,
+        "sample_size_classification": "non-measurable-group",
+        "single_case_dominated": false,
+        "total_case_count": 2
+      },
+      "canary-ci-log": {
+        "case_ids": [
+          "n2a-miner-canary"
+        ],
+        "dominant_case": {
+          "case_id": "n2a-miner-canary",
+          "raw_tokens": 8184,
+          "share_of_group_raw_tokens_pct": 100.0
+        },
+        "exact_roundtrip_count_where_measurable": 1,
+        "group_id": "canary-ci-log",
+        "measured_case_count": 1,
+        "qodec": {
+          "bootstrap_ci95": null,
+          "macro_savings_pct": 0.0,
+          "max_case_savings_pct": 0.0,
+          "median_savings_pct": 0.0,
+          "min_case_savings_pct": 0.0,
+          "total_tokens": 8184,
+          "weighted_savings_pct": 0.0
+        },
+        "qodec_encoded_count": 0,
+        "qodec_passthrough_count": 1,
+        "qodec_total_tokens": 8184,
+        "raw_token_share_of_measured_corpus_pct": 0.0406,
+        "raw_total_tokens": 8184,
+        "refusal_count": 0,
+        "rtk": {
+          "bootstrap_ci95": null,
+          "macro_savings_pct": 0.0,
+          "max_case_savings_pct": 0.0,
+          "median_savings_pct": 0.0,
+          "min_case_savings_pct": 0.0,
+          "total_tokens": 8184,
+          "weighted_savings_pct": 0.0
+        },
+        "rtk_filtered_count": 0,
+        "rtk_passthrough_count": 1,
+        "rtk_plus_qodec": {
+          "bootstrap_ci95": null,
+          "macro_savings_pct": 0.0,
+          "max_case_savings_pct": 0.0,
+          "median_savings_pct": 0.0,
+          "min_case_savings_pct": 0.0,
+          "total_tokens": 8184,
+          "weighted_savings_pct": 0.0
+        },
+        "rtk_plus_qodec_total_tokens": 8184,
+        "rtk_total_tokens": 8184,
+        "runtime_failure_count": 0,
+        "sample_size_classification": "descriptive-case-study",
+        "single_case_dominated": true,
+        "total_case_count": 1
+      },
+      "cargo-test-output": {
+        "case_ids": [
+          "repo-dockerfile-parser-rs",
+          "repo-rustlings"
+        ],
+        "dominant_case": {
+          "case_id": "repo-dockerfile-parser-rs",
+          "raw_tokens": 896,
+          "share_of_group_raw_tokens_pct": 81.9013
+        },
+        "exact_roundtrip_count_where_measurable": 2,
+        "group_id": "cargo-test-output",
+        "measured_case_count": 2,
+        "qodec": {
+          "bootstrap_ci95": null,
+          "macro_savings_pct": 7.0425,
+          "max_case_savings_pct": 10.0446,
+          "median_savings_pct": 7.0425,
+          "min_case_savings_pct": 4.0404,
+          "total_tokens": 996,
+          "weighted_savings_pct": 8.958
+        },
+        "qodec_encoded_count": 2,
+        "qodec_passthrough_count": 0,
+        "qodec_total_tokens": 996,
+        "raw_token_share_of_measured_corpus_pct": 0.0054,
+        "raw_total_tokens": 1094,
+        "refusal_count": 0,
+        "rtk": {
+          "bootstrap_ci95": null,
+          "macro_savings_pct": 96.9167,
+          "max_case_savings_pct": 98.8839,
+          "median_savings_pct": 96.9167,
+          "min_case_savings_pct": 94.9495,
+          "total_tokens": 20,
+          "weighted_savings_pct": 98.1718
+        },
+        "rtk_filtered_count": 2,
+        "rtk_passthrough_count": 0,
+        "rtk_plus_qodec": {
+          "bootstrap_ci95": null,
+          "macro_savings_pct": 96.9167,
+          "max_case_savings_pct": 98.8839,
+          "median_savings_pct": 96.9167,
+          "min_case_savings_pct": 94.9495,
+          "total_tokens": 20,
+          "weighted_savings_pct": 98.1718
+        },
+        "rtk_plus_qodec_total_tokens": 20,
+        "rtk_total_tokens": 20,
+        "runtime_failure_count": 0,
+        "sample_size_classification": "exploratory-small-group",
+        "single_case_dominated": true,
+        "total_case_count": 2
+      },
+      "ci-build-log": {
+        "case_ids": [
+          "ci-log-jansson",
+          "ci-log-nlog",
+          "ci-log-spdlog"
+        ],
+        "dominant_case": {
+          "case_id": "ci-log-nlog",
+          "raw_tokens": 51609,
+          "share_of_group_raw_tokens_pct": 63.227
+        },
+        "exact_roundtrip_count_where_measurable": 3,
+        "group_id": "ci-build-log",
+        "measured_case_count": 3,
+        "qodec": {
+          "bootstrap_ci95": {
+            "ci_high_97_5pct": 55.1056,
+            "ci_low_2_5pct": 32.0797,
+            "point_estimate": 44.3313,
+            "resamples": 10000,
+            "seed": 20260716
+          },
+          "macro_savings_pct": 44.3313,
+          "max_case_savings_pct": 55.1056,
+          "median_savings_pct": 45.8087,
+          "min_case_savings_pct": 32.0797,
+          "total_tokens": 50130,
+          "weighted_savings_pct": 38.585
+        },
+        "qodec_encoded_count": 3,
+        "qodec_passthrough_count": 0,
+        "qodec_total_tokens": 50130,
+        "raw_token_share_of_measured_corpus_pct": 0.4053,
+        "raw_total_tokens": 81625,
+        "refusal_count": 0,
+        "rtk": {
+          "bootstrap_ci95": {
+            "ci_high_97_5pct": 0.0,
+            "ci_low_2_5pct": 0.0,
+            "point_estimate": 0.0,
+            "resamples": 10000,
+            "seed": 20260716
+          },
+          "macro_savings_pct": 0.0,
+          "max_case_savings_pct": 0.0,
+          "median_savings_pct": 0.0,
+          "min_case_savings_pct": 0.0,
+          "total_tokens": 81625,
+          "weighted_savings_pct": 0.0
+        },
+        "rtk_filtered_count": 0,
+        "rtk_passthrough_count": 3,
+        "rtk_plus_qodec": {
+          "bootstrap_ci95": {
+            "ci_high_97_5pct": 55.1056,
+            "ci_low_2_5pct": 32.0797,
+            "point_estimate": 44.3313,
+            "resamples": 10000,
+            "seed": 20260716
+          },
+          "macro_savings_pct": 44.3313,
+          "max_case_savings_pct": 55.1056,
+          "median_savings_pct": 45.8087,
+          "min_case_savings_pct": 32.0797,
+          "total_tokens": 50130,
+          "weighted_savings_pct": 38.585
+        },
+        "rtk_plus_qodec_total_tokens": 50130,
+        "rtk_total_tokens": 81625,
+        "runtime_failure_count": 0,
+        "sample_size_classification": "exploratory-group",
+        "single_case_dominated": false,
+        "total_case_count": 3
+      },
+      "cli-tool-output": {
+        "case_ids": [
+          "repo-hyperfine",
+          "repo-pyflakes"
+        ],
+        "dominant_case": {
+          "case_id": "repo-hyperfine",
+          "raw_tokens": 9,
+          "share_of_group_raw_tokens_pct": 100.0
+        },
+        "exact_roundtrip_count_where_measurable": 2,
+        "group_id": "cli-tool-output",
+        "measured_case_count": 2,
+        "qodec": {
+          "bootstrap_ci95": null,
+          "macro_savings_pct": 0.0,
+          "max_case_savings_pct": 0.0,
+          "median_savings_pct": 0.0,
+          "min_case_savings_pct": 0.0,
+          "total_tokens": 9,
+          "weighted_savings_pct": 0.0
+        },
+        "qodec_encoded_count": 0,
+        "qodec_passthrough_count": 2,
+        "qodec_total_tokens": 9,
+        "raw_token_share_of_measured_corpus_pct": 0.0,
+        "raw_total_tokens": 9,
+        "refusal_count": 0,
+        "rtk": {
+          "bootstrap_ci95": null,
+          "macro_savings_pct": 0.0,
+          "max_case_savings_pct": 0.0,
+          "median_savings_pct": 0.0,
+          "min_case_savings_pct": 0.0,
+          "total_tokens": 9,
+          "weighted_savings_pct": 0.0
+        },
+        "rtk_filtered_count": 0,
+        "rtk_passthrough_count": 2,
+        "rtk_plus_qodec": {
+          "bootstrap_ci95": null,
+          "macro_savings_pct": 0.0,
+          "max_case_savings_pct": 0.0,
+          "median_savings_pct": 0.0,
+          "min_case_savings_pct": 0.0,
+          "total_tokens": 9,
+          "weighted_savings_pct": 0.0
+        },
+        "rtk_plus_qodec_total_tokens": 9,
+        "rtk_total_tokens": 9,
+        "runtime_failure_count": 0,
+        "sample_size_classification": "exploratory-small-group",
+        "single_case_dominated": true,
+        "total_case_count": 2
+      },
+      "dependency-bot-report": {
+        "case_ids": [
+          "bot-dependabot-black-5206"
+        ],
+        "dominant_case": {
+          "case_id": "bot-dependabot-black-5206",
+          "raw_tokens": 10532,
+          "share_of_group_raw_tokens_pct": 100.0
+        },
+        "exact_roundtrip_count_where_measurable": 1,
+        "group_id": "dependency-bot-report",
+        "measured_case_count": 1,
+        "qodec": {
+          "bootstrap_ci95": null,
+          "macro_savings_pct": 30.5165,
+          "max_case_savings_pct": 30.5165,
+          "median_savings_pct": 30.5165,
+          "min_case_savings_pct": 30.5165,
+          "total_tokens": 7318,
+          "weighted_savings_pct": 30.5165
+        },
+        "qodec_encoded_count": 1,
+        "qodec_passthrough_count": 0,
+        "qodec_total_tokens": 7318,
+        "raw_token_share_of_measured_corpus_pct": 0.0523,
+        "raw_total_tokens": 10532,
+        "refusal_count": 0,
+        "rtk": {
+          "bootstrap_ci95": null,
+          "macro_savings_pct": 0.0,
+          "max_case_savings_pct": 0.0,
+          "median_savings_pct": 0.0,
+          "min_case_savings_pct": 0.0,
+          "total_tokens": 10532,
+          "weighted_savings_pct": 0.0
+        },
+        "rtk_filtered_count": 0,
+        "rtk_passthrough_count": 1,
+        "rtk_plus_qodec": {
+          "bootstrap_ci95": null,
+          "macro_savings_pct": 30.5165,
+          "max_case_savings_pct": 30.5165,
+          "median_savings_pct": 30.5165,
+          "min_case_savings_pct": 30.5165,
+          "total_tokens": 7318,
+          "weighted_savings_pct": 30.5165
+        },
+        "rtk_plus_qodec_total_tokens": 7318,
+        "rtk_total_tokens": 10532,
+        "runtime_failure_count": 0,
+        "sample_size_classification": "descriptive-case-study",
+        "single_case_dominated": true,
+        "total_case_count": 1
+      },
+      "dotnet-test-output": {
+        "case_ids": [
+          "repo-kubeops-generator"
+        ],
+        "dominant_case": {
+          "case_id": "repo-kubeops-generator",
+          "raw_tokens": 736,
+          "share_of_group_raw_tokens_pct": 100.0
+        },
+        "exact_roundtrip_count_where_measurable": 1,
+        "group_id": "dotnet-test-output",
+        "measured_case_count": 1,
+        "qodec": {
+          "bootstrap_ci95": null,
+          "macro_savings_pct": 0.0,
+          "max_case_savings_pct": 0.0,
+          "median_savings_pct": 0.0,
+          "min_case_savings_pct": 0.0,
+          "total_tokens": 736,
+          "weighted_savings_pct": 0.0
+        },
+        "qodec_encoded_count": 0,
+        "qodec_passthrough_count": 1,
+        "qodec_total_tokens": 736,
+        "raw_token_share_of_measured_corpus_pct": 0.0037,
+        "raw_total_tokens": 736,
+        "refusal_count": 0,
+        "rtk": {
+          "bootstrap_ci95": null,
+          "macro_savings_pct": 0.0,
+          "max_case_savings_pct": 0.0,
+          "median_savings_pct": 0.0,
+          "min_case_savings_pct": 0.0,
+          "total_tokens": 736,
+          "weighted_savings_pct": 0.0
+        },
+        "rtk_filtered_count": 0,
+        "rtk_passthrough_count": 1,
+        "rtk_plus_qodec": {
+          "bootstrap_ci95": null,
+          "macro_savings_pct": 0.0,
+          "max_case_savings_pct": 0.0,
+          "median_savings_pct": 0.0,
+          "min_case_savings_pct": 0.0,
+          "total_tokens": 736,
+          "weighted_savings_pct": 0.0
+        },
+        "rtk_plus_qodec_total_tokens": 736,
+        "rtk_total_tokens": 736,
+        "runtime_failure_count": 0,
+        "sample_size_classification": "descriptive-case-study",
+        "single_case_dominated": true,
+        "total_case_count": 1
+      },
+      "gradle-test-output": {
+        "case_ids": [
+          "repo-helm-values",
+          "repo-moshi"
+        ],
+        "dominant_case": {
+          "case_id": "repo-moshi",
+          "raw_tokens": 2937,
+          "share_of_group_raw_tokens_pct": 89.7342
+        },
+        "exact_roundtrip_count_where_measurable": 2,
+        "group_id": "gradle-test-output",
+        "measured_case_count": 2,
+        "qodec": {
+          "bootstrap_ci95": null,
+          "macro_savings_pct": 28.6009,
+          "max_case_savings_pct": 41.1304,
+          "median_savings_pct": 28.6009,
+          "min_case_savings_pct": 16.0714,
+          "total_tokens": 2011,
+          "weighted_savings_pct": 38.5579
+        },
+        "qodec_encoded_count": 2,
+        "qodec_passthrough_count": 0,
+        "qodec_total_tokens": 2011,
+        "raw_token_share_of_measured_corpus_pct": 0.0163,
+        "raw_total_tokens": 3273,
+        "refusal_count": 0,
+        "rtk": {
+          "bootstrap_ci95": null,
+          "macro_savings_pct": 0.0,
+          "max_case_savings_pct": 0.0,
+          "median_savings_pct": 0.0,
+          "min_case_savings_pct": 0.0,
+          "total_tokens": 3273,
+          "weighted_savings_pct": 0.0
+        },
+        "rtk_filtered_count": 0,
+        "rtk_passthrough_count": 2,
+        "rtk_plus_qodec": {
+          "bootstrap_ci95": null,
+          "macro_savings_pct": 28.6009,
+          "max_case_savings_pct": 41.1304,
+          "median_savings_pct": 28.6009,
+          "min_case_savings_pct": 16.0714,
+          "total_tokens": 2011,
+          "weighted_savings_pct": 38.5579
+        },
+        "rtk_plus_qodec_total_tokens": 2011,
+        "rtk_total_tokens": 3273,
+        "runtime_failure_count": 0,
+        "sample_size_classification": "exploratory-small-group",
+        "single_case_dominated": true,
+        "total_case_count": 2
+      },
+      "kernel-bug-report": {
+        "case_ids": [
+          "bot-syzbot-do-mkdirat"
+        ],
+        "dominant_case": {
+          "case_id": "bot-syzbot-do-mkdirat",
+          "raw_tokens": 55720,
+          "share_of_group_raw_tokens_pct": 100.0
+        },
+        "exact_roundtrip_count_where_measurable": 1,
+        "group_id": "kernel-bug-report",
+        "measured_case_count": 1,
+        "qodec": {
+          "bootstrap_ci95": null,
+          "macro_savings_pct": 20.0772,
+          "max_case_savings_pct": 20.0772,
+          "median_savings_pct": 20.0772,
+          "min_case_savings_pct": 20.0772,
+          "total_tokens": 44533,
+          "weighted_savings_pct": 20.0772
+        },
+        "qodec_encoded_count": 1,
+        "qodec_passthrough_count": 0,
+        "qodec_total_tokens": 44533,
+        "raw_token_share_of_measured_corpus_pct": 0.2767,
+        "raw_total_tokens": 55720,
+        "refusal_count": 0,
+        "rtk": {
+          "bootstrap_ci95": null,
+          "macro_savings_pct": 0.0,
+          "max_case_savings_pct": 0.0,
+          "median_savings_pct": 0.0,
+          "min_case_savings_pct": 0.0,
+          "total_tokens": 55720,
+          "weighted_savings_pct": 0.0
+        },
+        "rtk_filtered_count": 0,
+        "rtk_passthrough_count": 1,
+        "rtk_plus_qodec": {
+          "bootstrap_ci95": null,
+          "macro_savings_pct": 20.0772,
+          "max_case_savings_pct": 20.0772,
+          "median_savings_pct": 20.0772,
+          "min_case_savings_pct": 20.0772,
+          "total_tokens": 44533,
+          "weighted_savings_pct": 20.0772
+        },
+        "rtk_plus_qodec_total_tokens": 44533,
+        "rtk_total_tokens": 55720,
+        "runtime_failure_count": 0,
+        "sample_size_classification": "descriptive-case-study",
+        "single_case_dominated": true,
+        "total_case_count": 1
+      },
+      "maven-test-output": {
+        "case_ids": [
+          "repo-docker-java-parser"
+        ],
+        "dominant_case": {
+          "case_id": "repo-docker-java-parser",
+          "raw_tokens": 3886,
+          "share_of_group_raw_tokens_pct": 100.0
+        },
+        "exact_roundtrip_count_where_measurable": 1,
+        "group_id": "maven-test-output",
+        "measured_case_count": 1,
+        "qodec": {
+          "bootstrap_ci95": null,
+          "macro_savings_pct": 4.9923,
+          "max_case_savings_pct": 4.9923,
+          "median_savings_pct": 4.9923,
+          "min_case_savings_pct": 4.9923,
+          "total_tokens": 3692,
+          "weighted_savings_pct": 4.9923
+        },
+        "qodec_encoded_count": 1,
+        "qodec_passthrough_count": 0,
+        "qodec_total_tokens": 3692,
+        "raw_token_share_of_measured_corpus_pct": 0.0193,
+        "raw_total_tokens": 3886,
+        "refusal_count": 0,
+        "rtk": {
+          "bootstrap_ci95": null,
+          "macro_savings_pct": 0.0,
+          "max_case_savings_pct": 0.0,
+          "median_savings_pct": 0.0,
+          "min_case_savings_pct": 0.0,
+          "total_tokens": 3886,
+          "weighted_savings_pct": 0.0
+        },
+        "rtk_filtered_count": 0,
+        "rtk_passthrough_count": 1,
+        "rtk_plus_qodec": {
+          "bootstrap_ci95": null,
+          "macro_savings_pct": 4.9923,
+          "max_case_savings_pct": 4.9923,
+          "median_savings_pct": 4.9923,
+          "min_case_savings_pct": 4.9923,
+          "total_tokens": 3692,
+          "weighted_savings_pct": 4.9923
+        },
+        "rtk_plus_qodec_total_tokens": 3692,
+        "rtk_total_tokens": 3886,
+        "runtime_failure_count": 0,
+        "sample_size_classification": "descriptive-case-study",
+        "single_case_dominated": true,
+        "total_case_count": 1
+      },
+      "pytest-output": {
+        "case_ids": [
+          "repo-requests"
+        ],
+        "dominant_case": {
+          "case_id": "repo-requests",
+          "raw_tokens": 1213,
+          "share_of_group_raw_tokens_pct": 100.0
+        },
+        "exact_roundtrip_count_where_measurable": 1,
+        "group_id": "pytest-output",
+        "measured_case_count": 1,
+        "qodec": {
+          "bootstrap_ci95": null,
+          "macro_savings_pct": 7.8318,
+          "max_case_savings_pct": 7.8318,
+          "median_savings_pct": 7.8318,
+          "min_case_savings_pct": 7.8318,
+          "total_tokens": 1118,
+          "weighted_savings_pct": 7.8318
+        },
+        "qodec_encoded_count": 1,
+        "qodec_passthrough_count": 0,
+        "qodec_total_tokens": 1118,
+        "raw_token_share_of_measured_corpus_pct": 0.006,
+        "raw_total_tokens": 1213,
+        "refusal_count": 0,
+        "rtk": {
+          "bootstrap_ci95": null,
+          "macro_savings_pct": 0.0,
+          "max_case_savings_pct": 0.0,
+          "median_savings_pct": 0.0,
+          "min_case_savings_pct": 0.0,
+          "total_tokens": 1213,
+          "weighted_savings_pct": 0.0
+        },
+        "rtk_filtered_count": 0,
+        "rtk_passthrough_count": 1,
+        "rtk_plus_qodec": {
+          "bootstrap_ci95": null,
+          "macro_savings_pct": 7.8318,
+          "max_case_savings_pct": 7.8318,
+          "median_savings_pct": 7.8318,
+          "min_case_savings_pct": 7.8318,
+          "total_tokens": 1118,
+          "weighted_savings_pct": 7.8318
+        },
+        "rtk_plus_qodec_total_tokens": 1118,
+        "rtk_total_tokens": 1213,
+        "runtime_failure_count": 0,
+        "sample_size_classification": "descriptive-case-study",
+        "single_case_dominated": true,
+        "total_case_count": 1
+      },
+      "static-log-dataset": {
+        "case_ids": [
+          "dataset-rtn-traffic-ids"
+        ],
+        "dominant_case": {
+          "case_id": "dataset-rtn-traffic-ids",
+          "raw_tokens": 19974469,
+          "share_of_group_raw_tokens_pct": 100.0
+        },
+        "exact_roundtrip_count_where_measurable": 1,
+        "group_id": "static-log-dataset",
+        "measured_case_count": 1,
+        "qodec": {
+          "bootstrap_ci95": null,
+          "macro_savings_pct": 60.6597,
+          "max_case_savings_pct": 60.6597,
+          "median_savings_pct": 60.6597,
+          "min_case_savings_pct": 60.6597,
+          "total_tokens": 7858011,
+          "weighted_savings_pct": 60.6597
+        },
+        "qodec_encoded_count": 1,
+        "qodec_passthrough_count": 0,
+        "qodec_total_tokens": 7858011,
+        "raw_token_share_of_measured_corpus_pct": 99.1744,
+        "raw_total_tokens": 19974469,
+        "refusal_count": 0,
+        "rtk": {
+          "bootstrap_ci95": null,
+          "macro_savings_pct": 0.0,
+          "max_case_savings_pct": 0.0,
+          "median_savings_pct": 0.0,
+          "min_case_savings_pct": 0.0,
+          "total_tokens": 19974469,
+          "weighted_savings_pct": 0.0
+        },
+        "rtk_filtered_count": 0,
+        "rtk_passthrough_count": 1,
+        "rtk_plus_qodec": {
+          "bootstrap_ci95": null,
+          "macro_savings_pct": 60.6597,
+          "max_case_savings_pct": 60.6597,
+          "median_savings_pct": 60.6597,
+          "min_case_savings_pct": 60.6597,
+          "total_tokens": 7858011,
+          "weighted_savings_pct": 60.6597
+        },
+        "rtk_plus_qodec_total_tokens": 7858011,
+        "rtk_total_tokens": 19974469,
+        "runtime_failure_count": 0,
+        "sample_size_classification": "descriptive-case-study",
+        "single_case_dominated": true,
+        "total_case_count": 1
+      }
+    },
+    "origin_kind": {
+      "bot-output": {
+        "case_ids": [
+          "bot-dependabot-black-5206",
+          "bot-syzbot-do-mkdirat"
+        ],
+        "dominant_case": {
+          "case_id": "bot-syzbot-do-mkdirat",
+          "raw_tokens": 55720,
+          "share_of_group_raw_tokens_pct": 84.1031
+        },
+        "exact_roundtrip_count_where_measurable": 2,
+        "group_id": "bot-output",
+        "measured_case_count": 2,
+        "qodec": {
+          "bootstrap_ci95": null,
+          "macro_savings_pct": 25.2968,
+          "max_case_savings_pct": 30.5165,
+          "median_savings_pct": 25.2968,
+          "min_case_savings_pct": 20.0772,
+          "total_tokens": 51851,
+          "weighted_savings_pct": 21.7367
+        },
+        "qodec_encoded_count": 2,
+        "qodec_passthrough_count": 0,
+        "qodec_total_tokens": 51851,
+        "raw_token_share_of_measured_corpus_pct": 0.3289,
+        "raw_total_tokens": 66252,
+        "refusal_count": 0,
+        "rtk": {
+          "bootstrap_ci95": null,
+          "macro_savings_pct": 0.0,
+          "max_case_savings_pct": 0.0,
+          "median_savings_pct": 0.0,
+          "min_case_savings_pct": 0.0,
+          "total_tokens": 66252,
+          "weighted_savings_pct": 0.0
+        },
+        "rtk_filtered_count": 0,
+        "rtk_passthrough_count": 2,
+        "rtk_plus_qodec": {
+          "bootstrap_ci95": null,
+          "macro_savings_pct": 25.2968,
+          "max_case_savings_pct": 30.5165,
+          "median_savings_pct": 25.2968,
+          "min_case_savings_pct": 20.0772,
+          "total_tokens": 51851,
+          "weighted_savings_pct": 21.7367
+        },
+        "rtk_plus_qodec_total_tokens": 51851,
+        "rtk_total_tokens": 66252,
+        "runtime_failure_count": 0,
+        "sample_size_classification": "exploratory-small-group",
+        "single_case_dominated": true,
+        "total_case_count": 2
+      },
+      "canary": {
+        "case_ids": [
+          "n2a-miner-canary"
+        ],
+        "dominant_case": {
+          "case_id": "n2a-miner-canary",
+          "raw_tokens": 8184,
+          "share_of_group_raw_tokens_pct": 100.0
+        },
+        "exact_roundtrip_count_where_measurable": 1,
+        "group_id": "canary",
+        "measured_case_count": 1,
+        "qodec": {
+          "bootstrap_ci95": null,
+          "macro_savings_pct": 0.0,
+          "max_case_savings_pct": 0.0,
+          "median_savings_pct": 0.0,
+          "min_case_savings_pct": 0.0,
+          "total_tokens": 8184,
+          "weighted_savings_pct": 0.0
+        },
+        "qodec_encoded_count": 0,
+        "qodec_passthrough_count": 1,
+        "qodec_total_tokens": 8184,
+        "raw_token_share_of_measured_corpus_pct": 0.0406,
+        "raw_total_tokens": 8184,
+        "refusal_count": 0,
+        "rtk": {
+          "bootstrap_ci95": null,
+          "macro_savings_pct": 0.0,
+          "max_case_savings_pct": 0.0,
+          "median_savings_pct": 0.0,
+          "min_case_savings_pct": 0.0,
+          "total_tokens": 8184,
+          "weighted_savings_pct": 0.0
+        },
+        "rtk_filtered_count": 0,
+        "rtk_passthrough_count": 1,
+        "rtk_plus_qodec": {
+          "bootstrap_ci95": null,
+          "macro_savings_pct": 0.0,
+          "max_case_savings_pct": 0.0,
+          "median_savings_pct": 0.0,
+          "min_case_savings_pct": 0.0,
+          "total_tokens": 8184,
+          "weighted_savings_pct": 0.0
+        },
+        "rtk_plus_qodec_total_tokens": 8184,
+        "rtk_total_tokens": 8184,
+        "runtime_failure_count": 0,
+        "sample_size_classification": "descriptive-case-study",
+        "single_case_dominated": true,
+        "total_case_count": 1
+      },
+      "ci-log": {
+        "case_ids": [
+          "ci-log-jansson",
+          "ci-log-nlog",
+          "ci-log-spdlog"
+        ],
+        "dominant_case": {
+          "case_id": "ci-log-nlog",
+          "raw_tokens": 51609,
+          "share_of_group_raw_tokens_pct": 63.227
+        },
+        "exact_roundtrip_count_where_measurable": 3,
+        "group_id": "ci-log",
+        "measured_case_count": 3,
+        "qodec": {
+          "bootstrap_ci95": {
+            "ci_high_97_5pct": 55.1056,
+            "ci_low_2_5pct": 32.0797,
+            "point_estimate": 44.3313,
+            "resamples": 10000,
+            "seed": 20260716
+          },
+          "macro_savings_pct": 44.3313,
+          "max_case_savings_pct": 55.1056,
+          "median_savings_pct": 45.8087,
+          "min_case_savings_pct": 32.0797,
+          "total_tokens": 50130,
+          "weighted_savings_pct": 38.585
+        },
+        "qodec_encoded_count": 3,
+        "qodec_passthrough_count": 0,
+        "qodec_total_tokens": 50130,
+        "raw_token_share_of_measured_corpus_pct": 0.4053,
+        "raw_total_tokens": 81625,
+        "refusal_count": 0,
+        "rtk": {
+          "bootstrap_ci95": {
+            "ci_high_97_5pct": 0.0,
+            "ci_low_2_5pct": 0.0,
+            "point_estimate": 0.0,
+            "resamples": 10000,
+            "seed": 20260716
+          },
+          "macro_savings_pct": 0.0,
+          "max_case_savings_pct": 0.0,
+          "median_savings_pct": 0.0,
+          "min_case_savings_pct": 0.0,
+          "total_tokens": 81625,
+          "weighted_savings_pct": 0.0
+        },
+        "rtk_filtered_count": 0,
+        "rtk_passthrough_count": 3,
+        "rtk_plus_qodec": {
+          "bootstrap_ci95": {
+            "ci_high_97_5pct": 55.1056,
+            "ci_low_2_5pct": 32.0797,
+            "point_estimate": 44.3313,
+            "resamples": 10000,
+            "seed": 20260716
+          },
+          "macro_savings_pct": 44.3313,
+          "max_case_savings_pct": 55.1056,
+          "median_savings_pct": 45.8087,
+          "min_case_savings_pct": 32.0797,
+          "total_tokens": 50130,
+          "weighted_savings_pct": 38.585
+        },
+        "rtk_plus_qodec_total_tokens": 50130,
+        "rtk_total_tokens": 81625,
+        "runtime_failure_count": 0,
+        "sample_size_classification": "exploratory-group",
+        "single_case_dominated": false,
+        "total_case_count": 3
+      },
+      "repository-command-output": {
+        "case_ids": [
+          "repo-docker-java-parser",
+          "repo-dockerfile-parser-rs",
+          "repo-helm-values",
+          "repo-hyperfine",
+          "repo-kubeops-generator",
+          "repo-moshi",
+          "repo-pyflakes",
+          "repo-requests",
+          "repo-rustlings"
+        ],
+        "dominant_case": {
+          "case_id": "repo-docker-java-parser",
+          "raw_tokens": 3886,
+          "share_of_group_raw_tokens_pct": 38.057
+        },
+        "exact_roundtrip_count_where_measurable": 9,
+        "group_id": "repository-command-output",
+        "measured_case_count": 9,
+        "qodec": {
+          "bootstrap_ci95": {
+            "ci_high_97_5pct": 18.38,
+            "ci_low_2_5pct": 2.8775,
+            "point_estimate": 9.3457,
+            "resamples": 10000,
+            "seed": 20260716
+          },
+          "macro_savings_pct": 9.3457,
+          "max_case_savings_pct": 41.1304,
+          "median_savings_pct": 4.9923,
+          "min_case_savings_pct": 0.0,
+          "total_tokens": 8562,
+          "weighted_savings_pct": 16.1493
+        },
+        "qodec_encoded_count": 6,
+        "qodec_passthrough_count": 3,
+        "qodec_total_tokens": 8562,
+        "raw_token_share_of_measured_corpus_pct": 0.0507,
+        "raw_total_tokens": 10211,
+        "refusal_count": 0,
+        "rtk": {
+          "bootstrap_ci95": {
+            "ci_high_97_5pct": 53.624,
+            "ci_low_2_5pct": 0.0,
+            "point_estimate": 21.537,
+            "resamples": 10000,
+            "seed": 20260716
+          },
+          "macro_savings_pct": 21.537,
+          "max_case_savings_pct": 98.8839,
+          "median_savings_pct": 0.0,
+          "min_case_savings_pct": 0.0,
+          "total_tokens": 9137,
+          "weighted_savings_pct": 10.5181
+        },
+        "rtk_filtered_count": 2,
+        "rtk_passthrough_count": 7,
+        "rtk_plus_qodec": {
+          "bootstrap_ci95": {
+            "ci_high_97_5pct": 56.2841,
+            "ci_low_2_5pct": 6.3558,
+            "point_estimate": 29.3177,
+            "resamples": 10000,
+            "seed": 20260716
+          },
+          "macro_savings_pct": 29.3177,
+          "max_case_savings_pct": 98.8839,
+          "median_savings_pct": 7.8318,
+          "min_case_savings_pct": 0.0,
+          "total_tokens": 7586,
+          "weighted_savings_pct": 25.7076
+        },
+        "rtk_plus_qodec_total_tokens": 7586,
+        "rtk_total_tokens": 9137,
+        "runtime_failure_count": 0,
+        "sample_size_classification": "exploratory-group",
+        "single_case_dominated": false,
+        "total_case_count": 9
+      },
+      "research-corpus": {
+        "case_ids": [
+          "research-corpus-loghub2"
+        ],
+        "dominant_case": null,
+        "exact_roundtrip_count_where_measurable": 0,
+        "group_id": "research-corpus",
+        "measured_case_count": 0,
+        "qodec": {
+          "bootstrap_ci95": null,
+          "macro_savings_pct": null,
+          "max_case_savings_pct": null,
+          "median_savings_pct": null,
+          "min_case_savings_pct": null,
+          "total_tokens": 0,
+          "weighted_savings_pct": null
+        },
+        "qodec_encoded_count": 0,
+        "qodec_passthrough_count": 0,
+        "qodec_total_tokens": 0,
+        "raw_token_share_of_measured_corpus_pct": 0.0,
+        "raw_total_tokens": 0,
+        "refusal_count": 1,
+        "rtk": {
+          "bootstrap_ci95": null,
+          "macro_savings_pct": null,
+          "max_case_savings_pct": null,
+          "median_savings_pct": null,
+          "min_case_savings_pct": null,
+          "total_tokens": 0,
+          "weighted_savings_pct": null
+        },
+        "rtk_filtered_count": 0,
+        "rtk_passthrough_count": 0,
+        "rtk_plus_qodec": {
+          "bootstrap_ci95": null,
+          "macro_savings_pct": null,
+          "max_case_savings_pct": null,
+          "median_savings_pct": null,
+          "min_case_savings_pct": null,
+          "total_tokens": 0,
+          "weighted_savings_pct": null
+        },
+        "rtk_plus_qodec_total_tokens": 0,
+        "rtk_total_tokens": 0,
+        "runtime_failure_count": 0,
+        "sample_size_classification": "non-measurable-group",
+        "single_case_dominated": false,
+        "total_case_count": 1
+      },
+      "static-dataset": {
+        "case_ids": [
+          "dataset-loghub-v8",
+          "dataset-rtn-traffic-ids"
+        ],
+        "dominant_case": {
+          "case_id": "dataset-rtn-traffic-ids",
+          "raw_tokens": 19974469,
+          "share_of_group_raw_tokens_pct": 100.0
+        },
+        "exact_roundtrip_count_where_measurable": 1,
+        "group_id": "static-dataset",
+        "measured_case_count": 1,
+        "qodec": {
+          "bootstrap_ci95": null,
+          "macro_savings_pct": 60.6597,
+          "max_case_savings_pct": 60.6597,
+          "median_savings_pct": 60.6597,
+          "min_case_savings_pct": 60.6597,
+          "total_tokens": 7858011,
+          "weighted_savings_pct": 60.6597
+        },
+        "qodec_encoded_count": 1,
+        "qodec_passthrough_count": 0,
+        "qodec_total_tokens": 7858011,
+        "raw_token_share_of_measured_corpus_pct": 99.1744,
+        "raw_total_tokens": 19974469,
+        "refusal_count": 1,
+        "rtk": {
+          "bootstrap_ci95": null,
+          "macro_savings_pct": 0.0,
+          "max_case_savings_pct": 0.0,
+          "median_savings_pct": 0.0,
+          "min_case_savings_pct": 0.0,
+          "total_tokens": 19974469,
+          "weighted_savings_pct": 0.0
+        },
+        "rtk_filtered_count": 0,
+        "rtk_passthrough_count": 1,
+        "rtk_plus_qodec": {
+          "bootstrap_ci95": null,
+          "macro_savings_pct": 60.6597,
+          "max_case_savings_pct": 60.6597,
+          "median_savings_pct": 60.6597,
+          "min_case_savings_pct": 60.6597,
+          "total_tokens": 7858011,
+          "weighted_savings_pct": 60.6597
+        },
+        "rtk_plus_qodec_total_tokens": 7858011,
+        "rtk_total_tokens": 19974469,
+        "runtime_failure_count": 0,
+        "sample_size_classification": "descriptive-case-study",
+        "single_case_dominated": true,
+        "total_case_count": 2
+      }
+    },
+    "payload_kind": {
+      "binary-container": {
+        "case_ids": [
+          "dataset-loghub-v8",
+          "research-corpus-loghub2"
+        ],
+        "dominant_case": null,
+        "exact_roundtrip_count_where_measurable": 0,
+        "group_id": "binary-container",
+        "measured_case_count": 0,
+        "qodec": {
+          "bootstrap_ci95": null,
+          "macro_savings_pct": null,
+          "max_case_savings_pct": null,
+          "median_savings_pct": null,
+          "min_case_savings_pct": null,
+          "total_tokens": 0,
+          "weighted_savings_pct": null
+        },
+        "qodec_encoded_count": 0,
+        "qodec_passthrough_count": 0,
+        "qodec_total_tokens": 0,
+        "raw_token_share_of_measured_corpus_pct": 0.0,
+        "raw_total_tokens": 0,
+        "refusal_count": 2,
+        "rtk": {
+          "bootstrap_ci95": null,
+          "macro_savings_pct": null,
+          "max_case_savings_pct": null,
+          "median_savings_pct": null,
+          "min_case_savings_pct": null,
+          "total_tokens": 0,
+          "weighted_savings_pct": null
+        },
+        "rtk_filtered_count": 0,
+        "rtk_passthrough_count": 0,
+        "rtk_plus_qodec": {
+          "bootstrap_ci95": null,
+          "macro_savings_pct": null,
+          "max_case_savings_pct": null,
+          "median_savings_pct": null,
+          "min_case_savings_pct": null,
+          "total_tokens": 0,
+          "weighted_savings_pct": null
+        },
+        "rtk_plus_qodec_total_tokens": 0,
+        "rtk_total_tokens": 0,
+        "runtime_failure_count": 0,
+        "sample_size_classification": "non-measurable-group",
+        "single_case_dominated": false,
+        "total_case_count": 2
+      },
+      "utf8-text": {
+        "case_ids": [
+          "bot-dependabot-black-5206",
+          "bot-syzbot-do-mkdirat",
+          "ci-log-jansson",
+          "ci-log-nlog",
+          "ci-log-spdlog",
+          "dataset-rtn-traffic-ids",
+          "n2a-miner-canary",
+          "repo-docker-java-parser",
+          "repo-dockerfile-parser-rs",
+          "repo-helm-values",
+          "repo-hyperfine",
+          "repo-kubeops-generator",
+          "repo-moshi",
+          "repo-pyflakes",
+          "repo-requests",
+          "repo-rustlings"
+        ],
+        "dominant_case": {
+          "case_id": "dataset-rtn-traffic-ids",
+          "raw_tokens": 19974469,
+          "share_of_group_raw_tokens_pct": 99.1744
+        },
+        "exact_roundtrip_count_where_measurable": 16,
+        "group_id": "utf8-text",
+        "measured_case_count": 16,
+        "qodec": {
+          "bootstrap_ci95": {
+            "ci_high_97_5pct": 30.8732,
+            "ci_low_2_5pct": 11.0024,
+            "point_estimate": 20.5224,
+            "resamples": 10000,
+            "seed": 20260716
+          },
+          "macro_savings_pct": 20.5224,
+          "max_case_savings_pct": 60.6597,
+          "median_savings_pct": 13.058,
+          "min_case_savings_pct": 0.0,
+          "total_tokens": 7976738,
+          "weighted_savings_pct": 60.395
+        },
+        "qodec_encoded_count": 12,
+        "qodec_passthrough_count": 4,
+        "qodec_total_tokens": 7976738,
+        "raw_token_share_of_measured_corpus_pct": 100.0,
+        "raw_total_tokens": 20140741,
+        "refusal_count": 0,
+        "rtk": {
+          "bootstrap_ci95": {
+            "ci_high_97_5pct": 30.1635,
+            "ci_low_2_5pct": 0.0,
+            "point_estimate": 12.1146,
+            "resamples": 10000,
+            "seed": 20260716
+          },
+          "macro_savings_pct": 12.1146,
+          "max_case_savings_pct": 98.8839,
+          "median_savings_pct": 0.0,
+          "min_case_savings_pct": 0.0,
+          "total_tokens": 20139667,
+          "weighted_savings_pct": 0.0053
+        },
+        "rtk_filtered_count": 2,
+        "rtk_passthrough_count": 14,
+        "rtk_plus_qodec": {
+          "bootstrap_ci95": {
+            "ci_high_97_5pct": 47.8933,
+            "ci_low_2_5pct": 17.334,
+            "point_estimate": 31.7567,
+            "resamples": 10000,
+            "seed": 20260716
+          },
+          "macro_savings_pct": 31.7567,
+          "max_case_savings_pct": 98.8839,
+          "median_savings_pct": 25.2968,
+          "min_case_savings_pct": 0.0,
+          "total_tokens": 7975762,
+          "weighted_savings_pct": 60.3999
+        },
+        "rtk_plus_qodec_total_tokens": 7975762,
+        "rtk_total_tokens": 20139667,
+        "runtime_failure_count": 0,
+        "sample_size_classification": "exploratory-group",
+        "single_case_dominated": true,
+        "total_case_count": 16
+      }
+    },
+    "producer_family": {
+      "bot": {
+        "case_ids": [
+          "bot-dependabot-black-5206",
+          "bot-syzbot-do-mkdirat"
+        ],
+        "dominant_case": {
+          "case_id": "bot-syzbot-do-mkdirat",
+          "raw_tokens": 55720,
+          "share_of_group_raw_tokens_pct": 84.1031
+        },
+        "exact_roundtrip_count_where_measurable": 2,
+        "group_id": "bot",
+        "measured_case_count": 2,
+        "qodec": {
+          "bootstrap_ci95": null,
+          "macro_savings_pct": 25.2968,
+          "max_case_savings_pct": 30.5165,
+          "median_savings_pct": 25.2968,
+          "min_case_savings_pct": 20.0772,
+          "total_tokens": 51851,
+          "weighted_savings_pct": 21.7367
+        },
+        "qodec_encoded_count": 2,
+        "qodec_passthrough_count": 0,
+        "qodec_total_tokens": 51851,
+        "raw_token_share_of_measured_corpus_pct": 0.3289,
+        "raw_total_tokens": 66252,
+        "refusal_count": 0,
+        "rtk": {
+          "bootstrap_ci95": null,
+          "macro_savings_pct": 0.0,
+          "max_case_savings_pct": 0.0,
+          "median_savings_pct": 0.0,
+          "min_case_savings_pct": 0.0,
+          "total_tokens": 66252,
+          "weighted_savings_pct": 0.0
+        },
+        "rtk_filtered_count": 0,
+        "rtk_passthrough_count": 2,
+        "rtk_plus_qodec": {
+          "bootstrap_ci95": null,
+          "macro_savings_pct": 25.2968,
+          "max_case_savings_pct": 30.5165,
+          "median_savings_pct": 25.2968,
+          "min_case_savings_pct": 20.0772,
+          "total_tokens": 51851,
+          "weighted_savings_pct": 21.7367
+        },
+        "rtk_plus_qodec_total_tokens": 51851,
+        "rtk_total_tokens": 66252,
+        "runtime_failure_count": 0,
+        "sample_size_classification": "exploratory-small-group",
+        "single_case_dominated": true,
+        "total_case_count": 2
+      },
+      "cargo": {
+        "case_ids": [
+          "repo-dockerfile-parser-rs",
+          "repo-rustlings"
+        ],
+        "dominant_case": {
+          "case_id": "repo-dockerfile-parser-rs",
+          "raw_tokens": 896,
+          "share_of_group_raw_tokens_pct": 81.9013
+        },
+        "exact_roundtrip_count_where_measurable": 2,
+        "group_id": "cargo",
+        "measured_case_count": 2,
+        "qodec": {
+          "bootstrap_ci95": null,
+          "macro_savings_pct": 7.0425,
+          "max_case_savings_pct": 10.0446,
+          "median_savings_pct": 7.0425,
+          "min_case_savings_pct": 4.0404,
+          "total_tokens": 996,
+          "weighted_savings_pct": 8.958
+        },
+        "qodec_encoded_count": 2,
+        "qodec_passthrough_count": 0,
+        "qodec_total_tokens": 996,
+        "raw_token_share_of_measured_corpus_pct": 0.0054,
+        "raw_total_tokens": 1094,
+        "refusal_count": 0,
+        "rtk": {
+          "bootstrap_ci95": null,
+          "macro_savings_pct": 96.9167,
+          "max_case_savings_pct": 98.8839,
+          "median_savings_pct": 96.9167,
+          "min_case_savings_pct": 94.9495,
+          "total_tokens": 20,
+          "weighted_savings_pct": 98.1718
+        },
+        "rtk_filtered_count": 2,
+        "rtk_passthrough_count": 0,
+        "rtk_plus_qodec": {
+          "bootstrap_ci95": null,
+          "macro_savings_pct": 96.9167,
+          "max_case_savings_pct": 98.8839,
+          "median_savings_pct": 96.9167,
+          "min_case_savings_pct": 94.9495,
+          "total_tokens": 20,
+          "weighted_savings_pct": 98.1718
+        },
+        "rtk_plus_qodec_total_tokens": 20,
+        "rtk_total_tokens": 20,
+        "runtime_failure_count": 0,
+        "sample_size_classification": "exploratory-small-group",
+        "single_case_dominated": true,
+        "total_case_count": 2
+      },
+      "dataset": {
+        "case_ids": [
+          "dataset-loghub-v8",
+          "dataset-rtn-traffic-ids"
+        ],
+        "dominant_case": {
+          "case_id": "dataset-rtn-traffic-ids",
+          "raw_tokens": 19974469,
+          "share_of_group_raw_tokens_pct": 100.0
+        },
+        "exact_roundtrip_count_where_measurable": 1,
+        "group_id": "dataset",
+        "measured_case_count": 1,
+        "qodec": {
+          "bootstrap_ci95": null,
+          "macro_savings_pct": 60.6597,
+          "max_case_savings_pct": 60.6597,
+          "median_savings_pct": 60.6597,
+          "min_case_savings_pct": 60.6597,
+          "total_tokens": 7858011,
+          "weighted_savings_pct": 60.6597
+        },
+        "qodec_encoded_count": 1,
+        "qodec_passthrough_count": 0,
+        "qodec_total_tokens": 7858011,
+        "raw_token_share_of_measured_corpus_pct": 99.1744,
+        "raw_total_tokens": 19974469,
+        "refusal_count": 1,
+        "rtk": {
+          "bootstrap_ci95": null,
+          "macro_savings_pct": 0.0,
+          "max_case_savings_pct": 0.0,
+          "median_savings_pct": 0.0,
+          "min_case_savings_pct": 0.0,
+          "total_tokens": 19974469,
+          "weighted_savings_pct": 0.0
+        },
+        "rtk_filtered_count": 0,
+        "rtk_passthrough_count": 1,
+        "rtk_plus_qodec": {
+          "bootstrap_ci95": null,
+          "macro_savings_pct": 60.6597,
+          "max_case_savings_pct": 60.6597,
+          "median_savings_pct": 60.6597,
+          "min_case_savings_pct": 60.6597,
+          "total_tokens": 7858011,
+          "weighted_savings_pct": 60.6597
+        },
+        "rtk_plus_qodec_total_tokens": 7858011,
+        "rtk_total_tokens": 19974469,
+        "runtime_failure_count": 0,
+        "sample_size_classification": "descriptive-case-study",
+        "single_case_dominated": true,
+        "total_case_count": 2
+      },
+      "dotnet": {
+        "case_ids": [
+          "n2a-miner-canary",
+          "repo-kubeops-generator"
+        ],
+        "dominant_case": {
+          "case_id": "n2a-miner-canary",
+          "raw_tokens": 8184,
+          "share_of_group_raw_tokens_pct": 91.7489
+        },
+        "exact_roundtrip_count_where_measurable": 2,
+        "group_id": "dotnet",
+        "measured_case_count": 2,
+        "qodec": {
+          "bootstrap_ci95": null,
+          "macro_savings_pct": 0.0,
+          "max_case_savings_pct": 0.0,
+          "median_savings_pct": 0.0,
+          "min_case_savings_pct": 0.0,
+          "total_tokens": 8920,
+          "weighted_savings_pct": 0.0
+        },
+        "qodec_encoded_count": 0,
+        "qodec_passthrough_count": 2,
+        "qodec_total_tokens": 8920,
+        "raw_token_share_of_measured_corpus_pct": 0.0443,
+        "raw_total_tokens": 8920,
+        "refusal_count": 0,
+        "rtk": {
+          "bootstrap_ci95": null,
+          "macro_savings_pct": 0.0,
+          "max_case_savings_pct": 0.0,
+          "median_savings_pct": 0.0,
+          "min_case_savings_pct": 0.0,
+          "total_tokens": 8920,
+          "weighted_savings_pct": 0.0
+        },
+        "rtk_filtered_count": 0,
+        "rtk_passthrough_count": 2,
+        "rtk_plus_qodec": {
+          "bootstrap_ci95": null,
+          "macro_savings_pct": 0.0,
+          "max_case_savings_pct": 0.0,
+          "median_savings_pct": 0.0,
+          "min_case_savings_pct": 0.0,
+          "total_tokens": 8920,
+          "weighted_savings_pct": 0.0
+        },
+        "rtk_plus_qodec_total_tokens": 8920,
+        "rtk_total_tokens": 8920,
+        "runtime_failure_count": 0,
+        "sample_size_classification": "exploratory-small-group",
+        "single_case_dominated": true,
+        "total_case_count": 2
+      },
+      "generic-ci": {
+        "case_ids": [
+          "ci-log-jansson",
+          "ci-log-nlog",
+          "ci-log-spdlog"
+        ],
+        "dominant_case": {
+          "case_id": "ci-log-nlog",
+          "raw_tokens": 51609,
+          "share_of_group_raw_tokens_pct": 63.227
+        },
+        "exact_roundtrip_count_where_measurable": 3,
+        "group_id": "generic-ci",
+        "measured_case_count": 3,
+        "qodec": {
+          "bootstrap_ci95": {
+            "ci_high_97_5pct": 55.1056,
+            "ci_low_2_5pct": 32.0797,
+            "point_estimate": 44.3313,
+            "resamples": 10000,
+            "seed": 20260716
+          },
+          "macro_savings_pct": 44.3313,
+          "max_case_savings_pct": 55.1056,
+          "median_savings_pct": 45.8087,
+          "min_case_savings_pct": 32.0797,
+          "total_tokens": 50130,
+          "weighted_savings_pct": 38.585
+        },
+        "qodec_encoded_count": 3,
+        "qodec_passthrough_count": 0,
+        "qodec_total_tokens": 50130,
+        "raw_token_share_of_measured_corpus_pct": 0.4053,
+        "raw_total_tokens": 81625,
+        "refusal_count": 0,
+        "rtk": {
+          "bootstrap_ci95": {
+            "ci_high_97_5pct": 0.0,
+            "ci_low_2_5pct": 0.0,
+            "point_estimate": 0.0,
+            "resamples": 10000,
+            "seed": 20260716
+          },
+          "macro_savings_pct": 0.0,
+          "max_case_savings_pct": 0.0,
+          "median_savings_pct": 0.0,
+          "min_case_savings_pct": 0.0,
+          "total_tokens": 81625,
+          "weighted_savings_pct": 0.0
+        },
+        "rtk_filtered_count": 0,
+        "rtk_passthrough_count": 3,
+        "rtk_plus_qodec": {
+          "bootstrap_ci95": {
+            "ci_high_97_5pct": 55.1056,
+            "ci_low_2_5pct": 32.0797,
+            "point_estimate": 44.3313,
+            "resamples": 10000,
+            "seed": 20260716
+          },
+          "macro_savings_pct": 44.3313,
+          "max_case_savings_pct": 55.1056,
+          "median_savings_pct": 45.8087,
+          "min_case_savings_pct": 32.0797,
+          "total_tokens": 50130,
+          "weighted_savings_pct": 38.585
+        },
+        "rtk_plus_qodec_total_tokens": 50130,
+        "rtk_total_tokens": 81625,
+        "runtime_failure_count": 0,
+        "sample_size_classification": "exploratory-group",
+        "single_case_dominated": false,
+        "total_case_count": 3
+      },
+      "generic-cli": {
+        "case_ids": [
+          "repo-hyperfine",
+          "repo-pyflakes"
+        ],
+        "dominant_case": {
+          "case_id": "repo-hyperfine",
+          "raw_tokens": 9,
+          "share_of_group_raw_tokens_pct": 100.0
+        },
+        "exact_roundtrip_count_where_measurable": 2,
+        "group_id": "generic-cli",
+        "measured_case_count": 2,
+        "qodec": {
+          "bootstrap_ci95": null,
+          "macro_savings_pct": 0.0,
+          "max_case_savings_pct": 0.0,
+          "median_savings_pct": 0.0,
+          "min_case_savings_pct": 0.0,
+          "total_tokens": 9,
+          "weighted_savings_pct": 0.0
+        },
+        "qodec_encoded_count": 0,
+        "qodec_passthrough_count": 2,
+        "qodec_total_tokens": 9,
+        "raw_token_share_of_measured_corpus_pct": 0.0,
+        "raw_total_tokens": 9,
+        "refusal_count": 0,
+        "rtk": {
+          "bootstrap_ci95": null,
+          "macro_savings_pct": 0.0,
+          "max_case_savings_pct": 0.0,
+          "median_savings_pct": 0.0,
+          "min_case_savings_pct": 0.0,
+          "total_tokens": 9,
+          "weighted_savings_pct": 0.0
+        },
+        "rtk_filtered_count": 0,
+        "rtk_passthrough_count": 2,
+        "rtk_plus_qodec": {
+          "bootstrap_ci95": null,
+          "macro_savings_pct": 0.0,
+          "max_case_savings_pct": 0.0,
+          "median_savings_pct": 0.0,
+          "min_case_savings_pct": 0.0,
+          "total_tokens": 9,
+          "weighted_savings_pct": 0.0
+        },
+        "rtk_plus_qodec_total_tokens": 9,
+        "rtk_total_tokens": 9,
+        "runtime_failure_count": 0,
+        "sample_size_classification": "exploratory-small-group",
+        "single_case_dominated": true,
+        "total_case_count": 2
+      },
+      "gradle": {
+        "case_ids": [
+          "repo-helm-values",
+          "repo-moshi"
+        ],
+        "dominant_case": {
+          "case_id": "repo-moshi",
+          "raw_tokens": 2937,
+          "share_of_group_raw_tokens_pct": 89.7342
+        },
+        "exact_roundtrip_count_where_measurable": 2,
+        "group_id": "gradle",
+        "measured_case_count": 2,
+        "qodec": {
+          "bootstrap_ci95": null,
+          "macro_savings_pct": 28.6009,
+          "max_case_savings_pct": 41.1304,
+          "median_savings_pct": 28.6009,
+          "min_case_savings_pct": 16.0714,
+          "total_tokens": 2011,
+          "weighted_savings_pct": 38.5579
+        },
+        "qodec_encoded_count": 2,
+        "qodec_passthrough_count": 0,
+        "qodec_total_tokens": 2011,
+        "raw_token_share_of_measured_corpus_pct": 0.0163,
+        "raw_total_tokens": 3273,
+        "refusal_count": 0,
+        "rtk": {
+          "bootstrap_ci95": null,
+          "macro_savings_pct": 0.0,
+          "max_case_savings_pct": 0.0,
+          "median_savings_pct": 0.0,
+          "min_case_savings_pct": 0.0,
+          "total_tokens": 3273,
+          "weighted_savings_pct": 0.0
+        },
+        "rtk_filtered_count": 0,
+        "rtk_passthrough_count": 2,
+        "rtk_plus_qodec": {
+          "bootstrap_ci95": null,
+          "macro_savings_pct": 28.6009,
+          "max_case_savings_pct": 41.1304,
+          "median_savings_pct": 28.6009,
+          "min_case_savings_pct": 16.0714,
+          "total_tokens": 2011,
+          "weighted_savings_pct": 38.5579
+        },
+        "rtk_plus_qodec_total_tokens": 2011,
+        "rtk_total_tokens": 3273,
+        "runtime_failure_count": 0,
+        "sample_size_classification": "exploratory-small-group",
+        "single_case_dominated": true,
+        "total_case_count": 2
+      },
+      "maven": {
+        "case_ids": [
+          "repo-docker-java-parser"
+        ],
+        "dominant_case": {
+          "case_id": "repo-docker-java-parser",
+          "raw_tokens": 3886,
+          "share_of_group_raw_tokens_pct": 100.0
+        },
+        "exact_roundtrip_count_where_measurable": 1,
+        "group_id": "maven",
+        "measured_case_count": 1,
+        "qodec": {
+          "bootstrap_ci95": null,
+          "macro_savings_pct": 4.9923,
+          "max_case_savings_pct": 4.9923,
+          "median_savings_pct": 4.9923,
+          "min_case_savings_pct": 4.9923,
+          "total_tokens": 3692,
+          "weighted_savings_pct": 4.9923
+        },
+        "qodec_encoded_count": 1,
+        "qodec_passthrough_count": 0,
+        "qodec_total_tokens": 3692,
+        "raw_token_share_of_measured_corpus_pct": 0.0193,
+        "raw_total_tokens": 3886,
+        "refusal_count": 0,
+        "rtk": {
+          "bootstrap_ci95": null,
+          "macro_savings_pct": 0.0,
+          "max_case_savings_pct": 0.0,
+          "median_savings_pct": 0.0,
+          "min_case_savings_pct": 0.0,
+          "total_tokens": 3886,
+          "weighted_savings_pct": 0.0
+        },
+        "rtk_filtered_count": 0,
+        "rtk_passthrough_count": 1,
+        "rtk_plus_qodec": {
+          "bootstrap_ci95": null,
+          "macro_savings_pct": 4.9923,
+          "max_case_savings_pct": 4.9923,
+          "median_savings_pct": 4.9923,
+          "min_case_savings_pct": 4.9923,
+          "total_tokens": 3692,
+          "weighted_savings_pct": 4.9923
+        },
+        "rtk_plus_qodec_total_tokens": 3692,
+        "rtk_total_tokens": 3886,
+        "runtime_failure_count": 0,
+        "sample_size_classification": "descriptive-case-study",
+        "single_case_dominated": true,
+        "total_case_count": 1
+      },
+      "none": {
+        "case_ids": [
+          "research-corpus-loghub2"
+        ],
+        "dominant_case": null,
+        "exact_roundtrip_count_where_measurable": 0,
+        "group_id": "none",
+        "measured_case_count": 0,
+        "qodec": {
+          "bootstrap_ci95": null,
+          "macro_savings_pct": null,
+          "max_case_savings_pct": null,
+          "median_savings_pct": null,
+          "min_case_savings_pct": null,
+          "total_tokens": 0,
+          "weighted_savings_pct": null
+        },
+        "qodec_encoded_count": 0,
+        "qodec_passthrough_count": 0,
+        "qodec_total_tokens": 0,
+        "raw_token_share_of_measured_corpus_pct": 0.0,
+        "raw_total_tokens": 0,
+        "refusal_count": 1,
+        "rtk": {
+          "bootstrap_ci95": null,
+          "macro_savings_pct": null,
+          "max_case_savings_pct": null,
+          "median_savings_pct": null,
+          "min_case_savings_pct": null,
+          "total_tokens": 0,
+          "weighted_savings_pct": null
+        },
+        "rtk_filtered_count": 0,
+        "rtk_passthrough_count": 0,
+        "rtk_plus_qodec": {
+          "bootstrap_ci95": null,
+          "macro_savings_pct": null,
+          "max_case_savings_pct": null,
+          "median_savings_pct": null,
+          "min_case_savings_pct": null,
+          "total_tokens": 0,
+          "weighted_savings_pct": null
+        },
+        "rtk_plus_qodec_total_tokens": 0,
+        "rtk_total_tokens": 0,
+        "runtime_failure_count": 0,
+        "sample_size_classification": "non-measurable-group",
+        "single_case_dominated": false,
+        "total_case_count": 1
+      },
+      "pytest": {
+        "case_ids": [
+          "repo-requests"
+        ],
+        "dominant_case": {
+          "case_id": "repo-requests",
+          "raw_tokens": 1213,
+          "share_of_group_raw_tokens_pct": 100.0
+        },
+        "exact_roundtrip_count_where_measurable": 1,
+        "group_id": "pytest",
+        "measured_case_count": 1,
+        "qodec": {
+          "bootstrap_ci95": null,
+          "macro_savings_pct": 7.8318,
+          "max_case_savings_pct": 7.8318,
+          "median_savings_pct": 7.8318,
+          "min_case_savings_pct": 7.8318,
+          "total_tokens": 1118,
+          "weighted_savings_pct": 7.8318
+        },
+        "qodec_encoded_count": 1,
+        "qodec_passthrough_count": 0,
+        "qodec_total_tokens": 1118,
+        "raw_token_share_of_measured_corpus_pct": 0.006,
+        "raw_total_tokens": 1213,
+        "refusal_count": 0,
+        "rtk": {
+          "bootstrap_ci95": null,
+          "macro_savings_pct": 0.0,
+          "max_case_savings_pct": 0.0,
+          "median_savings_pct": 0.0,
+          "min_case_savings_pct": 0.0,
+          "total_tokens": 1213,
+          "weighted_savings_pct": 0.0
+        },
+        "rtk_filtered_count": 0,
+        "rtk_passthrough_count": 1,
+        "rtk_plus_qodec": {
+          "bootstrap_ci95": null,
+          "macro_savings_pct": 7.8318,
+          "max_case_savings_pct": 7.8318,
+          "median_savings_pct": 7.8318,
+          "min_case_savings_pct": 7.8318,
+          "total_tokens": 1118,
+          "weighted_savings_pct": 7.8318
+        },
+        "rtk_plus_qodec_total_tokens": 1118,
+        "rtk_total_tokens": 1213,
+        "runtime_failure_count": 0,
+        "sample_size_classification": "descriptive-case-study",
+        "single_case_dominated": true,
+        "total_case_count": 1
+      }
+    }
+  },
+  "zero_token_case_policy": {
+    "case_id": "repo-pyflakes",
+    "case_not_removed_from_case_count": true,
+    "group_and_corpus_aggregation_note": "macro_savings_pct, median_savings_pct, and bootstrap resampling treat this case's ratio as 0.0 in the aggregate -- the exact same zero-token convention already used by the accepted canonical build_n2d3_primary_benchmark._arm_stats() builder, not a new rule",
+    "per_case_ratio": null,
+    "per_case_ratio_note": "null: 0/0 is undefined for this single case's own displayed ratio and min/max computation",
+    "raw_tokens": 0
+  }
+}

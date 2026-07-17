@@ -1,0 +1,15 @@
+{
+  "added_line_count": 3,
+  "additive_only": true,
+  "changed_files": [
+    ".github/workflows/qodec-n2d-canary-benchmark.yml"
+  ],
+  "diff_text": "diff --git a/.github/workflows/qodec-n2d-canary-benchmark.yml b/.github/workflows/qodec-n2d-canary-benchmark.yml\nindex c5c9cfe..615f80b 100644\n--- a/.github/workflows/qodec-n2d-canary-benchmark.yml\n+++ b/.github/workflows/qodec-n2d-canary-benchmark.yml\n@@ -24,6 +24,9 @@ name: qodec-n2d-canary-benchmark\n\n on:\n   workflow_dispatch:\n+  push:\n+    branches:\n+      - n2d/ci-trigger-full-run\n permissions:\n   contents: read\n concurrency:\n",
+  "implementation_sha": "0abdde6723574e908415835612e8f520d85c33e7",
+  "record_sha256": "sha256:f13f0f75570be65e6903c9f9405e4c4ec273d4c67705ffedc42ebb5d7ed9bad3",
+  "record_type": "n2d-trigger-patch-proof-v1",
+  "record_version": 1,
+  "removed_line_count": 0,
+  "schema_version": 1,
+  "trigger_sha": "46a7986967c1837797f5edc32e79122d839c3de3"
+}

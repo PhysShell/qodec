@@ -1,0 +1,37 @@
+{
+  "canonical": false,
+  "methodology": "pooled/weighted-ratio bootstrap: each of the resamples draws n=16 measured cases with replacement and computes 1 - sum(resampled arm_tokens) / sum(resampled raw_tokens) -- cases are resampled jointly (raw and arm token counts together, per case), and the ratio is computed once per resample over the pooled resampled totals. This differs from the canonical record's bootstrap, which resamples per-case ratios independently and averages them (unweighted by case size) each resample.",
+  "n": 16,
+  "note": "This is a separately-derived reporting supplement. It is NOT part of the canonical CI-produced n2d3-primary-token-benchmark-v1.json record and does not alter it. It puts a bootstrap confidence interval around the already-reported WEIGHTED savings percentages (pooled by token mass) as opposed to the canonical record's MACRO savings bootstrap (averaging per-case ratios, unweighted by size).",
+  "record_sha256": "sha256:c8612d1cc48c700cb08b09607cc26cb363cfcf1c4109005ee09afecb853fc2fe",
+  "record_type": "n2d3-weighted-total-bootstrap-supplement-v1",
+  "record_version": 1,
+  "schema_version": 1,
+  "seed_provenance": "uses seed 20260717, the originally-requested seed. The canonical record's own bootstrap uses seed 20260716, which was already committed in implementation SHA 0abdde6723574e908415835612e8f520d85c33e7 before the canonical CI run and is accepted as a predeclared deviation from the originally-requested seed 20260717; that seed is NOT changed here or anywhere else post-run. This supplement is a fresh, independent computation unconstrained by that deviation, so it uses the originally-requested seed.",
+  "source_benchmark_record_path": "evals/interop/v2/n2/d1-identity-lock/n2d3-primary-token-benchmark-v1.json",
+  "source_benchmark_record_sha256": "sha256:c00d2ff8f4883c964fbd05d46840763826806ea73357511e6f38a882aaf0e1cd",
+  "supplement_only": true,
+  "weighted_total_bootstrap_ci95": {
+    "qodec": {
+      "ci_high_97_5pct": 60.6215,
+      "ci_low_2_5pct": 22.1765,
+      "point_estimate_weighted_savings_pct": 60.395,
+      "resamples": 10000,
+      "seed": 20260717
+    },
+    "rtk": {
+      "ci_high_97_5pct": 2.1725,
+      "ci_low_2_5pct": 0.0,
+      "point_estimate_weighted_savings_pct": 0.0053,
+      "resamples": 10000,
+      "seed": 20260717
+    },
+    "rtk_plus_qodec_hybrid": {
+      "ci_high_97_5pct": 60.6241,
+      "ci_low_2_5pct": 22.9198,
+      "point_estimate_weighted_savings_pct": 60.3999,
+      "resamples": 10000,
+      "seed": 20260717
+    }
+  }
+}

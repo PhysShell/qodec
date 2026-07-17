@@ -1,0 +1,257 @@
+# N2-D2/N2-D3 -- bounded RTK filter determinism probes, the single-input
+# N2-D2 determinism canary, and the 18-case x 2-leg N2-D3 model-free
+# primary token benchmark.
+#
+# Nix-driven, same discipline as qodec-v2.yml: committed flake.lock is
+# mandatory (--no-update-lock-file), third-party actions pinned to full
+# commit SHAs. Performs no model or agent calls. Consumes exactly one
+# committed input: n2d3-model-free-input-bundle-v1.tar -- no job
+# reacquires or derives its own variant of any case's benchmark input.
+#
+# Scope correction: N2-D2 covers exactly ONE input (n2a-miner-canary, 20
+# repetitions, run twice independently as leg a/b). The other 17 primary
+# corpus cases are N2-D3 inputs, measured with two independent full-
+# pipeline repetitions each (leg a/b), not twenty -- N2-D3 is a token-count
+# benchmark, not a determinism probe. Two of the 18 corpus cases
+# (dataset-loghub-v8, research-corpus-loghub2) are outside QODEC's UTF-8
+# text-input measurement domain by construction (their locked canonical
+# input wraps a nested compressed archive) and produce a typed
+# UNMEASURABLE_NON_UTF8 refusal row instead of a token count -- this is not
+# an N2-D2/N2-D3 failure. dataset-rtn-traffic-ids (38MB) keeps its full two
+# repetitions but gets a longer per-job timeout given its real measured
+# ~43-minute single-encode cost.
+name: qodec-n2d-canary-benchmark
+
+on:
+  workflow_dispatch:
+permissions:
+  contents: read
+concurrency:
+  group: qodec-n2d-canary-benchmark-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  LC_ALL: C.UTF-8
+  LANG: C.UTF-8
+  TZ: UTC
+
+jobs:
+  rtk-determinism-probes:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - name: Checkout
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        with:
+          persist-credentials: false
+      - name: Install Nix
+        uses: cachix/install-nix-action@08dcb3a5e62fa31e2da3d490afc4176ef55ecd72 # v30
+      - name: Build qodec (explicit out-link)
+        run: nix build .#qodec --out-link qodec-result --no-update-lock-file --print-build-logs
+      - name: Build rtk-pinned (explicit out-link)
+        run: nix build .#rtk-pinned --out-link rtk-result --no-update-lock-file --print-build-logs
+      - name: Bounded git-diff filter determinism probe (20 repetitions, real fixture)
+        run: |
+          python3 evals/interop/v2/n2/d1-identity-lock/tools/rtk_filter_determinism_probe.py \
+            --rtk-bin "$(pwd)/rtk-result/bin/rtk" --qodec-bin "$(pwd)/qodec-result/bin/qodec" \
+            --input-file corpus/git-diff.txt \
+            --filter-argv-tail "pipe,--filter,git-diff" \
+            --repeats 20 \
+            --out git-diff-probe-report.canonical.json
+      - name: Bounded cargo-test filter determinism probe (20 repetitions, real fixture)
+        run: |
+          python3 evals/interop/v2/n2/d1-identity-lock/tools/rtk_filter_determinism_probe.py \
+            --rtk-bin "$(pwd)/rtk-result/bin/rtk" --qodec-bin "$(pwd)/qodec-result/bin/qodec" \
+            --input-file evals/interop/v2/smoke/fixtures/test-runner.txt \
+            --filter-argv-tail "pipe,--filter,cargo-test" \
+            --repeats 20 \
+            --out cargo-test-probe-report.canonical.json
+      - name: Upload canonical probe reports
+        uses: actions/upload-artifact@b4b15b8c7c6ac21ea08fcf65892d2ee8f75cf882 # v4.4.3
+        with:
+          name: n2d-rtk-determinism-probes-canonical
+          path: |
+            git-diff-probe-report.canonical.json
+            cargo-test-probe-report.canonical.json
+          if-no-files-found: error
+
+  n2d2-canary-leg-a:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - name: Checkout
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        with:
+          persist-credentials: false
+      - name: Install Nix
+        uses: cachix/install-nix-action@08dcb3a5e62fa31e2da3d490afc4176ef55ecd72 # v30
+      - name: Build qodec (explicit out-link)
+        run: nix build .#qodec --out-link qodec-result --no-update-lock-file --print-build-logs
+      - name: Build rtk-pinned (explicit out-link)
+        run: nix build .#rtk-pinned --out-link rtk-result --no-update-lock-file --print-build-logs
+      - name: N2-D2 canary leg a (n2a-miner-canary, 20 repetitions)
+        run: |
+          python3 evals/interop/v2/n2/d1-identity-lock/tools/n2d2_determinism_canary.py run-leg \
+            --qodec-bin "$(pwd)/qodec-result/bin/qodec" --rtk-bin "$(pwd)/rtk-result/bin/rtk" \
+            --repetitions 20 --leg a \
+            --out n2d2-leg-a-report.json
+      - name: Upload leg a report
+        uses: actions/upload-artifact@b4b15b8c7c6ac21ea08fcf65892d2ee8f75cf882 # v4.4.3
+        with:
+          name: n2d2-leg-a-report
+          path: n2d2-leg-a-report.json
+          if-no-files-found: error
+
+  n2d2-canary-leg-b:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - name: Checkout
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        with:
+          persist-credentials: false
+      - name: Install Nix
+        uses: cachix/install-nix-action@08dcb3a5e62fa31e2da3d490afc4176ef55ecd72 # v30
+      - name: Build qodec (explicit out-link)
+        run: nix build .#qodec --out-link qodec-result --no-update-lock-file --print-build-logs
+      - name: Build rtk-pinned (explicit out-link)
+        run: nix build .#rtk-pinned --out-link rtk-result --no-update-lock-file --print-build-logs
+      - name: N2-D2 canary leg b (n2a-miner-canary, 20 repetitions)
+        run: |
+          python3 evals/interop/v2/n2/d1-identity-lock/tools/n2d2_determinism_canary.py run-leg \
+            --qodec-bin "$(pwd)/qodec-result/bin/qodec" --rtk-bin "$(pwd)/rtk-result/bin/rtk" \
+            --repetitions 20 --leg b \
+            --out n2d2-leg-b-report.json
+      - name: Upload leg b report
+        uses: actions/upload-artifact@b4b15b8c7c6ac21ea08fcf65892d2ee8f75cf882 # v4.4.3
+        with:
+          name: n2d2-leg-b-report
+          path: n2d2-leg-b-report.json
+          if-no-files-found: error
+
+  n2d2-combine:
+    needs: [n2d2-canary-leg-a, n2d2-canary-leg-b]
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Checkout
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        with:
+          persist-credentials: false
+      - name: Download leg a report
+        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4
+        with:
+          name: n2d2-leg-a-report
+      - name: Download leg b report
+        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4
+        with:
+          name: n2d2-leg-b-report
+      - name: Combine legs (requires within-leg and between-leg agreement)
+        run: |
+          python3 evals/interop/v2/n2/d1-identity-lock/tools/n2d2_determinism_canary.py combine \
+            --leg-a n2d2-leg-a-report.json --leg-b n2d2-leg-b-report.json \
+            --out n2d2-determinism-canary-report.canonical.json
+      - name: Upload canonical N2-D2 canary report
+        if: always()
+        uses: actions/upload-artifact@b4b15b8c7c6ac21ea08fcf65892d2ee8f75cf882 # v4.4.3
+        with:
+          name: n2d2-determinism-canary-report-canonical
+          path: n2d2-determinism-canary-report.canonical.json
+          if-no-files-found: error
+
+  n2d3-measure:
+    needs: n2d2-combine
+    runs-on: ubuntu-latest
+    timeout-minutes: ${{ matrix.job_timeout_minutes }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - {case_id: bot-dependabot-black-5206, leg: a, job_timeout_minutes: 30, subprocess_timeout_seconds: 1200}
+          - {case_id: bot-dependabot-black-5206, leg: b, job_timeout_minutes: 30, subprocess_timeout_seconds: 1200}
+          - {case_id: bot-syzbot-do-mkdirat, leg: a, job_timeout_minutes: 30, subprocess_timeout_seconds: 1200}
+          - {case_id: bot-syzbot-do-mkdirat, leg: b, job_timeout_minutes: 30, subprocess_timeout_seconds: 1200}
+          - {case_id: ci-log-jansson, leg: a, job_timeout_minutes: 30, subprocess_timeout_seconds: 1200}
+          - {case_id: ci-log-jansson, leg: b, job_timeout_minutes: 30, subprocess_timeout_seconds: 1200}
+          - {case_id: ci-log-nlog, leg: a, job_timeout_minutes: 30, subprocess_timeout_seconds: 1200}
+          - {case_id: ci-log-nlog, leg: b, job_timeout_minutes: 30, subprocess_timeout_seconds: 1200}
+          - {case_id: ci-log-spdlog, leg: a, job_timeout_minutes: 30, subprocess_timeout_seconds: 1200}
+          - {case_id: ci-log-spdlog, leg: b, job_timeout_minutes: 30, subprocess_timeout_seconds: 1200}
+          - {case_id: dataset-loghub-v8, leg: a, job_timeout_minutes: 30, subprocess_timeout_seconds: 1200}
+          - {case_id: dataset-loghub-v8, leg: b, job_timeout_minutes: 30, subprocess_timeout_seconds: 1200}
+          - {case_id: dataset-rtn-traffic-ids, leg: a, job_timeout_minutes: 240, subprocess_timeout_seconds: 5400}
+          - {case_id: dataset-rtn-traffic-ids, leg: b, job_timeout_minutes: 240, subprocess_timeout_seconds: 5400}
+          - {case_id: n2a-miner-canary, leg: a, job_timeout_minutes: 30, subprocess_timeout_seconds: 1200}
+          - {case_id: n2a-miner-canary, leg: b, job_timeout_minutes: 30, subprocess_timeout_seconds: 1200}
+          - {case_id: repo-docker-java-parser, leg: a, job_timeout_minutes: 30, subprocess_timeout_seconds: 1200}
+          - {case_id: repo-docker-java-parser, leg: b, job_timeout_minutes: 30, subprocess_timeout_seconds: 1200}
+          - {case_id: repo-dockerfile-parser-rs, leg: a, job_timeout_minutes: 30, subprocess_timeout_seconds: 1200}
+          - {case_id: repo-dockerfile-parser-rs, leg: b, job_timeout_minutes: 30, subprocess_timeout_seconds: 1200}
+          - {case_id: repo-helm-values, leg: a, job_timeout_minutes: 30, subprocess_timeout_seconds: 1200}
+          - {case_id: repo-helm-values, leg: b, job_timeout_minutes: 30, subprocess_timeout_seconds: 1200}
+          - {case_id: repo-hyperfine, leg: a, job_timeout_minutes: 30, subprocess_timeout_seconds: 1200}
+          - {case_id: repo-hyperfine, leg: b, job_timeout_minutes: 30, subprocess_timeout_seconds: 1200}
+          - {case_id: repo-kubeops-generator, leg: a, job_timeout_minutes: 30, subprocess_timeout_seconds: 1200}
+          - {case_id: repo-kubeops-generator, leg: b, job_timeout_minutes: 30, subprocess_timeout_seconds: 1200}
+          - {case_id: repo-moshi, leg: a, job_timeout_minutes: 30, subprocess_timeout_seconds: 1200}
+          - {case_id: repo-moshi, leg: b, job_timeout_minutes: 30, subprocess_timeout_seconds: 1200}
+          - {case_id: repo-pyflakes, leg: a, job_timeout_minutes: 30, subprocess_timeout_seconds: 1200}
+          - {case_id: repo-pyflakes, leg: b, job_timeout_minutes: 30, subprocess_timeout_seconds: 1200}
+          - {case_id: repo-requests, leg: a, job_timeout_minutes: 30, subprocess_timeout_seconds: 1200}
+          - {case_id: repo-requests, leg: b, job_timeout_minutes: 30, subprocess_timeout_seconds: 1200}
+          - {case_id: repo-rustlings, leg: a, job_timeout_minutes: 30, subprocess_timeout_seconds: 1200}
+          - {case_id: repo-rustlings, leg: b, job_timeout_minutes: 30, subprocess_timeout_seconds: 1200}
+          - {case_id: research-corpus-loghub2, leg: a, job_timeout_minutes: 30, subprocess_timeout_seconds: 1200}
+          - {case_id: research-corpus-loghub2, leg: b, job_timeout_minutes: 30, subprocess_timeout_seconds: 1200}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        with:
+          persist-credentials: false
+      - name: Install Nix
+        uses: cachix/install-nix-action@08dcb3a5e62fa31e2da3d490afc4176ef55ecd72 # v30
+      - name: Build qodec (explicit out-link)
+        run: nix build .#qodec --out-link qodec-result --no-update-lock-file --print-build-logs
+      - name: Build rtk-pinned (explicit out-link)
+        run: nix build .#rtk-pinned --out-link rtk-result --no-update-lock-file --print-build-logs
+      - name: N2-D3 measure ${{ matrix.case_id }} leg ${{ matrix.leg }}
+        run: |
+          python3 evals/interop/v2/n2/d1-identity-lock/tools/n2d3_measure_case.py \
+            --qodec-bin "$(pwd)/qodec-result/bin/qodec" --rtk-bin "$(pwd)/rtk-result/bin/rtk" \
+            --case-id "${{ matrix.case_id }}" --leg "${{ matrix.leg }}" \
+            --timeout-seconds ${{ matrix.subprocess_timeout_seconds }} \
+            --out "n2d3-${{ matrix.case_id }}-${{ matrix.leg }}.json"
+      - name: Upload measurement row
+        uses: actions/upload-artifact@b4b15b8c7c6ac21ea08fcf65892d2ee8f75cf882 # v4.4.3
+        with:
+          name: n2d3-measurement-${{ matrix.case_id }}-${{ matrix.leg }}
+          path: n2d3-${{ matrix.case_id }}-${{ matrix.leg }}.json
+          if-no-files-found: error
+
+  n2d3-aggregate:
+    needs: n2d3-measure
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - name: Checkout
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        with:
+          persist-credentials: false
+      - name: Download all N2-D3 measurement rows
+        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4
+        with:
+          pattern: n2d3-measurement-*
+          path: n2d3-measurements
+          merge-multiple: true
+      - name: Aggregate 18-case x 2-leg matrix into the primary token benchmark
+        run: |
+          python3 evals/interop/v2/n2/d1-identity-lock/tools/build_n2d3_primary_benchmark.py \
+            --measurements-dir n2d3-measurements
+      - name: Upload canonical N2-D3 benchmark
+        uses: actions/upload-artifact@b4b15b8c7c6ac21ea08fcf65892d2ee8f75cf882 # v4.4.3
+        with:
+          name: n2d3-primary-token-benchmark-canonical
+          path: |
+            evals/interop/v2/n2/d1-identity-lock/n2d3-primary-token-benchmark-v1.json
+            evals/interop/v2/n2/d1-identity-lock/n2d3-primary-token-benchmark-v1.md
+          if-no-files-found: error

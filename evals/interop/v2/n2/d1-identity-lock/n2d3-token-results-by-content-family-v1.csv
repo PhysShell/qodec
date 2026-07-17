@@ -1,0 +1,13 @@
+group_id,total_case_count,measured_case_count,refusal_count,raw_total_tokens,qodec_total_tokens,rtk_total_tokens,rtk_plus_qodec_total_tokens,raw_token_share_of_measured_corpus_pct,qodec_weighted_savings_pct,qodec_macro_savings_pct,qodec_median_savings_pct,rtk_weighted_savings_pct,rtk_macro_savings_pct,rtk_median_savings_pct,rtk_plus_qodec_weighted_savings_pct,rtk_plus_qodec_macro_savings_pct,rtk_plus_qodec_median_savings_pct,dominant_case_id,dominant_case_share_pct,single_case_dominated,sample_size_classification
+binary-archive-container,2,0,2,0,0,0,0,0.0,-,-,-,-,-,-,-,-,-,-,-,False,non-measurable-group
+canary-ci-log,1,1,0,8184,8184,8184,8184,0.0406,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,n2a-miner-canary,100.0,True,descriptive-case-study
+cargo-test-output,2,2,0,1094,996,20,20,0.0054,8.958,7.0425,7.0425,98.1718,96.9167,96.9167,98.1718,96.9167,96.9167,repo-dockerfile-parser-rs,81.9013,True,exploratory-small-group
+ci-build-log,3,3,0,81625,50130,81625,50130,0.4053,38.585,44.3313,45.8087,0.0,0.0,0.0,38.585,44.3313,45.8087,ci-log-nlog,63.227,False,exploratory-group
+cli-tool-output,2,2,0,9,9,9,9,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,repo-hyperfine,100.0,True,exploratory-small-group
+dependency-bot-report,1,1,0,10532,7318,10532,7318,0.0523,30.5165,30.5165,30.5165,0.0,0.0,0.0,30.5165,30.5165,30.5165,bot-dependabot-black-5206,100.0,True,descriptive-case-study
+dotnet-test-output,1,1,0,736,736,736,736,0.0037,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,repo-kubeops-generator,100.0,True,descriptive-case-study
+gradle-test-output,2,2,0,3273,2011,3273,2011,0.0163,38.5579,28.6009,28.6009,0.0,0.0,0.0,38.5579,28.6009,28.6009,repo-moshi,89.7342,True,exploratory-small-group
+kernel-bug-report,1,1,0,55720,44533,55720,44533,0.2767,20.0772,20.0772,20.0772,0.0,0.0,0.0,20.0772,20.0772,20.0772,bot-syzbot-do-mkdirat,100.0,True,descriptive-case-study
+maven-test-output,1,1,0,3886,3692,3886,3692,0.0193,4.9923,4.9923,4.9923,0.0,0.0,0.0,4.9923,4.9923,4.9923,repo-docker-java-parser,100.0,True,descriptive-case-study
+pytest-output,1,1,0,1213,1118,1213,1118,0.006,7.8318,7.8318,7.8318,0.0,0.0,0.0,7.8318,7.8318,7.8318,repo-requests,100.0,True,descriptive-case-study
+static-log-dataset,1,1,0,19974469,7858011,19974469,7858011,99.1744,60.6597,60.6597,60.6597,0.0,0.0,0.0,60.6597,60.6597,60.6597,dataset-rtn-traffic-ids,100.0,True,descriptive-case-study
