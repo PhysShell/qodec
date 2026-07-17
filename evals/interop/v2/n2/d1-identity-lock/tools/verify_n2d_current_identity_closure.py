@@ -247,6 +247,50 @@ def verify(record_path: Path = RECORD_PATH) -> tuple[bool, str]:
     if record.get("token_counts_computed") is True and record.get("n2d3_gate_status") != "passed":
         return False, "token_counts_computed=true requires n2d3_gate_status=='passed'"
 
+    n2d2_link = record.get("n2d2_report_link")
+    if record.get("n2d2_gate_status") == "passed":
+        if n2d2_link is None:
+            return False, "n2d2_gate_status=='passed' requires n2d2_report_link"
+        n2d2_report_path = IDENTITY_LOCK_DIR / "n2d2-determinism-canary-report-v1.json"
+        if not n2d2_report_path.is_file():
+            return False, f"{n2d2_report_path} does not exist"
+        n2d2_record = json.loads(n2d2_report_path.read_text())
+        if n2d2_link.get("record_sha256") != n2d2_record.get("record_sha256"):
+            return False, "n2d2_report_link.record_sha256 does not match the real committed report"
+        sys.path.insert(0, str(TOOLS_DIR))
+        import n2d2_determinism_canary  # noqa: E402
+        if n2d2_determinism_canary.compute_record_sha256(n2d2_record) != n2d2_record.get("record_sha256"):
+            return False, "n2d2-determinism-canary-report-v1.json self-hash does not verify"
+        if n2d2_record.get("case_id") != n2d2_determinism_canary.CANARY_CASE_ID:
+            return False, "n2d2 report case_id does not match the pinned canary case id"
+        if n2d2_record.get("all_cases_deterministic") is not True:
+            return False, "n2d2_gate_status=='passed' but the report itself does not show all_cases_deterministic=true"
+
+    n2d3_link = record.get("n2d3_benchmark_link")
+    if record.get("n2d3_gate_status") == "passed":
+        if n2d3_link is None:
+            return False, "n2d3_gate_status=='passed' requires n2d3_benchmark_link"
+        n2d3_report_path = IDENTITY_LOCK_DIR / "n2d3-primary-token-benchmark-v1.json"
+        if not n2d3_report_path.is_file():
+            return False, f"{n2d3_report_path} does not exist"
+        n2d3_record = json.loads(n2d3_report_path.read_text())
+        if n2d3_link.get("record_sha256") != n2d3_record.get("record_sha256"):
+            return False, "n2d3_benchmark_link.record_sha256 does not match the real committed benchmark"
+        sys.path.insert(0, str(TOOLS_DIR))
+        import build_n2d3_primary_benchmark  # noqa: E402
+        if build_n2d3_primary_benchmark.compute_record_sha256(n2d3_record) != n2d3_record.get("record_sha256"):
+            return False, "n2d3-primary-token-benchmark-v1.json self-hash does not verify"
+        corpus = n2d3_record.get("corpus", {})
+        if (
+            corpus.get("total_corpus_cases") != 18
+            or corpus.get("token_measurable_cases") != 16
+            or corpus.get("non_utf8_measurement_refusals") != 2
+            or corpus.get("runtime_failure_count") != 0
+        ):
+            return False, "n2d3_gate_status=='passed' but the benchmark's own corpus breakdown is not 18/16/2/0"
+        if n2d3_link.get("corpus") != corpus:
+            return False, "n2d3_benchmark_link.corpus does not match the real committed benchmark's own corpus breakdown"
+
     return True, "OK"
 
 

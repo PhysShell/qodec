@@ -249,10 +249,27 @@
       "origin_kind": "n2c-static-durable-input"
     }
   },
-  "n2d2_gate_status": "not_yet_run",
-  "n2d3_gate_status": "not_yet_run",
+  "n2d2_gate_status": "passed",
+  "n2d2_report_link": {
+    "case_id": "n2a-miner-canary",
+    "record_path": "evals/interop/v2/n2/d1-identity-lock/n2d2-determinism-canary-report-v1.json",
+    "record_sha256": "sha256:6f46bb83d3fef4e94e9a53f8d0a627cd59a87c08fb0c3fd86f8692777e56b89d",
+    "repetitions_per_leg": 20
+  },
+  "n2d3_benchmark_link": {
+    "corpus": {
+      "exact_roundtrip_count_where_measurable": 16,
+      "non_utf8_measurement_refusals": 2,
+      "passthrough_count_where_observable": 4,
+      "runtime_failure_count": 0,
+      "token_measurable_cases": 16,
+      "total_corpus_cases": 18
+    },
+    "record_path": "evals/interop/v2/n2/d1-identity-lock/n2d3-primary-token-benchmark-v1.json",
+    "record_sha256": "sha256:c00d2ff8f4883c964fbd05d46840763826806ea73357511e6f38a882aaf0e1cd"
+  },
+  "n2d3_gate_status": "passed",
   "not_yet_authorized": [
-    "QODEC or RTK benchmark-arm execution beyond the bounded determinism probes and N2-D2/N2-D3 explicitly authorized by this mission",
     "model-based quality evaluation",
     "leaderboard construction",
     "modifications to PhysShell/007"
@@ -279,7 +296,7 @@
     "qodec_tree_sha": "0cb1ac5ea13d6333365ee98273e402c03b8d1aade2a0ce3d64bd602dbc638e0b",
     "rust_toolchain_requested_file_sha256": "f72fb053f443640dd84234abf7450e350015972506de06a4ed22e8b0df3f6bcb"
   },
-  "record_sha256": "sha256:2a938144283217b367b20c866787cdc09da804c5a6096cf6b6d65432519effbd",
+  "record_sha256": "sha256:86f9e9272a820ea542083b0f75bf1415d03bb6f75e3fcc6cf5f4dc913b0f77a7",
   "record_type": "n2d-current-identity-closure-v1",
   "record_version": 1,
   "repo_spotless_status": {
@@ -326,7 +343,7 @@
     "record_path": "evals/interop/v2/n2/d1-identity-lock/n2d1-contract.json",
     "record_preserved_unmodified": true
   },
-  "token_counts_computed": false,
+  "token_counts_computed": true,
   "tokenizer_identity": {
     "encoding_identity": "o200k_base",
     "library": "tiktoken-rs",

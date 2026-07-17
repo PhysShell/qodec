@@ -42,6 +42,8 @@ SPOTLESS_REJECTION_PATH = IDENTITY_LOCK_DIR / "repo-spotless-rejection-record.js
 REPLACEMENT_SELECTION_PATH = IDENTITY_LOCK_DIR / "stage2-replacement-selection-v1.json"
 N2D1_CONTRACT_PATH = IDENTITY_LOCK_DIR / "n2d1-contract.json"
 RTK_APPLICABILITY_MAP_PATH = IDENTITY_LOCK_DIR / "rtk-applicability-map-v1.json"
+N2D2_REPORT_PATH = IDENTITY_LOCK_DIR / "n2d2-determinism-canary-report-v1.json"
+N2D3_BENCHMARK_PATH = IDENTITY_LOCK_DIR / "n2d3-primary-token-benchmark-v1.json"
 
 N2D_BASE_MAIN_SHA = "6be63689c1553c4a97411f9d6fbb733ee87ebf34"
 REQUIRED_STAGE2_RECORD_SHA256 = "sha256:1c722a31b836dbe1f68b6c4fb9d224f70077859772121cfc636076160ae8b6cd"
@@ -185,6 +187,55 @@ def _build_rtk_applicability_map_link() -> dict:
     }
 
 
+def _n2d2_gate() -> tuple[str, dict | None]:
+    """Re-verifies (never trusts) the committed N2-D2 report, if present.
+    Only its path and its own recomputed self-hash are stored here."""
+    if not N2D2_REPORT_PATH.is_file():
+        return "not_yet_run", None
+    import n2d2_determinism_canary as canary
+
+    record = json.loads(N2D2_REPORT_PATH.read_text())
+    if canary.compute_record_sha256(record) != record["record_sha256"]:
+        raise RuntimeError("n2d2-determinism-canary-report-v1.json self-hash mismatch")
+    if record.get("case_id") != canary.CANARY_CASE_ID:
+        raise RuntimeError(f"n2d2 report case_id {record.get('case_id')!r} != {canary.CANARY_CASE_ID!r}")
+    status = "passed" if record.get("all_cases_deterministic") is True else "failed"
+    link = {
+        "record_path": "evals/interop/v2/n2/d1-identity-lock/n2d2-determinism-canary-report-v1.json",
+        "record_sha256": record["record_sha256"],
+        "case_id": record["case_id"],
+        "repetitions_per_leg": record.get("repetitions_per_leg"),
+    }
+    return status, link
+
+
+def _n2d3_gate(n2d2_gate_status: str) -> tuple[str, dict | None, bool]:
+    """Re-verifies (never trusts) the committed N2-D3 benchmark, if present.
+    N2-D3 cannot be considered passed unless N2-D2 itself passed."""
+    if not N2D3_BENCHMARK_PATH.is_file():
+        return "not_yet_run", None, False
+    import build_n2d3_primary_benchmark as bench
+
+    record = json.loads(N2D3_BENCHMARK_PATH.read_text())
+    if bench.compute_record_sha256(record) != record["record_sha256"]:
+        raise RuntimeError("n2d3-primary-token-benchmark-v1.json self-hash mismatch")
+    corpus = record["corpus"]
+    ok = (
+        n2d2_gate_status == "passed"
+        and corpus["total_corpus_cases"] == 18
+        and corpus["token_measurable_cases"] == 16
+        and corpus["non_utf8_measurement_refusals"] == 2
+        and corpus["runtime_failure_count"] == 0
+    )
+    status = "passed" if ok else "failed"
+    link = {
+        "record_path": "evals/interop/v2/n2/d1-identity-lock/n2d3-primary-token-benchmark-v1.json",
+        "record_sha256": record["record_sha256"],
+        "corpus": corpus,
+    }
+    return status, link, status == "passed"
+
+
 def build_record() -> dict:
     stage2_record = _load_stage2_record()
     if stage2_record["record_sha256"] != REQUIRED_STAGE2_RECORD_SHA256:
@@ -221,6 +272,9 @@ def build_record() -> dict:
     spotless_rejection = json.loads(SPOTLESS_REJECTION_PATH.read_text())
     replacement_selection = json.loads(REPLACEMENT_SELECTION_PATH.read_text())
     n2d1_contract = json.loads(N2D1_CONTRACT_PATH.read_text())
+
+    n2d2_gate_status, n2d2_link = _n2d2_gate()
+    n2d3_gate_status, n2d3_link, token_counts_computed = _n2d3_gate(n2d2_gate_status)
 
     body = {
         "record_type": "n2d-current-identity-closure-v1",
@@ -296,11 +350,12 @@ def build_record() -> dict:
         },
         "rtk_applicability_map": _build_rtk_applicability_map_link(),
         "rtk_applicability_map_status": "built -- bounded git-diff/cargo-test determinism probes complete, 20/20 identical",
-        "n2d2_gate_status": "not_yet_run",
-        "n2d3_gate_status": "not_yet_run",
-        "token_counts_computed": False,
+        "n2d2_gate_status": n2d2_gate_status,
+        "n2d2_report_link": n2d2_link,
+        "n2d3_gate_status": n2d3_gate_status,
+        "n2d3_benchmark_link": n2d3_link,
+        "token_counts_computed": token_counts_computed,
         "not_yet_authorized": [
-            "QODEC or RTK benchmark-arm execution beyond the bounded determinism probes and N2-D2/N2-D3 explicitly authorized by this mission",
             "model-based quality evaluation",
             "leaderboard construction",
             "modifications to PhysShell/007",

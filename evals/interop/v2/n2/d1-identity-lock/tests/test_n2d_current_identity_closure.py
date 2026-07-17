@@ -184,7 +184,7 @@ class TestMutationsAreCaught(unittest.TestCase):
     def test_token_counts_computed_true_without_n2d3_passed_fails(self):
         def mutate(r):
             r["token_counts_computed"] = True
-            # n2d3_gate_status left at its real (not-yet-run) value
+            r["n2d3_gate_status"] = "not_yet_run"
 
         ok, message = self._verify_mutated_record(mutate)
         self.assertFalse(ok)
@@ -216,6 +216,40 @@ class TestMutationsAreCaught(unittest.TestCase):
         )
         self.assertFalse(ok)
         self.assertIn("record_preserved_unmodified", message)
+
+    def test_n2d2_report_link_sha256_mismatch_fails(self):
+        ok, message = self._verify_mutated_record(
+            lambda r: r["n2d2_report_link"].__setitem__("record_sha256", "sha256:" + "c" * 64)
+        )
+        self.assertFalse(ok)
+        self.assertIn("n2d2_report_link", message)
+
+    def test_n2d2_passed_but_report_not_deterministic_fails(self):
+        def mutate(r):
+            r["n2d2_gate_status"] = "passed"
+            r["token_counts_computed"] = False
+            r["n2d3_gate_status"] = "not_yet_run"
+            r["n2d3_benchmark_link"] = None
+            r["n2d2_report_link"]["record_sha256"] = "sha256:" + "d" * 64
+
+        ok, message = self._verify_mutated_record(mutate)
+        self.assertFalse(ok)
+
+    def test_n2d3_benchmark_link_sha256_mismatch_fails(self):
+        ok, message = self._verify_mutated_record(
+            lambda r: r["n2d3_benchmark_link"].__setitem__("record_sha256", "sha256:" + "e" * 64)
+        )
+        self.assertFalse(ok)
+        self.assertIn("n2d3_benchmark_link", message)
+
+    def test_n2d3_passed_with_wrong_corpus_breakdown_in_link_fails(self):
+        def mutate(r):
+            r["n2d3_benchmark_link"]["corpus"]["token_measurable_cases"] = 17
+            r["n2d3_benchmark_link"]["corpus"]["non_utf8_measurement_refusals"] = 1
+
+        ok, message = self._verify_mutated_record(mutate)
+        self.assertFalse(ok)
+        self.assertIn("n2d3_benchmark_link.corpus", message)
 
 
 if __name__ == "__main__":
