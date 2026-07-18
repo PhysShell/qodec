@@ -39,6 +39,58 @@ class TestGlobalCacheRootExact(unittest.TestCase):
         self.assertTrue(probe._is_ephemeral_cargo_home_path((".crates2.json.lock",)))
 
 
+class TestLockPathScoping(unittest.TestCase):
+    """The blanket *.lock exclusion is removed: only enumerated cargo advisory-lock paths are
+    bookkeeping. Any .lock under a dependency-content root, and any unknown lock-shaped path,
+    is RETAINED (never silently classified as bookkeeping)."""
+
+    def test_registry_src_lock_retained(self):
+        self.assertFalse(probe._is_ephemeral_cargo_home_path(
+            ("registry", "src", "x", "crate", "fixtures", "example.lock")))
+
+    def test_registry_cache_lock_retained(self):
+        self.assertFalse(probe._is_ephemeral_cargo_home_path(("registry", "cache", "x", "dependency.lock")))
+
+    def test_git_checkouts_lock_retained(self):
+        self.assertFalse(probe._is_ephemeral_cargo_home_path(
+            ("git", "checkouts", "x", "repo", "testdata", "state.lock")))
+
+    def test_git_db_lock_retained(self):
+        self.assertFalse(probe._is_ephemeral_cargo_home_path(("git", "db", "x", "somefile.lock")))
+
+    def test_unknown_nested_lock_retained(self):
+        self.assertFalse(probe._is_ephemeral_cargo_home_path(("some", "nested", "file.lock")))
+
+    def test_unknown_root_lock_retained(self):
+        # a lock-shaped file at root that is NOT an enumerated cargo advisory lock -> retained
+        self.assertFalse(probe._is_ephemeral_cargo_home_path(("mystery.lock",)))
+
+    # separate positive tests: every EXACT cargo advisory-lock / bookkeeping path excluded
+    def test_exact_global_cache_excluded(self):
+        self.assertTrue(probe._is_ephemeral_cargo_home_path((".global-cache",)))
+
+    def test_exact_package_cache_excluded(self):
+        self.assertTrue(probe._is_ephemeral_cargo_home_path((".package-cache",)))
+
+    def test_exact_package_cache_mutate_excluded(self):
+        self.assertTrue(probe._is_ephemeral_cargo_home_path((".package-cache-mutate",)))
+
+    def test_exact_crates2_json_lock_excluded(self):
+        self.assertTrue(probe._is_ephemeral_cargo_home_path((".crates2.json.lock",)))
+
+    def test_exact_crates_toml_lock_excluded(self):
+        self.assertTrue(probe._is_ephemeral_cargo_home_path((".crates.toml.lock",)))
+
+    def test_sparse_index_config_lock_bounded_excluded(self):
+        self.assertTrue(probe._is_ephemeral_cargo_home_path(("registry", "index", "id", "config.json.lock")))
+        self.assertTrue(probe._is_ephemeral_cargo_home_path(("registry", "index", "id", ".cache", "config.json.lock")))
+
+    def test_config_lock_wrong_depth_retained(self):
+        # config.json.lock outside the exact sparse-index shape is retained
+        self.assertFalse(probe._is_ephemeral_cargo_home_path(("registry", "index", "config.json.lock")))
+        self.assertFalse(probe._is_ephemeral_cargo_home_path(("elsewhere", "config.json.lock")))
+
+
 class TestCargoHomeEphemeral(unittest.TestCase):
     def setUp(self):
         self.ch = Path(tempfile.mkdtemp())
@@ -47,8 +99,8 @@ class TestCargoHomeEphemeral(unittest.TestCase):
         crate.mkdir(parents=True)
         (crate / "libc-0.2.159.crate").write_bytes(b"tarball")
         (self.ch / ".global-cache").write_bytes(b"gc-timestamps-vary")
-        (self.ch / ".package-cache").write_bytes(b"advisory-lock")
-        (self.ch / "registry" / ".package-cache-mutate").write_bytes(b"x")
+        (self.ch / ".package-cache").write_bytes(b"advisory-lock")            # root advisory lock
+        (self.ch / ".package-cache-mutate").write_bytes(b"mutate-lock")       # root advisory lock
 
     def test_stable_manifest_excludes_global_cache(self):
         man = probe._stable_manifest(self.ch)
@@ -69,7 +121,7 @@ class TestCargoHomeEphemeral(unittest.TestCase):
         (ch2 / "registry" / "cache" / "idx" / "libc-0.2.159.crate").write_bytes(b"tarball")
         (ch2 / ".global-cache").write_bytes(b"DIFFERENT-gc-timestamps")
         (ch2 / ".package-cache").write_bytes(b"advisory-lock")
-        (ch2 / "registry" / ".package-cache-mutate").write_bytes(b"y")
+        (ch2 / ".package-cache-mutate").write_bytes(b"mutate-lock")
         a = probe._cargo_cache_manifests(self.ch)
         b = probe._cargo_cache_manifests(ch2)
         diff = probe._cargo_cache_full_diff_summary(a, b)

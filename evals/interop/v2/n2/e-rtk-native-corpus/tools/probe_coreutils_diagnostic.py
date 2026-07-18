@@ -73,28 +73,42 @@ def argv_equals_contract(argv: list, is_rtk: bool, rtk_bin: str | None) -> bool:
     a missing `cargo`, an injected `+1.81.0`, extra flags, or reordering all fail."""
     return list(argv) == expected_argv(is_rtk, rtk_bin)
 _FIXED = Path(tempfile.gettempdir()) / "n2e-fixedwork"
+# dependency-CONTENT roots: nothing under these is bookkeeping, even if lock-shaped (a crate
+# fixture example.lock, testdata state.lock, a vendored .global-cache, etc.).
+_DEP_CONTENT_ROOTS = frozenset({("registry", "src"), ("registry", "cache"),
+                                ("git", "checkouts"), ("git", "db")})
+# EXACT cargo bookkeeping paths (advisory locks + GC tracker), each a single file at a fixed
+# CARGO_HOME location. Enumerated -- never a blanket suffix match.
+_EPHEMERAL_ROOT_EXACT = frozenset({
+    (".global-cache",),          # global GC tracker DB (last-use timestamps)
+    (".package-cache",),         # package-cache advisory flock
+    (".package-cache-mutate",),  # package-cache mutate advisory flock
+    (".crates2.json.lock",),     # installed-binary registry (.crates2.json) advisory lock
+    (".crates.toml.lock",),      # legacy installed-binary registry advisory lock
+})
+
+
 def _is_ephemeral_cargo_home_path(parts: tuple) -> bool:
-    """True for CARGO_HOME paths that are cargo advisory locks / GC bookkeeping with NO
-    dependency content, excluded from stable manifests. Each case is scoped to WHERE cargo
-    actually writes it -- never a blanket basename match that could drop a legitimately-named
-    crate source file (e.g. a vendored crate that happens to contain a `.global-cache`)."""
+    """True ONLY for enumerated cargo bookkeeping paths (advisory locks / GC tracker) with no
+    dependency content. Everything else -- including any unknown lock-shaped path -- is RETAINED
+    (fail-safe): a `.lock` under a dependency-content root or an unrecognized location is real
+    content, never silently classified as bookkeeping."""
     parts = tuple(parts)
     if not parts:
         return False
-    # $CARGO_HOME/.global-cache: the global GC tracker DB (last-use timestamps for automatic
-    # garbage collection). ROOT-RELATIVE EXACT -- a `.global-cache` anywhere under
-    # registry/src, registry/cache, git/checkouts, or any nested crate source is real content
-    # and MUST be retained. (Run 29648282170 showed root .global-cache as the sole full-diff.)
-    if parts == (".global-cache",):
+    # never treat anything under a dependency-content root as bookkeeping
+    if len(parts) >= 2 and (parts[0], parts[1]) in _DEP_CONTENT_ROOTS:
+        return False
+    if parts in _EPHEMERAL_ROOT_EXACT:
         return True
-    name = parts[-1]
-    # advisory file locks cargo writes throughout CARGO_HOME (the package-cache mutate lock,
-    # per-registry index/config.json locks, the .crates2.json installed-binary lock): every
-    # *.lock in CARGO_HOME is a cargo advisory lock with no dependency content.
-    if name.endswith(".lock"):
+    # sparse-registry per-index config advisory lock, tightly bounded to its exact depth+shape:
+    #   registry/index/<registry-id>/config.json.lock
+    #   registry/index/<registry-id>/.cache/config.json.lock
+    if (len(parts) == 4 and parts[0] == "registry" and parts[1] == "index"
+            and parts[3] == "config.json.lock"):
         return True
-    # the package-cache advisory markers (no dependency content)
-    if name in (".package-cache", ".package-cache-mutate"):
+    if (len(parts) == 5 and parts[0] == "registry" and parts[1] == "index"
+            and parts[3] == ".cache" and parts[4] == "config.json.lock"):
         return True
     return False
 
@@ -360,28 +374,35 @@ def _cargo_cache_full_diff_summary(am: dict, bm: dict) -> dict:
     }
 
 
+def _reachable_ids(root: str, nodes: list) -> list:
+    """package IDs reachable through the filtered resolve graph from the resolve root (BFS over
+    each node's dep pkg ids). Falls back to every node id when the resolve has no single root
+    (virtual workspace). This is the STRUCTURAL host package set, not len(metadata.packages)."""
+    by_id = {n["id"]: n for n in nodes}
+    seeds = [root] if root and root in by_id else [n["id"] for n in nodes]
+    seen, stack = set(), list(seeds)
+    while stack:
+        nid = stack.pop()
+        if nid in seen or nid not in by_id:
+            seen.add(nid); continue
+        seen.add(nid)
+        for d in by_id[nid].get("deps", []):
+            pk = d.get("pkg")
+            if pk and pk not in seen:
+                stack.append(pk)
+    return sorted(i for i in seen if i in by_id)
+
+
 def _normalize_resolve(meta: dict, tokens: list) -> dict:
-    """path-independent semantic resolve graph from `cargo metadata --format-version 1`."""
+    """HOST-ONLY resolve graph from `cargo metadata --filter-platform <host>`. The top-level
+    `packages` array is deliberately NOT embedded (the full cross-platform package metadata is
+    derived from the Cargo.lock instead). Only the resolve structure + the set of package IDs
+    reachable through the filtered graph are kept. Path-normalized for A/B byte-equality."""
     def norm(s):
         s = s or ""
         for a, b in tokens:
             s = s.replace(a, b)
         return s
-    pkgs = []
-    for p in meta.get("packages", []):
-        pkgs.append({
-            "id": norm(p.get("id", "")), "name": p.get("name"), "version": p.get("version"),
-            "source": p.get("source"), "manifest_path": norm(p.get("manifest_path", "")),
-            "features": sorted((p.get("features") or {}).keys()),
-            "dependencies": sorted(
-                ({"name": d.get("name"), "req": d.get("req"), "kind": d.get("kind"),
-                  "target": d.get("target"), "optional": d.get("optional"),
-                  "uses_default_features": d.get("uses_default_features"),
-                  "features": sorted(d.get("features") or []),
-                  "source": norm(d.get("source")) or None} for d in (p.get("dependencies") or [])),
-                key=lambda d: (str(d["name"]), str(d.get("target")), str(d.get("kind")), str(d.get("req")))),
-        })
-    pkgs.sort(key=lambda p: p["id"])
     resolve = meta.get("resolve") or {}
     nodes = []
     for n in resolve.get("nodes", []):
@@ -396,7 +417,9 @@ def _normalize_resolve(meta: dict, tokens: list) -> dict:
                 key=lambda d: (norm(d.get("pkg")), str(d.get("name")))),
         })
     nodes.sort(key=lambda n: n["id"])
-    return {"packages": pkgs, "resolve_nodes": nodes, "resolve_root": norm(resolve.get("root") or "")}
+    root = norm(resolve.get("root") or "")
+    return {"resolve_root": root, "resolve_nodes": nodes,
+            "reachable_package_ids": _reachable_ids(root, nodes)}
 
 
 def _normalize_lock_packages(lock_bytes: bytes) -> list:
@@ -436,8 +459,7 @@ def _resolved_dependency_snapshot(repo_dir: Path, cargo_home: Path) -> dict:
            "cargo_lock_present": lock_bytes is not None,
            "cargo_lock_sha256": (_sha(lock_bytes) if lock_bytes else None),
            "cargo_lock_bytes": (len(lock_bytes) if lock_bytes else 0),
-           "cargo_lock_scope": "full cross-platform resolution",
-           "resolve_graph_platform": HOST, "resolve_graph_scope": "host-filtered"}
+           "cargo_lock_scope": "full cross-platform resolution"}
     if lock_bytes is not None:
         full_pkgs = _normalize_lock_packages(lock_bytes)
         out["full_packages_metadata"] = full_pkgs
@@ -448,10 +470,12 @@ def _resolved_dependency_snapshot(repo_dir: Path, cargo_home: Path) -> dict:
         return out
     tokens = [(str(repo_dir), "<REPO>"), (str(cargo_home), "<CARGO_HOME>"),
               (str(Path(cargo_home).parent), "<ROOT>")]
-    norm = _normalize_resolve(json.loads(r["stdout"]), tokens)
-    out["resolve_graph"] = norm
-    out["resolve_graph_normalized_sha256"] = _manifest_hash(norm)
-    out["host_resolved_package_count"] = len(norm["packages"])
+    graph = _normalize_resolve(json.loads(r["stdout"]), tokens)
+    graph["resolve_graph_platform"] = HOST
+    graph["resolve_graph_scope"] = "host-filtered"
+    out["host_resolve_graph"] = graph
+    out["host_resolve_graph_sha256"] = _manifest_hash(graph)
+    out["host_resolved_package_count"] = len(graph["reachable_package_ids"])
     return out
 
 
@@ -489,6 +513,10 @@ def _acquire(label: str, root: Path, recipe: dict, base: str) -> dict:
                    env=_cargo_env(cargo_home, {**inst_env, "CARGO_NET_OFFLINE": "false"}), tmo=1800)
     post = capture_dependency_state_passive(repo_dir, ge)
     post_md = probe_cargo_metadata_disposable(repo_dir, cargo_home, offline=post["cargo_lock"]["present"])
+    # exact post-install Cargo.lock bytes of THIS acquisition's frozen state, retained privately
+    # and written to the A-/B-Cargo.lock evidence files (req 1); never emitted inline.
+    _lock_path = repo_dir / "Cargo.lock"
+    lock_raw = _lock_path.read_bytes() if _lock_path.is_file() else None
     # semantic sparse-index cache manifests (reqs 1/2) + offline full resolved graph (req 3)
     ccm = _cargo_cache_manifests(cargo_home)
     resolved = _resolved_dependency_snapshot(repo_dir, cargo_home)
@@ -508,6 +536,7 @@ def _acquire(label: str, root: Path, recipe: dict, base: str) -> dict:
         "resolved_dependency_snapshot": resolved,
         "_root": str(root), "_repo_dir": str(repo_dir), "_cargo_home": str(cargo_home), "_ge": ge,
         "_cargo_cache_manifests": ccm,   # private full/semantic/validator, for the A/B diff summary
+        "_cargo_lock_raw": lock_raw,     # private raw post-install lock bytes -> A/B-Cargo.lock
     }
 
 
@@ -539,17 +568,25 @@ def _write_cargo_cache_evidence(A: dict, B: dict, evidence: Path) -> dict:
         rds = acq.get("resolved_dependency_snapshot") or {}
         graph_path = d / f"{label}-resolved-graph.json"
         graph_path.write_text(json.dumps({
-            "resolve_graph": rds.get("resolve_graph"),
-            "resolve_graph_scope": rds.get("resolve_graph_scope"),
-            "resolve_graph_platform": rds.get("resolve_graph_platform"),
-            "resolve_graph_normalized_sha256": rds.get("resolve_graph_normalized_sha256"),
+            "host_resolve_graph": rds.get("host_resolve_graph"),
+            "host_resolve_graph_sha256": rds.get("host_resolve_graph_sha256"),
+            "host_resolved_package_count": rds.get("host_resolved_package_count"),
             "full_packages_metadata": rds.get("full_packages_metadata"),
             "full_packages_metadata_sha256": rds.get("full_packages_metadata_sha256"),
             "cargo_lock_scope": rds.get("cargo_lock_scope"),
             "cargo_lock_sha256": rds.get("cargo_lock_sha256"),
+            "cargo_lock_bytes": rds.get("cargo_lock_bytes"),
         }, sort_keys=True, indent=1))
+        # req 1: the exact post-install lock bytes of this acquisition's frozen state
+        lock_written = None
+        lock_raw = acq.get("_cargo_lock_raw")
+        if lock_raw is not None:
+            lock_path = d / f"{label}-Cargo.lock"
+            lock_path.write_bytes(lock_raw)
+            lock_written = str(lock_path.relative_to(evidence))
         written[label] = {"cache_semantic": str(cache_path.relative_to(evidence)),
                           "resolved_graph": str(graph_path.relative_to(evidence)),
+                          "cargo_lock": lock_written,
                           "cache_entry_count": len(entries)}
     return written
 
@@ -595,8 +632,8 @@ def _classify_acquisitions(A: dict, B: dict, tool_ident: dict) -> dict:
         # req 3: host-filtered resolve graph + full cross-platform package metadata +
         # generated lock, each byte-identical across A/B
         "resolved_metadata_ok": resolved_ok,
-        "host_resolve_graph_equal": (resolved_ok and ra.get("resolve_graph_normalized_sha256")
-                                     == rb.get("resolve_graph_normalized_sha256")),
+        "host_resolve_graph_equal": (resolved_ok and ra.get("host_resolve_graph_sha256")
+                                     == rb.get("host_resolve_graph_sha256")),
         "full_packages_metadata_equal": (ra.get("full_packages_metadata_sha256")
                                          == rb.get("full_packages_metadata_sha256")),
         "generated_lock_equal": (ra.get("cargo_lock_sha256") == rb.get("cargo_lock_sha256")),
@@ -615,8 +652,8 @@ def _classify_acquisitions(A: dict, B: dict, tool_ident: dict) -> dict:
     if not all(parity.values()):
         return {"outcome": "COREUTILS_ACQUISITION_NONDETERMINISTIC", "parity": parity,
                 "cargo_cache_full_diff_summary": cache_diff,
-                "host_resolve_graph_sha_A": ra.get("resolve_graph_normalized_sha256"),
-                "host_resolve_graph_sha_B": rb.get("resolve_graph_normalized_sha256"),
+                "host_resolve_graph_sha_A": ra.get("host_resolve_graph_sha256"),
+                "host_resolve_graph_sha_B": rb.get("host_resolve_graph_sha256"),
                 "full_packages_metadata_sha_A": ra.get("full_packages_metadata_sha256"),
                 "full_packages_metadata_sha_B": rb.get("full_packages_metadata_sha256"),
                 "generated_lock_sha_A": ra.get("cargo_lock_sha256"),
@@ -633,12 +670,10 @@ def _classify_acquisitions(A: dict, B: dict, tool_ident: dict) -> dict:
                 "cargo_cache_full_diff_summary": cache_diff,
                 "frozen_lock_sha256": ra.get("cargo_lock_sha256"), "frozen_lock_bytes": ra.get("cargo_lock_bytes"),
                 "cargo_lock_scope": "full cross-platform resolution",
-                "resolve_graph_platform": ra.get("resolve_graph_platform"),
-                "resolve_graph_scope": ra.get("resolve_graph_scope"),
-                "resolve_graph_normalized_sha256": ra.get("resolve_graph_normalized_sha256"),
+                "host_resolve_graph_sha256": ra.get("host_resolve_graph_sha256"),
+                "host_resolved_package_count": ra.get("host_resolved_package_count"),
                 "full_packages_metadata_sha256": ra.get("full_packages_metadata_sha256"),
                 "full_package_count": ra.get("full_package_count"),
-                "host_resolved_package_count": ra.get("host_resolved_package_count"),
                 "byte_identical_across_A_B": True}
     # no generated lock at all (no dependencies) -> genuinely pristine
     return {"outcome": "pristine_dependency_state", "measurement_model": MEASUREMENT_MODEL,
@@ -955,9 +990,8 @@ def main() -> int:
             "cargo_lock_bytes": _rdsA.get("cargo_lock_bytes"),
             "cargo_lock_scope": "full cross-platform resolution",
             "full_packages_metadata_sha256": _rdsA.get("full_packages_metadata_sha256"),
-            "resolve_graph_platform": _rdsA.get("resolve_graph_platform"),
-            "resolve_graph_scope": _rdsA.get("resolve_graph_scope"),
-            "resolve_graph_normalized_sha256": _rdsA.get("resolve_graph_normalized_sha256"),
+            "host_resolve_graph_sha256": _rdsA.get("host_resolve_graph_sha256"),
+            "host_resolved_package_count": _rdsA.get("host_resolved_package_count"),
             "byte_identical_across_A_B": True,
             "harness_owned": True,
         }

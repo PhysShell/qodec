@@ -73,7 +73,7 @@ def _argv_ok(argv, is_rtk, rtk_bin) -> bool:
     return not any(str(tok).startswith("+") for tok in argv)  # no injected +toolchain
 
 
-def _required_paths(outcome: str) -> list[str]:
+def _required_paths(outcome: str, rec=None) -> list:
     roles = ("raw", "rtk") if outcome == "RTK_DIALECT_UNPROVEN" else \
             ("raw",) if outcome == "COREUTILS_RAW_NOT_QUALIFIED" else ()
     req = []
@@ -81,6 +81,15 @@ def _required_paths(outcome: str) -> list[str]:
         for i in range(3):
             req += [f"{EVIDENCE_ROOT}/{role}.rep{i}.zst", f"{EVIDENCE_ROOT}/{role}.raw.rep{i}.zst",
                     f"{EVIDENCE_ROOT}/{role}.mutation.rep{i}.json"]
+    if roles:  # any complete diagnostic must retain the acquisition cache + resolved-graph evidence
+        cc = f"{EVIDENCE_ROOT}/cargo-cache"
+        for label in ("A", "B"):
+            req += [f"{cc}/{label}-cache-semantic.json", f"{cc}/{label}-resolved-graph.json"]
+        # item 1: a publisher_install_resolved_dependency_snapshot MUST retain both Cargo.locks
+        acq_cls = ((rec or {}).get("acquisition_classification") or {}).get("outcome")
+        if acq_cls == "publisher_install_resolved_dependency_snapshot":
+            for label in ("A", "B"):
+                req.append(f"{cc}/{label}-Cargo.lock")
     return req
 
 
@@ -188,7 +197,7 @@ def _check_manifest(rec, outcome, fail, root, require_external=False):
         elif c.sha256_file(str(fp)) != e["sha256"]:
             fail.append(f"manifest hash mismatch: {e['file']}")
     manifested = set(paths)
-    required = _required_paths(outcome)
+    required = _required_paths(outcome, rec)
     for req in required:
         if req not in manifested:
             fail.append(f"required evidence omitted from internal manifest (exact path): {req}")
@@ -297,15 +306,37 @@ def _canon_sha_compact(obj) -> str:
     return hashlib.sha256(json.dumps(obj, sort_keys=True, separators=(",", ":")).encode()).hexdigest()
 
 
-def _verify_resolved_graph_evidence(evidence, fail) -> dict:
-    """req 5.5: reopen the RETAINED resolved-dependency snapshots for A and B and independently
-    re-derive, requiring A == B for each: the HOST-filtered resolve graph sha (platform must be
-    x86_64-unknown-linux-gnu), the FULL cross-platform package-metadata sha, and the generated
-    Cargo.lock sha. Never trusts host_resolve_graph_equal / full_packages_metadata_equal /
-    generated_lock_equal."""
+def _lock_packages_from_toml(lock_bytes: bytes) -> list:
+    """INDEPENDENTLY parse a Cargo.lock and derive the sorted full package records
+    (name/version/source/checksum) -- the verifier's own derivation, not the producer's."""
+    import tomllib
+    data = tomllib.loads(lock_bytes.decode("utf-8"))
+    pkgs = [{"name": p.get("name"), "version": p.get("version"),
+             "source": p.get("source"), "checksum": p.get("checksum")}
+            for p in data.get("package", [])]
+    pkgs.sort(key=lambda p: (p["name"] or "", p["version"] or "", p["source"] or ""))
+    return pkgs
+
+
+def _verify_resolved_graph_evidence(rec, evidence, fail) -> dict:
+    """reqs 4/5 + follow-up items 1/2/4: reopen the RETAINED host_resolve_graph JSON AND the
+    RETAINED A-/B-Cargo.lock bytes for A and B, and INDEPENDENTLY derive, requiring A == B for
+    each:
+      * host_resolve_graph_sha (structural host graph; must carry resolve_graph_platform=host
+        and no top-level `packages` array);
+      * full_packages_metadata_sha DERIVED BY RE-PARSING the retained Cargo.lock (a producer
+        metadata list + producer hash is NOT independent evidence), cross-checked against the
+        retained resolved-graph JSON, the producer's post_install_state.cargo_lock, and the
+        resolved_dependency_snapshot lock sha/bytes;
+      * the generated Cargo.lock sha/size.
+    lock_present is derived STRICTLY from both retained lock files verifying, never from graph
+    presence. Never trusts host_resolve_graph_equal / full_packages_metadata_equal /
+    generated_lock_equal / cargo_lock_present."""
     d = evidence / "cargo-cache"
-    gshas, pshas, locks, present = {}, {}, {}, {}
+    gshas, pshas, locksha, lockok = {}, {}, {}, {}
     for label in ("A", "B"):
+        acq = rec.get(f"acquisition_{label}") or {}
+        rds = acq.get("resolved_dependency_snapshot") or {}
         p = d / f"{label}-resolved-graph.json"
         if not p.is_file():
             fail.append(f"resolved-graph: retained {label} evidence missing"); continue
@@ -313,34 +344,62 @@ def _verify_resolved_graph_evidence(evidence, fail) -> dict:
             data = json.loads(p.read_text())
         except Exception as e:  # noqa: BLE001
             fail.append(f"resolved-graph {label}: unreadable ({e})"); continue
-        graph = data.get("resolve_graph")
-        present[label] = graph is not None
-        if data.get("resolve_graph_platform") not in (None, "x86_64-unknown-linux-gnu"):
-            fail.append(f"resolved-graph {label}: resolve_graph_platform != host")
+        graph = data.get("host_resolve_graph")
         if graph is not None:
+            if (graph.get("resolve_graph_platform") or "x86_64-unknown-linux-gnu") != "x86_64-unknown-linux-gnu":
+                fail.append(f"resolved-graph {label}: host graph platform != host")
+            if "packages" in graph:
+                fail.append(f"resolved-graph {label}: host graph must not embed a packages array")
             g = _canon_sha(graph)
-            if g != data.get("resolve_graph_normalized_sha256"):
+            if g != data.get("host_resolve_graph_sha256"):
                 fail.append(f"resolved-graph {label}: re-derived host graph sha != recorded")
             gshas[label] = g
-        fp = data.get("full_packages_metadata")
-        if fp is not None:
-            fh = _canon_sha(fp)
-            if fh != data.get("full_packages_metadata_sha256"):
-                fail.append(f"resolved-graph {label}: re-derived full package-metadata sha != recorded")
-            pshas[label] = fh
-        locks[label] = data.get("cargo_lock_sha256")
+        # ---- item 1/2: independently verify the retained Cargo.lock ----
+        lp = d / f"{label}-Cargo.lock"
+        if not lp.is_file():
+            fail.append(f"cargo-lock: retained {label}-Cargo.lock missing"); continue
+        raw = lp.read_bytes()
+        lockok[label] = True
+        sha, size = hashlib.sha256(raw).hexdigest(), len(raw)
+        locksha[label] = sha
+        # (3) cross-check with post_install_state.cargo_lock
+        pil = (acq.get("post_install_state") or {}).get("cargo_lock") or {}
+        if pil.get("sha256") != sha:
+            fail.append(f"cargo-lock {label}: retained lock sha != post_install_state.cargo_lock.sha256")
+        if pil.get("bytes") not in (None, size):
+            fail.append(f"cargo-lock {label}: retained lock size != post_install_state.cargo_lock.bytes")
+        # (4) cross-check with resolved_dependency_snapshot
+        if rds.get("cargo_lock_sha256") != sha:
+            fail.append(f"cargo-lock {label}: retained lock sha != resolved_dependency_snapshot.cargo_lock_sha256")
+        if rds.get("cargo_lock_bytes") not in (None, size):
+            fail.append(f"cargo-lock {label}: retained lock size != resolved_dependency_snapshot.cargo_lock_bytes")
+        # (5/6/7) independently parse + derive the full package records + their sha
+        try:
+            derived_pkgs = _lock_packages_from_toml(raw)
+        except Exception as e:  # noqa: BLE001
+            fail.append(f"cargo-lock {label}: independent TOML parse failed ({e})"); lockok[label] = False; continue
+        fh = _canon_sha(derived_pkgs)
+        pshas[label] = fh
+        # (8) compare with the retained resolved-graph JSON's recorded full-package sha AND the producer record
+        if data.get("full_packages_metadata_sha256") not in (None, fh):
+            fail.append(f"cargo-lock {label}: lock-derived package sha != retained resolved-graph record")
+        if rds.get("full_packages_metadata_sha256") not in (None, fh):
+            fail.append(f"cargo-lock {label}: lock-derived package sha != producer full_packages_metadata_sha256")
+        retained_pkgs = data.get("full_packages_metadata")
+        if retained_pkgs is not None and _canon_sha(retained_pkgs) != fh:
+            fail.append(f"cargo-lock {label}: retained package list != lock-derived package list")
     graph_equal = ("A" in gshas and "B" in gshas and gshas["A"] == gshas["B"])
     if "A" in gshas and "B" in gshas and not graph_equal:
-        fail.append("resolved-graph: A and B host-filtered resolve graphs differ")
+        fail.append("resolved-graph: A and B host resolve graphs differ")
     full_pkgs_equal = ("A" in pshas and "B" in pshas and pshas["A"] == pshas["B"])
     if "A" in pshas and "B" in pshas and not full_pkgs_equal:
-        fail.append("resolved-graph: A and B full cross-platform package metadata differ")
-    lock_equal = (locks.get("A") == locks.get("B"))
-    if not lock_equal:
-        fail.append(f"resolved-graph: generated Cargo.lock sha differs A={locks.get('A')} B={locks.get('B')}")
+        fail.append("cargo-lock: A and B lock-derived full package metadata differ")
+    lock_equal = ("A" in locksha and "B" in locksha and locksha["A"] == locksha["B"])
+    if "A" in locksha and "B" in locksha and not lock_equal:
+        fail.append(f"cargo-lock: retained Cargo.lock bytes differ A={locksha.get('A')} B={locksha.get('B')}")
+    lock_present = bool(lockok.get("A")) and bool(lockok.get("B"))   # from RETAINED locks only
     return {"graph_equal": graph_equal, "full_pkgs_equal": full_pkgs_equal, "lock_equal": lock_equal,
-            "lock_present": bool(present.get("A")) and bool(present.get("B")),
-            "lock_sha": locks.get("A")}
+            "lock_present": lock_present, "lock_sha": locksha.get("A")}
 
 
 def _derive_acq_classification(A, B, cache_sem_equal, graph_equal, full_pkgs_equal, lock_equal, lock_present):
@@ -567,7 +626,7 @@ def verify(rec_path: Path, evidence: Path) -> tuple[bool, list, dict]:
     _check_acquisition(rec, fail)
     A, B = rec.get("acquisition_A") or {}, rec.get("acquisition_B") or {}
     cache_v = _verify_cargo_cache_evidence(evidence, fail)
-    graph_v = _verify_resolved_graph_evidence(evidence, fail)
+    graph_v = _verify_resolved_graph_evidence(rec, evidence, fail)
     facts["cargo_cache_semantic_equal"] = cache_v.get("semantic_equal")
     facts["host_resolve_graph_equal"] = graph_v.get("graph_equal")
     facts["full_packages_metadata_equal"] = graph_v.get("full_pkgs_equal")
