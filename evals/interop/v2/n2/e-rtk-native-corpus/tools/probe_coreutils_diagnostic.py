@@ -249,9 +249,20 @@ def probe_cargo_metadata_disposable(repo_dir: Path, cargo_home: Path, offline: b
 
 
 # ---------------------- stable manifests (corrections 5/6) ----------------------
-def _stable_manifest(root: Path) -> dict:
+def _is_http_cache(parts: tuple) -> bool:
+    """cargo's sparse-registry HTTP response cache: registry/index/<host-hash>/.cache/**.
+    Each cached index file embeds per-fetch HTTP metadata (etag/last-modified) that varies
+    between two independent fetches of the SAME crate versions -- non-semantic noise. The
+    authoritative dependency closure is Cargo.lock + `cargo metadata` members + the
+    content-addressed registry/cache/*.crate tarballs, all compared separately."""
+    return "registry" in parts and ".cache" in parts
+
+
+def _stable_manifest(root: Path, exclude_http_cache: bool = True) -> dict:
     """Normalized content manifest of a directory tree: relpath -> sha256 for every file
-    EXCEPT the explicitly-enumerated ephemeral files (lock/access-time markers) and .git."""
+    EXCEPT the explicitly-enumerated ephemeral files (lock/access-time markers), .git, and
+    (by default) cargo's sparse-index HTTP response cache. Pass exclude_http_cache=False for
+    a FULL manifest used only for transparent A/B seed-diff diagnosis."""
     out = {}
     if not root.exists():
         return out
@@ -263,11 +274,28 @@ def _stable_manifest(root: Path) -> dict:
             continue
         if f.name in _EPHEMERAL_NAME or f.name.endswith(_EPHEMERAL_SUFFIX):
             continue
+        if exclude_http_cache and _is_http_cache(parts):
+            continue
         try:
             out[str(f.relative_to(root))] = c.sha256_file(str(f))
         except OSError:
             pass
     return out
+
+
+def _manifest_diff(a: dict, b: dict) -> dict:
+    """symmetric diff of two relpath->sha manifests, tagging whether each differing path
+    lies in the excluded HTTP-cache zone (so the diagnosis shows what the narrowed
+    determinant dropped vs. any residual semantic difference)."""
+    only_a = sorted(set(a) - set(b)); only_b = sorted(set(b) - set(a))
+    changed = sorted(p for p in (set(a) & set(b)) if a[p] != b[p])
+
+    def tag(paths):
+        return [{"path": p, "http_cache": _is_http_cache(Path(p).parts)} for p in paths]
+    non_http = [p for p in only_a + only_b + changed if not _is_http_cache(Path(p).parts)]
+    return {"only_in_A": tag(only_a), "only_in_B": tag(only_b), "changed": tag(changed),
+            "residual_non_http_cache_diff_count": len(non_http),
+            "residual_non_http_cache_paths": non_http[:50]}
 
 
 def _manifest_hash(man: dict) -> str:
@@ -314,6 +342,9 @@ def _acquire(label: str, root: Path, recipe: dict, base: str) -> dict:
         "pre_install_metadata": pre_md, "post_install_metadata": post_md,
         "cargo_cache_stable_manifest_hash": _manifest_hash(_stable_manifest(cargo_home)),
         "_root": str(root), "_repo_dir": str(repo_dir), "_cargo_home": str(cargo_home), "_ge": ge,
+        # FULL cache manifest (incl. the excluded HTTP-cache zone) kept private for a
+        # transparent A/B seed-diff diagnosis; never emitted directly.
+        "_cargo_cache_manifest_full": _stable_manifest(cargo_home, exclude_http_cache=False),
     }
 
 
@@ -356,8 +387,15 @@ def _classify_acquisitions(A: dict, B: dict, tool_ident: dict) -> dict:
                 "a_nonlock_tracked": a_nonlock, "b_nonlock_tracked": b_nonlock,
                 "note": "only Cargo.lock create/modify is authorized during publisher install"}
     if not all(parity.values()):
-        return {"outcome": "COREUTILS_ACQUISITION_NONDETERMINISTIC", "parity": parity,
-                "note": "harness/acquisition investigation state, not a candidate disqualification"}
+        out = {"outcome": "COREUTILS_ACQUISITION_NONDETERMINISTIC", "parity": parity,
+               "note": "harness/acquisition investigation state, not a candidate disqualification"}
+        # transparent A/B cargo-cache seed diff (only meaningful when cargo_cache_seed_equal
+        # is the failing field): shows exactly which paths differ and whether they are all
+        # in the excluded HTTP-cache zone or a residual semantic difference remains
+        if not parity["cargo_cache_seed_equal"]:
+            out["cargo_cache_seed_diff"] = _manifest_diff(
+                A.get("_cargo_cache_manifest_full") or {}, B.get("_cargo_cache_manifest_full") or {})
+        return out
     lock_created = (not A["pristine_state"]["cargo_lock"]["present"]) and pa["cargo_lock"]["present"]
     lock_modified = (A["pristine_state"]["cargo_lock"]["present"] and pa["cargo_lock"]["present"]
                      and A["pristine_state"]["cargo_lock"]["sha256"] != pa["cargo_lock"]["sha256"])
