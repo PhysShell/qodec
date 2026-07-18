@@ -196,6 +196,41 @@ class TestDependencyFetchEvidence(unittest.TestCase):
         self.assertFalse(v["fetch_lock_unchanged"])
         self.assertTrue(any("fetch mutated the lock" in f or "post-fetch lock" in f for f in fail))
 
+    # verifier-only fail-closed size correction: pre/post-fetch lock byte sizes are MANDATORY
+    # present integers exactly == the retained post-fetch lock size. Each gap fails verification
+    # and sets BOTH dependency_fetch_ok and fetch_lock_unchanged false.
+    def test_missing_pre_fetch_bytes(self):
+        v, fail = self._run(lambda d: d.pop("pre_fetch_lock_bytes"))
+        self.assertFalse(v["dependency_fetch_ok"]); self.assertFalse(v["fetch_lock_unchanged"])
+        self.assertTrue(any("byte size" in f for f in fail))
+
+    def test_missing_post_fetch_bytes(self):
+        v, fail = self._run(lambda d: d.pop("post_fetch_lock_bytes"))
+        self.assertFalse(v["dependency_fetch_ok"]); self.assertFalse(v["fetch_lock_unchanged"])
+        self.assertTrue(any("byte size" in f for f in fail))
+
+    def test_both_byte_fields_missing(self):
+        def mut(d):
+            d.pop("pre_fetch_lock_bytes"); d.pop("post_fetch_lock_bytes")
+        v, fail = self._run(mut)
+        self.assertFalse(v["dependency_fetch_ok"]); self.assertFalse(v["fetch_lock_unchanged"])
+        self.assertTrue(any("byte size" in f for f in fail))
+
+    def test_wrong_pre_fetch_byte_size(self):
+        v, fail = self._run(lambda d: d.update(pre_fetch_lock_bytes=99999))
+        self.assertFalse(v["dependency_fetch_ok"]); self.assertFalse(v["fetch_lock_unchanged"])
+        self.assertTrue(any("byte size" in f for f in fail))
+
+    def test_wrong_post_fetch_byte_size(self):
+        v, fail = self._run(lambda d: d.update(post_fetch_lock_bytes=99999))
+        self.assertFalse(v["dependency_fetch_ok"]); self.assertFalse(v["fetch_lock_unchanged"])
+        self.assertTrue(any("byte size" in f for f in fail))
+
+    def test_non_integer_byte_size(self):
+        v, fail = self._run(lambda d: d.update(pre_fetch_lock_bytes="10"))
+        self.assertFalse(v["dependency_fetch_ok"]); self.assertFalse(v["fetch_lock_unchanged"])
+        self.assertTrue(any("byte size" in f for f in fail))
+
 
 class TestHostGraphValidation(unittest.TestCase):
     """item 4: exact platform/scope + exact structural keys + independently-recomputed

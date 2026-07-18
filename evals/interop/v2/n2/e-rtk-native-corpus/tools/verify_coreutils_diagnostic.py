@@ -373,11 +373,15 @@ def _validate_graph_structure(graph: dict, label: str, fail: list) -> None:
         fail.append(f"resolved-graph {label}: nodes disconnected from resolve_roots {orphans[:10]}")
 
 
-def _verify_dependency_fetch(label, acq, retained_lock_sha, retained_lock_size, fail) -> bool:
-    """item 3: independently require the lock-preserving dependency fetch for this acquisition:
-    exact argv/env, exit==0, not timed_out, pre-fetch lock == retained (post-fetch) lock, and
-    post-fetch lock == post_install_state.cargo_lock == resolved_dependency_snapshot. A
-    successful offline metadata cannot compensate. Returns (fetch_ok, lock_unchanged)."""
+def _verify_dependency_fetch(label, acq, retained_lock_sha, retained_lock_size, fail) -> tuple:
+    """item 3 + verifier-only fail-closed size correction: independently require the lock-
+    preserving dependency fetch for this acquisition: exact argv/env, exit==0, not timed_out, and
+    pre/post-fetch lock SHA *and* byte-size identities that are ALL present and exactly equal to
+    the retained (post-fetch) Cargo.lock (== post_install_state.cargo_lock == resolved snapshot).
+    Byte sizes must be present integers equal to the retained lock size -- no None-acceptable
+    comparison. `unchanged` is derived only when every SHA and size identity is present and exact.
+    A successful offline metadata cannot compensate. Returns (dependency_fetch_ok, lock_unchanged);
+    on any identity failure BOTH are false."""
     dfr = acq.get("dependency_fetch_result") or {}
     df = dfr.get("dependency_fetch") or {}
     ok = True
@@ -393,16 +397,24 @@ def _verify_dependency_fetch(label, acq, retained_lock_sha, retained_lock_size, 
         fail.append(f"dependency-fetch {label}: timed_out != false"); ok = False
     pre_sha, post_sha = dfr.get("pre_fetch_lock_sha256"), dfr.get("post_fetch_lock_sha256")
     pre_b, post_b = dfr.get("pre_fetch_lock_bytes"), dfr.get("post_fetch_lock_bytes")
-    unchanged = (pre_sha is not None and pre_sha == post_sha and pre_b == post_b)
-    if not unchanged:
-        fail.append(f"dependency-fetch {label}: pre-fetch lock != post-fetch lock (fetch mutated the lock)")
+    # byte sizes are MANDATORY: both present integers, both exactly == retained post-fetch lock size
+    sizes_ok = (isinstance(pre_b, int) and isinstance(post_b, int)
+                and pre_b == retained_lock_size and post_b == retained_lock_size)
+    if not sizes_ok:
+        fail.append(f"dependency-fetch {label}: pre/post-fetch lock byte sizes missing/non-integer/"
+                    f"!= retained lock size {retained_lock_size}")
         ok = False
-    # retained (post-fetch) lock identity must equal both pre and post fetch identities
-    if retained_lock_sha is not None:
-        if post_sha != retained_lock_sha or pre_sha != retained_lock_sha:
-            fail.append(f"dependency-fetch {label}: pre/post-fetch lock sha != retained post-fetch lock"); ok = False
-        if post_b not in (None, retained_lock_size) or pre_b not in (None, retained_lock_size):
-            fail.append(f"dependency-fetch {label}: pre/post-fetch lock size != retained lock size"); ok = False
+    # SHA identities are MANDATORY: both present strings, both exactly == retained post-fetch lock sha
+    shas_ok = (isinstance(pre_sha, str) and isinstance(post_sha, str)
+               and pre_sha == retained_lock_sha and post_sha == retained_lock_sha)
+    if not shas_ok:
+        fail.append(f"dependency-fetch {label}: pre/post-fetch lock sha missing or "
+                    f"!= retained post-fetch lock sha (fetch mutated the lock or identity absent)")
+        ok = False
+    # `unchanged` only when EVERY sha AND size identity is present and exact; any gap -> not proven
+    unchanged = shas_ok and sizes_ok
+    if not unchanged:
+        ok = False
     return ok, unchanged
 
 
