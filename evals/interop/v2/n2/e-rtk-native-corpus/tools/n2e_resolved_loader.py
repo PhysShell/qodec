@@ -16,6 +16,8 @@ record can pin exactly what it ran under.
 """
 from __future__ import annotations
 
+import hashlib
+import json
 import sys
 from pathlib import Path
 
@@ -36,9 +38,24 @@ OV_PUBENV = N2E_DIR / "n2e-resolved-publisher-env-overlay-v1.json"
 OV_TOOLCHAIN = N2E_DIR / "n2e-resolved-toolchain-overlay-v1.json"
 OV_SCEN = N2E_DIR / "n2e-resolved-command-scenario-overlay-v1.json"
 OV_CONTRACT = N2E_DIR / "n2e-resolved-execution-contract-v1.json"
+# additive resolved-ENVIRONMENT overlay (Model B frozen dependency snapshot) + its committed
+# immutable evidence
+OV_DEPSNAP = N2E_DIR / "n2e-resolved-dependency-snapshot-overlay-v1.json"
+DEPSNAP_DIR = N2E_DIR / "evidence" / "coreutils-6731" / "resolved-dependency-snapshot"
 
 REPLACEMENT_CASE_ID = "uutils__coreutils-6731::rust_cargo::test::fixed"
 REPLACED_CASE_ID = "tokio-rs__tokio-4384::rust_cargo::test::fixed"
+
+# The proven-promotable Model B run + implementation. Diagnostic-only runs/impls must satisfy NO
+# provenance or promotion predicate (fail-closed). Eligibility itself is NEVER derived from
+# provenance -- it comes only from the corrected normative verifier replay; these sets exist only
+# to REJECT mis-provenanced overlays.
+PROMOTABLE_RUN = "29654373144"
+BARRED_DIAGNOSTIC_RUNS = frozenset({"29651849616", "29652684349"})       # bcd4164, 3dbbf2b
+BARRED_DIAGNOSTIC_IMPLS = frozenset({"bcd4164", "3dbbf2b", "2ddd731", "8eefa97",
+                                     "4ceaa11", "ab416ce", "186ade9"})
+DEPSNAP_SCOPE = "full cross-platform resolution"
+DEPSNAP_PROVEN_COUNT = 346
 
 # overlay file -> (record key holding the base whole-file hash, the base file it must match)
 _OVERLAYS = {
@@ -59,6 +76,108 @@ def _load_ok(path: Path) -> dict:
     if not ok:
         raise ResolvedScopeError(f"{path.name}: self-hash {msg}")
     return rec
+
+
+def _manifest_hash(obj) -> str:
+    """sha256 over sort-keyed JSON with DEFAULT separators -- matches the producer/verifier's
+    host-graph + full-packages digest exactly (NOT the compact sha256_json_file)."""
+    return hashlib.sha256(json.dumps(obj, sort_keys=True).encode()).hexdigest()
+
+
+def _reachable(hg: dict) -> list:
+    """Independently recompute reachable package ids: BFS from resolve_roots over resolve_nodes
+    (same semantics as the producer/verifier). Used to re-derive the closure size from the
+    committed frozen graph, not to trust a recorded count."""
+    by = {n.get("id"): n for n in hg.get("resolve_nodes", [])}
+    seen, stack = set(), list(hg.get("resolve_roots", []))
+    while stack:
+        nid = stack.pop()
+        if nid in seen:
+            continue
+        seen.add(nid)
+        for d in by.get(nid, {}).get("deps", []):
+            pk = d.get("pkg")
+            if pk:
+                stack.append(pk)
+    return sorted(i for i in seen if i in by)
+
+
+def _load_snapshot_overlay(path: Path) -> dict:
+    if not Path(path).is_file():
+        raise ResolvedScopeError("required resolved dependency-snapshot overlay missing")
+    return _load_ok(path)
+
+
+def validate_dependency_snapshot_overlay(ds: dict, dep_ref, rm_sha: str, base_contract_sha: str,
+                                         evidence_dir: Path) -> dict:
+    """Fail-closed validation of the additive resolved-ENVIRONMENT overlay (Model B frozen
+    dependency snapshot). Pure over its inputs so RED cases can exercise it without mutating the
+    committed corpus. Validates EVERY pinned determinant against the referenced frozen artifacts
+    (not schema shape); requires exactly one snapshot for the replacement case; re-derives the
+    closure size from the committed graph and requires it to be the proven 346-node closure; bars
+    diagnostic-only provenance. Returns the validated snapshot entry or raises."""
+    if ds.get("record_type") != "n2e-resolved-dependency-snapshot-overlay":
+        raise ResolvedScopeError("dependency-snapshot overlay wrong record_type")
+    if ds.get("record_version") != "v1":
+        raise ResolvedScopeError("dependency-snapshot overlay wrong record_version")
+    if ds.get("resolved_case_id") != REPLACEMENT_CASE_ID:
+        raise ResolvedScopeError("dependency-snapshot overlay resolved_case_id != replacement case")
+    if ds.get("base_execution_contract_sha256") != base_contract_sha:
+        raise ResolvedScopeError("dependency-snapshot overlay base_execution_contract_sha256 mismatch "
+                                 "(overlay attached to the wrong execution contract)")
+    if ds.get("resolved_membership_sha256") != rm_sha:
+        raise ResolvedScopeError("dependency-snapshot overlay resolved_membership_sha256 mismatch")
+    # materializes the contract's stable-logical dependency_environment_identity_ref (one-way ref)
+    if ds.get("materializes_dependency_environment_identity_ref") != dep_ref:
+        raise ResolvedScopeError("dependency-snapshot overlay does not materialize the contract's "
+                                 "dependency_environment_identity_ref")
+    # EXACTLY ONE snapshot, for the replacement case only (duplicate / wrong-case -> reject)
+    snaps = ds.get("overlay_dependency_snapshots") or []
+    if [s.get("case_id") for s in snaps] != [REPLACEMENT_CASE_ID]:
+        raise ResolvedScopeError("dependency-snapshot overlay must contain exactly one snapshot for "
+                                 f"[{REPLACEMENT_CASE_ID}]")
+    snap = snaps[0]
+
+    # ---- validate every pinned determinant against the committed frozen artifacts ----
+    lock_path = Path(evidence_dir) / "Cargo.lock"
+    graph_path = Path(evidence_dir) / "resolved-graph.json"
+    if not lock_path.is_file() or not graph_path.is_file():
+        raise ResolvedScopeError("dependency-snapshot frozen evidence (Cargo.lock/resolved-graph.json) missing")
+    lock = lock_path.read_bytes()
+    if c.sha256_bytes(lock) != snap.get("cargo_lock_sha256"):
+        raise ResolvedScopeError("frozen Cargo.lock sha256 != pinned cargo_lock_sha256")
+    if len(lock) != snap.get("cargo_lock_bytes"):
+        raise ResolvedScopeError("frozen Cargo.lock byte count != pinned cargo_lock_bytes")
+    if snap.get("cargo_lock_scope") != DEPSNAP_SCOPE:
+        raise ResolvedScopeError(f"dependency-snapshot cargo_lock_scope != {DEPSNAP_SCOPE!r}")
+    graph = c.load_record(graph_path)
+    hg = graph.get("host_resolve_graph") or {}
+    if _manifest_hash(hg) != snap.get("host_resolve_graph_sha256"):
+        raise ResolvedScopeError("frozen host_resolve_graph sha256 != pinned host_resolve_graph_sha256")
+    if _manifest_hash(graph.get("full_packages_metadata")) != snap.get("full_packages_metadata_sha256"):
+        raise ResolvedScopeError("frozen full_packages_metadata sha256 != pinned full_packages_metadata_sha256")
+    # tie the frozen graph's own lock reference to the frozen lock (closure self-consistency)
+    if graph.get("cargo_lock_sha256") != snap.get("cargo_lock_sha256"):
+        raise ResolvedScopeError("frozen graph cargo_lock_sha256 != frozen Cargo.lock sha256")
+    # requirement 4: the pinned count must resolve to the SAME 346-node closure -- recompute it
+    reach = _reachable(hg)
+    node_ids = {n.get("id") for n in hg.get("resolve_nodes", [])}
+    if len(reach) != snap.get("host_resolved_package_count"):
+        raise ResolvedScopeError(f"pinned host_resolved_package_count {snap.get('host_resolved_package_count')} "
+                                 f"!= recomputed reachable {len(reach)}")
+    if set(reach) != node_ids:
+        raise ResolvedScopeError("frozen host graph has nodes disconnected from resolve_roots")
+    if snap.get("host_resolved_package_count") != DEPSNAP_PROVEN_COUNT:
+        raise ResolvedScopeError(f"dependency-snapshot closure is not the proven {DEPSNAP_PROVEN_COUNT}-node closure")
+
+    # ---- provenance is DESCRIPTIVE; bar diagnostic-only runs/impls from satisfying it ----
+    prov = snap.get("provenance") or {}
+    if prov.get("run_id") in BARRED_DIAGNOSTIC_RUNS:
+        raise ResolvedScopeError("dependency-snapshot provenance names a barred diagnostic-only run")
+    if (prov.get("producer_implementation") in BARRED_DIAGNOSTIC_IMPLS
+            or prov.get("verifier_implementation") in BARRED_DIAGNOSTIC_IMPLS):
+        raise ResolvedScopeError("dependency-snapshot provenance names a barred diagnostic-only implementation")
+    return snap
 
 
 def validate_resolved_closure() -> dict:
@@ -110,6 +229,25 @@ def validate_resolved_closure() -> dict:
     if not rm["constraints_ok"] or rm["corpus_feasibility_blocker"]:
         raise ResolvedScopeError("resolved membership constraints not ok / feasibility blocker")
 
+    # ---- additive resolved-ENVIRONMENT overlay: Model B frozen dependency snapshot ----
+    # REQUIRED (exactly one) whenever the resolved execution contract carries a
+    # dependency_environment_identity_ref -- so the contract can never be validated while the
+    # resolved snapshot is omitted, mismatched, or substituted.
+    contract = overlays["execution_contract"]["overlay_contracts"][0]
+    dep_ref = contract.get("dependency_environment_identity_ref")
+    if dep_ref is not None:
+        ds = _load_snapshot_overlay(OV_DEPSNAP)
+        snap = validate_dependency_snapshot_overlay(
+            ds, dep_ref, rm_sha, c.sha256_json_file(CONTRACT), DEPSNAP_DIR)
+        overlays["dependency_snapshot"] = ds
+        hashes["overlay_dependency_snapshot_sha256"] = c.sha256_json_file(OV_DEPSNAP)
+        hashes["frozen_dependency_snapshot"] = {
+            "cargo_lock_sha256": snap["cargo_lock_sha256"],
+            "host_resolve_graph_sha256": snap["host_resolve_graph_sha256"],
+            "full_packages_metadata_sha256": snap["full_packages_metadata_sha256"],
+            "host_resolved_package_count": snap["host_resolved_package_count"],
+        }
+
     hashes.update({
         "resolved_membership_sha256": rm_sha,
         "base_publisher_registry_sha256": c.sha256_json_file(REGISTRY),
@@ -159,6 +297,11 @@ def load_case_bundle(case_id: str, scope: str = "base") -> dict:
             "publisher_recipe": ov["publisher_env"]["overlay_recipes"][0],
             "toolchain_contract": ov["toolchain"]["resolved_rust_toolchain"],
             "execution_contract": ov["execution_contract"]["overlay_contracts"][0],
+            # additive resolved environment: the frozen Model B dependency snapshot (validated
+            # fail-closed by validate_resolved_closure above)
+            "resolved_dependency_snapshot": (
+                ov["dependency_snapshot"]["overlay_dependency_snapshots"][0]
+                if "dependency_snapshot" in ov else None),
         }
     else:
         # every non-replacement case resolves EXCLUSIVELY from the frozen base

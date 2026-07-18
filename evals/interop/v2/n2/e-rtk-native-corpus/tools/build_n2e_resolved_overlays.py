@@ -18,6 +18,8 @@ Produces:
 """
 from __future__ import annotations
 
+import hashlib
+import json
 import sys
 from pathlib import Path
 
@@ -217,11 +219,78 @@ def build_execution_contract_overlay() -> dict:
                         overlay_contract_count=1, overlay_contracts=[contract])
 
 
+# ---- additive resolved-ENVIRONMENT overlay: Model B frozen dependency snapshot ----
+# The frozen Model B resolved dependency snapshot proven PROMOTABLE by run 29654373144
+# (producer impl c43b9c5), whose corrected normative verifier replay (verify_coreutils_
+# diagnostic.py @ c43b9c5) returned normative_evidence_eligible=True with every frozen
+# determinant present. The committed frozen evidence (Cargo.lock + host resolve graph) is the
+# immutable substrate; this overlay pins its determinants so the loader can re-derive and check
+# them against the referenced artifacts (not schema shape).
+DEPSNAP_DIR = N2E_DIR / "evidence" / "coreutils-6731" / "resolved-dependency-snapshot"
+DEPSNAP_LOCK = DEPSNAP_DIR / "Cargo.lock"
+DEPSNAP_GRAPH = DEPSNAP_DIR / "resolved-graph.json"
+# DESCRIPTIVE provenance only -- eligibility derives solely from the corrected normative verifier
+# result, never from these fields. Diagnostic-only runs (bcd4164=29651849616, 3dbbf2b=29652684349)
+# must satisfy NO provenance/promotion predicate (the loader bars them explicitly).
+DEPSNAP_PROVENANCE = {
+    "run_id": "29654373144",
+    "artifact_sha256": "213563f991967c20365f076740b1278838bb1b07de3dcb546186cad6d6c61a6d",
+    "producer_implementation": "c43b9c5",
+    "verifier_implementation": "c43b9c5",
+    "eligibility_source": "corrected normative verifier replay (tools/verify_coreutils_diagnostic.py "
+                          "@ c43b9c5): normative_evidence_eligible=True. DESCRIPTIVE ONLY -- the loader "
+                          "never derives eligibility from provenance.",
+}
+
+
+def _manifest_hash(obj) -> str:
+    """sha256 over sort-keyed JSON with DEFAULT separators -- matches the producer's
+    _manifest_hash / the verifier's _canon_sha exactly (NOT the compact sha256_json_file)."""
+    return hashlib.sha256(json.dumps(obj, sort_keys=True).encode()).hexdigest()
+
+
+def _frozen_snapshot_entry() -> dict:
+    lock = DEPSNAP_LOCK.read_bytes()
+    graph = c.load_record(DEPSNAP_GRAPH)
+    hg = graph["host_resolve_graph"]
+    return {
+        "case_id": CASE_ID,
+        "measurement_model": "B_frozen_resolved_dependency_snapshot",
+        "cargo_lock_scope": "full cross-platform resolution",
+        "cargo_lock_sha256": c.sha256_bytes(lock),
+        "cargo_lock_bytes": len(lock),
+        "host_resolve_graph_sha256": _manifest_hash(hg),
+        "full_packages_metadata_sha256": _manifest_hash(graph["full_packages_metadata"]),
+        "host_resolved_package_count": len(hg["reachable_package_ids"]),
+        "frozen_evidence": {
+            "cargo_lock": "evidence/coreutils-6731/resolved-dependency-snapshot/Cargo.lock",
+            "resolved_graph": "evidence/coreutils-6731/resolved-dependency-snapshot/resolved-graph.json",
+        },
+        "provenance": DEPSNAP_PROVENANCE,
+    }
+
+
+def build_dependency_snapshot_overlay() -> dict:
+    # materialize the RESOLVED execution contract's stable-logical dependency_environment_identity_ref.
+    dep_ref = build_execution_contract_overlay()["overlay_contracts"][0]["dependency_environment_identity_ref"]
+    # anti-cycle (option a): the execution contract stores a stable LOGICAL identity (a 'where'
+    # pointer + protected_files), NOT this overlay's content digest. This overlay pins the base
+    # execution contract's whole-file hash and materializes that logical ref -> strictly one-way
+    # (overlay -> contract); no content-hash cycle to construct around.
+    return _overlay_env("n2e-resolved-dependency-snapshot-overlay",
+                        "base_execution_contract_sha256", CONTRACT,
+                        overlay_kind="resolved_environment",
+                        materializes_dependency_environment_identity_ref=dep_ref,
+                        overlay_dependency_snapshot_count=1,
+                        overlay_dependency_snapshots=[_frozen_snapshot_entry()])
+
+
 BUILDERS = {
     "n2e-resolved-publisher-env-overlay-v1.json": build_publisher_env_overlay,
     "n2e-resolved-toolchain-overlay-v1.json": build_toolchain_overlay,
     "n2e-resolved-command-scenario-overlay-v1.json": build_command_scenario_overlay,
     "n2e-resolved-execution-contract-v1.json": build_execution_contract_overlay,
+    "n2e-resolved-dependency-snapshot-overlay-v1.json": build_dependency_snapshot_overlay,
 }
 
 
