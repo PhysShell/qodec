@@ -221,7 +221,9 @@ jobs:
         if: always()
         with:
           name: case-${{ strategy.job-index }}
-          path: ${{ env.N2E }}/out/*.json
+          # whole out/ dir: the per-case record PLUS out/evidence/<case>/ primary
+          # per-rep canonical + tee streams (correction 4) for independent re-derivation.
+          path: ${{ env.N2E }}/out
           if-no-files-found: error
           retention-days: 7
 

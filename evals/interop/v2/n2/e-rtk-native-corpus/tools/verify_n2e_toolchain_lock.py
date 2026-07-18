@@ -51,6 +51,47 @@ def _expected_release(kind: str, exe: str, spec: dict) -> str:
     return spec["release"]  # go1.23.8 / 1.83.0 / v20.20.2
 
 
+def verify_record_identity(rec: dict, require_complete: bool = True) -> tuple[bool, str]:
+    """Exact toolchain-identity check for ONE publisher-recipe evidence record: kind
+    present + expected, every required executable's parsed release equals the lock, and
+    (where pinned) the observed binary SHA-256 equals the lock. Used by the rejection-
+    ledger builder so a terminal entry never relies on bool(toolchain_pin)."""
+    lock = c.load_record(LOCK)
+    ok, msg = c.verify_self_hash(lock)
+    if not ok:
+        return False, f"lock self-hash: {msg}"
+    if require_complete and lock.get("lock_state") != "COMPLETE":
+        return False, f"lock_state != COMPLETE ({lock.get('lock_state')!r})"
+    tls = lock["toolchains"]
+    acq = rec.get("acquisition") or {}
+    if "publisher_recipe" not in acq:
+        return False, "record has no publisher_recipe"
+    env = acq.get("environment_identity") or {}
+    pin = env.get("toolchain_pin") or {}
+    kind = _KIND.get(pin.get("kind"))
+    if not kind or kind not in tls:
+        return False, f"unknown/missing toolchain kind {pin.get('kind')!r}"
+    spec = tls[kind]
+    observed = env.get("toolchain") or {}
+    for exe in _EXES[kind]:
+        t = observed.get(exe) or {}
+        if not t.get("version") or not t.get("sha256"):
+            return False, f"missing {kind} executable identity for '{exe}'"
+        if _parse_release(kind, exe, t["version"]) != _expected_release(kind, exe, spec):
+            return False, f"{exe} wrong release vs lock"
+        exp_hash = (spec.get("executables", {}).get(exe) or {}).get("expected_sha256")
+        if exp_hash is not None and t.get("sha256") != exp_hash:
+            return False, f"{exe} binary sha256 != locked"
+    if kind == "node":
+        pn = observed.get("pnpm") or {}
+        if not pn.get("version") or not pn.get("sha256"):
+            return False, "missing pnpm identity"
+        pn_rel = (re.match(r"(\d+\.\d+\.\d+)", pn["version"]) or [None, None])[1]
+        if pn_rel != spec["pnpm"]["release"]:
+            return False, "pnpm wrong release vs lock"
+    return True, f"{kind} identity matches lock exactly"
+
+
 def verify(evidence_dir: Path, canonical: bool = False) -> tuple[bool, str]:
     lock = c.load_record(LOCK)
     ok, msg = c.verify_self_hash(lock)

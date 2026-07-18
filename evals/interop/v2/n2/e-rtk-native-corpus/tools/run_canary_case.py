@@ -379,10 +379,9 @@ def _parse_sidecar_proof(sidecar: bytes | None, measured: bytes, required_leaves
     }
 
 
-def _rtk_sidecar_proof(raw_combined: bytes, measured: bytes, work: Path, target_ids: list) -> dict:
-    """Locate RTK's tee sidecar via the bounded envelope pointer, read it, and produce
-    the PARSER-BOUNDED per-rep semantic-loss evidence (see _parse_sidecar_proof)."""
-    required = set(ora._leaf_ids(target_ids or []))
+def _locate_sidecar(raw_combined: bytes, work: Path) -> tuple:
+    """Return (pointer, sidecar_bytes|None) by resolving RTK's bounded tee-envelope
+    pointer within the rep work dir (absolute, repo-relative, or basename search)."""
     mm = _TEE_PATH.search(raw_combined or b"")
     pointer = mm.group(1).decode("utf-8", "replace") if mm else None
     sidecar = None
@@ -403,12 +402,21 @@ def _rtk_sidecar_proof(raw_combined: bytes, measured: bytes, work: Path, target_
                     break
                 except OSError:
                     pass
+    return pointer, sidecar
+
+
+def _rtk_sidecar_proof(raw_combined: bytes, measured: bytes, work: Path, target_ids: list) -> dict:
+    """Locate RTK's tee sidecar via the bounded envelope pointer, read it, and produce
+    the PARSER-BOUNDED per-rep semantic-loss evidence (see _parse_sidecar_proof)."""
+    required = set(ora._leaf_ids(target_ids or []))
+    pointer, sidecar = _locate_sidecar(raw_combined, work)
     return _parse_sidecar_proof(sidecar, measured, required, pointer)
 
 
 def run_arm(argv, frozen_dir: Path, policy_id: str, timeout: int, wrapper_prefix, env_extra=None,
             is_rtk: bool = False, jvm_proof_class: str | None = None,
-            rtk_target_ids: list | None = None) -> dict:
+            rtk_target_ids: list | None = None, evidence_dir: Path | None = None,
+            case_id: str | None = None) -> dict:
     """RAW or RTK arm: REPS runs in FRESH copies of the frozen env, network-denied.
     Canonicalize each combined stream under policy_id; the ACCEPTED stream is the
     canonical bytes (identical across reps when deterministic). For the RTK arm ONLY,
@@ -426,13 +434,34 @@ def run_arm(argv, frozen_dir: Path, policy_id: str, timeout: int, wrapper_prefix
     timed_out_any = False
     per_rep_proof = []
     sidecar_reps = []
+    evidence_files = []  # correction 4: primary per-rep stream files (path/len/sha/role/policy)
+    role = "rtk" if is_rtk else "raw"
+    if evidence_dir is not None:
+        evidence_dir.mkdir(parents=True, exist_ok=True)
+
+    def _persist(rep_i, name, data, ev_role, ev_policy):
+        if evidence_dir is None:
+            return
+        fp = evidence_dir / f"{name}.rep{rep_i}.zst"
+        try:
+            import zlib
+            fp.write_bytes(zlib.compress(data, 9))
+        except Exception:  # noqa: BLE001 -- fall back to raw bytes on any compressor issue
+            fp = evidence_dir / f"{name}.rep{rep_i}.bin"
+            fp.write_bytes(data)
+        evidence_files.append({
+            "role": ev_role, "rep": rep_i, "case_id": case_id,
+            "file": fp.name, "compression": ("zlib" if fp.suffix == ".zst" else "none"),
+            "bytes": len(data), "sha256": hashlib.sha256(data).hexdigest(),
+            "policy_id": ev_policy})
+
     # FIXED work path across reps: many tools echo their absolute working directory
     # into output (e.g. vitest's "RUN vX /path"), so a per-rep random tempdir path
     # is itself a source of nondeterminism. Reusing one constant path removes that
     # variance WITHOUT masking any semantic difference (a real diff still differs).
     work = _FIXEDWORK
     try:
-        for _ in range(REPS):
+        for rep_i in range(REPS):
             if work.exists():
                 shutil.rmtree(work, ignore_errors=True)
             shutil.copytree(frozen_dir, work, symlinks=True)
@@ -448,13 +477,22 @@ def run_arm(argv, frozen_dir: Path, policy_id: str, timeout: int, wrapper_prefix
             raw_hashes.append(hashlib.sha256(r["combined"]).hexdigest())
             canon_streams.append(cb)
             accepted_canonical = cb  # identical across reps iff deterministic
+            # correction 4: persist the MEASURED canonical stream for this rep (the exact
+            # bytes hashed into the record + fed to the oracle + metered).
+            _persist(rep_i, role, cb, role, policy_id)
             if jvm_proof_class:
                 # prove THIS rep executed the target class offline (full output, not tail)
                 per_rep_proof.append(_gradle_test_proof(
                     r["combined"].decode("utf-8", "replace"), jvm_proof_class))
             if is_rtk and rtk_target_ids:
-                # capture the sidecar-only proof BEFORE this rep's work dir is recycled
-                sidecar_reps.append(_rtk_sidecar_proof(r["combined"], cb, work, rtk_target_ids))
+                # capture the sidecar-only proof + PERSIST the tee sidecar bytes BEFORE
+                # this rep's work dir is recycled (rejection evidence only -- never metered)
+                pointer, sidecar_bytes = _locate_sidecar(r["combined"], work)
+                sidecar_reps.append(_parse_sidecar_proof(
+                    sidecar_bytes, cb, set(ora._leaf_ids(rtk_target_ids)), pointer))
+                if sidecar_bytes is not None:
+                    _persist(rep_i, "rtk_tee", sidecar_bytes, "rtk_tee",
+                             canon.RTK_ENVELOPE_POLICY_ID)
     finally:
         shutil.rmtree(work, ignore_errors=True)
     exit_stable = len({x["exit_code"] for x in runs}) == 1
@@ -489,6 +527,7 @@ def run_arm(argv, frozen_dir: Path, policy_id: str, timeout: int, wrapper_prefix
         "per_rep_execution_proof": per_rep_proof or None,
         "target_execution_ok": execution_ok,
         "rtk_sidecar_proof": rtk_sidecar,
+        "primary_evidence_files": evidence_files or None,
         "_accepted_canonical": accepted_canonical if deterministic else None,
         "_output_tail": (canon_streams[-1][-2500:]).decode("utf-8", "replace") if canon_streams else "",
     }
@@ -1250,6 +1289,11 @@ def main() -> int:
     args = ap.parse_args()
     rtk_bin, qodec_bin = os.environ["RTK_BIN"], os.environ["QODEC_BIN"]
     out = Path(args.out)
+    # correction 4: primary per-rep stream files live next to the record, under
+    # out/evidence/<safe-case-id>/, and are uploaded so the ledger builder can
+    # independently re-hash + re-parse them (never trusting producer oracle summaries).
+    safe_cid = args.case_id.replace("::", "__").replace("/", "_")
+    evidence_dir = out.parent / "evidence" / safe_cid
 
     scen = next(s for s in c.load_record(SCEN)["scenarios"] if s["case_id"] == args.case_id)
     if args.case_id not in {m0["case_id"] for m0 in c.load_record(CANARY)["membership"]}:
@@ -1347,7 +1391,8 @@ def main() -> int:
             rtk_run = None
         else:
             raw = run_arm(raw_argv, frozen, policy, scen["timeout_seconds"], wrapper, env_extra,
-                          jvm_proof_class=acq.get("jvm_proof_class"))
+                          jvm_proof_class=acq.get("jvm_proof_class"),
+                          evidence_dir=evidence_dir, case_id=args.case_id)
             rtk_run = None
 
         # ---- RAW acceptance gate ----
@@ -1369,7 +1414,8 @@ def main() -> int:
         else:
             rtk_run = run_arm([rtk_bin] + rtk_argv[1:], frozen, policy, scen["timeout_seconds"],
                               wrapper, env_extra, is_rtk=True, jvm_proof_class=acq.get("jvm_proof_class"),
-                              rtk_target_ids=scen.get("target_test_ids"))
+                              rtk_target_ids=scen.get("target_test_ids"),
+                              evidence_dir=evidence_dir, case_id=args.case_id)
 
         rtk_ok, rtk_reasons, rtk_oracle = _rtk_accept(scen, raw, rtk_run, rtk_bin)
         # post-measurement mutation guard (the real correction #2 invariant): after
