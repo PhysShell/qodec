@@ -1,17 +1,24 @@
 #!/usr/bin/env python3
-"""Focused Coreutils-6731 diagnostic probe (contract steps 2, 5-13).
+"""Focused Coreutils-6731 diagnostic probe v2 (corrected; contract steps 1-10 of the
+correction set on top of the original steps 2,5-13).
 
-OUTCOME-NEUTRAL diagnostic (NOT canonical acceptance). It establishes: exact rust 1.81.0
-toolchain identity; two genuinely-independent acquisitions A/B and their parity; the exact
-publisher-install Cargo.lock mutation behaviour; a deterministic final measurement input;
-RAW qualification via a native Cargo target-execution proof; primary RAW+RTK streams; and
-pinned RTK Cargo-filter source provenance. Because the Rust RTK dialect is not yet approved
-the diagnostic outcome is RTK_DIALECT_UNPROVEN / acceptance_pass=false -- never a semantic
-disagreement and never a candidate disqualification. The JOB succeeds when the diagnostic
-COMPLETED and emitted all required evidence (completeness != corpus acceptance).
-
-Runs in CI (network-enabled acquisition; network-denied measurement). Emits
-coreutils-6731-diagnostic-v1.json + primary streams + a file manifest.
+OUTCOME-NEUTRAL diagnostic, NOT canonical acceptance. Corrections applied:
+  1. dependency-state capture is strictly PASSIVE (no cargo/build command); cargo metadata
+     is probed in a DISPOSABLE copy and never mutates the normative repo.
+  2. the EXACT committed argv/env are executed (plain `cargo test backslash --no-fail-fast`
+     + RUSTUP_TOOLCHAIN=1.81.0; no `+1.81.0` in argv) and recorded as == the contract.
+  3. the resolved toolchain pins (channel manifest + component + xz artifact hashes,
+     date, host, versions) are ENFORCED before any repository acquisition.
+  4. acquisition A/B parity is a GATE over complete normalized post-install records; the
+     only authorized tracked mutation is a deterministic Cargo.lock create/modify.
+  5. the complete final measurement environments (repo + cargo-home-seed + home-seed +
+     rustup) must have equal normalized stable manifests A==B before measurement.
+  6. per-repetition mutation guard covers repo + cargo cache stable content + toolchain
+     immutability.
+  7. RTK Cargo-filter source provenance is a derived dispatch->filter->parser->formatter
+     chain from the pinned checkout, not a broad candidate scan.
+Because the Rust RTK dialect is not yet approved the outcome is RTK_DIALECT_UNPROVEN /
+acceptance_pass=false. The JOB gates on diagnostic COMPLETENESS via an independent verifier.
 """
 from __future__ import annotations
 
@@ -34,7 +41,7 @@ import n2e_common as c  # noqa: E402
 import n2e_canon_policies as canon  # noqa: E402
 import n2e_oracles as ora  # noqa: E402
 import n2e_resolved_loader as loader  # noqa: E402
-import run_canary_case as drv  # noqa: E402  (isolation primitives, canon, run_isolated)
+import run_canary_case as drv  # noqa: E402
 
 CASE_ID = "uutils__coreutils-6731::rust_cargo::test::fixed"
 INSTANCE_ID = "uutils__coreutils-6731"
@@ -42,11 +49,18 @@ REPO = "uutils/coreutils"
 CHANNEL = "1.81.0"
 HOST = "x86_64-unknown-linux-gnu"
 ROW = N2E_DIR / "evidence" / "coreutils-6731" / "uutils__coreutils-6731.row.json"
-CHANNEL_MANIFEST_URL = "https://static.rust-lang.org/dist/channel-rust-1.81.0.toml"
 RTK_SOURCE_COMMIT = "5d32d0736f686b69d1e8b9dc45c007d4eb77a0a2"
 CANON_POLICY = "cargo-test-v1"
 REPS = 3
+# exact committed argv/env (correction 2)
+CONTRACT_RAW_ARGV = ["cargo", "test", "backslash", "--no-fail-fast"]
+CONTRACT_ENV = {"RUSTUP_TOOLCHAIN": "1.81.0", "CARGO_NET_OFFLINE": "true",
+                "RUST_TEST_THREADS": "1", "CARGO_BUILD_JOBS": "1"}
 _FIXED = Path(tempfile.gettempdir()) / "n2e-fixedwork"
+# explicitly enumerated ephemeral files excluded from stable manifests (corrections 5/6)
+_EPHEMERAL_SUFFIX = (".lock",)
+_EPHEMERAL_NAME = {".package-cache", ".package-cache-mutate", "config.json.lock",
+                   ".crates2.json.lock"}
 
 
 def _run(argv, cwd=None, env=None, tmo=1800):
@@ -74,123 +88,216 @@ def _git_env(home: Path) -> dict:
             "GIT_AUTHOR_DATE": "2026-07-17T00:00:00+0000", "GIT_COMMITTER_DATE": "2026-07-17T00:00:00+0000"}
 
 
-# ---------------------------- step 5: rust 1.81.0 identity ----------------------------
-def _verify_channel_manifest() -> dict:
-    """Fetch the pinned channel manifest, verify its sha256, extract the cargo/rustc
-    component artifact hashes. This verifies the DISTRIBUTION ARTIFACTS; installed
-    executable identities are captured SEPARATELY (never compared to these)."""
+def _cargo_env(cargo_home: Path, extra: dict | None = None) -> dict:
+    """Runtime env selecting the pinned toolchain via RUSTUP_TOOLCHAIN (NO +channel argv)."""
+    e = {"HOME": str(cargo_home.parent / "home"), "PATH": os.environ.get("PATH", "/usr/bin:/bin"),
+         "CARGO_HOME": str(cargo_home), "RUSTUP_HOME": os.environ.get("RUSTUP_HOME", ""),
+         "RUSTUP_TOOLCHAIN": CHANNEL}
+    if not e["RUSTUP_HOME"]:
+        e.pop("RUSTUP_HOME")
+    e.update(extra or {})
+    return e
+
+
+# ---------------------- correction 3: enforce toolchain pins BEFORE acquisition ----------------------
+def enforce_toolchain(pins: dict) -> dict:
+    """Fetch + verify the channel manifest and component/xz artifact hashes against the
+    overlay pins, install rust 1.81.0 into the default RUSTUP_HOME, and capture installed
+    identities SEPARATELY. Returns {ok, ...}; ok=False means fail before acquisition."""
     import tomllib
+    reasons = []
+    cm = pins["channel_manifest"]; comps = pins["components_x86_64_unknown_linux_gnu"]
     try:
-        with urllib.request.urlopen(urllib.request.Request(CHANNEL_MANIFEST_URL),
-                                    context=c.ssl_context(), timeout=120) as r:
+        with urllib.request.urlopen(urllib.request.Request(cm["url"]), context=c.ssl_context(),
+                                    timeout=120) as r:
             data = r.read()
     except Exception as e:  # noqa: BLE001
-        return {"fetched": False, "error": str(e)}
+        return {"ok": False, "reasons": [f"manifest fetch failed: {e}"]}
+    man_sha = _sha(data)
+    if man_sha != cm["sha256"]:
+        reasons.append(f"manifest sha {man_sha} != pinned {cm['sha256']}")
     m = tomllib.loads(data.decode("utf-8"))
-
-    def comp(name):
-        t = m["pkg"][name]["target"][HOST]
-        return {"available": t.get("available"), "hash": t.get("hash"), "xz_hash": t.get("xz_hash")}
-    return {"fetched": True, "manifest_sha256": _sha(data), "manifest_date": m.get("date"),
-            "cargo": comp("cargo"), "rustc": comp("rustc"), "rust": comp("rust")}
-
-
-def _install_rust(rustup_home: Path, cargo_home: Path) -> dict:
-    env = {**os.environ, "RUSTUP_HOME": str(rustup_home), "CARGO_HOME": str(cargo_home),
-           "RUSTUP_TOOLCHAIN": CHANNEL}
-    ins = _run(["rustup", "toolchain", "install", CHANNEL, "--profile", "minimal",
-                "--no-self-update"], env=env, tmo=900)
+    if m.get("date") != cm["manifest_date"]:
+        reasons.append(f"manifest date {m.get('date')} != {cm['manifest_date']}")
+    artifact = {}
+    for name in ("cargo", "rustc", "rust"):
+        t = (m.get("pkg", {}).get(name, {}).get("target", {}) or {}).get(HOST, {})
+        if not t.get("available"):
+            reasons.append(f"component {name} unavailable")
+            continue
+        artifact[name] = {"hash": t.get("hash"), "xz_hash": t.get("xz_hash")}
+        if t.get("hash") != comps[name]["hash"]:
+            reasons.append(f"{name} component hash mismatch")
+        if t.get("xz_hash") != comps[name]["xz_hash"]:
+            reasons.append(f"{name} xz artifact hash mismatch")
+    if reasons:
+        return {"ok": False, "reasons": reasons, "manifest_sha256": man_sha}
+    # install into default RUSTUP_HOME (shared immutable toolchain root, verified identical)
+    ins = _run(["rustup", "toolchain", "install", CHANNEL, "--profile", "minimal", "--no-self-update"],
+               env={**os.environ, "RUSTUP_TOOLCHAIN": CHANNEL}, tmo=900)
+    if ins["exit"] != 0:
+        return {"ok": False, "reasons": [f"rustup install exit {ins['exit']}",
+                                         ins["stderr"][-400:].decode("utf-8", "replace")]}
+    env = {**os.environ, "RUSTUP_TOOLCHAIN": CHANNEL}
     which_cargo = _run(["rustup", "which", "--toolchain", CHANNEL, "cargo"], env=env)["stdout"].decode().strip()
     which_rustc = _run(["rustup", "which", "--toolchain", CHANNEL, "rustc"], env=env)["stdout"].decode().strip()
+    if not which_cargo or not which_rustc:
+        return {"ok": False, "reasons": ["rustup which failed"]}
+    cargo_vv = _run(["cargo", "-Vv"], env=env)["stdout"].decode("utf-8", "replace")
+    rustc_vv = _run(["rustc", "-Vv"], env=env)["stdout"].decode("utf-8", "replace")
+    host = next((ln.split(":", 1)[1].strip() for ln in rustc_vv.splitlines() if ln.startswith("host:")), None)
+    if host != HOST:
+        reasons.append(f"host {host} != {HOST}")
+    if f"cargo {CHANNEL}" not in cargo_vv.splitlines()[0] if cargo_vv else True:
+        reasons.append("cargo version not 1.81.0")
+    if f"rustc {CHANNEL}" not in rustc_vv.splitlines()[0] if rustc_vv else True:
+        reasons.append("rustc version not 1.81.0")
     shim = shutil.which("cargo")
+    rustup_exe = shutil.which("rustup")
+    installed = {
+        "resolved_channel_exact": CHANNEL, "host_target": host,
+        # installed executable identities (captured INDEPENDENTLY of artifact hashes)
+        "cargo_binary_path": which_cargo,
+        "cargo_binary_sha256": (c.sha256_file(which_cargo) if Path(which_cargo).exists() else None),
+        "rustc_binary_path": which_rustc,
+        "rustc_binary_sha256": (c.sha256_file(which_rustc) if Path(which_rustc).exists() else None),
+        "cargo_shim_path": shim, "cargo_shim_realpath": (os.path.realpath(shim) if shim else None),
+        "rustup_executable_path": rustup_exe,
+        "rustup_executable_sha256": (c.sha256_file(rustup_exe) if rustup_exe and Path(rustup_exe).exists() else None),
+        "cargo_version_verbose": cargo_vv, "rustc_version_verbose": rustc_vv,
+        "installed_components": _run(["rustup", "component", "list", "--installed", "--toolchain", CHANNEL],
+                                     env=env)["stdout"].decode("utf-8", "replace").split(),
+    }
+    for k in ("cargo_binary_sha256", "rustc_binary_sha256"):
+        if not installed[k]:
+            reasons.append(f"missing {k}")
+    return {"ok": not reasons, "reasons": reasons, "manifest_sha256": man_sha,
+            "manifest_date": m.get("date"), "distribution_artifacts": artifact,
+            "installed_identity": installed, "rustup_home": os.environ.get("RUSTUP_HOME")}
 
-    def ident(p):
-        return {"path": p, "sha256": (c.sha256_file(p) if p and Path(p).exists() else None),
-                "realpath": (os.path.realpath(p) if p else None)}
-    cargo_vv = _run(["cargo", f"+{CHANNEL}", "-Vv"], env=env)["stdout"].decode("utf-8", "replace")
-    rustc_vv = _run(["rustc", f"+{CHANNEL}", "-Vv"], env=env)["stdout"].decode("utf-8", "replace")
-    comps = _run(["rustup", "component", "list", "--installed", "--toolchain", CHANNEL],
-                 env=env)["stdout"].decode("utf-8", "replace").split()
-    host = None
-    for ln in rustc_vv.splitlines():
-        if ln.startswith("host:"):
-            host = ln.split(":", 1)[1].strip()
-    return {"install_exit": ins["exit"], "rustup_home": str(rustup_home), "cargo_home": str(cargo_home),
-            "resolved_channel_exact": CHANNEL, "host_target": host,
-            "cargo_which": which_cargo, "rustc_which": which_rustc,
-            "cargo_binary": ident(which_cargo), "rustc_binary": ident(which_rustc),
-            "rustup_shim_path": shim, "rustup_shim_realpath": (os.path.realpath(shim) if shim else None),
-            "rustup_realpath_sha256": (c.sha256_file(os.path.realpath(shim))
-                                       if shim and Path(os.path.realpath(shim)).exists() else None),
-            "cargo_version_verbose": cargo_vv, "rustc_version_verbose": rustc_vv,
-            "installed_components": comps, "_env": env}
 
+# ---------------------- correction 1: passive dependency state ----------------------
+def capture_dependency_state_passive(repo_dir: Path, ge: dict) -> dict:
+    """FILESYSTEM + GIT observations ONLY -- executes no cargo/build command."""
+    tomls = {}
+    for rel in sorted(x for x in _git(repo_dir, "ls-files", "*Cargo.toml",
+                                      env=ge)["stdout"].decode("utf-8", "replace").splitlines() if x.strip()):
+        f = repo_dir / rel
+        tomls[rel] = c.sha256_file(str(f)) if f.is_file() else None
 
-# ---------------------------- step 6: complete dependency state ----------------------------
-def _dep_state(repo_dir: Path, ge: dict, cargo_env: dict | None = None) -> dict:
-    def tracked_cargo_tomls():
-        out = _git(repo_dir, "ls-files", "*Cargo.toml", env=ge)["stdout"].decode("utf-8", "replace")
-        res = {}
-        for rel in sorted(x for x in out.splitlines() if x.strip()):
-            f = repo_dir / rel
-            res[rel] = c.sha256_file(str(f)) if f.is_file() else None
-        return res
-
-    def f_ident(rel):
+    def fi(rel):
         f = repo_dir / rel
         return {"present": f.is_file(), "bytes": (f.stat().st_size if f.is_file() else None),
                 "sha256": (c.sha256_file(str(f)) if f.is_file() else None)}
     diff = _git(repo_dir, "diff", "HEAD", env=ge)["stdout"]
     status = [ln for ln in _git(repo_dir, "status", "--porcelain", "--untracked-files=no",
                                 env=ge)["stdout"].decode("utf-8", "replace").splitlines() if ln.strip()]
-    head = _git(repo_dir, "rev-parse", "HEAD", env=ge)["stdout"].decode().strip()
-    members = None
-    if cargo_env is not None:
-        md = _run(["cargo", f"+{CHANNEL}", "metadata", "--no-deps", "--format-version", "1"],
-                  cwd=str(repo_dir), env=cargo_env, tmo=300)
+    return {"head": _git(repo_dir, "rev-parse", "HEAD", env=ge)["stdout"].decode().strip(),
+            "tracked_status": status, "tracked_diff_sha256": _sha(diff), "tracked_diff_bytes": len(diff),
+            "workspace_cargo_tomls": tomls, "cargo_lock": fi("Cargo.lock"),
+            "cargo_config": fi(".cargo/config"), "cargo_config_toml": fi(".cargo/config.toml"),
+            "rust_toolchain": fi("rust-toolchain"), "rust_toolchain_toml": fi("rust-toolchain.toml")}
+
+
+def probe_cargo_metadata_disposable(repo_dir: Path, cargo_home: Path, offline: bool) -> dict:
+    """Copy the repo + cargo env to a DISPOSABLE dir, capture passive pre-state, run
+    cargo metadata, capture passive post-state, require no mutation, discard the copy.
+    Never runs cargo metadata against the normative repo (correction 1)."""
+    tmp = Path(tempfile.mkdtemp(prefix="n2e-cu-md-"))
+    try:
+        drepo = tmp / "repo"; dch = tmp / "cargo-home"
+        shutil.copytree(repo_dir, drepo, symlinks=True)
+        if cargo_home.exists():
+            shutil.copytree(cargo_home, dch, symlinks=True)
+        ge = _git_env(tmp / "home")
+        (tmp / "home").mkdir(exist_ok=True)
+        has_lock = (drepo / "Cargo.lock").is_file()
+        if offline and not has_lock:
+            return {"available": False, "reason": "no lockfile; not created in normative repo"}
+        argv = ["cargo", "metadata", "--no-deps", "--format-version", "1"]
+        if offline:
+            argv = ["cargo", "metadata", "--offline", "--locked", "--no-deps", "--format-version", "1"]
+        pre = capture_dependency_state_passive(drepo, ge)
+        md = _run(argv, cwd=str(drepo), env=_cargo_env(dch), tmo=300)
+        post = capture_dependency_state_passive(drepo, ge)
+        members = None
         if md["exit"] == 0:
             try:
-                j = json.loads(md["stdout"])
-                members = sorted(p["name"] for p in j.get("packages", []))
+                members = sorted(p["name"] for p in json.loads(md["stdout"]).get("packages", []))
             except Exception:  # noqa: BLE001
                 members = None
-    return {"head": head, "workspace_cargo_tomls": tracked_cargo_tomls(),
-            "cargo_lock": f_ident("Cargo.lock"),
-            "cargo_config": f_ident(".cargo/config"), "cargo_config_toml": f_ident(".cargo/config.toml"),
-            "rust_toolchain": f_ident("rust-toolchain"), "rust_toolchain_toml": f_ident("rust-toolchain.toml"),
-            "tracked_status": status, "tracked_diff_sha256": _sha(diff), "tracked_diff_bytes": len(diff),
-            "cargo_metadata_members": members}
+        return {"available": md["exit"] == 0, "argv": argv, "exit": md["exit"], "offline": offline,
+                "members": members, "disposable_no_mutation": pre == post,
+                "stderr_tail": md["stderr"][-400:].decode("utf-8", "replace")}
+    finally:
+        shutil.rmtree(tmp, ignore_errors=True)
 
 
-# ---------------------------- step 9: one acquisition ----------------------------
+# ---------------------- stable manifests (corrections 5/6) ----------------------
+def _stable_manifest(root: Path) -> dict:
+    """Normalized content manifest of a directory tree: relpath -> sha256 for every file
+    EXCEPT the explicitly-enumerated ephemeral files (lock/access-time markers) and .git."""
+    out = {}
+    if not root.exists():
+        return out
+    for f in sorted(root.rglob("*")):
+        if not f.is_file() or f.is_symlink():
+            continue
+        parts = f.relative_to(root).parts
+        if ".git" in parts:
+            continue
+        if f.name in _EPHEMERAL_NAME or f.name.endswith(_EPHEMERAL_SUFFIX):
+            continue
+        try:
+            out[str(f.relative_to(root))] = c.sha256_file(str(f))
+        except OSError:
+            pass
+    return out
+
+
+def _manifest_hash(man: dict) -> str:
+    return _sha(json.dumps(man, sort_keys=True).encode())
+
+
+# ---------------------- correction 9: external artifact manifest ----------------------
+def _artifact_manifest(evidence: Path, record_path: Path) -> list:
+    out = []
+    for f in sorted(list(evidence.rglob("*")) + [record_path]):
+        if f.is_file():
+            out.append({"file": str(f.relative_to(N2E_DIR)), "bytes": f.stat().st_size,
+                        "sha256": c.sha256_file(str(f))})
+    return out
+
+
+# ---------------------- correction 9/7: acquisition ----------------------
 def _acquire(label: str, root: Path, recipe: dict, base: str) -> dict:
-    home = root / "home"; cargo_home = root / "cargo-home"; rustup_home = root / "rustup"
+    home = root / "home"; cargo_home = root / "cargo-home"
     repo_dir = root / "repo"
-    for d in (home, cargo_home, rustup_home):
+    for d in (home, cargo_home):
         d.mkdir(parents=True, exist_ok=True)
     ge = _git_env(home)
-    tc = _install_rust(rustup_home, cargo_home)
-    cargo_env = {**tc.pop("_env"), **ge, "CARGO_NET_OFFLINE": "false"}
-    # base checkout
     _run(["git", "init", "-q", str(repo_dir)], env=ge)
     fe = _git(repo_dir, "fetch", "-q", "--depth", "1", f"https://github.com/{REPO}.git", base, env=ge)
     _git(repo_dir, "checkout", "-q", "FETCH_HEAD", env=ge)
     head_ok = _git(repo_dir, "rev-parse", "HEAD", env=ge)["stdout"].decode().strip() == base
-    pristine = _dep_state(repo_dir, ge, cargo_env)
-    # publisher install (network-enabled), pre_install is empty for coreutils
-    inst_env, inst_argv = drv.pub.split_env(recipe["install"][0])
-    install = _run(["cargo", f"+{CHANNEL}", *inst_argv[1:]] if inst_argv[0] == "cargo" else inst_argv,
-                   cwd=str(repo_dir), env={**cargo_env, **inst_env}, tmo=1800)
-    post = _dep_state(repo_dir, ge, cargo_env)
+    pristine = capture_dependency_state_passive(repo_dir, ge)
+    pre_md = probe_cargo_metadata_disposable(repo_dir, cargo_home, offline=False)
+    # publisher install: EXACT committed argv shape (plain cargo, RUSTUP_TOOLCHAIN env)
+    inst_env, inst_argv = drv.pub.split_env(recipe["install"][0])   # ['cargo','test','backslash','--no-run']
+    install = _run(inst_argv, cwd=str(repo_dir),
+                   env=_cargo_env(cargo_home, {**inst_env, "CARGO_NET_OFFLINE": "false"}), tmo=1800)
+    post = capture_dependency_state_passive(repo_dir, ge)
+    post_md = probe_cargo_metadata_disposable(repo_dir, cargo_home, offline=post["cargo_lock"]["present"])
     return {
-        "label": label, "root": str(root), "base_commit": base, "head_matches_base": head_ok,
-        "fetch_exit": fe["exit"], "toolchain": tc,
-        "install": {"argv": inst_argv, "exit": install["exit"], "timed_out": install["timed_out"],
+        "label": label, "base_commit": base, "head_matches_base": head_ok, "fetch_exit": fe["exit"],
+        "install": {"argv": inst_argv, "env": inst_env, "exit": install["exit"], "timed_out": install["timed_out"],
                     "stdout_sha256": _sha(install["stdout"]), "stderr_sha256": _sha(install["stderr"]),
                     "stdout_bytes": len(install["stdout"]), "stderr_bytes": len(install["stderr"]),
-                    "stderr_tail": install["stderr"][-1200:].decode("utf-8", "replace")},
+                    "stderr_tail": install["stderr"][-1500:].decode("utf-8", "replace")},
         "pristine_state": pristine, "post_install_state": post,
-        "_repo_dir": str(repo_dir), "_ge": ge, "_cargo_env": cargo_env,
+        "pre_install_metadata": pre_md, "post_install_metadata": post_md,
+        "cargo_cache_stable_manifest_hash": _manifest_hash(_stable_manifest(cargo_home)),
+        "_root": str(root), "_repo_dir": str(repo_dir), "_cargo_home": str(cargo_home), "_ge": ge,
     }
 
 
@@ -198,41 +305,58 @@ def _acq_public(a: dict) -> dict:
     return {k: v for k, v in a.items() if not k.startswith("_")}
 
 
-# ---------------------------- step 9/10: parity + snapshot classification ----------------------------
-def _classify_acquisitions(A: dict, B: dict) -> dict:
+def _classify_acquisitions(A: dict, B: dict, tool_ident: dict) -> dict:
     if A["install"]["exit"] != 0 or B["install"]["exit"] != 0:
         return {"outcome": "COREUTILS_ACQUISITION_INSTALL_FAILURE",
                 "a_exit": A["install"]["exit"], "b_exit": B["install"]["exit"]}
     pa, pb = A["post_install_state"], B["post_install_state"]
-    manifests_equal = pa["workspace_cargo_tomls"] == pb["workspace_cargo_tomls"]
-    metadata_equal = pa["cargo_metadata_members"] == pb["cargo_metadata_members"]
-    lock_equal = pa["cargo_lock"] == pb["cargo_lock"]
-    toolchain_equal = (A["toolchain"]["cargo_binary"]["sha256"] == B["toolchain"]["cargo_binary"]["sha256"]
-                       and A["toolchain"]["rustc_binary"]["sha256"] == B["toolchain"]["rustc_binary"]["sha256"])
-    # did the install create/modify Cargo.lock vs pristine?
+    # complete normalized post-install parity (correction 4)
+    parity = {
+        "workspace_manifests_equal": pa["workspace_cargo_tomls"] == pb["workspace_cargo_tomls"],
+        "cargo_lock_equal": pa["cargo_lock"] == pb["cargo_lock"],
+        "cargo_config_equal": (pa["cargo_config"] == pb["cargo_config"]
+                               and pa["cargo_config_toml"] == pb["cargo_config_toml"]),
+        "rust_toolchain_equal": (pa["rust_toolchain"] == pb["rust_toolchain"]
+                                 and pa["rust_toolchain_toml"] == pb["rust_toolchain_toml"]),
+        "tracked_status_equal": pa["tracked_status"] == pb["tracked_status"],
+        "tracked_diff_equal": pa["tracked_diff_sha256"] == pb["tracked_diff_sha256"],
+        "metadata_members_equal": (A["post_install_metadata"].get("members")
+                                   == B["post_install_metadata"].get("members")),
+        "install_semantics_equal": (A["install"]["exit"] == B["install"]["exit"]
+                                    and A["install"]["timed_out"] == B["install"]["timed_out"]),
+        "cargo_cache_seed_equal": (A["cargo_cache_stable_manifest_hash"]
+                                   == B["cargo_cache_stable_manifest_hash"]),
+    }
+    # authorized tracked mutation = ONLY Cargo.lock create/modify, deterministic A==B
+    def tracked_nonlock_changed(a):
+        base_status = a["pristine_state"]["tracked_status"]
+        now_status = a["post_install_state"]["tracked_status"]
+        changed = set(now_status) - set(base_status)
+        return sorted(x for x in changed if "Cargo.lock" not in x)
+    a_nonlock, b_nonlock = tracked_nonlock_changed(A), tracked_nonlock_changed(B)
+    cfg_or_tc_mutated = not (parity["cargo_config_equal"] and parity["rust_toolchain_equal"]) or bool(a_nonlock or b_nonlock)
+    if cfg_or_tc_mutated:
+        return {"outcome": "COREUTILS_ACQUISITION_UNAUTHORIZED_MUTATION", "parity": parity,
+                "a_nonlock_tracked": a_nonlock, "b_nonlock_tracked": b_nonlock,
+                "note": "only Cargo.lock create/modify is authorized during publisher install"}
+    if not all(parity.values()):
+        return {"outcome": "COREUTILS_ACQUISITION_NONDETERMINISTIC", "parity": parity,
+                "note": "harness/acquisition investigation state, not a candidate disqualification"}
     lock_created = (not A["pristine_state"]["cargo_lock"]["present"]) and pa["cargo_lock"]["present"]
     lock_modified = (A["pristine_state"]["cargo_lock"]["present"] and pa["cargo_lock"]["present"]
                      and A["pristine_state"]["cargo_lock"]["sha256"] != pa["cargo_lock"]["sha256"])
-    tracked_mutation = pa["tracked_status"] != A["pristine_state"]["tracked_status"]
-    parity_ok = manifests_equal and metadata_equal and toolchain_equal
-    if not parity_ok or not lock_equal:
-        return {"outcome": "COREUTILS_ACQUISITION_NONDETERMINISTIC",
-                "manifests_equal": manifests_equal, "metadata_equal": metadata_equal,
-                "lock_equal": lock_equal, "toolchain_equal": toolchain_equal,
-                "note": "harness/acquisition investigation state, not a candidate disqualification"}
-    if lock_created or lock_modified:
-        snap = pa["cargo_lock"]
+    tracked_dependency_mutation = lock_created or lock_modified
+    if tracked_dependency_mutation:
         return {"outcome": "publisher_install_dependency_snapshot", "install_locked": False,
-                "lock_created": lock_created, "lock_modified": lock_modified,
-                "tracked_dependency_mutation": tracked_mutation,
-                "frozen_lock_sha256": snap["sha256"], "frozen_lock_bytes": snap["bytes"],
-                "byte_identical_across_A_B": lock_equal, "workspace_metadata_equal": metadata_equal}
-    return {"outcome": "pristine_dependency_state", "install_locked": False,
-            "tracked_dependency_mutation": tracked_mutation,
-            "note": "no tracked dependency mutation from the publisher install"}
+                "parity": parity, "lock_created": lock_created, "lock_modified": lock_modified,
+                "tracked_dependency_mutation": True,
+                "frozen_lock_sha256": pa["cargo_lock"]["sha256"], "frozen_lock_bytes": pa["cargo_lock"]["bytes"],
+                "byte_identical_across_A_B": parity["cargo_lock_equal"]}
+    return {"outcome": "pristine_dependency_state", "install_locked": False, "parity": parity,
+            "tracked_dependency_mutation": False}
 
 
-# ---------------------------- step 10: patches -> final measurement input ----------------------------
+# ---------------------- correction 5: finalize + complete env parity ----------------------
 def _finalize(a: dict, gold: bytes, test: bytes, base: str) -> dict:
     repo_dir = Path(a["_repo_dir"]); ge = a["_ge"]
     applied = []
@@ -244,98 +368,124 @@ def _finalize(a: dict, gold: bytes, test: bytes, base: str) -> dict:
         applied.append({"name": name, "sha256": _sha(blob), "apply_exit": r["exit"],
                         "stderr": r["stderr"][-300:].decode("utf-8", "replace")})
         return r["exit"]
-
     gold_exit = apply("gold_patch", gold) if gold else 0
     test_files = drv._diff_modified_files(test) if test else []
     existing, reset_paths, reset_failed = drv._reset_test_files(repo_dir, ge, base, test_files)
     test_exit = apply("test_patch", test) if test else 0
-    diff = _git(repo_dir, "diff", "HEAD", env=ge)["stdout"]
+    final_state = capture_dependency_state_passive(repo_dir, ge)
+    final_md = probe_cargo_metadata_disposable(repo_dir, Path(a["_cargo_home"]),
+                                               offline=final_state["cargo_lock"]["present"])
     return {"applied": applied, "gold_exit": gold_exit, "test_exit": test_exit,
             "test_patch_files": test_files, "reset_from_base": reset_paths, "reset_failed": reset_failed,
-            "existing_at_base": existing,
-            "final_measurement_input_diff_sha256": _sha(diff), "final_input_bytes": len(diff),
+            "existing_at_base": existing, "final_state": final_state, "final_metadata": final_md,
             "all_ok": (gold_exit == 0 and test_exit == 0 and not reset_failed)}
 
 
-# ---------------------------- steps 7/8/11/12: measurement arm ----------------------------
-def _rep_state(work_repo: Path, ge: dict) -> dict:
-    return _dep_state(work_repo, ge, cargo_env=None)
+def _final_env_parity(A, B, finA, finB) -> dict:
+    p = {
+        "final_repo_state_equal": finA["final_state"] == finB["final_state"],
+        "final_tracked_diff_equal": finA["final_state"]["tracked_diff_sha256"] == finB["final_state"]["tracked_diff_sha256"],
+        "final_cargo_lock_equal": finA["final_state"]["cargo_lock"] == finB["final_state"]["cargo_lock"],
+        "final_manifests_equal": finA["final_state"]["workspace_cargo_tomls"] == finB["final_state"]["workspace_cargo_tomls"],
+        "final_metadata_equal": finA["final_metadata"].get("members") == finB["final_metadata"].get("members"),
+        "cargo_cache_seed_equal": A["cargo_cache_stable_manifest_hash"] == B["cargo_cache_stable_manifest_hash"],
+    }
+    p["all_equal"] = all(p.values())
+    return p
+
+
+# ---------------------- corrections 6/7/8: measurement arm ----------------------
+def _rustup_manifest(rustup_home: str) -> str:
+    root = Path(rustup_home) / "toolchains" if rustup_home else None
+    return _manifest_hash(_stable_manifest(root)) if root else ""
 
 
 def _measure_arm(is_rtk: bool, frozen_env: Path, argv: list, wrapper: list, off_env: dict,
-                 target_ids: list, evidence: Path) -> dict:
+                 target_ids: list, evidence: Path, rustup_home: str) -> dict:
     role = "rtk" if is_rtk else "raw"
     ge = _git_env(_FIXED / "home")
-    runs, canon_hashes, streams, per_rep, mut = [], [], [], [], []
+    runs, canon_hashes, per_rep, mut = [], [], [], []
     evidence.mkdir(parents=True, exist_ok=True)
+    seed_cargo = _manifest_hash(_stable_manifest(frozen_env / "cargo-home"))
+    seed_toolchain = _rustup_manifest(rustup_home)
+    contract_argv_ok = (argv[1:] == CONTRACT_RAW_ARGV[1:] if is_rtk else argv == CONTRACT_RAW_ARGV)
     for i in range(REPS):
         if _FIXED.exists():
             shutil.rmtree(_FIXED, ignore_errors=True)
-        # fresh writable copy of the complete frozen env root at a FIXED path
         shutil.copytree(frozen_env, _FIXED, symlinks=True)
         work_repo = _FIXED / "repo"
-        pre = _rep_state(work_repo, ge)
-        env_extra = {**off_env, "HOME": str(_FIXED / "home"),
-                     "CARGO_HOME": str(_FIXED / "cargo-home"), "RUSTUP_HOME": str(_FIXED / "rustup"),
-                     "RUSTUP_TOOLCHAIN": CHANNEL}
+        pre_repo = capture_dependency_state_passive(work_repo, ge)
+        pre_cargo = _manifest_hash(_stable_manifest(_FIXED / "cargo-home"))
+        env_extra = {**off_env, "HOME": str(_FIXED / "home"), "CARGO_HOME": str(_FIXED / "cargo-home"),
+                     "RUSTUP_HOME": rustup_home, "RUSTUP_TOOLCHAIN": CHANNEL}
         r = drv.run_isolated(argv, str(work_repo), 900, wrapper, env_extra)
-        post = _rep_state(work_repo, ge)
+        post_repo = capture_dependency_state_passive(work_repo, ge)
+        post_cargo = _manifest_hash(_stable_manifest(_FIXED / "cargo-home"))
+        post_toolchain = _rustup_manifest(rustup_home)
         combined = canon.rtk_envelope(r["combined"]) if is_rtk else r["combined"]
         cb = canon.canonicalize(combined, CANON_POLICY)
-        # step 8: per-rep mutation guard (captured BEFORE the copy is deleted)
-        reasons = []
-        for key in ("workspace_cargo_tomls", "cargo_lock", "cargo_config", "cargo_config_toml",
-                    "rust_toolchain", "rust_toolchain_toml", "tracked_status"):
-            if pre[key] != post[key]:
-                reasons.append(f"{key} changed during {role} rep{i}")
-        mrec = {"rep": i, "pre_state_sha256": _sha(json.dumps(pre, sort_keys=True).encode()),
-                "post_state_sha256": _sha(json.dumps(post, sort_keys=True).encode()),
-                "tracked_status_before": pre["tracked_status"], "tracked_status_after": post["tracked_status"],
-                "cargo_lock_before": pre["cargo_lock"], "cargo_lock_after": post["cargo_lock"],
-                "cargo_config_before": pre["cargo_config"], "cargo_config_after": post["cargo_config"],
-                "rust_toolchain_before": pre["rust_toolchain"], "rust_toolchain_after": post["rust_toolchain"],
-                "workspace_manifests_before": pre["workspace_cargo_tomls"],
-                "workspace_manifests_after": post["workspace_cargo_tomls"],
-                "mutation_ok": not reasons, "mutation_reasons": reasons}
+        repo_ok = pre_repo == post_repo
+        cache_ok = pre_cargo == post_cargo
+        tc_ok = (seed_toolchain == post_toolchain)
+        mrec = {"rep": i, "repo_mutation_ok": repo_ok, "cargo_cache_stable_content_ok": cache_ok,
+                "toolchain_immutable": tc_ok, "mutation_ok": repo_ok and cache_ok and tc_ok,
+                "pre_repo_state_sha256": _sha(json.dumps(pre_repo, sort_keys=True).encode()),
+                "post_repo_state_sha256": _sha(json.dumps(post_repo, sort_keys=True).encode()),
+                "cargo_lock_before": pre_repo["cargo_lock"], "cargo_lock_after": post_repo["cargo_lock"],
+                "tracked_status_before": pre_repo["tracked_status"], "tracked_status_after": post_repo["tracked_status"],
+                "cargo_cache_before": pre_cargo, "cargo_cache_after": post_cargo,
+                "toolchain_manifest": post_toolchain}
         mut.append(mrec)
         runs.append({"exit_code": r["exit_code"], "timed_out": r.get("timed_out", False),
                      "raw_combined_sha256": _sha(r["combined"]), "canonical_sha256": _sha(cb),
                      "canonical_bytes": len(cb)})
-        canon_hashes.append(_sha(cb)); streams.append((r["combined"], cb))
+        canon_hashes.append(_sha(cb))
         if not is_rtk:
             per_rep.append(ora.cargo_target_execution_proof(r["combined"], r["exit_code"], target_ids))
-        # persist primary streams (raw capture + canonical)
         (evidence / f"{role}.rep{i}.zst").write_bytes(zlib.compress(cb, 9))
         (evidence / f"{role}.raw.rep{i}.zst").write_bytes(zlib.compress(r["combined"], 9))
+        with open(evidence / f"{role}.mutation.rep{i}.json", "w") as fh:
+            json.dump(mrec, fh, sort_keys=True)
     shutil.rmtree(_FIXED, ignore_errors=True)
     det = len(set(canon_hashes)) == 1
-    out = {"role": role, "reps": REPS, "exit_stable": len({x["exit_code"] for x in runs}) == 1,
-           "deterministic": det, "canonical_sha256": canon_hashes[0] if det else None,
+    out = {"role": role, "reps": REPS, "actual_argv": argv,
+           "actual_argv_equal_contract": contract_argv_ok,
+           "exit_stable": len({x["exit_code"] for x in runs}) == 1, "deterministic": det,
+           "canonical_sha256": canon_hashes[0] if det else None,
            "timed_out_any": any(x["timed_out"] for x in runs), "runs": runs,
-           "per_rep_mutation": mut, "mutation_ok_all": all(x["mutation_ok"] for x in mut)}
+           "per_rep_mutation": mut, "mutation_ok_all": all(x["mutation_ok"] for x in mut),
+           "cargo_cache_seed_hash": seed_cargo, "toolchain_seed_hash": seed_toolchain}
     if not is_rtk:
         exec_ids = [tuple(p["executed_ok_ids"]) for p in per_rep]
         out["cargo_execution_proof"] = per_rep
         out["executed_ids_deterministic"] = len(set(exec_ids)) == 1
         out["raw_qualified"] = (det and out["exit_stable"] and not out["timed_out_any"]
-                                and out["mutation_ok_all"] and all(p["executed_ok"] for p in per_rep)
-                                and out["executed_ids_deterministic"])
+                                and out["mutation_ok_all"] and contract_argv_ok
+                                and all(p["executed_ok"] for p in per_rep) and out["executed_ids_deterministic"])
     return out
 
 
-# ---------------------------- step 13: RTK cargo-filter source evidence ----------------------------
-def _rtk_source_evidence(workroot: Path) -> dict:
+# ---------------------- correction 7: precise RTK cargo-filter provenance ----------------------
+def _rtk_source_evidence(workroot: Path, evidence: Path) -> dict:
     co = workroot / "rtk-src"
     _run(["git", "init", "-q", str(co)])
     fe = _run(["git", "-C", str(co), "fetch", "-q", "--depth", "1",
                "https://github.com/rtk-ai/rtk.git", RTK_SOURCE_COMMIT], tmo=300)
     if fe["exit"] != 0:
-        return {"fetched": False, "commit": RTK_SOURCE_COMMIT,
+        return {"fetched": False, "commit": RTK_SOURCE_COMMIT, "head_proven": False,
                 "error": fe["stderr"][-400:].decode("utf-8", "replace")}
     _run(["git", "-C", str(co), "checkout", "-q", "FETCH_HEAD"])
+    head = _run(["git", "-C", str(co), "rev-parse", "HEAD"])["stdout"].decode().strip()
     tree = _run(["git", "-C", str(co), "rev-parse", "HEAD^{tree}"])["stdout"].decode().strip()
-    # derive the cargo-filter source MECHANICALLY: files mentioning cargo test filtering
-    hits = []
+
+    def ident(f: Path):
+        blob = _run(["git", "-C", str(co), "hash-object", str(f)])["stdout"].decode().strip()
+        return {"path": str(f.relative_to(co)), "git_blob_sha1": blob,
+                "sha256": c.sha256_file(str(f)), "bytes": f.stat().st_size}
+
+    # role signals -> derive the dispatch->filter->parser->formatter chain mechanically
+    roles = {"cli_dispatch_cargo_test": [], "cargo_filter": [], "cargo_parser": [], "summary_formatter": []}
+    src_bytes = {}
     for f in co.rglob("*"):
         if not f.is_file() or ".git" in f.parts:
             continue
@@ -344,21 +494,43 @@ def _rtk_source_evidence(workroot: Path) -> dict:
         except OSError:
             continue
         low = txt.lower()
-        if b"cargo" in low and (b"test result:" in low or b"cargo test" in low or b"filter" in low):
-            rel = str(f.relative_to(co))
-            blob = _run(["git", "-C", str(co), "hash-object", str(f)])["stdout"].decode().strip()
-            hits.append({"path": rel, "git_blob_sha1": blob, "sha256": _sha(txt), "bytes": len(txt)})
-    return {"fetched": True, "commit": RTK_SOURCE_COMMIT, "tree": tree,
-            "cargo_filter_source_candidates": sorted(hits, key=lambda x: x["path"])}
+        rel = str(f.relative_to(co))
+        # dispatch: routes the "cargo" subcommand / "cargo test" to a handler
+        if (b"cargo" in low and (b"subcommand" in low or b"match " in low or b"command" in low)
+                and b"test" in low):
+            roles["cli_dispatch_cargo_test"].append(rel); src_bytes[rel] = ident(f)
+        # native cargo parser: recognizes cargo's own "test result:" line
+        if b"test result:" in low:
+            roles["cargo_parser"].append(rel); src_bytes[rel] = ident(f)
+        # filter selection for cargo test
+        if b"cargo" in low and b"filter" in low:
+            roles["cargo_filter"].append(rel); src_bytes[rel] = ident(f)
+        # formatter emitting the RTK summary grammar (e.g. "Go test:", "Pytest:", "<Tool> test:")
+        if b" passed" in low and (b" failed" in low or b"packages" in low) and (
+                b"format" in low or b"write" in low or b"println" in low or b"summary" in low):
+            roles["summary_formatter"].append(rel); src_bytes[rel] = ident(f)
+    # copy the identified source bytes into the PERSISTED evidence dir for retention
+    ev_dir = evidence / "rtk-source-evidence"
+    ev_dir.mkdir(parents=True, exist_ok=True)
+    copied = []
+    for rel in sorted(src_bytes):
+        dst = ev_dir / rel.replace("/", "__")
+        try:
+            dst.write_bytes((co / rel).read_bytes())
+            copied.append(dst.name)
+        except OSError:
+            pass
+    complete = all(len(v) >= 1 for v in roles.values())
+    return {"fetched": True, "commit": RTK_SOURCE_COMMIT, "head": head, "tree": tree,
+            "head_proven": head == RTK_SOURCE_COMMIT, "roles": roles,
+            "source_identities": src_bytes, "copied_evidence_files": sorted(copied),
+            "chain_complete": complete,
+            "chain": "rtk cargo test -> selected filter -> native cargo parser -> emitted RTK summary grammar"}
 
 
-def _manifest(evidence: Path) -> list:
-    out = []
-    for f in sorted(evidence.rglob("*")):
-        if f.is_file():
-            out.append({"file": str(f.relative_to(evidence.parent)), "bytes": f.stat().st_size,
-                        "sha256": c.sha256_file(str(f))})
-    return out
+def _emit(out: Path, body: dict):
+    c.write_record(out, c.envelope(record_type="n2e-coreutils-diagnostic",
+                   generated_by="tools/probe_coreutils_diagnostic.py", **body))
 
 
 def main() -> int:
@@ -366,111 +538,101 @@ def main() -> int:
     ap.add_argument("--out", default=str(N2E_DIR / "coreutils-6731-diagnostic-v1.json"))
     ap.add_argument("--evidence", default=str(N2E_DIR / "out" / "evidence" / "coreutils-6731"))
     args = ap.parse_args()
-    out = Path(args.out); evidence = Path(args.evidence)
+    out = Path(args.out); evidence = Path(args.evidence); evidence.mkdir(parents=True, exist_ok=True)
 
-    bundle = loader.load_case_bundle(CASE_ID, "resolved")   # fail-closed resolved bundle
-    recipe = bundle["publisher_recipe"]
-    scen = bundle["scenario"]
-    base = scen["base_commit"]
-    target_ids = scen["target_test_ids"]
+    bundle = loader.load_case_bundle(CASE_ID, "resolved")
+    recipe = bundle["publisher_recipe"]; scen = bundle["scenario"]
+    base = scen["base_commit"]; target_ids = scen["target_test_ids"]
+    pins = loader.validate_resolved_closure()["overlays"]["toolchain"]["resolved_rust_toolchain"]
     row = c.load_record(ROW)
-    gold = (row.get("patch") or "").encode()
-    test = (row.get("test_patch") or "").encode()
+    gold = (row.get("patch") or "").encode(); test = (row.get("test_patch") or "").encode()
 
-    channel_manifest = _verify_channel_manifest()
-    iso = drv.resolve_isolation()
-    if iso is None:
-        c.write_record(out, c.envelope(
-            record_type="n2e-coreutils-diagnostic", generated_by="tools/probe_coreutils_diagnostic.py",
-            case_id=CASE_ID, outcome="REJECTED_NO_ISOLATION", acceptance_pass=False))
-        return 0  # diagnostic completed (with a typed no-isolation result)
-    iso_method, wrapper = iso
-    probe = drv.denial_probe(wrapper)
-
-    workroot = Path(tempfile.mkdtemp(prefix="n2e-cu-diag-"))
     body = {"case_id": CASE_ID, "instance_id": INSTANCE_ID, "base_commit": base,
+            "diagnostic_classification": "COREUTILS_DIAGNOSTIC_NONCANONICAL",
             "resolved_bundle_source": bundle["source"],
             "effective_record_hash_map": bundle["effective_record_hash_map"],
-            "channel_manifest_verification": channel_manifest,
-            "isolation": {"method": iso_method, "denial_probe": probe},
+            "contract_raw_argv": CONTRACT_RAW_ARGV, "contract_env": CONTRACT_ENV,
             "rtk_binary_sha256": (c.sha256_file(os.environ["RTK_BIN"]) if os.environ.get("RTK_BIN") else None)}
+
+    # correction 3: enforce toolchain pins BEFORE acquisition
+    tool = enforce_toolchain(pins)
+    body["toolchain_enforcement"] = tool
+    if not tool["ok"]:
+        body["outcome"] = "COREUTILS_TOOLCHAIN_PINS_UNVERIFIED"; body["acceptance_pass"] = False
+        _emit(out, body); print("coreutils-diagnostic:", body["outcome"], tool["reasons"]); return 0
+    os.environ["RUSTUP_HOME"] = os.environ.get("RUSTUP_HOME") or str(Path.home() / ".rustup")
+    rustup_home = os.environ["RUSTUP_HOME"]
+
+    iso = drv.resolve_isolation()
+    if iso is None:
+        body["outcome"] = "REJECTED_NO_ISOLATION"; body["acceptance_pass"] = False
+        _emit(out, body); return 0
+    iso_method, wrapper = iso
+    body["isolation"] = {"method": iso_method, "denial_probe": drv.denial_probe(wrapper)}
+
+    workroot = Path(tempfile.mkdtemp(prefix="n2e-cu-diag-"))
     try:
         A = _acquire("A", workroot / "A", recipe, base)
         B = _acquire("B", workroot / "B", recipe, base)
-        classification = _classify_acquisitions(A, B)
-        body["acquisition_A"] = _acq_public(A)
-        body["acquisition_B"] = _acq_public(B)
-        body["acquisition_classification"] = classification
-        body["rtk_cargo_filter_source"] = _rtk_source_evidence(workroot)
+        cls = _classify_acquisitions(A, B, tool)
+        body["acquisition_A"] = _acq_public(A); body["acquisition_B"] = _acq_public(B)
+        body["acquisition_classification"] = cls
+        body["rtk_cargo_filter_source"] = _rtk_source_evidence(workroot, evidence)
 
-        proceed = classification["outcome"] in ("publisher_install_dependency_snapshot",
-                                                "pristine_dependency_state")
-        if not proceed:
-            body["outcome"] = classification["outcome"]
-            body["acceptance_pass"] = False
-            body["diagnostic_complete"] = True
-            c.write_record(out, c.envelope(record_type="n2e-coreutils-diagnostic",
-                           generated_by="tools/probe_coreutils_diagnostic.py", **body))
-            print(f"coreutils-diagnostic: {classification['outcome']} (no measurement)")
-            return 0
+        if cls["outcome"] not in ("publisher_install_dependency_snapshot", "pristine_dependency_state"):
+            body["outcome"] = cls["outcome"]; body["acceptance_pass"] = False
+            body["file_manifest"] = _artifact_manifest(evidence, out)
+            _emit(out, body); print("coreutils-diagnostic:", body["outcome"]); return 0
 
-        finA = _finalize(A, gold, test, base)
-        finB = _finalize(B, gold, test, base)
-        final_input_equal = finA["final_measurement_input_diff_sha256"] == finB["final_measurement_input_diff_sha256"]
+        finA = _finalize(A, gold, test, base); finB = _finalize(B, gold, test, base)
+        parity = _final_env_parity(A, B, finA, finB)
         body["finalize_A"] = finA; body["finalize_B"] = finB
-        body["final_measurement_input_byte_identical_A_B"] = final_input_equal
-        if not (finA["all_ok"] and finB["all_ok"] and final_input_equal):
-            body["outcome"] = "COREUTILS_FINAL_INPUT_PARITY_FAILURE"
-            body["acceptance_pass"] = False; body["diagnostic_complete"] = True
-            c.write_record(out, c.envelope(record_type="n2e-coreutils-diagnostic",
-                           generated_by="tools/probe_coreutils_diagnostic.py", **body))
-            return 0
+        body["final_env_parity"] = parity
+        if not (finA["all_ok"] and finB["all_ok"] and parity["all_equal"]):
+            body["outcome"] = "COREUTILS_FINAL_INPUT_PARITY_FAILURE"; body["acceptance_pass"] = False
+            body["file_manifest"] = _artifact_manifest(evidence, out)
+            _emit(out, body); print("coreutils-diagnostic:", body["outcome"]); return 0
 
-        # build the complete frozen-env root from acquisition A's finalized repo + caches
-        frozen = workroot / "frozen-env"
-        frozen.mkdir()
+        # complete frozen-env root: repo + cargo-home-seed + home-seed + rustup(shared, read-only)
+        frozen = workroot / "frozen-env"; frozen.mkdir()
         shutil.copytree(Path(A["_repo_dir"]), frozen / "repo", symlinks=True)
-        shutil.copytree(Path(A["root"]) / "cargo-home", frozen / "cargo-home", symlinks=True)
+        shutil.copytree(Path(A["_cargo_home"]), frozen / "cargo-home", symlinks=True)
         (frozen / "home").mkdir()
-        shutil.copytree(Path(A["root"]) / "rustup", frozen / "rustup", symlinks=True)
-        off_env = {"CARGO_NET_OFFLINE": "true", "RUST_TEST_THREADS": "1", "CARGO_BUILD_JOBS": "1",
-                   "RUSTFLAGS": recipe.get("test_env", {}).get("RUSTFLAGS", "")}
-        off_env = {k: v for k, v in off_env.items() if v != ""}
+        off = {k: v for k, v in CONTRACT_ENV.items()}
+        rustflags = recipe.get("test_env", {}).get("RUSTFLAGS")
+        if rustflags:
+            off["RUSTFLAGS"] = rustflags
         _env, test_argv = drv.pub.split_env(recipe["test_cmd"][0])
-        raw = _measure_arm(False, frozen, ["cargo", f"+{CHANNEL}", *test_argv[1:]], wrapper,
-                           {**off_env, **_env}, target_ids, evidence)
+        body["actual_environment_equal_contract"] = all(off.get(k) == v for k, v in CONTRACT_ENV.items())
+        raw = _measure_arm(False, frozen, list(CONTRACT_RAW_ARGV), wrapper, {**off, **_env},
+                           target_ids, evidence, rustup_home)
         body["raw_arm"] = raw
+        body["actual_raw_argv_equal_contract"] = raw["actual_argv_equal_contract"]
         if not raw["raw_qualified"]:
             body["outcome"] = "COREUTILS_RAW_NOT_QUALIFIED"; body["acceptance_pass"] = False
-            body["diagnostic_complete"] = True; body["file_manifest"] = _manifest(evidence)
-            c.write_record(out, c.envelope(record_type="n2e-coreutils-diagnostic",
-                           generated_by="tools/probe_coreutils_diagnostic.py", **body))
-            print("coreutils-diagnostic: RAW not qualified")
-            return 0
+            body["file_manifest"] = _artifact_manifest(evidence, out)
+            _emit(out, body); print("coreutils-diagnostic: RAW not qualified"); return 0
 
         rtk_bin = os.environ.get("RTK_BIN")
-        rtk = _measure_arm(True, frozen, [rtk_bin, "cargo", f"+{CHANNEL}", *test_argv[1:]], wrapper,
-                           {**off_env, **_env}, target_ids, evidence)
+        rtk = _measure_arm(True, frozen, [rtk_bin, *CONTRACT_RAW_ARGV], wrapper, {**off, **_env},
+                           target_ids, evidence, rustup_home)
         body["rtk_arm"] = rtk
-        # step 12: rust RTK dialect not yet approved -> RTK_DIALECT_UNPROVEN (NOT disagreement)
-        body["outcome"] = "RTK_DIALECT_UNPROVEN"
-        body["acceptance_pass"] = False
-        body["diagnostic_complete"] = True
+        body["actual_rtk_argv_equal_contract"] = rtk["actual_argv_equal_contract"]
+        body["outcome"] = "RTK_DIALECT_UNPROVEN"; body["acceptance_pass"] = False
         body["rust_rtk_dialect_status"] = "unproven (fail-closed; bind from pinned RTK source + these streams)"
-        body["file_manifest"] = _manifest(evidence)
-        c.write_record(out, c.envelope(record_type="n2e-coreutils-diagnostic",
-                       generated_by="tools/probe_coreutils_diagnostic.py", **body))
-        print(f"coreutils-diagnostic: complete outcome={body['outcome']} "
-              f"raw_qualified={raw['raw_qualified']} acceptance_pass=False")
+        body["file_manifest"] = _artifact_manifest(evidence, out)
+        _emit(out, body)
+        print(f"coreutils-diagnostic: complete outcome={body['outcome']} raw_qualified={raw['raw_qualified']}")
         return 0
-    except Exception as e:  # noqa: BLE001 -- fail closed WITH a record
+    except Exception as e:  # noqa: BLE001
         import traceback
         body["outcome"] = "COREUTILS_DIAGNOSTIC_ERROR"; body["acceptance_pass"] = False
         body["error"] = f"{type(e).__name__}: {e}"; body["traceback"] = traceback.format_exc()[-2000:]
-        c.write_record(out, c.envelope(record_type="n2e-coreutils-diagnostic",
-                       generated_by="tools/probe_coreutils_diagnostic.py", **body))
-        print(f"coreutils-diagnostic: ERROR {e}")
-        return 0
+        try:
+            body["file_manifest"] = _artifact_manifest(evidence, out)
+        except Exception:  # noqa: BLE001
+            pass
+        _emit(out, body); print("coreutils-diagnostic: ERROR", e); return 0
     finally:
         shutil.rmtree(workroot, ignore_errors=True)
 

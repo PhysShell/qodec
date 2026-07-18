@@ -146,6 +146,7 @@ jobs:
         run: |
           rustup --version
           rustc --version || true
+      # correction 9: run probe -> build external manifest -> UPLOAD (always) -> verifier gate
       - name: Run the focused Coreutils diagnostic (network-enabled acq; network-denied measurement)
         run: |
           cd "$N2E"
@@ -153,16 +154,24 @@ jobs:
           python3 tools/probe_coreutils_diagnostic.py --out coreutils-6731-diagnostic-v1.json --evidence out/evidence/coreutils-6731
           echo "=== outcome ==="
           python3 -c "import json;d=json.load(open('coreutils-6731-diagnostic-v1.json'));print('outcome=',d.get('outcome'),'acceptance_pass=',d.get('acceptance_pass'));print('acquisition_classification=',json.dumps(d.get('acquisition_classification'),indent=1)[:1500])"
-      - name: Assert diagnostic COMPLETED (completeness != acceptance)
+      - name: Build EXTERNAL artifact manifest (path/bytes/sha256 of every uploaded file; not self-referential)
+        if: always()
         run: |
           cd "$N2E"
           python3 - <<'PY'
-          import json
-          d = json.load(open("coreutils-6731-diagnostic-v1.json"))
-          # the JOB succeeds iff the diagnostic completed and emitted a typed outcome.
-          assert d.get("outcome"), "no typed outcome emitted"
-          assert d.get("acceptance_pass") is False, "diagnostic must not assert acceptance"
-          print("diagnostic complete; outcome =", d["outcome"])
+          import hashlib, json, os
+          from pathlib import Path
+          man_path = Path("out/external-artifact-manifest.json")
+          files = [Path("coreutils-6731-diagnostic-v1.json")]
+          for f in sorted(Path("out").rglob("*")):
+              if f.is_file() and f != man_path:
+                  files.append(f)
+          entries = []
+          for f in files:
+              b = f.read_bytes()
+              entries.append({"file": str(f), "bytes": len(b), "sha256": hashlib.sha256(b).hexdigest()})
+          man_path.write_text(json.dumps({"count": len(entries), "files": entries}, indent=1, sort_keys=True))
+          print("external manifest:", len(entries), "files")
           PY
       - uses: actions/upload-artifact@b4b15b8c7c6ac21ea08fcf65892d2ee8f75cf882 # v4.6.2
         if: always()
@@ -173,3 +182,7 @@ jobs:
             ${{ env.N2E }}/out
           if-no-files-found: error
           retention-days: 30
+      - name: Independent diagnostic verifier (GATE; runs AFTER upload)
+        run: |
+          cd "$N2E"
+          python3 tools/verify_coreutils_diagnostic.py coreutils-6731-diagnostic-v1.json out/evidence/coreutils-6731
