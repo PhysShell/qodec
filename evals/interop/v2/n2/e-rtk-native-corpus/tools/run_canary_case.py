@@ -97,6 +97,9 @@ def _toolchain_identity(fam: str, repo_dir: Path, venv_bin: str | None = None) -
         tc["go"] = _tool_identity("go")
     elif fam == "js_ts":
         tc["node"], tc["corepack"] = _tool_identity("node"), _tool_identity("corepack")
+        # pnpm executes both acquisition and measurement -> pin its identity too
+        pnpm_path = shutil.which("pnpm")
+        tc["pnpm"] = _tool_identity("pnpm", pnpm_path)
     elif fam == "python":
         # the case-pinned venv interpreter/pip if provisioned, else the runner default
         py = f"{venv_bin}/python" if venv_bin else None
@@ -732,10 +735,14 @@ def _publisher_lang_env(fam: str, home: Path, toolchain: dict) -> tuple[dict, di
     off = {}
     if fam == "rust_cargo":
         ver = toolchain.get("version", "stable")
-        warm.update({"CARGO_HOME": str(home / ".cargo"), "RUSTUP_TOOLCHAIN": ver})
-        off.update({"RUSTUP_TOOLCHAIN": ver, "CARGO_NET_OFFLINE": "true",
-                    "RUST_TEST_THREADS": "1", "CARGO_BUILD_JOBS": "1",
-                    "CARGO_HOME": str(home / ".cargo")})
+        if ver.count(".") == 1:  # rustup channel needs the exact patch: 1.83 -> 1.83.0
+            ver = ver + ".0"
+        tc = {"RUSTUP_TOOLCHAIN": ver, "CARGO_HOME": str(home / ".cargo")}
+        if os.environ.get("RUSTUP_HOME"):
+            tc["RUSTUP_HOME"] = os.environ["RUSTUP_HOME"]
+        warm.update(tc)
+        off.update({**tc, "CARGO_NET_OFFLINE": "true",
+                    "RUST_TEST_THREADS": "1", "CARGO_BUILD_JOBS": "1"})
     elif fam == "go":
         warm.update({"GOFLAGS": "-mod=mod", "GOPATH": str(home / "go")})
         off.update({"GOFLAGS": "-mod=readonly", "GOPROXY": "off", "GOPATH": str(home / "go")})
@@ -804,7 +811,13 @@ def _publisher_warm(recipe: dict, fam: str, sub: str, scen, repo_dir: Path, home
         for rel in (".gradle", "build/test-results", "build/reports"):
             shutil.rmtree(repo_dir / rel, ignore_errors=True)
         warm["jvm_rerun_cleanup"] = [".gradle", "build/test-results", "build/reports"]
-    warm["ok"] = all(s.get("exit") == 0 for s in warm["steps"])
+    # warm success = pre-install + dependency population succeeded. A `warm_prime`
+    # step RUNS the target test only to populate caches/compile; for a ::buggy
+    # variant that test legitimately exits non-zero (that IS the bug), so its exit is
+    # informational -- never a warm failure. A prime TIMEOUT is still a failure.
+    warm["ok"] = all(s.get("exit") == 0 for s in warm["steps"]
+                     if s.get("kind") != "warm_prime") and not any(
+                         s.get("timed_out") for s in warm["steps"])
 
     policy = canon.policy_for(fam, sub, jvm_build=("gradle" if fam == "jvm" else None),
                               case_id=scen["case_id"])

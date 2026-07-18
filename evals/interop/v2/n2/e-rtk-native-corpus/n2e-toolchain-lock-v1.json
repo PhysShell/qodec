@@ -1,0 +1,80 @@
+{
+  "generated_by": "evals/interop/v2/n2/e-rtk-native-corpus/tools/build_n2e_toolchain_lock.py",
+  "mission": "N2-E",
+  "mission_title": "external RTK-native claim-aligned command corpus",
+  "note": "Download artifacts are SHA-256 pinned; per-executable binary SHA-256 is filled from a clean probe and then required to match exactly.",
+  "purpose": "Expected identities of the publisher-pinned toolchains; runtime evidence is compared by exact equality. Wrong-version substitution is a HARNESS_DEFECT.",
+  "record_sha256": "sha256:c419524ab4f92b8b0c22aceacddb73e4b4e90f9f4dd6ccfc48b3d7756f0b3079",
+  "record_type": "n2e-toolchain-lock",
+  "record_version": "v1",
+  "schema_version": "n2e-record-1",
+  "toolchains": {
+    "go": {
+      "artifact": {
+        "name": "go1.23.8.linux-amd64.tar.gz",
+        "sha256": "45b87381172a58d62c977f27c4683c8681ef36580abecd14fd124d24ca306d3f",
+        "url": "https://go.dev/dl/go1.23.8.linux-amd64.tar.gz"
+      },
+      "executables": {
+        "go": {
+          "expected_binary_sha256": null
+        }
+      },
+      "expected_version_contains": "go1.23.8",
+      "publisher_version": "1.23.8"
+    },
+    "java": {
+      "executables": {
+        "java": {
+          "expected_binary_sha256": null
+        }
+      },
+      "expected_version_contains": "21.0",
+      "gradle": {
+        "distribution_sha256": null,
+        "distribution_url": null,
+        "resolved_from": "repo gradle/wrapper/gradle-wrapper.properties",
+        "runtime_version": null
+      },
+      "publisher_version": "21",
+      "source": "runner JAVA_HOME_21_X64 (Temurin 21); exact build pinned from probe",
+      "vendor": "eclipse-temurin"
+    },
+    "node": {
+      "artifact": {
+        "name": "node-v20.20.2-linux-x64.tar.xz",
+        "sha256": "df770b2a6f130ed8627c9782c988fda9669fa23898329a61a871e32f965e007d",
+        "url": "https://nodejs.org/dist/v20.20.2/node-v20.20.2-linux-x64.tar.xz"
+      },
+      "executables": {
+        "node": {
+          "expected_binary_sha256": null
+        }
+      },
+      "expected_version_contains": "v20.20.2",
+      "package_manager": {
+        "expected_binary_sha256": null,
+        "kind": "pnpm",
+        "provisioned_by": "corepack",
+        "version_source": "repo package.json packageManager field"
+      },
+      "pinned_version": "v20.20.2",
+      "publisher_version": "20"
+    },
+    "rust": {
+      "channel": "1.83.0",
+      "executables": {
+        "cargo": {
+          "expected_binary_sha256": null
+        },
+        "rustc": {
+          "expected_binary_sha256": null
+        }
+      },
+      "expected_version_contains": "1.83.0",
+      "install": "rustup toolchain install 1.83.0 --profile minimal --no-self-update",
+      "publisher_version": "1.83",
+      "target": "x86_64-unknown-linux-gnu"
+    }
+  }
+}

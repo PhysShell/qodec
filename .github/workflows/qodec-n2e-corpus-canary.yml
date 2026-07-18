@@ -59,10 +59,16 @@ jobs:
           python3 tools/verify_n2e_candidate_inventory.py
           python3 tools/verify_n2e_selection.py
           python3 tools/verify_n2e_command_scenarios.py
-      - name: Verify publisher environment registry (self-hash + fixtures + resolver agreement)
+      - name: Verify publisher environment registry (re-extract from pinned source + binding)
         run: |
           cd "$N2E"
           python3 tools/verify_n2e_publisher_registry.py
+      - name: Verify toolchain lock + scenario correction (self-hash + rebuild parity)
+        run: |
+          cd "$N2E"
+          python3 tools/verify_n2e_toolchain_lock.py --self-hash-only
+          python3 tools/build_n2e_scenario_correction.py >/dev/null
+          git diff --exit-code n2e-scenario-correction-v1.json || { echo "::error::scenario-correction record is stale (rebuild + commit)"; exit 1; }
       - name: Verify execution contract (offline; correction #3)
         run: |
           cd "$N2E"
@@ -165,29 +171,39 @@ jobs:
           "$QODEC" --help >/dev/null
           echo "RTK_BIN=$RTK" >> "$GITHUB_ENV"
           echo "QODEC_BIN=$QODEC" >> "$GITHUB_ENV"
-      - name: Toolchains (publisher-recipe pinned versions)
+      - name: Toolchains (publisher-pinned; download + SHA-256 verify against the lock)
         run: |
-          set -e
-          # Rust 1.83 (tokio-rs__tokio-4384 publisher recipe). Install the exact
-          # toolchain and export RUSTUP_HOME so the network-denied measurement (which
-          # runs under a stripped env) can still resolve it.
-          rustup toolchain install 1.83 --profile minimal --no-self-update
-          rustup default 1.83
+          set -euo pipefail
+          cd "$N2E"
+          LOCK=n2e-toolchain-lock-v1.json
+          getf() { python3 -c "import json,sys;print(json.load(open('$LOCK'))['toolchains']$1)"; }
+          # --- Rust 1.83.0 (tokio) ---
+          RUST_CH="$(getf "['rust']['channel']")"
+          rustup toolchain install "$RUST_CH" --profile minimal --no-self-update
+          rustup default "$RUST_CH"
           echo "RUSTUP_HOME=${RUSTUP_HOME:-$HOME/.rustup}" >> "$GITHUB_ENV"
-          rustc --version
-          # Go 1.23.8 (caddyserver__caddy-5870 publisher recipe)
-          GO_TGZ=go1.23.8.linux-amd64.tar.gz
-          curl -fsSL "https://go.dev/dl/$GO_TGZ" -o "/tmp/$GO_TGZ"
-          sudo rm -rf /usr/local/go && sudo tar -C /usr/local -xzf "/tmp/$GO_TGZ"
+          rustc "+$RUST_CH" --version | tee /dev/stderr | grep -q "$(getf "['rust']['expected_version_contains']")"
+          # --- Go 1.23.8 (caddy): download + verify sha256 ---
+          GO_URL="$(getf "['go']['artifact']['url']")"; GO_SHA="$(getf "['go']['artifact']['sha256']")"
+          curl -fsSL "$GO_URL" -o /tmp/go.tgz
+          echo "$GO_SHA  /tmp/go.tgz" | sha256sum -c -
+          sudo rm -rf /usr/local/go && sudo tar -C /usr/local -xzf /tmp/go.tgz
           echo "/usr/local/go/bin" >> "$GITHUB_PATH"
-          /usr/local/go/bin/go version
-          # Node 20 + corepack/pnpm (vuejs__core-11589 publisher recipe)
-          corepack enable 2>/dev/null || sudo corepack enable 2>/dev/null || true
-          node --version || true
-          # JDK 21 (apache__lucene-13704 publisher recipe: maven:3.9-eclipse-temurin-21)
-          if [ -n "$JAVA_HOME_21_X64" ]; then
+          /usr/local/go/bin/go version | grep -q "$(getf "['go']['expected_version_contains']")"
+          # --- Node 20.20.2 (vue): download + verify sha256; corepack MUST succeed ---
+          NODE_URL="$(getf "['node']['artifact']['url']")"; NODE_SHA="$(getf "['node']['artifact']['sha256']")"
+          NODE_NAME="$(getf "['node']['artifact']['name']")"
+          curl -fsSL "$NODE_URL" -o /tmp/node.tar.xz
+          echo "$NODE_SHA  /tmp/node.tar.xz" | sha256sum -c -
+          sudo tar -C /usr/local --strip-components=1 -xJf /tmp/node.tar.xz
+          hash -r
+          node --version | grep -q "$(getf "['node']['expected_version_contains']")"
+          corepack enable   # no '|| true' -- a corepack failure must fail the job
+          # --- JDK 21 (lucene) ---
+          if [ -n "${JAVA_HOME_21_X64:-}" ]; then
             echo "JAVA_HOME=$JAVA_HOME_21_X64" >> "$GITHUB_ENV"
             echo "$JAVA_HOME_21_X64/bin" >> "$GITHUB_PATH"
+            "$JAVA_HOME_21_X64/bin/java" -version 2>&1 | grep -q "$(getf "['java']['expected_version_contains']")"
           fi
       - name: Run canary case (RAW gate -> RTK -> oracle)
         run: |
@@ -268,6 +284,12 @@ jobs:
           # scheduler flags only; pinned toolchain identity (sha256+version) present;
           # protected-file mutation guard held. Offline gate re-runs first.
           python3 tools/verify_n2e_execution_contract.py "$GITHUB_WORKSPACE/evidence"
+      - name: Toolchain-lock runtime verification (exact version equality)
+        run: |
+          cd "$N2E"
+          # every publisher-recipe record's observed toolchain must match the lock
+          # exactly (rejects rustc 1.97.1 for 1.83.0, Node 22 for Node 20, ...).
+          python3 tools/verify_n2e_toolchain_lock.py "$GITHUB_WORKSPACE/evidence"
       - name: Independent acceptance from primary evidence
         run: |
           cd "$N2E"

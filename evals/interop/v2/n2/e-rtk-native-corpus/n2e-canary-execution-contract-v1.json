@@ -666,7 +666,8 @@
       "toolchain_identity_ref": {
         "required_keys": [
           "node",
-          "corepack"
+          "corepack",
+          "pnpm"
         ],
         "where": "per-case record: acquisition.environment_identity.toolchain"
       }
@@ -676,7 +677,7 @@
   "mission": "N2-E",
   "mission_title": "external RTK-native claim-aligned command corpus",
   "purpose": "Immutable per-case effective-execution contract; normative source for argv/canon/oracle resolution, toolchain+dependency identity references, and mutation guards (correction #3).",
-  "record_sha256": "sha256:d2760d0fe6ad689c6a55a7697511d4a758affcd10e22a50e46184ed9a09a45fb",
+  "record_sha256": "sha256:1e9825ef0c5980c29ca9cd0a2877050094bf8c7c5027e24865e84e93253f482a",
   "record_type": "n2e-canary-execution-contract",
   "record_version": "v1",
   "schema_version": "n2e-record-1"

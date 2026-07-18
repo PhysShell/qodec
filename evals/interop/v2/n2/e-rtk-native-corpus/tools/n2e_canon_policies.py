@@ -209,9 +209,17 @@ def policy_for(family: str, subfamily: str, git: bool = False,
     return _FAMILY_SUB_POLICY.get((family, subfamily), "identity-v1")
 
 
+# RTK tool-level wall-clock noise: rtk mirrors full output to a tee log whose path
+# carries a Unix-timestamp prefix ("~/.local/share/rtk/tee/<epoch>_<cmd>.log"). That
+# timestamp is pure wall-clock; it appears only in the RTK arm and is normalized
+# identically wherever it occurs (never touches command output content).
+_RTK_TEE = re.compile(rb"(rtk/tee/)\d+(_)")
+
+
 def canonicalize(data: bytes, policy_id: str) -> bytes:
     if policy_id not in _POLICIES:
         raise KeyError(f"unknown canonicalization policy {policy_id!r}")
+    data = _RTK_TEE.sub(rb"\1<ts>\2", data)  # rtk tee-log wall-clock, all policies
     spec = _POLICIES[policy_id]
     if callable(spec):
         return spec(data)

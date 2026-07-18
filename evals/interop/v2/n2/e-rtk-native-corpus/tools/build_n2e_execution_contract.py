@@ -59,7 +59,7 @@ PROTECTED_FILES = {
 TOOLCHAIN_KEYS = {
     "rust_cargo": ["rustc", "cargo"],
     "go": ["go"],
-    "js_ts": ["node", "corepack"],
+    "js_ts": ["node", "corepack", "pnpm"],  # pnpm executes acquisition + measurement
     "jvm": ["java", "gradlew_or_mvn"],
     "python": ["python3", "pip"],
 }
