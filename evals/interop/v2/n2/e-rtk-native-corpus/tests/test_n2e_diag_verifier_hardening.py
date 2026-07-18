@@ -72,39 +72,54 @@ def _state(lock_present, lock_sha="l" * 64, tracked=()):
 
 def _acq(pristine, post, exit=0):
     return {"install": {"exit": exit, "timed_out": False}, "pristine_state": pristine, "post_install_state": post,
-            "post_install_metadata": {"members": ["coreutils 0.0.27"]},
-            "cargo_cache_stable_manifest_hash": "cache" + "0" * 59}
+            "post_install_metadata": {"members": ["coreutils 0.0.27"]}}
 
 
 class TestDeriveAcqClassification(unittest.TestCase):
-    def test_pristine_dependency_state(self):
-        # no Cargo.lock ever created; pristine==post
-        p = _state(False); post = _state(False)
-        cls, parity = V._derive_acq_classification(_acq(p, post), _acq(dict(p), dict(post)))
-        self.assertEqual(cls["outcome"], "pristine_dependency_state")
+    # signature: (A, B, cache_sem_equal, graph_equal, lock_equal, lock_present)
+    def test_resolved_snapshot_when_reproducible_with_lock(self):
+        p = _state(False); post = _state(True, tracked=[" M Cargo.lock"])
+        cls, parity = V._derive_acq_classification(
+            _acq(p, post), _acq(dict(p), dict(post)), True, True, True, True)
+        self.assertEqual(cls["outcome"], "publisher_install_resolved_dependency_snapshot")
         self.assertTrue(all(parity.values()))
 
-    def test_publisher_install_snapshot_when_lock_created(self):
-        p = _state(False); post = _state(True, tracked=[" M Cargo.lock"])
-        cls, _ = V._derive_acq_classification(_acq(p, post), _acq(dict(p), dict(post)))
-        self.assertEqual(cls["outcome"], "publisher_install_dependency_snapshot")
+    def test_pristine_when_no_lock(self):
+        p = _state(False); post = _state(False)
+        cls, _ = V._derive_acq_classification(
+            _acq(p, post), _acq(dict(p), dict(post)), True, True, True, False)
+        self.assertEqual(cls["outcome"], "pristine_dependency_state")
 
     def test_unauthorized_mutation_on_nonlock_tracked(self):
         p = _state(False); post = _state(False, tracked=[" M src/main.rs"])
-        cls, _ = V._derive_acq_classification(_acq(p, post), _acq(dict(p), dict(post)))
+        cls, _ = V._derive_acq_classification(
+            _acq(p, post), _acq(dict(p), dict(post)), True, True, True, False)
         self.assertEqual(cls["outcome"], "COREUTILS_ACQUISITION_UNAUTHORIZED_MUTATION")
 
-    def test_nondeterministic_when_AB_disagree(self):
-        pa = _state(False); posta = _state(True, lock_sha="a" * 64, tracked=[" M Cargo.lock"])
-        pb = _state(False); postb = _state(True, lock_sha="c" * 64, tracked=[" M Cargo.lock"])
-        cls, parity = V._derive_acq_classification(_acq(pa, posta), _acq(pb, postb))
+    def test_nondeterministic_when_semantic_cache_differs(self):
+        p = _state(False); post = _state(True, tracked=[" M Cargo.lock"])
+        cls, parity = V._derive_acq_classification(
+            _acq(p, post), _acq(dict(p), dict(post)), False, True, True, True)  # cache_sem_equal=False
         self.assertEqual(cls["outcome"], "COREUTILS_ACQUISITION_NONDETERMINISTIC")
-        self.assertFalse(parity["cargo_lock_equal"])
+        self.assertFalse(parity["cargo_cache_semantic_equal"])
+
+    def test_nondeterministic_when_resolved_graph_differs(self):
+        p = _state(False); post = _state(True, tracked=[" M Cargo.lock"])
+        cls, parity = V._derive_acq_classification(
+            _acq(p, post), _acq(dict(p), dict(post)), True, False, True, True)  # graph_equal=False
+        self.assertEqual(cls["outcome"], "COREUTILS_ACQUISITION_NONDETERMINISTIC")
+        self.assertFalse(parity["resolved_graph_equal"])
 
     def test_install_failure(self):
         p = _state(False)
-        cls, _ = V._derive_acq_classification(_acq(p, p, exit=101), _acq(p, p))
+        cls, _ = V._derive_acq_classification(_acq(p, p, exit=101), _acq(p, p), True, True, True, True)
         self.assertEqual(cls["outcome"], "COREUTILS_ACQUISITION_INSTALL_FAILURE")
+
+    def test_unparseable_cache_is_terminal(self):
+        p = _state(False); post = _state(True, tracked=[" M Cargo.lock"])
+        a = _acq(p, post); a["cargo_index_cache_unparseable"] = [{"path": "registry/index/x/.cache/li/libc"}]
+        cls, _ = V._derive_acq_classification(a, _acq(dict(p), dict(post)), True, True, True, True)
+        self.assertEqual(cls["outcome"], "COREUTILS_CARGO_INDEX_CACHE_UNPARSEABLE")
 
 
 class TestDeriveFinalParity(unittest.TestCase):

@@ -40,6 +40,7 @@ N2E_DIR = HERE.parent
 sys.path.insert(0, str(HERE))
 import n2e_common as c  # noqa: E402
 import n2e_canon_policies as canon  # noqa: E402
+import n2e_cargo_index_cache as cic  # noqa: E402
 import n2e_oracles as ora  # noqa: E402
 import n2e_resolved_loader as loader  # noqa: E402
 import run_canary_case as drv  # noqa: E402
@@ -249,20 +250,11 @@ def probe_cargo_metadata_disposable(repo_dir: Path, cargo_home: Path, offline: b
 
 
 # ---------------------- stable manifests (corrections 5/6) ----------------------
-def _is_http_cache(parts: tuple) -> bool:
-    """cargo's sparse-registry HTTP response cache: registry/index/<host-hash>/.cache/**.
-    Each cached index file embeds per-fetch HTTP metadata (etag/last-modified) that varies
-    between two independent fetches of the SAME crate versions -- non-semantic noise. The
-    authoritative dependency closure is Cargo.lock + `cargo metadata` members + the
-    content-addressed registry/cache/*.crate tarballs, all compared separately."""
-    return "registry" in parts and ".cache" in parts
-
-
-def _stable_manifest(root: Path, exclude_http_cache: bool = True) -> dict:
-    """Normalized content manifest of a directory tree: relpath -> sha256 for every file
-    EXCEPT the explicitly-enumerated ephemeral files (lock/access-time markers), .git, and
-    (by default) cargo's sparse-index HTTP response cache. Pass exclude_http_cache=False for
-    a FULL manifest used only for transparent A/B seed-diff diagnosis."""
+def _stable_manifest(root: Path) -> dict:
+    """Normalized RAW content manifest of a directory tree: relpath -> sha256 for every file
+    EXCEPT the explicitly-enumerated ephemeral files (lock/access-time markers) and .git.
+    Used for the repo, rustup, frozen-env seed, and per-rep mutation guards. Cargo's
+    sparse-index cache is compared SEMANTICALLY instead (see _cargo_cache_manifests)."""
     out = {}
     if not root.exists():
         return out
@@ -274,8 +266,6 @@ def _stable_manifest(root: Path, exclude_http_cache: bool = True) -> dict:
             continue
         if f.name in _EPHEMERAL_NAME or f.name.endswith(_EPHEMERAL_SUFFIX):
             continue
-        if exclude_http_cache and _is_http_cache(parts):
-            continue
         try:
             out[str(f.relative_to(root))] = c.sha256_file(str(f))
         except OSError:
@@ -283,19 +273,135 @@ def _stable_manifest(root: Path, exclude_http_cache: bool = True) -> dict:
     return out
 
 
-def _manifest_diff(a: dict, b: dict) -> dict:
-    """symmetric diff of two relpath->sha manifests, tagging whether each differing path
-    lies in the excluded HTTP-cache zone (so the diagnosis shows what the narrowed
-    determinant dropped vs. any residual semantic difference)."""
-    only_a = sorted(set(a) - set(b)); only_b = sorted(set(b) - set(a))
-    changed = sorted(p for p in (set(a) & set(b)) if a[p] != b[p])
+def _cargo_cache_manifests(cargo_home: Path) -> dict:
+    """Three relpath-keyed manifests of CARGO_HOME + an unparseable list (reqs 1/2/4):
+      full      : relpath -> raw sha256 (every non-ephemeral file)
+      semantic  : sparse-index cache entries -> pinned-parser SEMANTIC digest (validator
+                  excluded); every other file -> raw sha256
+      validator : sparse-index cache entries -> transport-VALIDATOR digest (etag) only
+    Only the EXACT registry/index/<id>/.cache/** layout is treated as a cache entry; any such
+    entry that fails the pinned Cargo-1.81 parse is collected in `unparseable` (fail-closed)."""
+    full, semantic, validator, unparseable = {}, {}, {}, []
+    payloads, revisions = {}, {}          # retained normalized semantic reps + validators (req 4/5)
+    if not cargo_home.exists():
+        return {"full": full, "semantic": semantic, "validator": validator, "unparseable": unparseable,
+                "payloads": payloads, "revisions": revisions}
+    for f in sorted(cargo_home.rglob("*")):
+        if not f.is_file() or f.is_symlink():
+            continue
+        parts = f.relative_to(cargo_home).parts
+        if ".git" in parts:
+            continue
+        if f.name in _EPHEMERAL_NAME or f.name.endswith(_EPHEMERAL_SUFFIX):
+            continue
+        rel = str(f.relative_to(cargo_home))
+        try:
+            raw = f.read_bytes()
+        except OSError:
+            continue
+        full[rel] = _sha(raw)
+        if cic.is_sparse_index_cache_path(parts):
+            try:
+                entry = cic.parse_entry(raw)
+                semantic[rel] = cic.semantic_digest(entry)
+                validator[rel] = cic.validator_digest(entry)
+                payloads[rel] = cic._semantic_payload(entry)
+                revisions[rel] = entry["transport_revision"]
+            except cic.CargoIndexCacheUnparseable as e:
+                unparseable.append({"path": rel, "reason": str(e)})
+        else:
+            semantic[rel] = full[rel]
+    return {"full": full, "semantic": semantic, "validator": validator, "unparseable": unparseable,
+            "payloads": payloads, "revisions": revisions}
 
-    def tag(paths):
-        return [{"path": p, "http_cache": _is_http_cache(Path(p).parts)} for p in paths]
-    non_http = [p for p in only_a + only_b + changed if not _is_http_cache(Path(p).parts)]
-    return {"only_in_A": tag(only_a), "only_in_B": tag(only_b), "changed": tag(changed),
-            "residual_non_http_cache_diff_count": len(non_http),
-            "residual_non_http_cache_paths": non_http[:50]}
+
+def _cargo_cache_full_diff_summary(am: dict, bm: dict) -> dict:
+    """Always-emitted A/B cargo-cache diff at three levels (req 4). Acquisition parity may
+    pass only when semantic_diff_count == 0; validator-only differences are transport noise."""
+    def diff(a, b):
+        return (sorted(set(a) - set(b)), sorted(set(b) - set(a)),
+                sorted(p for p in (set(a) & set(b)) if a[p] != b[p]))
+    f_oa, f_ob, f_ch = diff(am["full"], bm["full"])
+    s_oa, s_ob, s_ch = diff(am["semantic"], bm["semantic"])
+    v_oa, v_ob, v_ch = diff(am["validator"], bm["validator"])
+    semantic_paths = sorted(set(s_oa) | set(s_ob) | set(s_ch))
+    validator_only = sorted((set(v_oa) | set(v_ob) | set(v_ch)) - set(semantic_paths))
+    return {
+        "full_manifest_sha256_A": _manifest_hash(am["full"]), "full_manifest_sha256_B": _manifest_hash(bm["full"]),
+        "semantic_manifest_sha256_A": _manifest_hash(am["semantic"]),
+        "semantic_manifest_sha256_B": _manifest_hash(bm["semantic"]),
+        "validator_manifest_sha256_A": _manifest_hash(am["validator"]),
+        "validator_manifest_sha256_B": _manifest_hash(bm["validator"]),
+        "full_diff_counts": {"only_in_A": len(f_oa), "only_in_B": len(f_ob), "changed": len(f_ch)},
+        "semantic_diff_count": len(semantic_paths),
+        "semantic_diff_paths": semantic_paths[:100],
+        "validator_only_diff_count": len(validator_only),
+        "validator_only_differing_paths": validator_only[:100],
+    }
+
+
+def _normalize_resolve(meta: dict, tokens: list) -> dict:
+    """path-independent semantic resolve graph from `cargo metadata --format-version 1`."""
+    def norm(s):
+        s = s or ""
+        for a, b in tokens:
+            s = s.replace(a, b)
+        return s
+    pkgs = []
+    for p in meta.get("packages", []):
+        pkgs.append({
+            "id": norm(p.get("id", "")), "name": p.get("name"), "version": p.get("version"),
+            "source": p.get("source"), "manifest_path": norm(p.get("manifest_path", "")),
+            "features": sorted((p.get("features") or {}).keys()),
+            "dependencies": sorted(
+                ({"name": d.get("name"), "req": d.get("req"), "kind": d.get("kind"),
+                  "target": d.get("target"), "optional": d.get("optional"),
+                  "uses_default_features": d.get("uses_default_features"),
+                  "features": sorted(d.get("features") or []),
+                  "source": norm(d.get("source")) or None} for d in (p.get("dependencies") or [])),
+                key=lambda d: (str(d["name"]), str(d.get("target")), str(d.get("kind")), str(d.get("req")))),
+        })
+    pkgs.sort(key=lambda p: p["id"])
+    resolve = meta.get("resolve") or {}
+    nodes = []
+    for n in resolve.get("nodes", []):
+        nodes.append({
+            "id": norm(n.get("id", "")), "features": sorted(n.get("features") or []),
+            "deps": sorted(
+                ({"name": d.get("name"), "pkg": norm(d.get("pkg")),
+                  "dep_kinds": sorted(
+                      ({"kind": k.get("kind"), "target": k.get("target")} for k in (d.get("dep_kinds") or [])),
+                      key=lambda k: (str(k.get("kind")), str(k.get("target"))))}
+                 for d in (n.get("deps") or [])),
+                key=lambda d: (norm(d.get("pkg")), str(d.get("name")))),
+        })
+    nodes.sort(key=lambda n: n["id"])
+    return {"packages": pkgs, "resolve_nodes": nodes, "resolve_root": norm(resolve.get("root") or "")}
+
+
+def _resolved_dependency_snapshot(repo_dir: Path, cargo_home: Path) -> dict:
+    """Offline FULL-dependency resolution snapshot (req 3): `cargo metadata` (includes deps
+    AND the resolve graph -- never --no-deps) plus the generated Cargo.lock, path-normalized
+    so two independent acquisitions produce a byte-identical snapshot. Read-only: does not
+    mutate the (already disposable) acquisition checkout beyond the lock cargo itself wrote."""
+    env = _cargo_env(cargo_home, {"CARGO_NET_OFFLINE": "true", "RUSTUP_TOOLCHAIN": CHANNEL})
+    r = _run(["cargo", "metadata", "--format-version", "1", "--offline"], cwd=str(repo_dir), env=env, tmo=300)
+    lock = repo_dir / "Cargo.lock"
+    lock_bytes = lock.read_bytes() if lock.is_file() else None
+    out = {"metadata_exit": r["exit"], "metadata_ok": r["exit"] == 0,
+           "cargo_lock_present": lock_bytes is not None,
+           "cargo_lock_sha256": (_sha(lock_bytes) if lock_bytes else None),
+           "cargo_lock_bytes": (len(lock_bytes) if lock_bytes else 0)}
+    if r["exit"] != 0:
+        out["metadata_stderr_tail"] = r["stderr"][-800:].decode("utf-8", "replace")
+        return out
+    tokens = [(str(repo_dir), "<REPO>"), (str(cargo_home), "<CARGO_HOME>"),
+              (str(Path(cargo_home).parent), "<ROOT>")]
+    norm = _normalize_resolve(json.loads(r["stdout"]), tokens)
+    out["resolved_graph"] = norm
+    out["resolved_graph_normalized_sha256"] = _manifest_hash(norm)
+    out["package_count"] = len(norm["packages"])
+    return out
 
 
 def _manifest_hash(man: dict) -> str:
@@ -332,6 +438,9 @@ def _acquire(label: str, root: Path, recipe: dict, base: str) -> dict:
                    env=_cargo_env(cargo_home, {**inst_env, "CARGO_NET_OFFLINE": "false"}), tmo=1800)
     post = capture_dependency_state_passive(repo_dir, ge)
     post_md = probe_cargo_metadata_disposable(repo_dir, cargo_home, offline=post["cargo_lock"]["present"])
+    # semantic sparse-index cache manifests (reqs 1/2) + offline full resolved graph (req 3)
+    ccm = _cargo_cache_manifests(cargo_home)
+    resolved = _resolved_dependency_snapshot(repo_dir, cargo_home)
     return {
         "label": label, "base_commit": base, "head_matches_base": head_ok, "fetch_exit": fe["exit"],
         "install": {"argv": inst_argv, "env": inst_env, "exit": install["exit"], "timed_out": install["timed_out"],
@@ -340,11 +449,14 @@ def _acquire(label: str, root: Path, recipe: dict, base: str) -> dict:
                     "stderr_tail": install["stderr"][-1500:].decode("utf-8", "replace")},
         "pristine_state": pristine, "post_install_state": post,
         "pre_install_metadata": pre_md, "post_install_metadata": post_md,
-        "cargo_cache_stable_manifest_hash": _manifest_hash(_stable_manifest(cargo_home)),
+        # SEMANTIC cargo-cache seed hash (validator excluded via the pinned Cargo-1.81 parser)
+        "cargo_cache_semantic_manifest_hash": _manifest_hash(ccm["semantic"]),
+        "cargo_cache_validator_manifest_hash": _manifest_hash(ccm["validator"]),
+        "cargo_cache_full_manifest_hash": _manifest_hash(ccm["full"]),
+        "cargo_index_cache_unparseable": ccm["unparseable"],
+        "resolved_dependency_snapshot": resolved,
         "_root": str(root), "_repo_dir": str(repo_dir), "_cargo_home": str(cargo_home), "_ge": ge,
-        # FULL cache manifest (incl. the excluded HTTP-cache zone) kept private for a
-        # transparent A/B seed-diff diagnosis; never emitted directly.
-        "_cargo_cache_manifest_full": _stable_manifest(cargo_home, exclude_http_cache=False),
+        "_cargo_cache_manifests": ccm,   # private full/semantic/validator, for the A/B diff summary
     }
 
 
@@ -352,12 +464,64 @@ def _acq_public(a: dict) -> dict:
     return {k: v for k, v in a.items() if not k.startswith("_")}
 
 
+def _write_cargo_cache_evidence(A: dict, B: dict, evidence: Path) -> dict:
+    """Retain (req 4/5) the NORMALIZED SEMANTIC representation of every sparse-index cache
+    entry + the offline resolved graph, per acquisition, so the independent verifier can
+    re-parse, re-derive digests, and require zero semantic differences without re-measuring."""
+    d = evidence / "cargo-cache"
+    d.mkdir(parents=True, exist_ok=True)
+    written = {}
+    for label, acq in (("A", A), ("B", B)):
+        ccm = acq.get("_cargo_cache_manifests") or {}
+        entries = []
+        for rel in sorted(ccm.get("payloads") or {}):
+            payload = ccm["payloads"][rel]
+            entries.append({
+                "path": rel, "semantic_payload": payload,
+                "transport_revision": (ccm.get("revisions") or {}).get(rel),
+                "semantic_sha256": (ccm.get("semantic") or {}).get(rel),
+                "validator_sha256": (ccm.get("validator") or {}).get(rel),
+            })
+        cache_path = d / f"{label}-cache-semantic.json"
+        cache_path.write_text(json.dumps({"entries": entries, "entry_count": len(entries)},
+                                         sort_keys=True, indent=1))
+        graph = (acq.get("resolved_dependency_snapshot") or {}).get("resolved_graph")
+        graph_path = d / f"{label}-resolved-graph.json"
+        graph_path.write_text(json.dumps({
+            "resolved_graph": graph,
+            "resolved_graph_normalized_sha256": (acq.get("resolved_dependency_snapshot") or {}).get(
+                "resolved_graph_normalized_sha256"),
+            "cargo_lock_sha256": (acq.get("resolved_dependency_snapshot") or {}).get("cargo_lock_sha256"),
+        }, sort_keys=True, indent=1))
+        written[label] = {"cache_semantic": str(cache_path.relative_to(evidence)),
+                          "resolved_graph": str(graph_path.relative_to(evidence)),
+                          "cache_entry_count": len(entries)}
+    return written
+
+
+# measurement model (req 3): Model B -- the publisher install generates an (untracked)
+# Cargo.lock; the frozen measurement env carries A's generated lock (== B, proven), giving a
+# deterministic offline substrate immune to crates.io sparse-index drift. Recorded distinct
+# from pristine_dependency_state as publisher_install_resolved_dependency_snapshot.
+MEASUREMENT_MODEL = "B_frozen_resolved_dependency_snapshot"
+
+
 def _classify_acquisitions(A: dict, B: dict, tool_ident: dict) -> dict:
     if A["install"]["exit"] != 0 or B["install"]["exit"] != 0:
         return {"outcome": "COREUTILS_ACQUISITION_INSTALL_FAILURE",
                 "a_exit": A["install"]["exit"], "b_exit": B["install"]["exit"]}
+    # req 2: any sparse-index cache entry that fails the pinned Cargo-1.81 parse is terminal
+    unparseable = (A.get("cargo_index_cache_unparseable") or []) + (B.get("cargo_index_cache_unparseable") or [])
+    if unparseable:
+        return {"outcome": "COREUTILS_CARGO_INDEX_CACHE_UNPARSEABLE",
+                "unparseable_entries": unparseable[:50], "unparseable_count": len(unparseable),
+                "note": "a sparse-index cache entry did not conform to the pinned Cargo-1.81 format"}
     pa, pb = A["post_install_state"], B["post_install_state"]
-    # complete normalized post-install parity (correction 4)
+    # req 4: always compute the A/B cargo-cache diff at full/semantic/validator levels
+    cache_diff = _cargo_cache_full_diff_summary(A["_cargo_cache_manifests"], B["_cargo_cache_manifests"])
+    ra, rb = A.get("resolved_dependency_snapshot") or {}, B.get("resolved_dependency_snapshot") or {}
+    resolved_ok = bool(ra.get("metadata_ok")) and bool(rb.get("metadata_ok"))
+    # complete normalized post-install parity (correction 4 + reqs 2/3/4)
     parity = {
         "workspace_manifests_equal": pa["workspace_cargo_tomls"] == pb["workspace_cargo_tomls"],
         "cargo_lock_equal": pa["cargo_lock"] == pb["cargo_lock"],
@@ -371,42 +535,46 @@ def _classify_acquisitions(A: dict, B: dict, tool_ident: dict) -> dict:
                                    == B["post_install_metadata"].get("members")),
         "install_semantics_equal": (A["install"]["exit"] == B["install"]["exit"]
                                     and A["install"]["timed_out"] == B["install"]["timed_out"]),
-        "cargo_cache_seed_equal": (A["cargo_cache_stable_manifest_hash"]
-                                   == B["cargo_cache_stable_manifest_hash"]),
+        # SEMANTIC sparse-index cache equality: validator-only differences do NOT count
+        "cargo_cache_semantic_equal": cache_diff["semantic_diff_count"] == 0,
+        # req 3: offline full resolved graph + generated lock byte-identical across A/B
+        "resolved_metadata_ok": resolved_ok,
+        "resolved_graph_equal": (resolved_ok and ra.get("resolved_graph_normalized_sha256")
+                                 == rb.get("resolved_graph_normalized_sha256")),
+        "generated_lock_equal": (ra.get("cargo_lock_sha256") == rb.get("cargo_lock_sha256")),
     }
-    # authorized tracked mutation = ONLY Cargo.lock create/modify, deterministic A==B
+
     def tracked_nonlock_changed(a):
-        base_status = a["pristine_state"]["tracked_status"]
-        now_status = a["post_install_state"]["tracked_status"]
-        changed = set(now_status) - set(base_status)
+        changed = set(a["post_install_state"]["tracked_status"]) - set(a["pristine_state"]["tracked_status"])
         return sorted(x for x in changed if "Cargo.lock" not in x)
     a_nonlock, b_nonlock = tracked_nonlock_changed(A), tracked_nonlock_changed(B)
     cfg_or_tc_mutated = not (parity["cargo_config_equal"] and parity["rust_toolchain_equal"]) or bool(a_nonlock or b_nonlock)
     if cfg_or_tc_mutated:
         return {"outcome": "COREUTILS_ACQUISITION_UNAUTHORIZED_MUTATION", "parity": parity,
+                "cargo_cache_full_diff_summary": cache_diff,
                 "a_nonlock_tracked": a_nonlock, "b_nonlock_tracked": b_nonlock,
                 "note": "only Cargo.lock create/modify is authorized during publisher install"}
     if not all(parity.values()):
-        out = {"outcome": "COREUTILS_ACQUISITION_NONDETERMINISTIC", "parity": parity,
-               "note": "harness/acquisition investigation state, not a candidate disqualification"}
-        # transparent A/B cargo-cache seed diff (only meaningful when cargo_cache_seed_equal
-        # is the failing field): shows exactly which paths differ and whether they are all
-        # in the excluded HTTP-cache zone or a residual semantic difference remains
-        if not parity["cargo_cache_seed_equal"]:
-            out["cargo_cache_seed_diff"] = _manifest_diff(
-                A.get("_cargo_cache_manifest_full") or {}, B.get("_cargo_cache_manifest_full") or {})
-        return out
-    lock_created = (not A["pristine_state"]["cargo_lock"]["present"]) and pa["cargo_lock"]["present"]
-    lock_modified = (A["pristine_state"]["cargo_lock"]["present"] and pa["cargo_lock"]["present"]
-                     and A["pristine_state"]["cargo_lock"]["sha256"] != pa["cargo_lock"]["sha256"])
-    tracked_dependency_mutation = lock_created or lock_modified
-    if tracked_dependency_mutation:
-        return {"outcome": "publisher_install_dependency_snapshot", "install_locked": False,
-                "parity": parity, "lock_created": lock_created, "lock_modified": lock_modified,
-                "tracked_dependency_mutation": True,
-                "frozen_lock_sha256": pa["cargo_lock"]["sha256"], "frozen_lock_bytes": pa["cargo_lock"]["bytes"],
-                "byte_identical_across_A_B": parity["cargo_lock_equal"]}
-    return {"outcome": "pristine_dependency_state", "install_locked": False, "parity": parity,
+        return {"outcome": "COREUTILS_ACQUISITION_NONDETERMINISTIC", "parity": parity,
+                "cargo_cache_full_diff_summary": cache_diff,
+                "resolved_graph_sha_A": ra.get("resolved_graph_normalized_sha256"),
+                "resolved_graph_sha_B": rb.get("resolved_graph_normalized_sha256"),
+                "generated_lock_sha_A": ra.get("cargo_lock_sha256"),
+                "generated_lock_sha_B": rb.get("cargo_lock_sha256"),
+                "note": "harness/acquisition investigation state, not a candidate disqualification"}
+    # reproducible: Model B -- freeze the (A==B) generated resolved dependency snapshot
+    lock_present = ra.get("cargo_lock_present") and rb.get("cargo_lock_present")
+    if lock_present:
+        return {"outcome": "publisher_install_resolved_dependency_snapshot",
+                "measurement_model": MEASUREMENT_MODEL, "parity": parity,
+                "cargo_cache_full_diff_summary": cache_diff,
+                "frozen_lock_sha256": ra.get("cargo_lock_sha256"), "frozen_lock_bytes": ra.get("cargo_lock_bytes"),
+                "resolved_graph_normalized_sha256": ra.get("resolved_graph_normalized_sha256"),
+                "package_count": ra.get("package_count"),
+                "byte_identical_across_A_B": True}
+    # no generated lock at all (no dependencies) -> genuinely pristine
+    return {"outcome": "pristine_dependency_state", "measurement_model": MEASUREMENT_MODEL,
+            "parity": parity, "cargo_cache_full_diff_summary": cache_diff,
             "tracked_dependency_mutation": False}
 
 
@@ -442,7 +610,7 @@ def _final_env_parity(A, B, finA, finB) -> dict:
         "final_cargo_lock_equal": finA["final_state"]["cargo_lock"] == finB["final_state"]["cargo_lock"],
         "final_manifests_equal": finA["final_state"]["workspace_cargo_tomls"] == finB["final_state"]["workspace_cargo_tomls"],
         "final_metadata_equal": finA["final_metadata"].get("members") == finB["final_metadata"].get("members"),
-        "cargo_cache_seed_equal": A["cargo_cache_stable_manifest_hash"] == B["cargo_cache_stable_manifest_hash"],
+        "cargo_cache_semantic_equal": A["cargo_cache_semantic_manifest_hash"] == B["cargo_cache_semantic_manifest_hash"],
     }
     p["all_equal"] = all(p.values())
     return p
@@ -700,12 +868,27 @@ def main() -> int:
         cls = _classify_acquisitions(A, B, tool)
         body["acquisition_A"] = _acq_public(A); body["acquisition_B"] = _acq_public(B)
         body["acquisition_classification"] = cls
+        body["measurement_model"] = MEASUREMENT_MODEL
+        body["cargo_cache_evidence"] = _write_cargo_cache_evidence(A, B, evidence)
         body["rtk_cargo_filter_source"] = _rtk_source_evidence(workroot, evidence)
 
-        if cls["outcome"] not in ("publisher_install_dependency_snapshot", "pristine_dependency_state"):
+        # Model B: only a reproducible resolved-dependency snapshot (or genuinely pristine) is
+        # eligible to proceed to measurement.
+        if cls["outcome"] not in ("publisher_install_resolved_dependency_snapshot", "pristine_dependency_state"):
             body["outcome"] = cls["outcome"]; body["acceptance_pass"] = False
             body["file_manifest"] = _artifact_manifest(evidence, out)
             _emit(out, body); print("coreutils-diagnostic:", body["outcome"]); return 0
+        # Model B: record the frozen (A==B) generated resolved-dependency snapshot the
+        # measurement substrate carries (the frozen-env copytree below uses A's repo+lock).
+        body["frozen_resolved_dependency_snapshot"] = {
+            "measurement_model": MEASUREMENT_MODEL,
+            "cargo_lock_sha256": (A.get("resolved_dependency_snapshot") or {}).get("cargo_lock_sha256"),
+            "cargo_lock_bytes": (A.get("resolved_dependency_snapshot") or {}).get("cargo_lock_bytes"),
+            "resolved_graph_normalized_sha256": (A.get("resolved_dependency_snapshot") or {}).get(
+                "resolved_graph_normalized_sha256"),
+            "byte_identical_across_A_B": True,
+            "harness_owned": True,
+        }
 
         finA = _finalize(A, gold, test, base); finB = _finalize(B, gold, test, base)
         parity = _final_env_parity(A, B, finA, finB)

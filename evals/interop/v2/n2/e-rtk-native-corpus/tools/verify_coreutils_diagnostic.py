@@ -33,6 +33,7 @@ sys.path.insert(0, str(HERE))
 import n2e_common as c  # noqa: E402
 import n2e_oracles as ora  # noqa: E402
 import n2e_canon_policies as canon  # noqa: E402
+import n2e_cargo_index_cache as cic  # noqa: E402
 import n2e_resolved_loader as loader  # noqa: E402
 
 PINNED_MANIFEST_SHA = "5596679723faf7e63772bacb1d0c898abaa51eb4ed193b328929d907c8c4bd5a"
@@ -45,7 +46,7 @@ EXPECTED_POLICY = "cargo-test-v2"
 EVIDENCE_ROOT = "out/evidence/coreutils-6731"
 TARGET_IDS = ["test_tr::test_trailing_backslash"]
 CHAIN_ORDER = ["cli_dispatch_cargo_test", "cargo_filter", "cargo_parser", "summary_formatter"]
-ACQ_ELIGIBLE = {"pristine_dependency_state", "publisher_install_dependency_snapshot"}
+ACQ_ELIGIBLE = {"pristine_dependency_state", "publisher_install_resolved_dependency_snapshot"}
 # independent Rust item-definition regex (NOT imported from the producer -- re-derived here)
 _VDEF = re.compile(
     rb"^[ \t]*(?:pub(?:\([^)]*\))?[ \t]+)?(?:async[ \t]+)?(?:unsafe[ \t]+)?"
@@ -53,7 +54,8 @@ _VDEF = re.compile(
 FATAL_OUTCOMES = {"COREUTILS_DIAGNOSTIC_ERROR"}
 ACQ_FAILURE_OUTCOMES = {"COREUTILS_ACQUISITION_INSTALL_FAILURE", "COREUTILS_ACQUISITION_NONDETERMINISTIC",
                         "COREUTILS_ACQUISITION_UNAUTHORIZED_MUTATION", "COREUTILS_TOOLCHAIN_PINS_UNVERIFIED",
-                        "COREUTILS_FINAL_INPUT_PARITY_FAILURE", "REJECTED_NO_ISOLATION"}
+                        "COREUTILS_FINAL_INPUT_PARITY_FAILURE", "REJECTED_NO_ISOLATION",
+                        "COREUTILS_CARGO_INDEX_CACHE_UNPARSEABLE"}
 
 
 def _dz(p: Path) -> bytes:
@@ -249,11 +251,93 @@ def _derive_toolchain(rec, pins, fail) -> bool:
     return not d
 
 
-def _derive_acq_classification(A, B):
-    """hardening 4b: re-derive the acquisition classification + A/B post-install parity from
-    the primitive pre/post states (never trusts the producer classification or all_equal)."""
+def _canon_sha(obj) -> str:
+    """matches the producer's _manifest_hash: sha256(json.dumps(obj, sort_keys=True))."""
+    return hashlib.sha256(json.dumps(obj, sort_keys=True).encode()).hexdigest()
+
+
+def _verify_cargo_cache_evidence(evidence, fail) -> dict:
+    """hardening + req 5: reopen the RETAINED normalized semantic cache reps for A and B,
+    independently confirm each path is the EXACT sparse-index layout, re-derive each semantic
+    digest from the retained payload (must match the recorded per-entry digest), and require
+    ZERO semantic differences between A and B. Never trusts cargo_cache_semantic_equal."""
+    d = evidence / "cargo-cache"
+    sem = {}
+    for label in ("A", "B"):
+        p = d / f"{label}-cache-semantic.json"
+        if not p.is_file():
+            fail.append(f"cargo-cache: retained {label} semantic evidence missing"); continue
+        try:
+            data = json.loads(p.read_text())
+        except Exception as e:  # noqa: BLE001
+            fail.append(f"cargo-cache {label}: unreadable ({e})"); continue
+        man = {}
+        for e in data.get("entries", []):
+            path = e.get("path", "")
+            if not cic.is_sparse_index_cache_path(tuple(Path(path).parts)):
+                fail.append(f"cargo-cache {label}: retained non-cache path {path}"); continue
+            payload = e.get("semantic_payload")
+            redigest = _canon_sha_compact(payload)
+            if redigest != e.get("semantic_sha256"):
+                fail.append(f"cargo-cache {label}: re-derived semantic digest != recorded for {path}")
+            man[path] = redigest
+        sem[label] = man
+    equal = None
+    if "A" in sem and "B" in sem:
+        a, b = sem["A"], sem["B"]
+        diff = sorted((set(a) - set(b)) | (set(b) - set(a)) | {k for k in set(a) & set(b) if a[k] != b[k]})
+        equal = not diff
+        if diff:
+            fail.append(f"cargo-cache: {len(diff)} SEMANTIC differences between A and B: {diff[:10]}")
+    return {"semantic_equal": equal, "entry_counts": {k: len(v) for k, v in sem.items()}}
+
+
+def _canon_sha_compact(obj) -> str:
+    """matches cic.semantic_digest: sha256(json.dumps(payload, sort_keys=True, separators=(',',':')))."""
+    return hashlib.sha256(json.dumps(obj, sort_keys=True, separators=(",", ":")).encode()).hexdigest()
+
+
+def _verify_resolved_graph_evidence(evidence, fail) -> dict:
+    """req 5.5: reopen the RETAINED offline resolved graphs for A and B, re-derive each
+    normalized sha (must match the recorded value), and require A == B. Also compares the
+    generated Cargo.lock sha. Never trusts resolved_graph_equal / generated_lock_equal."""
+    d = evidence / "cargo-cache"
+    shas, locks, present = {}, {}, {}
+    for label in ("A", "B"):
+        p = d / f"{label}-resolved-graph.json"
+        if not p.is_file():
+            fail.append(f"resolved-graph: retained {label} evidence missing"); continue
+        try:
+            data = json.loads(p.read_text())
+        except Exception as e:  # noqa: BLE001
+            fail.append(f"resolved-graph {label}: unreadable ({e})"); continue
+        graph = data.get("resolved_graph")
+        present[label] = graph is not None
+        if graph is not None:
+            redigest = _canon_sha(graph)
+            if redigest != data.get("resolved_graph_normalized_sha256"):
+                fail.append(f"resolved-graph {label}: re-derived sha != recorded")
+            shas[label] = redigest
+        locks[label] = data.get("cargo_lock_sha256")
+    graph_equal = ("A" in shas and "B" in shas and shas["A"] == shas["B"])
+    if "A" in shas and "B" in shas and not graph_equal:
+        fail.append("resolved-graph: A and B normalized resolved graphs differ")
+    lock_equal = (locks.get("A") == locks.get("B"))
+    if not lock_equal:
+        fail.append(f"resolved-graph: generated Cargo.lock sha differs A={locks.get('A')} B={locks.get('B')}")
+    return {"graph_equal": graph_equal, "lock_equal": lock_equal,
+            "lock_present": bool(present.get("A")) and bool(present.get("B")),
+            "lock_sha": locks.get("A")}
+
+
+def _derive_acq_classification(A, B, cache_sem_equal, graph_equal, lock_equal, lock_present):
+    """re-derive the acquisition classification + parity from the primitive pre/post states
+    AND the independently-verified semantic-cache / resolved-graph determinants. Never trusts
+    the producer classification, cargo_cache_semantic_equal, or resolved_graph_equal."""
     if not (A and B) or A.get("install", {}).get("exit") != 0 or B.get("install", {}).get("exit") != 0:
         return {"outcome": "COREUTILS_ACQUISITION_INSTALL_FAILURE"}, {}
+    if A.get("cargo_index_cache_unparseable") or B.get("cargo_index_cache_unparseable"):
+        return {"outcome": "COREUTILS_CARGO_INDEX_CACHE_UNPARSEABLE"}, {}
     pa, pb = A["post_install_state"], B["post_install_state"]
     parity = {
         "workspace_manifests_equal": pa["workspace_cargo_tomls"] == pb["workspace_cargo_tomls"],
@@ -268,8 +352,10 @@ def _derive_acq_classification(A, B):
                                    == B["post_install_metadata"].get("members")),
         "install_semantics_equal": (A["install"]["exit"] == B["install"]["exit"]
                                     and A["install"]["timed_out"] == B["install"]["timed_out"]),
-        "cargo_cache_seed_equal": (A["cargo_cache_stable_manifest_hash"]
-                                   == B["cargo_cache_stable_manifest_hash"]),
+        # independently-derived determinants (from retained evidence, NOT producer booleans)
+        "cargo_cache_semantic_equal": cache_sem_equal is True,
+        "resolved_graph_equal": graph_equal is True,
+        "generated_lock_equal": lock_equal is True,
     }
 
     def nonlock(a):
@@ -280,11 +366,8 @@ def _derive_acq_classification(A, B):
         return {"outcome": "COREUTILS_ACQUISITION_UNAUTHORIZED_MUTATION"}, parity
     if not all(parity.values()):
         return {"outcome": "COREUTILS_ACQUISITION_NONDETERMINISTIC"}, parity
-    lock_created = (not A["pristine_state"]["cargo_lock"]["present"]) and pa["cargo_lock"]["present"]
-    lock_modified = (A["pristine_state"]["cargo_lock"]["present"] and pa["cargo_lock"]["present"]
-                     and A["pristine_state"]["cargo_lock"]["sha256"] != pa["cargo_lock"]["sha256"])
-    if lock_created or lock_modified:
-        return {"outcome": "publisher_install_dependency_snapshot"}, parity
+    if lock_present:
+        return {"outcome": "publisher_install_resolved_dependency_snapshot"}, parity
     return {"outcome": "pristine_dependency_state"}, parity
 
 
@@ -464,10 +547,24 @@ def verify(rec_path: Path, evidence: Path) -> tuple[bool, list, dict]:
     if (rec.get("toolchain_enforcement") or {}).get("manifest_sha256") != PINNED_MANIFEST_SHA:
         fail.append("toolchain manifest sha != pinned constant")
 
-    # acquisition (hardening 4b): re-derive classification + parity from primitives
+    # acquisition (hardening 4b + reqs 2/3/5): independently re-derive the semantic sparse-
+    # index cache equality and the offline resolved-graph equality from the RETAINED evidence,
+    # then re-derive the classification from primitives + those determinants.
     _check_acquisition(rec, fail)
     A, B = rec.get("acquisition_A") or {}, rec.get("acquisition_B") or {}
-    derived_cls, derived_parity = _derive_acq_classification(A, B)
+    cache_v = _verify_cargo_cache_evidence(evidence, fail)
+    graph_v = _verify_resolved_graph_evidence(evidence, fail)
+    facts["cargo_cache_semantic_equal"] = cache_v.get("semantic_equal")
+    facts["resolved_graph_equal"] = graph_v.get("graph_equal")
+    if cache_v.get("semantic_equal") is not True:
+        fail.append("cargo-cache: semantic sparse-index cache not proven equal across A/B")
+    if graph_v.get("graph_equal") is not True:
+        fail.append("resolved-graph: offline resolved dependency graph not proven equal across A/B")
+    if graph_v.get("lock_equal") is not True:
+        fail.append("resolved-graph: generated Cargo.lock not proven equal across A/B")
+    derived_cls, derived_parity = _derive_acq_classification(
+        A, B, cache_v.get("semantic_equal"), graph_v.get("graph_equal"),
+        graph_v.get("lock_equal"), graph_v.get("lock_present"))
     facts["derived_acquisition_outcome"] = derived_cls["outcome"]
     recorded_cls = (rec.get("acquisition_classification") or {}).get("outcome")
     if derived_cls["outcome"] not in ACQ_ELIGIBLE:
