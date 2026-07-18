@@ -203,22 +203,40 @@ def enforce_toolchain(pins: dict) -> dict:
     if f"rustc {CHANNEL}" not in rustc_vv.splitlines()[0] if rustc_vv else True:
         reasons.append("rustc version not 1.81.0")
     shim = shutil.which("cargo")
+    rustc_shim = shutil.which("rustc")
     rustup_exe = shutil.which("rustup")
+
+    def _sz(p):
+        return (Path(p).stat().st_size if p and Path(p).exists() else None)
+
     installed = {
         "resolved_channel_exact": CHANNEL, "host_target": host,
-        # installed executable identities (captured INDEPENDENTLY of artifact hashes)
+        # requested toolchain (RUSTUP_TOOLCHAIN) -> resolved executable (rustup which) ->
+        # measured executable identity (on-disk sha256 + byte length). The three layers are
+        # recorded DISTINCTLY and never conflated. Rust and Cargo identities are kept separate:
+        # same toolchain != same artifact. Captured INDEPENDENTLY of the distribution-artifact hashes.
+        "requested_toolchain": CHANNEL,
+        # cargo: resolved (measured) executable = the exact binary the pinned toolchain selects
         "cargo_binary_path": which_cargo,
         "cargo_binary_sha256": (c.sha256_file(which_cargo) if Path(which_cargo).exists() else None),
+        "cargo_binary_bytes": _sz(which_cargo),
+        # cargo: invoked path (PATH proxy) + its resolved wrapper realpath (recorded because they differ)
+        "cargo_shim_path": shim, "cargo_shim_realpath": (os.path.realpath(shim) if shim else None),
+        # rustc: resolved (measured) executable
         "rustc_binary_path": which_rustc,
         "rustc_binary_sha256": (c.sha256_file(which_rustc) if Path(which_rustc).exists() else None),
-        "cargo_shim_path": shim, "cargo_shim_realpath": (os.path.realpath(shim) if shim else None),
+        "rustc_binary_bytes": _sz(which_rustc),
+        # rustc: invoked path (PATH proxy) + its resolved wrapper realpath (symmetric with cargo)
+        "rustc_shim_path": rustc_shim, "rustc_shim_realpath": (os.path.realpath(rustc_shim) if rustc_shim else None),
+        # the rustup wrapper the proxies resolve to (the invoked wrapper's own identity)
         "rustup_executable_path": rustup_exe,
         "rustup_executable_sha256": (c.sha256_file(rustup_exe) if rustup_exe and Path(rustup_exe).exists() else None),
+        "rustup_executable_bytes": _sz(rustup_exe),
         "cargo_version_verbose": cargo_vv, "rustc_version_verbose": rustc_vv,
         "installed_components": _run(["rustup", "component", "list", "--installed", "--toolchain", CHANNEL],
                                      env=env)["stdout"].decode("utf-8", "replace").split(),
     }
-    for k in ("cargo_binary_sha256", "rustc_binary_sha256"):
+    for k in ("cargo_binary_sha256", "rustc_binary_sha256", "cargo_binary_bytes", "rustc_binary_bytes"):
         if not installed[k]:
             reasons.append(f"missing {k}")
     return {"ok": not reasons, "reasons": reasons, "manifest_sha256": man_sha,
