@@ -8,7 +8,8 @@
         "test",
         "--tests",
         "org.apache.lucene.search.TestLatLonDocValuesQueries",
-        "-Ptests.seed=965304069726D5D6"
+        "-Ptests.seed=965304069726D5D6",
+        "-Ptests.jvms=1"
       ],
       "corrected_effective_rtk_argv": [
         "rtk",
@@ -16,15 +17,21 @@
         "test",
         "--tests",
         "org.apache.lucene.search.TestLatLonDocValuesQueries",
-        "-Ptests.seed=965304069726D5D6"
+        "-Ptests.seed=965304069726D5D6",
+        "-Ptests.jvms=1"
       ],
       "execution_control": {
         "arg": "-Ptests.seed=965304069726D5D6",
+        "args": [
+          "-Ptests.seed=965304069726D5D6",
+          "-Ptests.jvms=1"
+        ],
         "derivation": "sha256(lucene-randomized-seed-v1+selection_seed+case_id)[:16].upper()",
         "flag": "-Ptests.seed",
         "policy_id": "lucene-randomized-seed-v1",
         "seed": "965304069726D5D6",
-        "selection_seed": "20260717"
+        "selection_seed": "20260717",
+        "single_jvm": "-Ptests.jvms=1"
       },
       "is_wrong_workload": true,
       "original_incorrect_argv": [
@@ -260,10 +267,10 @@
   "original_scenarios_sha256": "sha256:69f51947bdca6ae8c880b87e02cb43e7f24a2e435d465142e80b3f50fbdbd0e1",
   "publisher_registry_sha256": "sha256:8cdf9ca1cf9434f0210b144b22946065037fb485e36040eab580c256da324d96",
   "purpose": "Immutable Phase-A scenario-ingestion supersession: corrects the generic ingested command to the publisher-scoped test command for the SWE-bench test cases. The original scenarios record stays immutable; this is the normative correction.",
-  "record_sha256": "sha256:267f2cd3781f4857043b8c50893e1ac4e822926bccc573d0ce54c0e2883043f6",
+  "record_sha256": "sha256:871cfc82db905fb1c74b132d4e4848daedcde22efe12fe415ef0171a27accb98",
   "record_type": "n2e-scenario-correction",
   "record_version": "v1",
   "schema_version": "n2e-record-1",
-  "superseding_execution_contract_sha256": "sha256:9eb390dbea2e7895ded694b6605f66ee045e099a0b06a26fccbe41191930bfd1",
+  "superseding_execution_contract_sha256": "sha256:bf79caac7a34b6268a7244e3762854409ff423330a00935cacba21c628052dbc",
   "typed_defect": "SCENARIO_INGESTION_WRONG_WORKLOAD"
 }
