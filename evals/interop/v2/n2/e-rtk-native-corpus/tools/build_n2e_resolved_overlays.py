@@ -189,7 +189,9 @@ def build_execution_contract_overlay() -> dict:
         "scheduler_env": {"CARGO_BUILD_JOBS": "1", "CARGO_NET_OFFLINE": "true",
                           "RUST_TEST_THREADS": "1", "RUSTUP_TOOLCHAIN": "1.81.0"},
         "scheduler_flags": None,
-        "canonicalization_policy_id": "cargo-test-v1",
+        # resolved coreutils uses the BOUNDED build-progress-stripping variant; historical
+        # tokio evidence stays bound to cargo-test-v1 (its meaning never broadens).
+        "canonicalization_policy_id": "cargo-test-v2",
         "semantic_oracle_policy_id": recipe["oracle_policy_id"],
         # rust RTK dialect is not yet proven -> None (fail-closed) until step 9 binds it
         "rtk_test_dialect_policy_id": ora.rtk_dialect_for("rust_cargo"),

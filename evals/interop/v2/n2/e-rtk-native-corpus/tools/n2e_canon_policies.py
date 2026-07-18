@@ -27,6 +27,7 @@ survives canonicalization (i.e. the policy cannot mask a real difference).
 """
 from __future__ import annotations
 
+import hashlib
 import json as _json
 import re
 
@@ -101,21 +102,23 @@ _GO_TEST_RULES = [
 # grammar; replacements are fixed tokens.
 _POLICIES: dict[str, object] = {
     "identity-v1": [],
-    # cargo test: "test result: ok. 5 passed; 0 failed; ... finished in 0.12s"
-    #             "   Running unittests src/lib.rs (target/debug/deps/...-<hash>)"
-    # A measurement rep that must COMPILE the (patched) crate emits cargo build-status
-    # lines ("   Compiling <crate> vX", "    Finished ... in Xs", ...) whose ORDER is
-    # nondeterministic under parallel compilation -- pure build progress, NOT test
-    # semantics. Strip those whole lines (tool-level noise, identical for RAW and the RTK
-    # wrapper) so the canonical stream is the deterministic test-result section; keep
-    # every `test <id> ... ok/FAILED`, `running N tests`, and `test result:` line.
+    # cargo test (HISTORICAL, unchanged): "test result: ok. 5 passed; ... finished in
+    # 0.12s"; "   Running unittests src/lib.rs (target/debug/deps/...-<hash>)". Bound to the
+    # frozen tokio contract; its meaning must never broaden (see cargo-test-v2 for the
+    # bounded build-progress-stripping variant used by the resolved coreutils replacement).
     "cargo-test-v1": [
-        (re.compile(rb"^[ ]{1,11}(?:Compiling|Finished|Downloading|Downloaded|Updating|"
-                    rb"Blocking|Locking|Building|Fresh|Documenting|Installing|Removing|"
-                    rb"Waiting|Checking)\b.*\n", re.MULTILINE), b""),
         (re.compile(rb"finished in \d+\.\d+s"), b"finished in <dur>"),
         (re.compile(rb"\(target/[^)]*-[0-9a-f]{8,}\)"), b"(target/<artifact>)"),
     ],
+    # cargo test v2 (resolved coreutils): a measurement rep that must COMPILE the patched
+    # crate emits cargo build-progress lines whose ORDER is nondeterministic under parallel
+    # compilation -- pure progress, NOT test semantics. A BOUNDED line-by-line callable
+    # removes ONLY exact Cargo status grammar (Compiling/Checking/Documenting/Fresh package
+    # records; the `<profile>` profile completion record; registry index/download/lock
+    # activity), then normalizes the test-result duration. Every `test <id> ... ok/FAILED`,
+    # `running N tests`, `test result:`, and `Running .../deps/<bin>-<hash>` line is kept
+    # (deps hashes are path-stable and deterministic). See _cargo_test_v2_canon.
+    "cargo-test-v2": None,  # filled below with the callable
     # cargo build/check/clippy: "Finished `dev` profile ... in 1.23s"; "Compiling x v1 ..."
     "cargo-build-v1": [
         (re.compile(rb"in \d+\.\d+s\b"), b"in <dur>"),
@@ -170,6 +173,60 @@ _POLICIES: dict[str, object] = {
     "log-v1": [],
     "files-v1": [],
 }
+
+# --------------------------------------------------------------------------
+# cargo-test-v2: BOUNDED, line-by-line removal of EXACT Cargo status grammar only. Each
+# form is documented separately; a line is removed ONLY if it matches one of these exact
+# Cargo status shapes -- an arbitrary indented line that merely begins with "Finished",
+# "Checking", "Updating", "Downloading", "Building", "Removing", ... is PRESERVED.
+_V2_PKG_RECORD = re.compile(   # Compiling/Checking/Documenting/Fresh <crate> [v<semver>] [(<source>)]
+    rb"^[ ]+(?:Compiling|Checking|Documenting|Fresh) [A-Za-z0-9_+-]+"
+    rb"(?: v\d+\.\d+\.\d+(?:[-+][0-9A-Za-z.-]+)?)?(?: \(.+\))?$")
+_V2_FINISHED = re.compile(     # Finished `<profile>` profile [<qualifiers>] target(s) in <dur>
+    rb"^[ ]+Finished [`'\"]?[\w.+-]+[`'\"]?(?: profile)?(?: \[[^\]]*\])? target\(s\) in .+$")
+_V2_REGISTRY = re.compile(     # source-defined registry/package activity ONLY
+    rb"^[ ]+(?:"
+    rb"Updating crates\.io index"
+    rb"|Updating git repository .+"
+    rb"|Downloading(?: \d+ crates.*| crates \.\.\.)"
+    rb"|Downloaded [A-Za-z0-9_+-]+ v\d+\.\d+\.\d+.*"
+    rb"|Downloaded \d+ crates?.*"
+    rb"|Locking \d+ packages? to latest.*"
+    rb"|Blocking waiting for file lock on .+"
+    rb")$")
+_V2_KILL = (_V2_PKG_RECORD, _V2_FINISHED, _V2_REGISTRY)
+_V2_FINISHED_IN = re.compile(rb"finished in \d+\.\d+s")
+
+
+def _is_cargo_status_line(line_no_nl: bytes) -> bool:
+    return any(p.match(line_no_nl) for p in _V2_KILL)
+
+
+def _cargo_test_v2_canon(data: bytes) -> bytes:
+    """Remove exact Cargo build-status lines (build progress, not test semantics); keep
+    everything else; normalize the test-result duration on kept lines. Line-by-line."""
+    out = []
+    for line in data.splitlines(keepends=True):
+        body = line.rstrip(b"\r\n")
+        if _is_cargo_status_line(body):
+            continue
+        out.append(_V2_FINISHED_IN.sub(b"finished in <dur>", line))
+    return b"".join(out)
+
+
+def cargo_test_v2_removed_diag(data: bytes) -> dict:
+    """Diagnostic evidence: number + SHA-256 of the removed Cargo-status lines (the
+    removed bytes remain available in the primary raw capture)."""
+    removed = [line for line in data.splitlines(keepends=True)
+               if _is_cargo_status_line(line.rstrip(b"\r\n"))]
+    joined = b"".join(removed)
+    return {"removed_line_count": len(removed),
+            "removed_sha256": hashlib.sha256(joined).hexdigest(),
+            "removed_bytes": len(joined)}
+
+
+_POLICIES["cargo-test-v2"] = _cargo_test_v2_canon
+
 
 # deterministic resolution from the frozen scenario
 _FAMILY_SUB_POLICY = {

@@ -50,7 +50,7 @@ CHANNEL = "1.81.0"
 HOST = "x86_64-unknown-linux-gnu"
 ROW = N2E_DIR / "evidence" / "coreutils-6731" / "uutils__coreutils-6731.row.json"
 RTK_SOURCE_COMMIT = "5d32d0736f686b69d1e8b9dc45c007d4eb77a0a2"
-CANON_POLICY = "cargo-test-v1"
+CANON_POLICY = "cargo-test-v2"
 REPS = 3
 # exact committed argv/env (correction 2)
 CONTRACT_RAW_ARGV = ["cargo", "test", "backslash", "--no-fail-fast"]
@@ -424,6 +424,7 @@ def _measure_arm(is_rtk: bool, frozen_env: Path, argv: list, wrapper: list, off_
         post_toolchain = _rustup_manifest(rustup_home)
         combined = canon.rtk_envelope(r["combined"]) if is_rtk else r["combined"]
         cb = canon.canonicalize(combined, CANON_POLICY)
+        removed_diag = canon.cargo_test_v2_removed_diag(combined)  # diagnostic evidence
         repo_ok = pre_repo == post_repo
         cache_ok = pre_cargo == post_cargo
         tc_ok = (seed_toolchain == post_toolchain)
@@ -438,7 +439,7 @@ def _measure_arm(is_rtk: bool, frozen_env: Path, argv: list, wrapper: list, off_
         mut.append(mrec)
         runs.append({"exit_code": r["exit_code"], "timed_out": r.get("timed_out", False),
                      "raw_combined_sha256": _sha(r["combined"]), "canonical_sha256": _sha(cb),
-                     "canonical_bytes": len(cb)})
+                     "canonical_bytes": len(cb), "canon_removed_lines": removed_diag})
         canon_hashes.append(_sha(cb))
         if not is_rtk:
             per_rep.append(ora.cargo_target_execution_proof(r["combined"], r["exit_code"], target_ids))
@@ -449,6 +450,7 @@ def _measure_arm(is_rtk: bool, frozen_env: Path, argv: list, wrapper: list, off_
     shutil.rmtree(_FIXED, ignore_errors=True)
     det = len(set(canon_hashes)) == 1
     out = {"role": role, "reps": REPS, "actual_argv": argv,
+           "canonicalization_policy": CANON_POLICY,
            "actual_argv_equal_contract": contract_argv_ok,
            "exit_stable": len({x["exit_code"] for x in runs}) == 1, "deterministic": det,
            "canonical_sha256": canon_hashes[0] if det else None,
