@@ -829,7 +829,7 @@ def main() -> int:
         # drifted BEYOND the declared-patch baseline. A measured command that mutates
         # a frozen tracked input is a typed harness rejection even on a green oracle.
         if fam not in ("containers", "git", "files_search", "logs"):
-            post = _post_measurement_state(frozen, home, fam, env_id)
+            post = _post_measurement_state(frozen, workroot / ".home", fam, env_id)
             if not post["ok"]:
                 emit("REJECTED_MUTATION", acquisition=acq, isolation=iso,
                      raw_arm=_arm_public(raw), rtk_arm=_arm_public(rtk_run),
