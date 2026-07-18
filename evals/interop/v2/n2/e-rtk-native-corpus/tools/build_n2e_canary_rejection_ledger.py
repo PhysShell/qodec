@@ -97,7 +97,7 @@ def _independent_streams(rec: dict, case_dir: Path, required: set) -> dict:
 
     reasons = []
 
-    def parse(entries, record_runs=None):
+    def parse(entries, record_runs=None, dialect="native"):
         fails, counts = [], []
         for e in entries:
             data = _read_evidence_file(case_dir, e)
@@ -111,14 +111,15 @@ def _independent_streams(rec: dict, case_dir: Path, required: set) -> dict:
             if record_runs is not None and rep is not None and rep < len(record_runs):
                 if record_runs[rep].get("canonical_sha256") != e.get("sha256"):
                     reasons.append(f"{e.get('role')} rep{rep} file sha != record canonical_sha256")
-            summ = ora._test_summary(data)
+            summ = ora._test_summary(data, dialect=dialect)
             fails.append(set(ora._leaf_ids(summ["failing_ids"])))
             counts.append(summ["failed"])
         return fails, counts
 
-    raw_fail, raw_cnt = parse(files(raw, "raw"), raw_runs)
-    rtk_fail, rtk_cnt = parse(files(rtk, "rtk"), rtk_runs)
-    tee_fail, _ = parse(files(rtk, "rtk_tee"))
+    # RAW: native tool grammar; measured RTK: RTK's bounded dialect; tee: native output.
+    raw_fail, raw_cnt = parse(files(raw, "raw"), raw_runs, dialect="native")
+    rtk_fail, rtk_cnt = parse(files(rtk, "rtk"), rtk_runs, dialect="rtk")
+    tee_fail, _ = parse(files(rtk, "rtk_tee"), dialect="native")
 
     have3 = (len(raw_fail) == 3 and len(rtk_fail) == 3 and len(tee_fail) == 3
              and all(x is not None for x in raw_fail + rtk_fail + tee_fail))

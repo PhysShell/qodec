@@ -26,10 +26,11 @@ _PYTEST_SUM = re.compile(rb"(\d+) passed|(\d+) failed|(\d+) error|(\d+) skipped"
 _PYTEST_FAIL = re.compile(rb"^FAILED\s+(\S+)", re.MULTILINE)
 _PYTEST_FAIL2 = re.compile(rb"_{3,}\s+(\S+)\s+_{3,}")
 # vitest verbose marks a failed test with a leading `×` (U+00D7 = \xc3\x97) or a
-# file-level `FAIL`, followed by the FULL `path > suite > test` chain. Capture the
-# whole chain (not just the first token) and strip any trailing ` NNNms` duration so
-# the parsed identity normalizes to the same leaf as the declared target id.
-_VITEST_FAIL = re.compile(rb"^\s*(?:\xc3\x97|FAIL)\s+(\S.*?)(?:\s+\d+ms)?\s*$", re.MULTILINE)
+# file-level `FAIL`, followed by the FULL `path > suite > test` chain. Capture the whole
+# chain (strip a trailing ` NNNms`). The captured identity MUST contain a ` > ` segment
+# -- this is what disambiguates a vitest test line from Go's `FAIL\t<package>\t<dur>`
+# package-summary line (which has no ` > ` and must NOT be read as a failing id).
+_VITEST_FAIL = re.compile(rb"^\s*(?:\xc3\x97|FAIL)\s+(\S.*?\s>\s.*?)(?:\s+\d+ms)?\s*$", re.MULTILINE)
 _DIAG = re.compile(rb"(?P<file>[\w./\-]+):(?P<line>\d+):(?:(?P<col>\d+):)?\s*(?P<sev>error|warning|note)?", re.IGNORECASE)
 
 
@@ -38,9 +39,45 @@ _VITEST_SUM_FAILONLY = re.compile(rb"Tests\s+(\d+) failed\b(?!\s*\|)")
 _GRADLE_SUM = re.compile(rb"(\d+) tests? completed(?:,\s*(\d+) failed)?")
 _GRADLE_FAIL = re.compile(rb"^(\S+) > (\S+) FAILED", re.MULTILINE)
 
+# ---- test-output DIALECTS (separate semantic parsing from output format) ----
+# The native tool stream and RTK's filtered summary express the SAME semantic events
+# (failed_count, failing_ids) in different grammars. The oracle must parse each stream
+# with its OWN dialect and compare the normalized events -- never require byte-format
+# equality, and never fall back to a generic 'FAIL' substring search.
+RAW_GO_DIALECT = "go-test-native-v1"      # `--- FAIL: <id>`
+RTK_GO_DIALECT = "rtk-go-test-summary-v1"  # bounded `[FAIL] <id>` record (RTK source @5d32d07)
 
-def _test_summary(raw: bytes) -> dict:
-    """Best-effort tool-agnostic parse of passed/failed + failing ids."""
+# RTK emits one BOUNDED per-test record per line: the whole bracketed status token at the
+# START of the (whitespace-stripped) line, then exactly the failure identity, then EOL.
+# This rejects `text [FAIL] X` (marker not line-anchored), `[PASS] X`, a `-run X` selector,
+# a `[full output: ...X...]` tee pointer, and any substring mention.
+_RTK_FAIL = re.compile(rb"^[ \t]*\[FAIL\][ \t]+(\S+)[ \t]*$", re.MULTILINE)
+_RTK_PASS = re.compile(rb"^[ \t]*\[PASS\][ \t]+(\S+)[ \t]*$", re.MULTILINE)
+# RTK's one-line summary: `<Tool> test: N passed, M failed in P packages`
+_RTK_SUMMARY = re.compile(rb"\btest:\s*(\d+)\s+passed,\s*(\d+)\s+failed\b")
+
+
+def _rtk_summary(raw: bytes) -> dict:
+    """rtk-go-test-summary-v1 (+ siblings): parse RTK's bounded, anchored records only.
+    Fails closed -- unknown/malformed RTK output yields no failing ids and None counts."""
+    failing = {m.group(1).decode("utf-8", "replace") for m in _RTK_FAIL.finditer(raw)}
+    passed = failed = None
+    sm = _RTK_SUMMARY.search(raw)
+    if sm:
+        passed, failed = int(sm.group(1)), int(sm.group(2))
+    elif failing or _RTK_PASS.search(raw):
+        # anchored records but no summary line: derive a lower-bound failed count
+        failed = len(failing)
+        passed = len(_RTK_PASS.findall(raw))
+    return {"passed": passed, "failed": failed, "failing_ids": sorted(failing),
+            "dialect": RTK_GO_DIALECT}
+
+
+def _test_summary(raw: bytes, dialect: str = "native") -> dict:
+    """Parse passed/failed + failing ids under the given output DIALECT. `dialect="rtk"`
+    uses RTK's bounded summary grammar; the default parses the native tool streams."""
+    if dialect == "rtk":
+        return _rtk_summary(raw)
     failing = set()
     passed = failed = None
     m = _CARGO.search(raw)
@@ -212,14 +249,21 @@ def _leaf_ids(ids: list) -> list:
 def rtk_agrees(scenario: dict, raw: bytes, rtk: bytes) -> dict:
     fam, sub = scenario["command_family"], scenario["command_subfamily"]
     if sub in ("test", "pytest"):
-        r, k = _test_summary(raw), _test_summary(rtk)
+        # DIALECT-AWARE: parse RAW with the native tool grammar and RTK with its bounded
+        # summary grammar, then compare NORMALIZED semantic events (failed_count +
+        # failing_ids) -- never byte-format equality. RTK reformatting `--- FAIL: X` to
+        # `[FAIL] X` preserves the identity and must agree.
+        r = _test_summary(raw, dialect="native")
+        k = _test_summary(rtk, dialect="rtk")
         raw_fail = set(_leaf_ids(r["failing_ids"]))
         rtk_fail = set(_leaf_ids(k["failing_ids"]))
         # no failing test id may disappear; failed count preserved when known
         ids_ok = raw_fail <= rtk_fail
         count_ok = (r["failed"] is None or k["failed"] is None or r["failed"] == k["failed"])
         return {"oracle": "test_agreement", "verdict": bool(ids_ok and count_ok),
-                "evidence": {"raw": r, "rtk": k}}
+                "evidence": {"raw": r, "rtk": k, "raw_dialect": RAW_GO_DIALECT,
+                             "rtk_dialect": RTK_GO_DIALECT,
+                             "compared": "normalized_semantic_events"}}
     if sub in ("build", "check", "clippy", "vet", "tsc", "lint", "ruff"):
         raw_d, rtk_d = _diagnostics(raw), _diagnostics(rtk)
         # every RAW diagnostic identity must be preserved by RTK

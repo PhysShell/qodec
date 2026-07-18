@@ -49,9 +49,11 @@ class TestParserBoundedSidecar(unittest.TestCase):
         self.assertEqual(p["semantic_loss_ids_this_rep"], [])
 
     def test_no_loss_when_measured_also_has_the_fail(self):
-        # RTK preserved the failing id in the MEASURED stream -> not semantic loss
-        line = b"--- FAIL: TestUnsyncedConfigAccess (0.01s)\nFAIL\n"
-        p = proof(line, measured=line)
+        # RTK preserved the failing id in the MEASURED stream in its own [FAIL] form
+        # (measured is parsed with the RTK dialect) -> not semantic loss
+        sidecar = b"--- FAIL: TestUnsyncedConfigAccess (0.01s)\nFAIL\n"
+        measured = b"Go test: 0 passed, 1 failed in 1 packages\n  [FAIL] TestUnsyncedConfigAccess\n"
+        p = proof(sidecar, measured=measured)
         self.assertEqual(p["measured_failing_ids"], ["TestUnsyncedConfigAccess"])
         self.assertEqual(p["semantic_loss_ids_this_rep"], [])
 

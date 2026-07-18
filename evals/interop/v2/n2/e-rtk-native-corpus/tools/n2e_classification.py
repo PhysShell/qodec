@@ -21,6 +21,17 @@ PASS = "PASS"  # RAW x3 canonically deterministic + oracle true, RTK agrees, off
 HARNESS_DEFECT = "HARNESS_DEFECT"
 METER_DEFECT = "METER_DEFECT"
 
+# Named HARNESS_DEFECT subtypes (each is corrected, then the case is re-judged).
+# ORACLE_UNRECOGNIZED_RTK_TEST_GRAMMAR: the RTK agreement oracle applied the NATIVE
+# tool grammar to RTK's filtered stream and so failed to recognize a failing identity
+# that RTK preserves in its own bounded form (e.g. `[FAIL] X` vs `--- FAIL: X`). This
+# is a parsing defect, NOT semantic loss -- fixed by a dialect-aware parser, then the
+# case is re-judged (it may well PASS). This is the withdrawal basis for the previously
+# proposed Caddy DISQUALIFIED_RTK_SEMANTIC_LOSS.
+HARNESS_DEFECT_ORACLE_UNRECOGNIZED_RTK_TEST_GRAMMAR = \
+    "HARNESS_DEFECT_ORACLE_UNRECOGNIZED_RTK_TEST_GRAMMAR"
+HARNESS_DEFECT_SUBTYPES = frozenset({HARNESS_DEFECT_ORACLE_UNRECOGNIZED_RTK_TEST_GRAMMAR})
+
 # ---- terminal typed disqualifications ---------------------------------------
 DISQUALIFIED_INTRINSIC_NONDETERMINISM = "DISQUALIFIED_INTRINSIC_NONDETERMINISM"
 DISQUALIFIED_OFFLINE_EXECUTION = "DISQUALIFIED_OFFLINE_EXECUTION"

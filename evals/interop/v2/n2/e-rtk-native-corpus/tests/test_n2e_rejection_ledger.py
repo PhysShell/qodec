@@ -22,8 +22,11 @@ GO_SHA = "0cdc4480040b5ef62eb17ba283ab92eca991794a937620604a2b5772201c2b59"  # m
 RTK = L.RTK_BINARY_SHA256
 BASE = "b" * 40
 FAILLINE = b"=== RUN   TestUnsyncedConfigAccess\n--- FAIL: TestUnsyncedConfigAccess (0.01s)\nFAIL\nexit 1\n"
-# RTK measured stream: summary preserved (1 failed) but the per-test FAIL id diverted to tee
-RTK_MEASURED = b"1 failed\n[full output: /tmp/n2e/rtk/tee/1737_caddy.log]\nFAIL\nexit 1\n"
+# RTK measured stream, LOSS form: RTK's summary preserves the failed COUNT (1 failed) but
+# the per-test [FAIL] identity is absent (diverted to the tee) -> genuine semantic loss.
+RTK_MEASURED = b"Go test: 0 passed, 1 failed in 1 packages\nv2 (0 passed, 1 failed)\n"
+# RTK measured stream, PRESERVED form: RTK keeps the identity in its own [FAIL] record.
+RTK_PRESERVED = b"Go test: 0 passed, 1 failed in 1 packages\n  [FAIL] TestUnsyncedConfigAccess\n"
 
 
 def _order():
@@ -125,10 +128,10 @@ class TestIndependentSemanticLoss(unittest.TestCase):
             self.assertIn("primary_streams_reverified", unmet)
 
     def test_identity_present_in_measured_rtk_is_insufficient(self):
-        # RTK actually preserved the failing id in the measured stream -> NOT semantic loss
+        # RTK preserved the failing id in the measured stream (its [FAIL] form) -> NOT loss
         with tempfile.TemporaryDirectory() as td:
             td = Path(td)
-            rec = make_case(td, [FAILLINE] * 3, [FAILLINE] * 3, [FAILLINE] * 3)
+            rec = make_case(td, [FAILLINE] * 3, [RTK_PRESERVED] * 3, [FAILLINE] * 3)
             entry, unmet, _ = L.derive_rtk_semantic_loss(rec, td)
             self.assertIsNone(entry)
             self.assertIn("rtk_required_missing_from_measured", unmet)
