@@ -43,6 +43,20 @@ class TestStrictRawOracle(unittest.TestCase):
     def test_exit_zero_does_not_qualify_a_buggy_case(self):
         self.assertFalse(verdict(b"--- PASS: TestUnsyncedConfigAccess (0.01s)\nok\n", 0))
 
+    def test_target_name_only_in_argv_echo_does_not_qualify(self):
+        # the target appears only as a `-run` selector echo, never as a FAIL line; an
+        # UNRELATED test is what actually failed -> the buggy target is not qualified.
+        out = (b"=== RUN   go test -run TestUnsyncedConfigAccess\n"
+               b"--- FAIL: TestSomethingElse (0.01s)\nFAIL\n")
+        self.assertFalse(verdict(out, 1))
+
+    def test_target_name_only_in_tee_sidecar_line_does_not_qualify(self):
+        # the identity is present only inside an unmeasured tee-sidecar reference line,
+        # not as a parsed failing id -> must NOT qualify (measured stream is the artifact).
+        out = (b"--- FAIL: TestSomethingElse (0.00s)\n"
+               b"[full output: /tmp/n2e/rtk/tee/1737_caddy.log :: TestUnsyncedConfigAccess]\nFAIL\n")
+        self.assertFalse(verdict(out, 1))
+
 
 if __name__ == "__main__":
     unittest.main()

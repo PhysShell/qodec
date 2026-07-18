@@ -108,6 +108,14 @@ PRECONDITIONS = {
         "exact_toolchain_installed", "publisher_lockfile_byte_identical",
         "acquisition_attempted_faithfully", "reconstruction_failed_candidate_specific",
     ],
+    DISQUALIFIED_RTK_SEMANTIC_LOSS: [
+        "publisher_recipe_applied", "toolchain_identity_pinned",
+        "raw_qualified_strict_target",          # corrected RAW oracle: the target test itself failed
+        "rtk_executed", "rtk_deterministic",
+        "rtk_outcome_count_preserved",
+        "rtk_required_semantic_identity_missing",  # a RAW failing id absent from the MEASURED RTK stream
+        "identity_only_in_unmeasured_sidecar",     # its sole presence is a tee sidecar, which does not count
+    ],
 }
 
 

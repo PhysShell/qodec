@@ -26,6 +26,7 @@ import hashlib
 import json
 import os
 import platform
+import re
 import shutil
 import subprocess
 import sys
@@ -340,8 +341,54 @@ def run_isolated(argv, cwd, timeout, wrapper_prefix, env_extra=None):
         return {"exit_code": 124, "combined": combined, "timed_out": True}
 
 
+_TEE_PATH = re.compile(rb"\[full output:\s*([^\]\n]*?rtk/tee/\d+_[^\]\n]*?\.log)\]")
+
+
+def _leaf(tid: str) -> str:
+    return tid.split("::")[-1].split("/")[-1].split(".")[-1]
+
+
+def _rtk_sidecar_proof(raw_combined: bytes, measured: bytes, work: Path, target_ids: list) -> dict:
+    """For the RTK arm of a target-bearing case: prove whether a required failing test
+    IDENTITY that RAW observed exists ONLY in RTK's unmeasured tee sidecar and NOT in
+    the MEASURED (canonical) RTK stream. This is the exact evidence a DISQUALIFIED_RTK_
+    SEMANTIC_LOSS ledger entry needs -- a sidecar path does not make omitted content
+    present in the measured artifact."""
+    leaves = [_leaf(t) for t in (target_ids or [])]
+    mm = _TEE_PATH.search(raw_combined or b"")
+    pointer = mm.group(1).decode("utf-8", "replace") if mm else None
+    sidecar = None
+    if pointer:
+        p = Path(pointer)
+        cands = [p] if p.is_absolute() else [work / pointer, work / "repo" / pointer]
+        for cand in cands:
+            try:
+                if cand.is_file():
+                    sidecar = cand.read_bytes()
+                    break
+            except OSError:
+                pass
+        if sidecar is None:  # fall back to a basename search under the rep work dir
+            for f in work.rglob(Path(pointer).name):
+                try:
+                    sidecar = f.read_bytes()
+                    break
+                except OSError:
+                    pass
+
+    def _present(hay, ids):
+        return sorted(i for i in ids if hay is not None and i.encode() in hay)
+
+    return {"tee_pointer_present": bool(pointer), "tee_pointer": pointer,
+            "sidecar_read": sidecar is not None,
+            "target_in_sidecar": _present(sidecar, leaves),
+            "target_in_measured": _present(measured, leaves),
+            "required_leaves": leaves}
+
+
 def run_arm(argv, frozen_dir: Path, policy_id: str, timeout: int, wrapper_prefix, env_extra=None,
-            is_rtk: bool = False, jvm_proof_class: str | None = None) -> dict:
+            is_rtk: bool = False, jvm_proof_class: str | None = None,
+            rtk_target_ids: list | None = None) -> dict:
     """RAW or RTK arm: REPS runs in FRESH copies of the frozen env, network-denied.
     Canonicalize each combined stream under policy_id; the ACCEPTED stream is the
     canonical bytes (identical across reps when deterministic). For the RTK arm ONLY,
@@ -358,6 +405,7 @@ def run_arm(argv, frozen_dir: Path, policy_id: str, timeout: int, wrapper_prefix
     accepted_canonical = None
     timed_out_any = False
     per_rep_proof = []
+    sidecar_reps = []
     # FIXED work path across reps: many tools echo their absolute working directory
     # into output (e.g. vitest's "RUN vX /path"), so a per-rep random tempdir path
     # is itself a source of nondeterminism. Reusing one constant path removes that
@@ -384,6 +432,9 @@ def run_arm(argv, frozen_dir: Path, policy_id: str, timeout: int, wrapper_prefix
                 # prove THIS rep executed the target class offline (full output, not tail)
                 per_rep_proof.append(_gradle_test_proof(
                     r["combined"].decode("utf-8", "replace"), jvm_proof_class))
+            if is_rtk and rtk_target_ids:
+                # capture the sidecar-only proof BEFORE this rep's work dir is recycled
+                sidecar_reps.append(_rtk_sidecar_proof(r["combined"], cb, work, rtk_target_ids))
     finally:
         shutil.rmtree(work, ignore_errors=True)
     exit_stable = len({x["exit_code"] for x in runs}) == 1
@@ -391,6 +442,18 @@ def run_arm(argv, frozen_dir: Path, policy_id: str, timeout: int, wrapper_prefix
     execution_ok = None
     if jvm_proof_class:
         execution_ok = all(p["executed_ok"] for p in per_rep_proof)
+    rtk_sidecar = None
+    if is_rtk and rtk_target_ids:
+        # semantic loss confirmed iff EVERY rep has the required identity in the sidecar
+        # but ABSENT from the measured stream (and never present in measured).
+        rtk_sidecar = {
+            "reps": sidecar_reps,
+            "semantic_loss_confirmed": bool(sidecar_reps) and all(
+                p["target_in_sidecar"] and not p["target_in_measured"] for p in sidecar_reps),
+            "identity_only_in_unmeasured_sidecar": bool(sidecar_reps) and all(
+                p["target_in_sidecar"] and not p["target_in_measured"]
+                and p["tee_pointer_present"] for p in sidecar_reps),
+        }
     return {
         "reps_completed": len(runs), "exit_code": runs[0]["exit_code"],
         "exit_code_stable": exit_stable, "canonical_deterministic": deterministic,
@@ -401,6 +464,7 @@ def run_arm(argv, frozen_dir: Path, policy_id: str, timeout: int, wrapper_prefix
         "nondeterminism_sample": _nd_sample(canon_streams) if not deterministic else None,
         "per_rep_execution_proof": per_rep_proof or None,
         "target_execution_ok": execution_ok,
+        "rtk_sidecar_proof": rtk_sidecar,
         "_accepted_canonical": accepted_canonical if deterministic else None,
         "_output_tail": (canon_streams[-1][-2500:]).decode("utf-8", "replace") if canon_streams else "",
     }
@@ -1217,7 +1281,8 @@ def main() -> int:
             rtk_run = _docker_arm([rtk_bin] + rtk_argv[1:], policy, scen["timeout_seconds"])
         else:
             rtk_run = run_arm([rtk_bin] + rtk_argv[1:], frozen, policy, scen["timeout_seconds"],
-                              wrapper, env_extra, is_rtk=True, jvm_proof_class=acq.get("jvm_proof_class"))
+                              wrapper, env_extra, is_rtk=True, jvm_proof_class=acq.get("jvm_proof_class"),
+                              rtk_target_ids=scen.get("target_test_ids"))
 
         rtk_ok, rtk_reasons, rtk_oracle = _rtk_accept(scen, raw, rtk_run, rtk_bin)
         # post-measurement mutation guard (the real correction #2 invariant): after
