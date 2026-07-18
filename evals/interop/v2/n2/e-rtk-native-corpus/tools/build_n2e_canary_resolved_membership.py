@@ -37,6 +37,7 @@ import n2e_publisher_registry as pub  # noqa: E402
 import n2e_swebench_extract as ex  # noqa: E402
 
 SRC = N2E_DIR / "fixtures" / "swebench-source"
+INSTANCES = N2E_DIR / "n2e-swebench-instances-v1.json"
 MEMBERSHIP = N2E_DIR / "n2e-canary-membership-v1.json"
 SELECTION = N2E_DIR / "n2e-selection-result-v1.json"
 RESERVES = N2E_DIR / "n2e-reserve-list-v1.json"
@@ -65,6 +66,8 @@ class Ctx:
         self.dv = self.policy["diversity_constraints"]
         rr = c.load_record(RULE)
         self.slot_order = {s: i for i, s in enumerate(rr["frozen_slot_order"])}
+        # pinned dataset rows -> mechanical (repo, version) for recipe extractability
+        self.inst_row = {r["instance_id"]: r for r in c.load_record(INSTANCES)["instances"]}
 
     def meta(self, case_id: str) -> dict | None:
         """All candidate metadata from the frozen inventory (never case_id parsing)."""
@@ -93,16 +96,20 @@ def _eligible(ctx: Ctx, case_id: str) -> tuple[bool, str]:
     if not constructible:
         return False, "scenario not available/constructible"
     # publisher-recipe availability where required: either already materialized in the
-    # frozen registry, OR faithfully EXTRACTABLE from the pinned harness source for this
-    # candidate's (repo, version). Extractability -- not current registry membership --
-    # is the outcome-blind criterion, so resolution is not biased by which recipes have
-    # already been materialized.
+    # frozen registry, OR STRUCTURALLY EXTRACTABLE from the pinned harness source for this
+    # candidate's (repo, version). Extractability -- not current registry membership, and
+    # never savings/ease/materialized-status -- is the outcome-blind criterion. The
+    # (repo, version) come MECHANICALLY from the pinned dataset row, never from splitting
+    # the case_id / instance_id string.
     fam, sub = m.get("command_family"), m.get("command_subfamily")
-    if (fam, sub) in _RECIPE_REQUIRED:
-        if pub.recipe_for_case(case_id) is None:
-            version = (m.get("instance_id") or "").split("-")[-1]
-            if not ex.spec_resolves(SRC, fam, m.get("repository"), version):
-                return False, "publisher recipe neither in registry nor extractable from pinned source"
+    if (fam, sub) in _RECIPE_REQUIRED and pub.recipe_for_case(case_id) is None:
+        row = ctx.inst_row.get(m.get("instance_id"))
+        if not row:
+            return False, "no pinned dataset row for instance"
+        v = ex.verify_recipe_extractable(SRC, fam, row.get("repo"), str(row.get("version")))
+        if not v["extractable"]:
+            unmet = sorted(k for k, ok in v["checks"].items() if not ok)
+            return False, f"publisher recipe not structurally extractable ({v['reason']}; unmet={unmet})"
     return True, "eligible"
 
 

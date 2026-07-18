@@ -35,10 +35,10 @@
   "original_membership_sha256": "sha256:8f3bcf1e029c643d7b7937cee823786dd60f1a8c4874ca0f445b1756834c0e85",
   "original_tokio_outcome": "DISQUALIFIED_ENVIRONMENT_UNREPRODUCIBLE",
   "purpose": "Deterministic Option-D resolution of terminally-disqualified canary slots via frozen per-slot reserve ordering; outcome-blind, savings never inspected.",
-  "record_sha256": "sha256:b8c05d4fd71532f2d3bf7634ae326384226aa2ca163aebb519252b2fe2339fc8",
+  "record_sha256": "sha256:4c65782f171b201f1842c1898474f3586e8b5fb1d60efaa83249eec8fc0ecae8",
   "record_type": "n2e-canary-resolved-membership",
   "record_version": "v1",
-  "rejection_ledger_sha256": "sha256:f75cd225ab11cf8eb50e551e01f788cb63dfd64f5f03dd641b7c47ef75b45573",
+  "rejection_ledger_sha256": "sha256:368b165c972a092b98cc3cd979f56c6f89c97139bcbfe5e45dacdd722ad511df",
   "reserve_list_sha256": "sha256:88d114b690ab53ba167b899e861f4f027bfdac1adfe74fb2f1146db9846e6157",
   "reserves_exhausted": [],
   "resolution_order": [

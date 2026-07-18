@@ -8,9 +8,36 @@ from pathlib import Path
 N2E_DIR = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(N2E_DIR / "tools"))
 import build_n2e_canary_resolved_membership as R  # noqa: E402
+import n2e_swebench_extract as ex  # noqa: E402
 
 CADDY = "caddyserver__caddy-5870::go::test::buggy"
 HUGO = "gohugoio__hugo-12768::go::test::buggy"
+COREUTILS = "uutils__coreutils-6731::rust_cargo::test::fixed"
+
+
+class TestStructuralExtractability(unittest.TestCase):
+    def test_coreutils_structurally_extractable_all_checks(self):
+        v = ex.verify_recipe_extractable(R.SRC, "rust_cargo", "uutils/coreutils", "6731")
+        self.assertTrue(v["extractable"], v["reason"])
+        self.assertTrue(all(v["checks"].values()), v["checks"])
+        self.assertEqual(v["resolved"]["toolchain_kind"], "rust")
+        self.assertEqual(v["resolved"]["toolchain_version"], "1.81")
+        self.assertEqual(len(v["source"]["git_blob_sha1"]), 40)
+
+    def test_unknown_repo_not_extractable(self):
+        v = ex.verify_recipe_extractable(R.SRC, "rust_cargo", "no/such-repo", "1")
+        self.assertFalse(v["extractable"])
+        self.assertFalse(v["checks"]["exact_repository_mapping"])
+
+    def test_unknown_key_not_extractable(self):
+        v = ex.verify_recipe_extractable(R.SRC, "rust_cargo", "uutils/coreutils", "999999")
+        self.assertFalse(v["extractable"])
+        self.assertFalse(v["checks"]["concrete_recipe_key_entry"])
+
+    def test_wrong_family_binding_incompatible(self):
+        # rust repo/key resolved but requested as a go family -> family/source mismatch
+        v = ex.verify_recipe_extractable(R.SRC, "go", "uutils/coreutils", "6731")
+        self.assertFalse(v["extractable"])
 
 
 class TestResolver(unittest.TestCase):

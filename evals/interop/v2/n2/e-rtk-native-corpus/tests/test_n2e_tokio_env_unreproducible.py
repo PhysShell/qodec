@@ -43,6 +43,20 @@ class TestTokioEnvUnreproducible(unittest.TestCase):
         self.assertEqual(entry["diagnostic_unlocked_lock_diff"]["removed_count"], 22)
         self.assertEqual(entry["n2e_failure_class"], "cargo_locked_resolution_refusal")
         self.assertEqual(entry["upstream_failure_class"], "cargo_locked_resolution_refusal")
+        # corrected lockfile terminology: NO false "byte-identical" claim; accurate predicates
+        pt = entry["precondition_truth"]
+        self.assertNotIn("publisher_lockfile_byte_identical", pt)
+        for k in ("fixture_source_equal_between_reproductions",
+                  "materialized_lock_equal_between_reproductions",
+                  "materialization_matches_publisher_transform",
+                  "publisher_lockfile_reproduced_faithfully"):
+            self.assertTrue(pt[k], k)
+        f = entry["publisher_lockfile_facts"]
+        self.assertEqual(f["fixture_bytes"], 43465)
+        self.assertEqual(f["materialized_bytes"], 43466)
+        self.assertFalse(f["fixture_equals_materialized"])
+        self.assertTrue(f["materialized_equals_fixture_plus_trailing_newline"])
+        self.assertTrue(f["n2e_materialized_equals_upstream_materialized"])
         # savings / ease / size / replacement availability never inform the decision
         for k in ("rtk_savings", "result_size", "execution_ease", "replacement_availability"):
             self.assertIn(k, entry["decision_inputs_excluded"])

@@ -280,13 +280,20 @@ def derive_tokio_environment_unreproducible() -> tuple[dict | None, list]:
                                                  and aeq.get("pre_install_byte_equal")),
         "exact_toolchain_installed": bool(eq.get("toolchain_equal")
                                           and aeq.get("docker_rust_version_equal")),
-        # fixture BLOB byte-identical both sides (6f7401a1); the sole materialized delta is the
-        # publisher recipe's OWN heredoc trailing newline, and the materialized lock is identical
-        # across N2-E and upstream -- i.e. the publisher lockfile input is reproduced faithfully.
-        "publisher_lockfile_byte_identical": bool(eq.get("fixture_source_equal")
-                                                  and aeq.get("fixture_sha256_equal")
-                                                  and rd.get("materialized_lock_equal")
-                                                  and nf.get("diff_is_solely_trailing_newline")),
+        # Accurately-named lockfile predicates (NOT a false "byte-identical" claim): the
+        # fixture blob is byte-identical between reproductions; the materialized lock is
+        # equal between reproductions; the materialization is exactly the publisher's own
+        # heredoc transform (fixture + one trailing newline); together the publisher
+        # lockfile input is reproduced faithfully even though fixture != materialized.
+        "fixture_source_equal_between_reproductions": bool(eq.get("fixture_source_equal")
+                                                           and aeq.get("fixture_sha256_equal")),
+        "materialized_lock_equal_between_reproductions": bool(rd.get("materialized_lock_equal")),
+        "materialization_matches_publisher_transform": bool(nf.get("diff_is_solely_trailing_newline")
+                                                            and nf.get("byte_length_delta") == 1
+                                                            and nf.get("materialized_extra_suffix") == "\n"),
+        "publisher_lockfile_reproduced_faithfully": bool(
+            eq.get("fixture_source_equal") and aeq.get("fixture_sha256_equal")
+            and rd.get("materialized_lock_equal") and nf.get("diff_is_solely_trailing_newline")),
         "acquisition_attempted_faithfully": bool(rd.get("both_exit_101")
                                                  and rd.get("both_non_timeout")),
         "reconstruction_failed_candidate_specific": bool(rd.get("both_locked_resolution_refusal")
@@ -334,6 +341,15 @@ def derive_tokio_environment_unreproducible() -> tuple[dict | None, list]:
         "materialized_lock_identity": {"n2e_sha256": nf.get("materialized_cargo_lock_sha256"),
                                        "upstream_sha256": uf.get("materialized_cargo_lock_sha256"),
                                        "bytes": nf.get("materialized_cargo_lock_bytes")},
+        "publisher_lockfile_facts": {
+            "fixture_bytes": nf.get("upstream_fixture_bytes"),
+            "materialized_bytes": nf.get("materialized_cargo_lock_bytes"),
+            "fixture_equals_materialized": bool(nf.get("byte_identical")),
+            "materialized_equals_fixture_plus_trailing_newline":
+                bool(nf.get("diff_is_solely_trailing_newline")),
+            "n2e_materialized_equals_upstream_materialized": bool(rd.get("materialized_lock_equal")),
+            "fixture_sha256": nf.get("upstream_fixture_sha256"),
+            "materialized_extra_suffix": nf.get("materialized_extra_suffix")},
         "diagnostic_unlocked_lock_diff": {
             "keyed_by": sld.get("keyed_by"), "removed_count": sld.get("removed_count"),
             "added_count": sld.get("added_count"), "tuples_removed": sld.get("tuples_removed"),

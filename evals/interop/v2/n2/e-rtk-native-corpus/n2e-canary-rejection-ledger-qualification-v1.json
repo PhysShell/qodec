@@ -18,7 +18,7 @@
   "publisher_registry_sha256": "sha256:8cdf9ca1cf9434f0210b144b22946065037fb485e36040eab580c256da324d96",
   "purpose": "Typed terminal rejections re-derived FAIL-CLOSED + INDEPENDENTLY from primary per-rep stream evidence (never from producer status/oracle summaries).",
   "raw_oracle_policy_id": "n2e-raw-strict-target-oracle-v1",
-  "record_sha256": "sha256:e4077bbbdcf73624ab822deac3e7cbf4769c8b26a52f3cdeef215fab908f44ef",
+  "record_sha256": "sha256:a9cd73b51b764124ae20f4f09ac899c0d19158fa357ebc46b27da44f926ed684",
   "record_type": "n2e-canary-rejection-ledger-qualification",
   "record_version": "v1",
   "run_id": "29639827628",
@@ -248,8 +248,11 @@
         "acquisition_attempted_faithfully": true,
         "all_referenced_artifacts_pinned": true,
         "exact_toolchain_installed": true,
+        "fixture_source_equal_between_reproductions": true,
         "instance_recipe_applicability_proven": true,
-        "publisher_lockfile_byte_identical": true,
+        "materialization_matches_publisher_transform": true,
+        "materialized_lock_equal_between_reproductions": true,
+        "publisher_lockfile_reproduced_faithfully": true,
         "publisher_recipe_revision_pinned": true,
         "reconstruction_failed_candidate_specific": true,
         "upstream_source_checkout_reproduced_identically": true
@@ -261,6 +264,15 @@
         "run_id": "29639827628",
         "trigger_head_sha": "536a1a3e6179e8c1a80da1301177c0e965ba9606",
         "workflow": "qodec-n2e-tokio-probe"
+      },
+      "publisher_lockfile_facts": {
+        "fixture_bytes": 43465,
+        "fixture_equals_materialized": false,
+        "fixture_sha256": "6f7401a1c6c2690bc5b48d54b1be4a87a443252febe89ccc74ac4e9e65f38dba",
+        "materialized_bytes": 43466,
+        "materialized_equals_fixture_plus_trailing_newline": true,
+        "materialized_extra_suffix": "\n",
+        "n2e_materialized_equals_upstream_materialized": true
       },
       "publisher_registry_sha256": "sha256:8cdf9ca1cf9434f0210b144b22946065037fb485e36040eab580c256da324d96",
       "reason": "The exact publisher environment and the exact upstream source-checkout reproduction both reject the publisher-provided materialized Cargo.lock under the publisher's own --locked install command. An unlocked diagnostic resolution removes 22 stale/unselected package tuples. The candidate cannot be faithfully acquired under its pinned publisher recipe.",

@@ -141,10 +141,18 @@ PRECONDITIONS = {
     ],
     # The bar is INSTANCE-LEVEL recipe applicability + faithful reproduction, NOT a
     # global harness<->dataset revision cross-pin (that precedence was a VERIFIER_DEFECT).
+    # The publisher-lockfile predicate is decomposed into accurately-named parts: the
+    # fixture blob is byte-identical between reproductions, the materialized lock is equal
+    # between reproductions, and the materialization matches the publisher's own heredoc
+    # transform (fixture + trailing newline) -- NOT a false "byte-identical" claim.
     DISQUALIFIED_ENVIRONMENT_UNREPRODUCIBLE: [
         "instance_recipe_applicability_proven",   # pinned harness maps (repo,version)->this exact recipe
         "publisher_recipe_revision_pinned", "all_referenced_artifacts_pinned",
-        "exact_toolchain_installed", "publisher_lockfile_byte_identical",
+        "exact_toolchain_installed",
+        "fixture_source_equal_between_reproductions",
+        "materialized_lock_equal_between_reproductions",
+        "materialization_matches_publisher_transform",
+        "publisher_lockfile_reproduced_faithfully",
         "acquisition_attempted_faithfully", "reconstruction_failed_candidate_specific",
         "upstream_source_checkout_reproduced_identically",  # upstream == N2-E, same refusal
     ],
