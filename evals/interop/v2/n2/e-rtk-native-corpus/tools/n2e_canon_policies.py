@@ -103,7 +103,16 @@ _POLICIES: dict[str, object] = {
     "identity-v1": [],
     # cargo test: "test result: ok. 5 passed; 0 failed; ... finished in 0.12s"
     #             "   Running unittests src/lib.rs (target/debug/deps/...-<hash>)"
+    # A measurement rep that must COMPILE the (patched) crate emits cargo build-status
+    # lines ("   Compiling <crate> vX", "    Finished ... in Xs", ...) whose ORDER is
+    # nondeterministic under parallel compilation -- pure build progress, NOT test
+    # semantics. Strip those whole lines (tool-level noise, identical for RAW and the RTK
+    # wrapper) so the canonical stream is the deterministic test-result section; keep
+    # every `test <id> ... ok/FAILED`, `running N tests`, and `test result:` line.
     "cargo-test-v1": [
+        (re.compile(rb"^[ ]{1,11}(?:Compiling|Finished|Downloading|Downloaded|Updating|"
+                    rb"Blocking|Locking|Building|Fresh|Documenting|Installing|Removing|"
+                    rb"Waiting|Checking)\b.*\n", re.MULTILINE), b""),
         (re.compile(rb"finished in \d+\.\d+s"), b"finished in <dur>"),
         (re.compile(rb"\(target/[^)]*-[0-9a-f]{8,}\)"), b"(target/<artifact>)"),
     ],
