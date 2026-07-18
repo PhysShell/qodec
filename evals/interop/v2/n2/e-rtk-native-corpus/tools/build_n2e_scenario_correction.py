@@ -37,16 +37,19 @@ def build() -> dict:
         cid = r["case_id"]
         scen = scen_by_id[cid]
         original = list(scen.get("original_argv") or [])
-        corrected = pub.parse_command(r["test_cmd"][0])
+        publisher_argv = pub.parse_command(r["test_cmd"][0])
         rr = resolver.resolve(scen)
-        assert rr["effective_raw_argv"] == corrected, cid
+        corrected = rr["effective_raw_argv"]  # publisher argv + any execution-control
+        assert corrected[:len(publisher_argv)] == publisher_argv, cid
         corrections.append({
             "case_id": cid,
             "typed_defect": DEFECT,
             "original_incorrect_argv": original,
+            "publisher_test_argv": publisher_argv,
             "corrected_effective_argv": corrected,
-            "corrected_effective_rtk_argv": ["rtk", *corrected],
-            "is_wrong_workload": original != corrected,
+            "corrected_effective_rtk_argv": rr["effective_rtk_argv"],
+            "execution_control": rr.get("execution_control"),
+            "is_wrong_workload": original != publisher_argv,
             "publisher_source_evidence": {
                 "harness": pub.load()["harness"],
                 "source_file": r["source"]["file"],

@@ -7,15 +7,25 @@
         "./gradlew",
         "test",
         "--tests",
-        "org.apache.lucene.search.TestLatLonDocValuesQueries"
+        "org.apache.lucene.search.TestLatLonDocValuesQueries",
+        "-Ptests.seed=965304069726D5D6"
       ],
       "corrected_effective_rtk_argv": [
         "rtk",
         "./gradlew",
         "test",
         "--tests",
-        "org.apache.lucene.search.TestLatLonDocValuesQueries"
+        "org.apache.lucene.search.TestLatLonDocValuesQueries",
+        "-Ptests.seed=965304069726D5D6"
       ],
+      "execution_control": {
+        "arg": "-Ptests.seed=965304069726D5D6",
+        "derivation": "sha256(lucene-randomized-seed-v1+selection_seed+case_id)[:16].upper()",
+        "flag": "-Ptests.seed",
+        "policy_id": "lucene-randomized-seed-v1",
+        "seed": "965304069726D5D6",
+        "selection_seed": "20260717"
+      },
       "is_wrong_workload": true,
       "original_incorrect_argv": [
         "mvn",
@@ -25,8 +35,10 @@
         "harness": {
           "commit": "f7bbbb2ccdf479001d6467c9e34af59e44a840f9",
           "constants_module": "swebench/harness/constants",
+          "git_bundle": "swebench-f7bbbb2.bundle",
           "repo": "SWE-bench/SWE-bench",
-          "source_dir": "fixtures/swebench-source"
+          "source_dir": "fixtures/swebench-source",
+          "upstream_prefix": "swebench/harness/constants"
         },
         "publisher_test_cmd": [
           "./gradlew test --tests org.apache.lucene.search.TestLatLonDocValuesQueries"
@@ -44,6 +56,12 @@
           "version": "21"
         }
       },
+      "publisher_test_argv": [
+        "./gradlew",
+        "test",
+        "--tests",
+        "org.apache.lucene.search.TestLatLonDocValuesQueries"
+      ],
       "typed_defect": "SCENARIO_INGESTION_WRONG_WORKLOAD"
     },
     {
@@ -65,6 +83,7 @@
         "-run",
         "TestUnsyncedConfigAccess"
       ],
+      "execution_control": null,
       "is_wrong_workload": true,
       "original_incorrect_argv": [
         "go",
@@ -75,8 +94,10 @@
         "harness": {
           "commit": "f7bbbb2ccdf479001d6467c9e34af59e44a840f9",
           "constants_module": "swebench/harness/constants",
+          "git_bundle": "swebench-f7bbbb2.bundle",
           "repo": "SWE-bench/SWE-bench",
-          "source_dir": "fixtures/swebench-source"
+          "source_dir": "fixtures/swebench-source",
+          "upstream_prefix": "swebench/harness/constants"
         },
         "publisher_test_cmd": [
           "go test -v . -run \"TestUnsyncedConfigAccess\""
@@ -93,6 +114,14 @@
           "version": "1.23.8"
         }
       },
+      "publisher_test_argv": [
+        "go",
+        "test",
+        "-v",
+        ".",
+        "-run",
+        "TestUnsyncedConfigAccess"
+      ],
       "typed_defect": "SCENARIO_INGESTION_WRONG_WORKLOAD"
     },
     {
@@ -120,6 +149,7 @@
         "full",
         "--no-fail-fast"
       ],
+      "execution_control": null,
       "is_wrong_workload": true,
       "original_incorrect_argv": [
         "cargo",
@@ -129,8 +159,10 @@
         "harness": {
           "commit": "f7bbbb2ccdf479001d6467c9e34af59e44a840f9",
           "constants_module": "swebench/harness/constants",
+          "git_bundle": "swebench-f7bbbb2.bundle",
           "repo": "SWE-bench/SWE-bench",
-          "source_dir": "fixtures/swebench-source"
+          "source_dir": "fixtures/swebench-source",
+          "upstream_prefix": "swebench/harness/constants"
         },
         "publisher_test_cmd": [
           "RUSTFLAGS=-Awarnings cargo test --package tokio --test net_types_unwind --features full --no-fail-fast"
@@ -147,6 +179,17 @@
           "version": "1.83"
         }
       },
+      "publisher_test_argv": [
+        "cargo",
+        "test",
+        "--package",
+        "tokio",
+        "--test",
+        "net_types_unwind",
+        "--features",
+        "full",
+        "--no-fail-fast"
+      ],
       "typed_defect": "SCENARIO_INGESTION_WRONG_WORKLOAD"
     },
     {
@@ -168,6 +211,7 @@
         "--no-watch",
         "--reporter=verbose"
       ],
+      "execution_control": null,
       "is_wrong_workload": true,
       "original_incorrect_argv": [
         "npm",
@@ -177,8 +221,10 @@
         "harness": {
           "commit": "f7bbbb2ccdf479001d6467c9e34af59e44a840f9",
           "constants_module": "swebench/harness/constants",
+          "git_bundle": "swebench-f7bbbb2.bundle",
           "repo": "SWE-bench/SWE-bench",
-          "source_dir": "fixtures/swebench-source"
+          "source_dir": "fixtures/swebench-source",
+          "upstream_prefix": "swebench/harness/constants"
         },
         "publisher_test_cmd": [
           "pnpm run test packages/runtime-core/__tests__/apiWatch.spec.ts --no-watch --reporter=verbose"
@@ -197,6 +243,14 @@
           "version": "20"
         }
       },
+      "publisher_test_argv": [
+        "pnpm",
+        "run",
+        "test",
+        "packages/runtime-core/__tests__/apiWatch.spec.ts",
+        "--no-watch",
+        "--reporter=verbose"
+      ],
       "typed_defect": "SCENARIO_INGESTION_WRONG_WORKLOAD"
     }
   ],
@@ -204,12 +258,12 @@
   "mission": "N2-E",
   "mission_title": "external RTK-native claim-aligned command corpus",
   "original_scenarios_sha256": "sha256:69f51947bdca6ae8c880b87e02cb43e7f24a2e435d465142e80b3f50fbdbd0e1",
-  "publisher_registry_sha256": "sha256:f2214c37bc282b1027557fe40d33b68042c4207b7a00f55422270cee565f506d",
+  "publisher_registry_sha256": "sha256:8cdf9ca1cf9434f0210b144b22946065037fb485e36040eab580c256da324d96",
   "purpose": "Immutable Phase-A scenario-ingestion supersession: corrects the generic ingested command to the publisher-scoped test command for the SWE-bench test cases. The original scenarios record stays immutable; this is the normative correction.",
-  "record_sha256": "sha256:c07beb3c6f13434353f0a6e700e7e41e9a51e06b7b0d802fd54f127accd343c2",
+  "record_sha256": "sha256:267f2cd3781f4857043b8c50893e1ac4e822926bccc573d0ce54c0e2883043f6",
   "record_type": "n2e-scenario-correction",
   "record_version": "v1",
   "schema_version": "n2e-record-1",
-  "superseding_execution_contract_sha256": "sha256:1e80f41afb808ba34fd58192fa1b72a3863f294019011944e72820cb184b4b37",
+  "superseding_execution_contract_sha256": "sha256:9eb390dbea2e7895ded694b6605f66ee045e099a0b06a26fccbe41191930bfd1",
   "typed_defect": "SCENARIO_INGESTION_WRONG_WORKLOAD"
 }

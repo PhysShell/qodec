@@ -199,12 +199,16 @@ jobs:
           hash -r
           node --version | grep -q "$(getf "['node']['expected_version_contains']")"
           corepack enable   # no '|| true' -- a corepack failure must fail the job
-          # --- JDK 21 (lucene) ---
-          if [ -n "${JAVA_HOME_21_X64:-}" ]; then
-            echo "JAVA_HOME=$JAVA_HOME_21_X64" >> "$GITHUB_ENV"
-            echo "$JAVA_HOME_21_X64/bin" >> "$GITHUB_PATH"
-            "$JAVA_HOME_21_X64/bin/java" -version 2>&1 | grep -q "$(getf "['java']['expected_version_contains']")"
-          fi
+          corepack prepare "pnpm@$(getf "['node']['pnpm']['release']")" --activate  # pin exact pnpm
+          pnpm --version | grep -q "$(getf "['node']['pnpm']['release']")"
+          # --- JDK: install the EXACT locked Eclipse Temurin artifact (not the runner JDK) ---
+          JDK_URL="$(getf "['java']['artifact']['url']")"; JDK_SHA="$(getf "['java']['artifact']['sha256']")"
+          curl -fsSL "$JDK_URL" -o /tmp/jdk.tgz
+          echo "$JDK_SHA  /tmp/jdk.tgz" | sha256sum -c -
+          sudo mkdir -p /opt/n2e-jdk && sudo tar -C /opt/n2e-jdk --strip-components=1 -xzf /tmp/jdk.tgz
+          echo "JAVA_HOME=/opt/n2e-jdk" >> "$GITHUB_ENV"
+          echo "/opt/n2e-jdk/bin" >> "$GITHUB_PATH"
+          /opt/n2e-jdk/bin/java -version 2>&1 | grep -q "$(getf "['java']['release_name']" | sed 's/jdk-//')"
       - name: Run canary case (RAW gate -> RTK -> oracle)
         run: |
           cd "$N2E"

@@ -68,8 +68,16 @@ def verify(evidence_dir: Path) -> tuple[bool, str]:
     if rederived != aggregate.get("verdicts"):
         return False, "re-derived verdicts disagree with the aggregate"
     want_pass = all(v == "PASS" for v in rederived.values()) and got == expected
-    if bool(aggregate.get("canary_pass")) != want_pass:
-        return False, "aggregate canary_pass disagrees with re-derived verdicts"
+    if bool(aggregate.get("all_twelve_pass")) != want_pass:
+        return False, "aggregate all_twelve_pass disagrees with re-derived verdicts"
+    # acceptance-eligibility gate (directive item 1/8): original_canary_pass may be
+    # true ONLY on a canonical run (COMPLETE toolchain lock). A HARVEST run must never
+    # assert it, even at 12/12.
+    eligible = bool(aggregate.get("acceptance_eligible"))
+    if bool(aggregate.get("original_canary_pass")) != (want_pass and eligible):
+        return False, "original_canary_pass must equal all_twelve_pass AND acceptance_eligible"
+    if aggregate.get("run_class") == "CANONICAL" and not eligible:
+        return False, "CANONICAL run_class with acceptance_eligible=false"
 
     # 5-6. run/implementation identity present + internally consistent
     if not want_pass:

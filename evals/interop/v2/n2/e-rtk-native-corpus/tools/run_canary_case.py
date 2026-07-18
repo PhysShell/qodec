@@ -43,6 +43,7 @@ import n2e_oracles as ora  # noqa: E402
 import n2e_canon_policies as canon  # noqa: E402
 import n2e_argv_resolver as resolver  # noqa: E402
 import n2e_publisher_registry as pub  # noqa: E402
+import n2e_execution_control as xctl  # noqa: E402
 
 SCEN = N2E_DIR / "n2e-command-scenarios-v1.json"
 CANARY = N2E_DIR / "n2e-canary-membership-v1.json"
@@ -129,6 +130,7 @@ def _toolchain_identity(fam: str, repo_dir: Path, venv_bin: str | None = None,
         tc["java"] = _tool_identity("java")
         gw = repo_dir / "gradlew"
         props = repo_dir / "gradle" / "wrapper" / "gradle-wrapper.properties"
+        jar = repo_dir / "gradle" / "wrapper" / "gradle-wrapper.jar"
         if gw.exists():
             dist = None
             if props.exists():
@@ -137,7 +139,8 @@ def _toolchain_identity(fam: str, repo_dir: Path, venv_bin: str | None = None,
                         dist = ln.split("=", 1)[1].strip()
             tc["gradlew_or_mvn"] = {"present": True, "path": str(gw), "sha256": c.sha256_file(str(gw)),
                                     "version": dist or "gradle-wrapper", "kind": "gradle-wrapper",
-                                    "wrapper_properties_sha256": c.sha256_file(str(props)) if props.exists() else None}
+                                    "wrapper_properties_sha256": c.sha256_file(str(props)) if props.exists() else None,
+                                    "wrapper_jar_sha256": c.sha256_file(str(jar)) if jar.is_file() else None}
         else:
             tc["gradlew_or_mvn"] = _tool_identity("mvn")
     return tc
@@ -780,6 +783,33 @@ def _publisher_lang_env(fam: str, home: Path, toolchain: dict) -> tuple[dict, di
     return warm, off
 
 
+def _gradle_test_proof(text: str, test_class: str) -> dict:
+    """Prove a Gradle run actually EXECUTED the declared target test (item 6): the
+    test task must have run (not UP-TO-DATE / FROM-CACHE / NO-SOURCE), the class must
+    be discovered, and any non-zero must come from the test outcome -- not a Gradle
+    start / JDK / dependency-resolution failure."""
+    t = text or ""
+    task_ran = ":test" in t or "> Task :" in t
+    short = test_class.rsplit(".", 1)[-1]
+    discovered = (test_class in t) or (short in t)
+    skipped = any(m in t for m in (":test UP-TO-DATE", ":test FROM-CACHE", ":test NO-SOURCE",
+                                   ":test SKIPPED"))
+    gradle_started = ("Welcome to Gradle" in t) or ("> Task" in t) or ("BUILD " in t)
+    # a start/JDK/dependency failure is a harness defect, NOT an acceptable prime
+    infra_fail = any(m in t for m in ("Could not determine java version",
+                                      "Unable to locate a Java Runtime", "command not found",
+                                      "Could not resolve all files", "Could not download",
+                                      "Plugin [id:", "Could not create service"))
+    test_outcome_seen = any(m in t for m in ("There were failing tests", "tests completed",
+                                             "BUILD SUCCESSFUL", "BUILD FAILED", "Tests failed:"))
+    return {"gradle_started": gradle_started, "target_task_executed": task_ran and not skipped,
+            "test_class_discovered": discovered, "skipped_markers": skipped,
+            "infra_failure": infra_fail, "test_outcome_seen": test_outcome_seen,
+            "target_test_class": test_class,
+            "executed_ok": bool(gradle_started and task_ran and not skipped and discovered
+                                and not infra_fail and test_outcome_seen)}
+
+
 def _publisher_warm(recipe: dict, fam: str, sub: str, scen, repo_dir: Path, home: Path):
     """Acquire a SWE-bench case under its EXACT publisher recipe (source-derived):
     run the publisher pre-install shell (materializes the per-instance lockfile via
@@ -822,26 +852,43 @@ def _publisher_warm(recipe: dict, fam: str, sub: str, scen, repo_dir: Path, home
         wenv, wargv = pub.split_env(cmd)
         run(wargv, extra_env=wenv, kind="install")
     test_env, test_argv = pub.split_env(recipe["test_cmd"][0])
+    # execution-control seed (lucene-randomized-seed-v1): appended to BOTH arms + the
+    # warm prime, so the fixed seed the reps use is exactly what was cache-primed.
+    seed_pol = xctl.policy_for_case(scen["case_id"])
+    seed_extra = [seed_pol["arg"]] if seed_pol else []
+    test_argv = [*test_argv, *seed_extra]
+    if seed_pol:
+        warm["execution_control"] = seed_pol
     if not recipe.get("install"):
         # no publisher install step (e.g. lucene): prime caches + compile by running
         # the exact test command ONCE online. Its RESULT is not measured -- see the
         # jvm cleanup below which forces the measured reps to actually re-execute.
         run(test_argv, extra_env=test_env, kind="warm_prime")
+    jvm_prime_proof = None
     if fam == "jvm":
-        # correction: warm must not let the 3 measured reps skip the target test as
-        # UP-TO-DATE/FROM-CACHE. Delete the project-local gradle task history + test
-        # outputs (build/test-results, build/reports) while KEEPING the home-local
-        # dependency cache (GRADLE_USER_HOME), so each rep re-runs the test offline.
+        # item 6: prove the warm prime actually EXECUTED the declared target test (a
+        # start/JDK/dependency failure is a harness defect, not an acceptable prime).
+        test_class = next((a for a in test_argv if "." in a and "/" not in a
+                           and a == test_argv[test_argv.index("--tests") + 1]), None) \
+            if "--tests" in test_argv else None
+        prime = next((s for s in warm["steps"] if s.get("kind") == "warm_prime"), None)
+        if prime and test_class:
+            jvm_prime_proof = _gradle_test_proof(prime.get("tail", ""), test_class)
+            warm["jvm_prime_proof"] = jvm_prime_proof
+        # then delete the project-local gradle task history + test outputs so each of
+        # the 3 measured reps re-runs the target test offline (KEEP the home-local
+        # dependency cache in GRADLE_USER_HOME).
         for rel in (".gradle", "build/test-results", "build/reports"):
             shutil.rmtree(repo_dir / rel, ignore_errors=True)
         warm["jvm_rerun_cleanup"] = [".gradle", "build/test-results", "build/reports"]
     # warm success = pre-install + dependency population succeeded. A `warm_prime`
-    # step RUNS the target test only to populate caches/compile; for a ::buggy
-    # variant that test legitimately exits non-zero (that IS the bug), so its exit is
-    # informational -- never a warm failure. A prime TIMEOUT is still a failure.
-    warm["ok"] = all(s.get("exit") == 0 for s in warm["steps"]
-                     if s.get("kind") != "warm_prime") and not any(
-                         s.get("timed_out") for s in warm["steps"])
+    # step RUNS the target test only to populate caches/compile; for a ::buggy variant
+    # that test legitimately exits non-zero (that IS the bug), so its exit is
+    # informational -- BUT (item 6) the prime must have actually executed the target
+    # test, not died before it. A prime TIMEOUT is still a failure.
+    warm["ok"] = (all(s.get("exit") == 0 for s in warm["steps"] if s.get("kind") != "warm_prime")
+                  and not any(s.get("timed_out") for s in warm["steps"])
+                  and (jvm_prime_proof is None or jvm_prime_proof["executed_ok"]))
 
     policy = canon.policy_for(fam, sub, jvm_build=("gradle" if fam == "jvm" else None),
                               case_id=scen["case_id"])

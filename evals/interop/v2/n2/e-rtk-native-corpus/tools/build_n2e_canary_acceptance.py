@@ -118,17 +118,36 @@ def build(case_dir: Path, args) -> dict:
                 and len(got) == len(expected)
                 and all(v == "PASS" for v in verdicts.values()))
 
+    # acceptance eligibility gate (directive item 1/8): a canonical acceptance run
+    # requires a COMPLETE toolchain lock. While the lock is HARVEST, the run is a
+    # TOOLCHAIN_IDENTITY_HARVEST diagnostic -- it can never set original_canary_pass,
+    # even if all twelve case jobs pass.
+    lock = c.load_record(N2E_DIR / "n2e-toolchain-lock-v1.json")
+    lock_state = lock.get("lock_state")
+    acceptance_eligible = lock_state == "COMPLETE"
+    harvest_reason = None if acceptance_eligible else "INCOMPLETE_TOOLCHAIN_LOCK"
     return c.envelope(
         record_type="n2e-canary-acceptance",
         generated_by="evals/interop/v2/n2/e-rtk-native-corpus/tools/build_n2e_canary_acceptance.py",
         purpose="Fail-closed 12-case canary acceptance; verdicts re-derived from primitive per-case evidence (§7/§19).",
         run_id=args.run_id, implementation_sha=args.impl_sha, trigger_sha=args.trigger_sha,
+        run_class=("CANONICAL" if acceptance_eligible else "TOOLCHAIN_IDENTITY_HARVEST"),
+        acceptance_eligible=acceptance_eligible, ineligible_reason=harvest_reason,
+        toolchain_lock_state=lock_state,
+        toolchain_lock_sha256=c.sha256_json_file(N2E_DIR / "n2e-toolchain-lock-v1.json"),
+        scenario_correction_sha256=c.sha256_json_file(N2E_DIR / "n2e-scenario-correction-v1.json"),
+        execution_contract_sha256=c.sha256_json_file(N2E_DIR / "n2e-canary-execution-contract-v1.json"),
+        publisher_registry_sha256=c.sha256_json_file(N2E_DIR / "n2e-publisher-env-registry-v1.json"),
         job_manifest_sha256=c.sha256_file(args.job_manifest) if args.job_manifest else None,
         artifact_manifest_sha256=c.sha256_file(args.artifact_manifest) if args.artifact_manifest else None,
         canary_membership_sha256=c.sha256_json_file(CANARY),
         expected_case_count=len(expected), observed_case_count=len(cases),
         missing_cases=missing, extra_cases=extra,
-        verdicts=verdicts, canary_pass=all_pass,
+        verdicts=verdicts, all_twelve_pass=all_pass,
+        # ONLY a canonical (COMPLETE-lock) run may assert original_canary_pass.
+        original_canary_pass=(all_pass and acceptance_eligible),
+        original_classification_complete=(len(missing) == 0 and acceptance_eligible),
+        resolved_membership_required=False,
         zero_or_negative_saving_cases=[r["case_id"] for r in rows
                                        if r["savings_pct"] is not None and r["savings_pct"] <= 0],
         table=rows,
@@ -137,7 +156,11 @@ def build(case_dir: Path, args) -> dict:
 
 def write_md(rec: dict) -> None:
     lines = [f"# N2-E 12-case canary results (run {rec.get('run_id') or 'local'})", "",
-             f"canary_pass: **{rec['canary_pass']}** | observed {rec['observed_case_count']}/{rec['expected_case_count']}"
+             f"run_class: **{rec.get('run_class')}** | acceptance_eligible: **{rec.get('acceptance_eligible')}**"
+             f"{(' (' + rec['ineligible_reason'] + ')') if rec.get('ineligible_reason') else ''} | "
+             f"toolchain_lock_state: {rec.get('toolchain_lock_state')}", "",
+             f"all_twelve_pass: **{rec['all_twelve_pass']}** | original_canary_pass: **{rec['original_canary_pass']}**"
+             f" | observed {rec['observed_case_count']}/{rec['expected_case_count']}"
              f" | impl `{rec.get('implementation_sha')}`", "",
              "| case | family/subfamily | producer | re-derived | RAW o200k | RTK o200k | savings | RAW det | RTK det | reasons |",
              "|---|---|---|---|---:|---:|---:|:-:|:-:|---|"]
@@ -163,7 +186,8 @@ def main() -> int:
     body = build(Path(args.case_dir), args)
     c.write_record(OUT, body)
     write_md(c.load_record(OUT))
-    print(f"wrote {OUT.name} canary_pass={body['canary_pass']} observed={body['observed_case_count']}/{body['expected_case_count']}")
+    print(f"wrote {OUT.name} run_class={body['run_class']} acceptance_eligible={body['acceptance_eligible']} "
+          f"all_twelve_pass={body['all_twelve_pass']} original_canary_pass={body['original_canary_pass']}")
     return 0
 
 

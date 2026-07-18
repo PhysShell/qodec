@@ -93,6 +93,7 @@ def build_contract(scen, cid) -> dict:
         "runtime_resolved": r["runtime_resolved"],
         "effective_raw_argv": r["effective_raw_argv"],  # None when runtime_resolved
         "effective_rtk_argv": r["effective_rtk_argv"],
+        "execution_control": r.get("execution_control"),  # e.g. lucene-randomized-seed-v1
         "scheduler_env": r["scheduler_env"],
         "scheduler_flags": r.get("scheduler_flags"),
         "canonicalization_policy_id": _canon_policy_id(scen, cid),

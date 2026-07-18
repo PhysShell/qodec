@@ -24,15 +24,25 @@
         "./gradlew",
         "test",
         "--tests",
-        "org.apache.lucene.search.TestLatLonDocValuesQueries"
+        "org.apache.lucene.search.TestLatLonDocValuesQueries",
+        "-Ptests.seed=965304069726D5D6"
       ],
       "effective_rtk_argv": [
         "rtk",
         "./gradlew",
         "test",
         "--tests",
-        "org.apache.lucene.search.TestLatLonDocValuesQueries"
+        "org.apache.lucene.search.TestLatLonDocValuesQueries",
+        "-Ptests.seed=965304069726D5D6"
       ],
+      "execution_control": {
+        "arg": "-Ptests.seed=965304069726D5D6",
+        "derivation": "sha256(lucene-randomized-seed-v1+selection_seed+case_id)[:16].upper()",
+        "flag": "-Ptests.seed",
+        "policy_id": "lucene-randomized-seed-v1",
+        "seed": "965304069726D5D6",
+        "selection_seed": "20260717"
+      },
       "frozen_rtk_resolution_rule": null,
       "isolation_method": "network-denied-netns(lo-up); positive denial probe",
       "mutation_guard": "before/after SHA-256 equality across acquisition + every measurement arm; any change is a typed harness rejection even on success exit",
@@ -93,6 +103,7 @@
         "pytest",
         "tests/test_mail.py"
       ],
+      "execution_control": null,
       "frozen_rtk_resolution_rule": null,
       "isolation_method": "network-denied-netns(lo-up); positive denial probe",
       "mutation_guard": "before/after SHA-256 equality across acquisition + every measurement arm; any change is a typed harness rejection even on success exit",
@@ -161,6 +172,7 @@
         "-run",
         "TestUnsyncedConfigAccess"
       ],
+      "execution_control": null,
       "frozen_rtk_resolution_rule": null,
       "isolation_method": "network-denied-netns(lo-up); positive denial probe",
       "mutation_guard": "before/after SHA-256 equality across acquisition + every measurement arm; any change is a typed harness rejection even on success exit",
@@ -216,6 +228,7 @@
         "docker",
         "images"
       ],
+      "execution_control": null,
       "frozen_rtk_resolution_rule": null,
       "isolation_method": "host_side_docker_observation",
       "mutation_guard": "before/after SHA-256 equality across acquisition + every measurement arm; any change is a typed harness rejection even on success exit",
@@ -266,6 +279,7 @@
         "vet",
         "./..."
       ],
+      "execution_control": null,
       "frozen_rtk_resolution_rule": null,
       "isolation_method": "network-denied-netns(lo-up); positive denial probe",
       "mutation_guard": "before/after SHA-256 equality across acquisition + every measurement arm; any change is a typed harness rejection even on success exit",
@@ -321,6 +335,7 @@
         "log",
         "HDFS.log"
       ],
+      "execution_control": null,
       "frozen_rtk_resolution_rule": null,
       "isolation_method": "network-denied-netns(lo-up); positive denial probe",
       "mutation_guard": "before/after SHA-256 equality across acquisition + every measurement arm; any change is a typed harness rejection even on success exit",
@@ -370,6 +385,7 @@
         "-m",
         "n2e"
       ],
+      "execution_control": null,
       "frozen_rtk_resolution_rule": null,
       "isolation_method": "network-denied-netns(lo-up); positive denial probe",
       "mutation_guard": "before/after SHA-256 equality across acquisition + every measurement arm; any change is a typed harness rejection even on success exit",
@@ -419,6 +435,7 @@
         "read",
         "README.md"
       ],
+      "execution_control": null,
       "frozen_rtk_resolution_rule": null,
       "isolation_method": "network-denied-netns(lo-up); positive denial probe",
       "mutation_guard": "before/after SHA-256 equality across acquisition + every measurement arm; any change is a typed harness rejection even on success exit",
@@ -464,6 +481,7 @@
         "read",
         "README.md"
       ],
+      "execution_control": null,
       "frozen_rtk_resolution_rule": null,
       "isolation_method": "network-denied-netns(lo-up); positive denial probe",
       "mutation_guard": "before/after SHA-256 equality across acquisition + every measurement arm; any change is a typed harness rejection even on success exit",
@@ -509,6 +527,7 @@
         "git",
         "show"
       ],
+      "execution_control": null,
       "frozen_rtk_resolution_rule": null,
       "isolation_method": "network-denied-netns(lo-up); positive denial probe",
       "mutation_guard": "before/after SHA-256 equality across acquisition + every measurement arm; any change is a typed harness rejection even on success exit",
@@ -571,6 +590,7 @@
         "full",
         "--no-fail-fast"
       ],
+      "execution_control": null,
       "frozen_rtk_resolution_rule": null,
       "isolation_method": "network-denied-netns(lo-up); positive denial probe",
       "mutation_guard": "before/after SHA-256 equality across acquisition + every measurement arm; any change is a typed harness rejection even on success exit",
@@ -641,6 +661,7 @@
         "--no-watch",
         "--reporter=verbose"
       ],
+      "execution_control": null,
       "frozen_rtk_resolution_rule": "acquisition:test_runner_from_package_json -> rtk jest|vitest",
       "isolation_method": "network-denied-netns(lo-up); positive denial probe",
       "mutation_guard": "before/after SHA-256 equality across acquisition + every measurement arm; any change is a typed harness rejection even on success exit",
@@ -677,7 +698,7 @@
   "mission": "N2-E",
   "mission_title": "external RTK-native claim-aligned command corpus",
   "purpose": "Immutable per-case effective-execution contract; normative source for argv/canon/oracle resolution, toolchain+dependency identity references, and mutation guards (correction #3).",
-  "record_sha256": "sha256:1e9825ef0c5980c29ca9cd0a2877050094bf8c7c5027e24865e84e93253f482a",
+  "record_sha256": "sha256:57ed179dcf0e8a41f86f5a660413513c79d12eedd1f03ec6d2b030187ca5d96c",
   "record_type": "n2e-canary-execution-contract",
   "record_version": "v1",
   "schema_version": "n2e-record-1"

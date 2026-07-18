@@ -7,8 +7,10 @@
   "harness": {
     "commit": "f7bbbb2ccdf479001d6467c9e34af59e44a840f9",
     "constants_module": "swebench/harness/constants",
+    "git_bundle": "swebench-f7bbbb2.bundle",
     "repo": "SWE-bench/SWE-bench",
-    "source_dir": "fixtures/swebench-source"
+    "source_dir": "fixtures/swebench-source",
+    "upstream_prefix": "swebench/harness/constants"
   },
   "mission": "N2-E",
   "mission_title": "external RTK-native claim-aligned command corpus",
@@ -194,7 +196,7 @@
       }
     }
   ],
-  "record_sha256": "sha256:9600d7b2ede4cca837dd6be8171378f5deae926e2b497a2275b357178cbb126f",
+  "record_sha256": "sha256:3808433b2ad2f598a87080e76ef02ef294560ad90ce9da30483ec0cfac603f11",
   "record_type": "n2e-publisher-env-registry",
   "record_version": "v1",
   "schema_version": "n2e-record-1",
@@ -202,27 +204,37 @@
     "fixtures/tokio-rs__tokio-4384.Cargo.lock": {
       "bytes": 43465,
       "git_blob_sha1": "903110c1640b9c408631c89d642157b286bce642",
-      "sha256": "6f7401a1c6c2690bc5b48d54b1be4a87a443252febe89ccc74ac4e9e65f38dba"
+      "sha256": "6f7401a1c6c2690bc5b48d54b1be4a87a443252febe89ccc74ac4e9e65f38dba",
+      "upstream_path": "swebench/harness/constants/fixtures/tokio-rs__tokio-4384.Cargo.lock"
     },
     "go.py": {
       "bytes": 8975,
       "git_blob_sha1": "67e5e8ac31aa005c6516bc7b207bafc2f2fbe9a2",
-      "sha256": "fe81b00a47fd44f31ee3e3acd317fca49523ef96364ec6fb7c9d2832a2fc5305"
+      "sha256": "fe81b00a47fd44f31ee3e3acd317fca49523ef96364ec6fb7c9d2832a2fc5305",
+      "upstream_path": "swebench/harness/constants/go.py"
     },
     "java.py": {
       "bytes": 21464,
       "git_blob_sha1": "29a73dee8e538fa71fbda78ad34d9ff2977ee74d",
-      "sha256": "1d61ba16d37ed644fcaecff4707623c8dffd932c729c1a77b63811ee244eba1c"
+      "sha256": "1d61ba16d37ed644fcaecff4707623c8dffd932c729c1a77b63811ee244eba1c",
+      "upstream_path": "swebench/harness/constants/java.py"
     },
     "javascript.py": {
       "bytes": 19060,
       "git_blob_sha1": "714a27841daaa584529f50c2efc39d974d933f64",
-      "sha256": "d8c68d79e1e01854ce8cc70c45df88cd1153cf2f213949131553bf14ca9886f5"
+      "sha256": "d8c68d79e1e01854ce8cc70c45df88cd1153cf2f213949131553bf14ca9886f5",
+      "upstream_path": "swebench/harness/constants/javascript.py"
     },
     "rust.py": {
       "bytes": 15876,
       "git_blob_sha1": "068c7c2414edbcc14d42cca3bae96d27bdfb39f4",
-      "sha256": "1ad97f35f1202ef2a69c066b29d2edc5f552fd62db2230f38d2f7dd91a4a3da2"
+      "sha256": "1ad97f35f1202ef2a69c066b29d2edc5f552fd62db2230f38d2f7dd91a4a3da2",
+      "upstream_path": "swebench/harness/constants/rust.py"
+    },
+    "swebench-f7bbbb2.bundle": {
+      "bytes": 808926,
+      "git_blob_sha1": "d24984c6c5ed4e4aea7008677d3c85316e237b40",
+      "sha256": "337fe73d1f0aa706eca746dae0f363c6d45ec2dd2e7ec18a7d31f2f277021a3f"
     }
   }
 }

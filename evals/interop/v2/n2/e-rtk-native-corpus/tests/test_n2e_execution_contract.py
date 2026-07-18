@@ -36,8 +36,21 @@ class TestResolver(unittest.TestCase):
             r = resolver.resolve(SCEN[cid])
             self.assertEqual(r["resolution_rule"], "publisher_recipe", cid)
             self.assertFalse(r["runtime_resolved"], cid)
-            self.assertEqual(r["effective_raw_argv"], argv, cid)
-            self.assertEqual(r["effective_rtk_argv"], ["rtk", *argv], cid)
+            # publisher argv is the PREFIX; execution-control args (lucene seed) follow
+            self.assertEqual(r["effective_raw_argv"][:len(argv)], argv, cid)
+            self.assertEqual(r["effective_rtk_argv"][:len(argv) + 1], ["rtk", *argv], cid)
+
+    def test_lucene_carries_fixed_seed_execution_control(self):
+        import n2e_execution_control as xctl  # noqa: E402
+        cid = "apache__lucene-13704::jvm::test::buggy"
+        r = resolver.resolve(SCEN[cid])
+        self.assertEqual(r["execution_control"]["policy_id"], "lucene-randomized-seed-v1")
+        seed_arg = xctl.seed_arg(cid)
+        self.assertEqual(r["effective_raw_argv"][-1], seed_arg)
+        self.assertEqual(r["effective_rtk_argv"][-1], seed_arg)  # same seed both arms
+        self.assertRegex(seed_arg, r"^-Ptests\.seed=[0-9A-F]{16}$")
+        # non-seed cases carry no execution-control
+        self.assertIsNone(resolver.resolve(SCEN["caddyserver__caddy-5870::go::test::buggy"])["execution_control"])
 
     def test_rust_publisher_carries_toolchain_and_rustflags(self):
         r = resolver.resolve(SCEN["tokio-rs__tokio-4384::rust_cargo::test::fixed"])

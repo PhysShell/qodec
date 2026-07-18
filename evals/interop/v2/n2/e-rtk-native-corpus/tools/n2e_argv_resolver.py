@@ -30,6 +30,7 @@ from __future__ import annotations
 from pathlib import Path
 
 import n2e_publisher_registry as pub
+import n2e_execution_control as xctl
 
 RESOLVER_POLICY_ID = "n2e-argv-resolver-v1"
 
@@ -89,10 +90,15 @@ def resolve(scen: dict, repo_dir: Path | None = None) -> dict:
         assert recipe["command_family"] == fam and recipe["command_subfamily"] == sub
         assert recipe["snapshot_variant"] == scen.get("snapshot_variant")
         argv = pub.parse_command(recipe["test_cmd"][0])
+        # execution-control (e.g. lucene-randomized-seed-v1): a mechanically-derived
+        # fixed seed appended IDENTICALLY to both arms (no test-membership change).
+        seed_pol = xctl.policy_for_case(scen["case_id"])
+        seed = [seed_pol["arg"]] if seed_pol else []
         return {**base, "resolution_rule": "publisher_recipe",
                 "runtime_resolved": False, "publisher_recipe": recipe["source"]["spec_dict"],
                 "scheduler_env": _publisher_scheduler_env(recipe),
-                "effective_raw_argv": argv, "effective_rtk_argv": ["rtk", *argv]}
+                "execution_control": seed_pol,
+                "effective_raw_argv": [*argv, *seed], "effective_rtk_argv": ["rtk", *argv, *seed]}
 
     if fam == "js_ts" and sub == "test":
         rule = "test_runner_from_package_json+sequential_scheduler"

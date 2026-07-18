@@ -37,6 +37,42 @@ def _git_blob(p: Path) -> str:
     return subprocess.run(["git", "hash-object", str(p)], capture_output=True, text=True).stdout.strip()
 
 
+def _verify_commit_membership(rec) -> tuple[bool, str]:
+    """Item 4: prove each committed source file IS the exact blob at its path in the
+    pinned upstream commit, using the committed git bundle (offline, no network)."""
+    import tempfile
+    harness = rec["harness"]
+    commit = harness["commit"]
+    bundle = SRC / harness["git_bundle"]
+    if not bundle.is_file():
+        return False, f"git bundle missing: {harness['git_bundle']}"
+    with tempfile.TemporaryDirectory() as td:
+        env = {**__import__("os").environ, "GIT_TERMINAL_PROMPT": "0"}
+        run = lambda *a: subprocess.run(["git", "-C", td, *a], capture_output=True, text=True, env=env)
+        subprocess.run(["git", "init", "-q", td], check=True, env=env)
+        v = run("bundle", "verify", str(bundle))
+        if v.returncode != 0:
+            return False, f"git bundle verify failed: {v.stderr.strip()[:120]}"
+        # unbundle imports the objects without parent traversal (the bundle is a
+        # single-commit snapshot); the commit + its tree + blobs become addressable.
+        if run("bundle", "unbundle", str(bundle)).returncode != 0:
+            return False, "could not unbundle the pinned commit"
+        if run("cat-file", "-t", commit).stdout.strip() != "commit":
+            return False, f"pinned commit {commit[:10]} absent from bundle"
+        for rel, ent in rec["source_bundle"].items():
+            up = ent.get("upstream_path")
+            if not up:
+                continue
+            blob = run("rev-parse", f"{commit}:{up}").stdout.strip()
+            if blob != ent["git_blob_sha1"]:
+                return False, f"{up}: bundle blob {blob[:10]} != recorded {ent['git_blob_sha1'][:10]}"
+            show = subprocess.run(["git", "-C", td, "show", f"{commit}:{up}"],
+                                  capture_output=True, env=env)
+            if c.sha256_bytes(show.stdout) != ent["sha256"]:
+                return False, f"{up}: bundle bytes sha256 != recorded (committed file not the upstream blob)"
+    return True, f"commit {commit[:10]} membership proven for {len(rec['source_bundle'])-1} files"
+
+
 def verify() -> tuple[bool, str]:
     rec = c.load_record(REG)
     ok, msg = c.verify_self_hash(rec)
@@ -53,6 +89,10 @@ def verify() -> tuple[bool, str]:
             return False, f"source {rel} git blob id mismatch (source mutated)"
         if c.sha256_file(str(p)) != ident["sha256"]:
             return False, f"source {rel} sha256 mismatch"
+    # (3b) item 4: prove commit-tree membership via the committed git bundle
+    mok, mmsg = _verify_commit_membership(rec)
+    if not mok:
+        return False, f"commit membership: {mmsg}"
     scen_by_id = {s["case_id"]: s for s in c.load_record(SCEN)["scenarios"]}
     slot_by_id = {s["case_id"]: s["slot"] for s in c.load_record(SELECTION)["selection"]}
     for r in rec["recipes"]:
@@ -79,12 +119,14 @@ def verify() -> tuple[bool, str]:
         for field, (a, b) in checks.items():
             if a != b:
                 return False, f"{cid}: binding {field} disagrees ({a!r} != {b!r})"
-        # (6) resolver derives the publisher command for THIS case
+        # (6) resolver derives the publisher command for THIS case (the publisher
+        # argv is the PREFIX; any execution-control args are appended after it)
         rr = resolver.resolve(scen)
         if rr.get("resolution_rule") != "publisher_recipe":
             return False, f"{cid}: resolver did not select the publisher recipe"
-        if rr["effective_raw_argv"] != pub.parse_command(r["test_cmd"][0]):
-            return False, f"{cid}: resolver argv disagrees with registry test command"
+        pub_argv = pub.parse_command(r["test_cmd"][0])
+        if rr["effective_raw_argv"][:len(pub_argv)] != pub_argv:
+            return False, f"{cid}: resolver argv does not begin with the registry test command"
     return True, f"OK; {rec['recipe_count']} recipes re-extracted from source; harness@{rec['harness']['commit'][:10]}"
 
 

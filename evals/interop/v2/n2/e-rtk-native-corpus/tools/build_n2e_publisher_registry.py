@@ -39,7 +39,16 @@ HARNESS = {
     "commit": "f7bbbb2ccdf479001d6467c9e34af59e44a840f9",
     "constants_module": "swebench/harness/constants",
     "source_dir": "fixtures/swebench-source",
+    "upstream_prefix": "swebench/harness/constants",
+    # durable commit/path/blob proof: a minimal git bundle of the pinned commit,
+    # so the offline verifier can prove each committed source file IS the exact blob
+    # at that path in that upstream commit (not merely locally self-consistent).
+    "git_bundle": "swebench-f7bbbb2.bundle",
 }
+
+
+def _upstream_path(rel: str) -> str:
+    return f"{HARNESS['upstream_prefix']}/{rel}"
 DATASET = {"id": "SWE-bench/SWE-bench_Multilingual",
            "revision": "2b7aced941b4873e9cad3e76abbae93f481d1beb"}
 
@@ -68,10 +77,13 @@ def _toolchain(docker: dict) -> dict:
 def _source_bundle() -> dict:
     files = {}
     for f in sorted(SRC.rglob("*")):
-        if f.is_file():
+        if f.is_file() or f.name.endswith(".bundle"):
             rel = str(f.relative_to(SRC))
-            files[rel] = {"git_blob_sha1": _git_blob(f), "sha256": c.sha256_file(str(f)),
-                          "bytes": f.stat().st_size}
+            ent = {"git_blob_sha1": _git_blob(f), "sha256": c.sha256_file(str(f)),
+                   "bytes": f.stat().st_size}
+            if not rel.endswith(".bundle"):
+                ent["upstream_path"] = _upstream_path(rel)  # path at the pinned commit
+            files[rel] = ent
     return files
 
 

@@ -63,7 +63,7 @@ class TestAcceptance(unittest.TestCase):
 
     def test_all_pass(self):
         body = self._run([good_case(cid) for cid in CASE_IDS])
-        self.assertTrue(body["canary_pass"])
+        self.assertTrue(body["all_twelve_pass"])
         self.assertEqual(body["observed_case_count"], 12)
 
     def test_zero_and_negative_savings_do_not_fail(self):
@@ -71,7 +71,7 @@ class TestAcceptance(unittest.TestCase):
         cases[0] = good_case(CASE_IDS[0], savings=0.0)
         cases[1] = good_case(CASE_IDS[1], savings=-20.0)
         body = self._run(cases)
-        self.assertTrue(body["canary_pass"])
+        self.assertTrue(body["all_twelve_pass"])
         self.assertIn(CASE_IDS[0], body["zero_or_negative_saving_cases"])
 
     def test_producer_status_not_trusted(self):
@@ -83,7 +83,7 @@ class TestAcceptance(unittest.TestCase):
         c.finalize(bad)
         cases[0] = bad
         body = self._run(cases)
-        self.assertFalse(body["canary_pass"])
+        self.assertFalse(body["all_twelve_pass"])
         self.assertEqual(body["verdicts"][CASE_IDS[0]], "FAIL")
 
     def test_missing_rtk_arm_fails(self):
@@ -93,7 +93,7 @@ class TestAcceptance(unittest.TestCase):
         c.finalize(bad)
         cases[0] = bad
         body = self._run(cases)
-        self.assertFalse(body["canary_pass"])
+        self.assertFalse(body["all_twelve_pass"])
 
     def test_isolation_leak_fails(self):
         cases = [good_case(cid) for cid in CASE_IDS]
@@ -102,7 +102,7 @@ class TestAcceptance(unittest.TestCase):
         c.finalize(bad)
         cases[0] = bad
         body = self._run(cases)
-        self.assertFalse(body["canary_pass"])
+        self.assertFalse(body["all_twelve_pass"])
 
     def test_rtk_oracle_fail(self):
         cases = [good_case(cid) for cid in CASE_IDS]
@@ -111,7 +111,7 @@ class TestAcceptance(unittest.TestCase):
         c.finalize(bad)
         cases[0] = bad
         body = self._run(cases)
-        self.assertFalse(body["canary_pass"])
+        self.assertFalse(body["all_twelve_pass"])
 
     def test_raw_timeout_fails(self):
         """A RAW arm that timed out must FAIL even if the other primitives look ok."""
@@ -121,7 +121,7 @@ class TestAcceptance(unittest.TestCase):
         c.finalize(bad)
         cases[0] = bad
         body = self._run(cases)
-        self.assertFalse(body["canary_pass"])
+        self.assertFalse(body["all_twelve_pass"])
         self.assertEqual(body["verdicts"][CASE_IDS[0]], "FAIL")
 
     def test_rtk_timeout_fails(self):
@@ -131,11 +131,11 @@ class TestAcceptance(unittest.TestCase):
         c.finalize(bad)
         cases[0] = bad
         body = self._run(cases)
-        self.assertFalse(body["canary_pass"])
+        self.assertFalse(body["all_twelve_pass"])
 
     def test_missing_case_fails(self):
         body = self._run([good_case(cid) for cid in CASE_IDS[:-1]])
-        self.assertFalse(body["canary_pass"])
+        self.assertFalse(body["all_twelve_pass"])
         self.assertEqual(len(body["missing_cases"]), 1)
 
     def test_duplicate_case_rejected(self):

@@ -94,6 +94,10 @@ def sha256_file(path: str | os.PathLike) -> str:
     return h.hexdigest()
 
 
+def sha256_bytes(data: bytes) -> str:
+    return hashlib.sha256(data).hexdigest()
+
+
 def sha256_json_file(path: str | os.PathLike) -> str:
     """SHA-256 of another record's own committed content, compact-canonical.
 
