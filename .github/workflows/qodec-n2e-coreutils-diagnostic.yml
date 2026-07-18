@@ -12,6 +12,9 @@ name: qodec-n2e-coreutils-diagnostic
 # ADDITIVE push stanza and every job checks out the implementation commit I = HEAD~1.
 on:
   workflow_dispatch: {}
+  push:
+    branches:
+      - ci-trigger/n2e-coreutils-diagnostic-2ddd731
 
 permissions:
   contents: read
