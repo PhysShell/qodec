@@ -18,6 +18,7 @@ GO_SHA = "0cdc4480040b5ef62eb17ba283ab92eca991794a937620604a2b5772201c2b59"
 RUSTC_SHA = "6703c8f287653aae59b27849343fe64fa3893353f1c1d6037a608c18257afc2c"
 CARGO_SHA = "da77b17765651b7a4405178a21d3dab1fa39dddec927d37c0fd5663b7c8623de"
 NODE_SHA = "6295488653f0d93b0a157841746fef7e72cc4328cfb60c4bbe0ca2668a836ffd"
+JAVA_SHA = "b1b0a09aaa036695716c829cd7c5213ea055eecd475d1462020330e251b717b2"
 
 
 def _tc(kind, execs, pnpm=None):
@@ -33,7 +34,7 @@ def GOOD():
         "rust": _tc("rust", {"rustc": ("rustc 1.83.0 (abc 2024)", RUSTC_SHA),
                              "cargo": ("cargo 1.83.0 (abc 2024)", CARGO_SHA)}),
         "node": _tc("node", {"node": ("v20.20.2", NODE_SHA)}, pnpm=("9.7.0", "pn")),
-        "java": _tc("java", {"java": ('openjdk version "21.0.11" 2026-04-21 LTS', "jj")}),
+        "java": _tc("java", {"java": ('openjdk version "21.0.11" 2026-04-21 LTS', JAVA_SHA)}),
     }
 
 
@@ -57,11 +58,11 @@ class TestToolchainLock(unittest.TestCase):
         ok, msg = V.verify(self._dir())
         self.assertTrue(ok, msg)
 
-    def test_canonical_requires_complete_lock(self):
-        # the committed lock is HARVEST (java/pnpm/gradle pending) -> canonical fails
+    def test_canonical_passes_on_complete_lock_and_correct_evidence(self):
+        # the committed lock is COMPLETE -> canonical mode is allowed and passes when
+        # every observed identity matches the lock exactly (binary hashes included).
         ok, msg = V.verify(self._dir(), canonical=True)
-        self.assertFalse(ok)
-        self.assertIn("lock_state", msg)
+        self.assertTrue(ok, msg)
 
     def test_wrong_rust_1_84_fails(self):
         ok, _ = V.verify(self._dir({"rust": _tc("rust",

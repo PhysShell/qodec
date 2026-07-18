@@ -1,16 +1,12 @@
 {
-  "acceptance_eligible": false,
+  "acceptance_eligible": true,
   "generated_by": "evals/interop/v2/n2/e-rtk-native-corpus/tools/build_n2e_toolchain_lock.py",
-  "lock_state": "HARVEST",
-  "missing_expected_identities": [
-    "java.executables.java.expected_sha256",
-    "node.pnpm.resolved_entrypoint_sha256",
-    "gradle.wrapper.wrapper_jar_sha256"
-  ],
+  "lock_state": "COMPLETE",
+  "missing_expected_identities": [],
   "mission": "N2-E",
   "mission_title": "external RTK-native claim-aligned command corpus",
   "purpose": "Expected identities of the publisher-pinned toolchains derived from immutable upstream artifacts; runtime evidence is compared by exact structured equality. Wrong-version or wrong-binary substitution is a HARNESS_DEFECT.",
-  "record_sha256": "sha256:87df927078c6ff8469e52fae1c30494eaa2c5a803db6cbb5feb8885513c97cb9",
+  "record_sha256": "sha256:d88cb20680a8aee82857b9233e1049f3137cab1a756a07aae833378c748c8388",
   "record_type": "n2e-toolchain-lock",
   "record_version": "v1",
   "schema_version": "n2e-record-1",
@@ -42,7 +38,7 @@
       "wrapper": {
         "gradlew_sha256": "fcd0fe684623b73d79454ede0834762ac7b547ef5291ca32c7691b2251406f32",
         "properties_sha256": "2caec011a749b18ab9a7dea68bf7639a179a3b8316b0e35655d0a62a1d7390fd",
-        "wrapper_jar_sha256": null
+        "wrapper_jar_sha256": "2db75c40782f5e8ba1fc278a5574bab070adccb2d21ca5a6e5ed840888448046"
       }
     },
     "java": {
@@ -53,7 +49,7 @@
       },
       "executables": {
         "java": {
-          "expected_sha256": null,
+          "expected_sha256": "b1b0a09aaa036695716c829cd7c5213ea055eecd475d1462020330e251b717b2",
           "resolve": "path"
         }
       },
@@ -83,7 +79,7 @@
         "npm_integrity": "sha512-3AlDAVa0J/Xs/HmIiJnhw50taQ8AS+cOBSMLcssXPZaDlYdUXQlCm1WsPEKcgBtNw8DgAvZTgwpCD6LdTjz5zw==",
         "npm_shasum": "8f12c476122faede7aed9a2126ef551c0dc65d7e",
         "release": "9.7.0",
-        "resolved_entrypoint_sha256": null,
+        "resolved_entrypoint_sha256": "7c2a67995976b5b592b611d8b236e3b0633bd654fb49aedd96c6eb7ce04c9cbb",
         "source": "repo package.json packageManager (pnpm@9.7.0)",
         "tarball": "https://registry.npmjs.org/pnpm/-/pnpm-9.7.0.tgz"
       },

@@ -73,7 +73,7 @@ TOOLCHAINS = {
                  "npm_integrity": "sha512-3AlDAVa0J/Xs/HmIiJnhw50taQ8AS+cOBSMLcssXPZaDlYdUXQlCm1WsPEKcgBtNw8DgAvZTgwpCD6LdTjz5zw==",
                  # corepack resolves pnpm@9.7.0 from the SHA-512-integrity-pinned tarball;
                  # its resolved entrypoint hash is harvested from the pinned install.
-                 "resolved_entrypoint_sha256": None},
+                 "resolved_entrypoint_sha256": "7c2a67995976b5b592b611d8b236e3b0633bd654fb49aedd96c6eb7ce04c9cbb"},
     },
     "java": {
         "publisher_version": "21", "vendor": "eclipse-temurin",
@@ -83,7 +83,7 @@ TOOLCHAINS = {
                      "sha256": "4b2220e232a97997b436ca6ab15cbf70171ecff52958a46159dfa5a8c44ca4de"},
         # java binary is deterministic given the SHA-256-pinned artifact; harvested
         # from the run that installs exactly that artifact (not the moving runner JDK).
-        "executables": {"java": {"resolve": "path", "expected_sha256": None}},
+        "executables": {"java": {"resolve": "path", "expected_sha256": "b1b0a09aaa036695716c829cd7c5213ea055eecd475d1462020330e251b717b2"}},
     },
     "gradle": {
         "publisher_version": "8.10", "runtime_version": "8.10",
@@ -92,7 +92,7 @@ TOOLCHAINS = {
                          "sha256": "5b9c5eb3f9fc2c94abaea57d90bd78747ca117ddbbf96c859d3741181a12bf2a"},
         "wrapper": {"gradlew_sha256": "fcd0fe684623b73d79454ede0834762ac7b547ef5291ca32c7691b2251406f32",
                     "properties_sha256": "2caec011a749b18ab9a7dea68bf7639a179a3b8316b0e35655d0a62a1d7390fd",
-                    "wrapper_jar_sha256": None},  # binary blob; harvested from checkout
+                    "wrapper_jar_sha256": "2db75c40782f5e8ba1fc278a5574bab070adccb2d21ca5a6e5ed840888448046"},
     },
 }
 
