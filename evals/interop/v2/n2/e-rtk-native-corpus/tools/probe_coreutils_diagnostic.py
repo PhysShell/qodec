@@ -1053,7 +1053,10 @@ def main() -> int:
             "canonicalization_policy_id": bundle["execution_contract"]["canonicalization_policy_id"],
             "contract_raw_argv": CONTRACT_RAW_ARGV, "contract_env": CONTRACT_ENV,
             "rtk_binary_path": os.environ.get("RTK_BIN"),
-            "rtk_binary_sha256": (c.sha256_file(os.environ["RTK_BIN"]) if os.environ.get("RTK_BIN") else None)}
+            "rtk_binary_sha256": (c.sha256_file(os.environ["RTK_BIN"]) if os.environ.get("RTK_BIN") else None),
+            # built RTK executable byte length (alongside its sha256), for the P3 dialect identity chain
+            "rtk_binary_bytes": (Path(os.environ["RTK_BIN"]).stat().st_size
+                                 if os.environ.get("RTK_BIN") and Path(os.environ["RTK_BIN"]).exists() else None)}
 
     # correction 3: enforce toolchain pins BEFORE acquisition
     tool = enforce_toolchain(pins)
