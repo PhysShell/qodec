@@ -1,0 +1,93 @@
+{
+  "base_toolchain_lock_sha256": "sha256:accd21272b7985122a3522e4c0ff94746a919bc3c3dabec91cd285978d7f61cf",
+  "channel": "1.81.0",
+  "generated_by": "evals/interop/v2/n2/e-rtk-native-corpus/tools/build_n2e_toolchain_binary_identity.py",
+  "host_target": "x86_64-unknown-linux-gnu",
+  "installation_provenance": {
+    "channel_manifest_sha256": "5596679723faf7e63772bacb1d0c898abaa51eb4ed193b328929d907c8c4bd5a",
+    "installed_components": [
+      "cargo-x86_64-unknown-linux-gnu",
+      "rust-std-x86_64-unknown-linux-gnu",
+      "rustc-x86_64-unknown-linux-gnu"
+    ],
+    "manifest_date": "2024-09-05"
+  },
+  "invoked_wrapper": {
+    "bytes": 20838840,
+    "name": "rustup",
+    "path": "/home/runner/.cargo/bin/rustup",
+    "sha256": "4acc9acc76d5079515b46346a485974457b5a79893cfb01112423c89aeb5aa10"
+  },
+  "materializes_exact_binary_identity_ref": {
+    "required_keys": [
+      "resolved_channel_exact",
+      "cargo_binary_sha256",
+      "rustc_binary_sha256",
+      "rustup_shim_path",
+      "rustup_shim_realpath",
+      "rustup_realpath_sha256",
+      "host_target",
+      "cargo_version_verbose",
+      "rustc_version_verbose",
+      "installed_components",
+      "channel_manifest_sha256",
+      "cargo_component_artifact_sha256",
+      "rustc_component_artifact_sha256"
+    ],
+    "status": "captured_at_acquisition",
+    "verification_discipline": "verify distribution artifacts against channel manifest, then capture installed executable identities separately; do not compare installed-binary sha256 to component-archive sha256",
+    "where": "focused coreutils diagnostic: acquisition.environment_identity.toolchain"
+  },
+  "mission": "N2-E",
+  "mission_title": "external RTK-native claim-aligned command corpus",
+  "provenance": {
+    "artifact_sha256": "b8da975e91ad985d1ba8f90e23d2c3ae3c65fb4b07ecb84f21fa0c1f0fc1d452",
+    "case_id": "uutils__coreutils-6731::rust_cargo::test::fixed",
+    "note": "DESCRIPTIVE ONLY -- eligibility derives from the corrected normative verifier result, never from provenance. Diagnostic-only runs/impls are barred by the loader.",
+    "producer_implementation": "1157bb8",
+    "run_id": "29656538775"
+  },
+  "purpose": "Narrowly-evidentiary record of the exact executed rustc/cargo binaries (measured identity) for the resolved coreutils-6731 Rust cargo-test path. Sets no promotion flag.",
+  "record_sha256": "sha256:883327d1302e42df80c02e967a1d155b32a76b518fdc28af88ec5dee709019f2",
+  "record_type": "n2e-resolved-toolchain-binary-identity",
+  "record_version": "v1",
+  "requested_toolchain": "1.81.0",
+  "resolved_case_id": "uutils__coreutils-6731::rust_cargo::test::fixed",
+  "resolved_membership_sha256": "sha256:d3bdb6637d391c0eabba008abd6b03385267486e6c0ccea99fd574f190fcf69f",
+  "resolved_toolchain_overlay_sha256": "sha256:9b2a55aaaabeb6183f07a19c4c5158029cdc229a88e11f0d7a9ef8a5b567c287",
+  "role_identities": [
+    {
+      "binary_name": "rustc",
+      "case_id": "uutils__coreutils-6731::rust_cargo::test::fixed",
+      "channel": "1.81.0",
+      "host_target": "x86_64-unknown-linux-gnu",
+      "invoked_differs_from_measured": true,
+      "invoked_path": "/home/runner/.cargo/bin/rustc",
+      "invoked_realpath": "/home/runner/.cargo/bin/rustup",
+      "measured_bytes": 2642592,
+      "measured_path": "/home/runner/.rustup/toolchains/1.81.0-x86_64-unknown-linux-gnu/bin/rustc",
+      "measured_sha256": "91f9ba0819d622cbb0f4f3298580d939173eb3258d95f7755b301a394eeb2ae0",
+      "requested_toolchain": "1.81.0",
+      "role": "rust",
+      "run_id": "29656538775",
+      "version_verbose": "rustc 1.81.0 (eeb90cda1 2024-09-04)\nbinary: rustc\ncommit-hash: eeb90cda1969383f56a2637cbd3037bdf598841c\ncommit-date: 2024-09-04\nhost: x86_64-unknown-linux-gnu\nrelease: 1.81.0\nLLVM version: 18.1.7\n"
+    },
+    {
+      "binary_name": "cargo",
+      "case_id": "uutils__coreutils-6731::rust_cargo::test::fixed",
+      "channel": "1.81.0",
+      "host_target": "x86_64-unknown-linux-gnu",
+      "invoked_differs_from_measured": true,
+      "invoked_path": "/home/runner/.cargo/bin/cargo",
+      "invoked_realpath": "/home/runner/.cargo/bin/rustup",
+      "measured_bytes": 33654096,
+      "measured_path": "/home/runner/.rustup/toolchains/1.81.0-x86_64-unknown-linux-gnu/bin/cargo",
+      "measured_sha256": "0e654dccd3501e5feb68aa570e5f780d5f7921c820e558ac5d3ef60016b5c0a7",
+      "requested_toolchain": "1.81.0",
+      "role": "cargo",
+      "run_id": "29656538775",
+      "version_verbose": "cargo 1.81.0 (2dbb1af80 2024-08-20)\nrelease: 1.81.0\ncommit-hash: 2dbb1af80a2914475ba76827a312e29cedfa6b2f\ncommit-date: 2024-08-20\nhost: x86_64-unknown-linux-gnu\nlibgit2: 1.8.1 (sys:0.19.0 vendored)\nlibcurl: 8.8.0-DEV (sys:0.4.73+curl-8.8.0 vendored ssl:OpenSSL/1.1.1w)\nssl: OpenSSL 1.1.1w  11 Sep 2023\nos: Ubuntu 24.4.0 (noble) [64-bit]\n"
+    }
+  ],
+  "schema_version": "n2e-record-1"
+}

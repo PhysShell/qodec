@@ -1,0 +1,33 @@
+{
+  "case_id": "uutils__coreutils-6731::rust_cargo::test::fixed",
+  "channel_manifest_sha256": "5596679723faf7e63772bacb1d0c898abaa51eb4ed193b328929d907c8c4bd5a",
+  "installed_identity": {
+    "cargo_binary_bytes": 33654096,
+    "cargo_binary_path": "/home/runner/.rustup/toolchains/1.81.0-x86_64-unknown-linux-gnu/bin/cargo",
+    "cargo_binary_sha256": "0e654dccd3501e5feb68aa570e5f780d5f7921c820e558ac5d3ef60016b5c0a7",
+    "cargo_shim_path": "/home/runner/.cargo/bin/cargo",
+    "cargo_shim_realpath": "/home/runner/.cargo/bin/rustup",
+    "cargo_version_verbose": "cargo 1.81.0 (2dbb1af80 2024-08-20)\nrelease: 1.81.0\ncommit-hash: 2dbb1af80a2914475ba76827a312e29cedfa6b2f\ncommit-date: 2024-08-20\nhost: x86_64-unknown-linux-gnu\nlibgit2: 1.8.1 (sys:0.19.0 vendored)\nlibcurl: 8.8.0-DEV (sys:0.4.73+curl-8.8.0 vendored ssl:OpenSSL/1.1.1w)\nssl: OpenSSL 1.1.1w  11 Sep 2023\nos: Ubuntu 24.4.0 (noble) [64-bit]\n",
+    "host_target": "x86_64-unknown-linux-gnu",
+    "installed_components": [
+      "cargo-x86_64-unknown-linux-gnu",
+      "rust-std-x86_64-unknown-linux-gnu",
+      "rustc-x86_64-unknown-linux-gnu"
+    ],
+    "requested_toolchain": "1.81.0",
+    "resolved_channel_exact": "1.81.0",
+    "rustc_binary_bytes": 2642592,
+    "rustc_binary_path": "/home/runner/.rustup/toolchains/1.81.0-x86_64-unknown-linux-gnu/bin/rustc",
+    "rustc_binary_sha256": "91f9ba0819d622cbb0f4f3298580d939173eb3258d95f7755b301a394eeb2ae0",
+    "rustc_shim_path": "/home/runner/.cargo/bin/rustc",
+    "rustc_shim_realpath": "/home/runner/.cargo/bin/rustup",
+    "rustc_version_verbose": "rustc 1.81.0 (eeb90cda1 2024-09-04)\nbinary: rustc\ncommit-hash: eeb90cda1969383f56a2637cbd3037bdf598841c\ncommit-date: 2024-09-04\nhost: x86_64-unknown-linux-gnu\nrelease: 1.81.0\nLLVM version: 18.1.7\n",
+    "rustup_executable_bytes": 20838840,
+    "rustup_executable_path": "/home/runner/.cargo/bin/rustup",
+    "rustup_executable_sha256": "4acc9acc76d5079515b46346a485974457b5a79893cfb01112423c89aeb5aa10"
+  },
+  "manifest_date": "2024-09-05",
+  "producer_implementation": "1157bb8",
+  "source_artifact_sha256": "b8da975e91ad985d1ba8f90e23d2c3ae3c65fb4b07ecb84f21fa0c1f0fc1d452",
+  "source_run_id": "29656538775"
+}

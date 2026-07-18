@@ -42,6 +42,9 @@ OV_CONTRACT = N2E_DIR / "n2e-resolved-execution-contract-v1.json"
 # immutable evidence
 OV_DEPSNAP = N2E_DIR / "n2e-resolved-dependency-snapshot-overlay-v1.json"
 DEPSNAP_DIR = N2E_DIR / "evidence" / "coreutils-6731" / "resolved-dependency-snapshot"
+# P2: executed-binary identity record + its committed frozen installed-identity evidence
+BINID = N2E_DIR / "n2e-resolved-toolchain-binary-identity-v1.json"
+BINID_DIR = N2E_DIR / "evidence" / "coreutils-6731" / "toolchain-binary-identity"
 
 REPLACEMENT_CASE_ID = "uutils__coreutils-6731::rust_cargo::test::fixed"
 REPLACED_CASE_ID = "tokio-rs__tokio-4384::rust_cargo::test::fixed"
@@ -56,6 +59,27 @@ BARRED_DIAGNOSTIC_IMPLS = frozenset({"bcd4164", "3dbbf2b", "2ddd731", "8eefa97",
                                      "4ceaa11", "ab416ce", "186ade9"})
 DEPSNAP_SCOPE = "full cross-platform resolution"
 DEPSNAP_PROVEN_COUNT = 346
+
+# P2 proven executed-binary identities. rust 1.81.0 is a pinned/immutable channel, so the on-disk
+# cargo/rustc/rustup binaries are deterministic -> these measured identities are the anchor the
+# committed record + frozen evidence must both match. The identity record's provenance names the
+# determinant-neutral capture run (29656538775 / impl 1157bb8), whose Cargo.lock + resolved graph
+# are byte-identical to the frozen Phase 1 evidence.
+BINID_RUN = "29656538775"
+BINID_IMPL = "1157bb8"
+PROVEN_BINARY_IDENTITY = {
+    "rust": {"binary_name": "rustc",
+             "sha256": "91f9ba0819d622cbb0f4f3298580d939173eb3258d95f7755b301a394eeb2ae0",
+             "bytes": 2642592},
+    "cargo": {"binary_name": "cargo",
+              "sha256": "0e654dccd3501e5feb68aa570e5f780d5f7921c820e558ac5d3ef60016b5c0a7",
+              "bytes": 33654096},
+}
+PROVEN_WRAPPER = {"name": "rustup",
+                  "sha256": "4acc9acc76d5079515b46346a485974457b5a79893cfb01112423c89aeb5aa10",
+                  "bytes": 20838840}
+BINID_CHANNEL = "1.81.0"
+BINID_HOST = "x86_64-unknown-linux-gnu"
 
 # overlay file -> (record key holding the base whole-file hash, the base file it must match)
 _OVERLAYS = {
@@ -180,6 +204,124 @@ def validate_dependency_snapshot_overlay(ds: dict, dep_ref, rm_sha: str, base_co
     return snap
 
 
+def _load_binid(path: Path) -> dict:
+    if not Path(path).is_file():
+        raise ResolvedScopeError("required executed-binary identity record missing")
+    return _load_ok(path)
+
+
+def _is_sha256(s) -> bool:
+    return isinstance(s, str) and len(s) == 64 and all(ch in "0123456789abcdef" for ch in s)
+
+
+def validate_toolchain_binary_identity(rec: dict, ref, rm_sha: str, base_lock_sha: str,
+                                       overlay_sha: str, evidence_dir: Path) -> dict:
+    """Fail-closed validation of the P2 executed-binary identity record. Pure over its inputs so
+    RED cases exercise it without mutating the committed corpus. Ties the record to the frozen
+    toolchain overlay's stable-logical exact_binary_identity_ref (one-way); validates each measured
+    identity against BOTH the committed frozen installed-identity evidence AND the proven immutable
+    anchor; resolves wrappers explicitly (invoked path vs measured target); rejects
+    missing/duplicate/internally-inconsistent/cross-case/metadata-only identities; keeps Rust and
+    Cargo separate. Sets no promotion flag."""
+    if rec.get("record_type") != "n2e-resolved-toolchain-binary-identity":
+        raise ResolvedScopeError("binary-identity record wrong record_type")
+    if rec.get("record_version") != "v1":
+        raise ResolvedScopeError("binary-identity record wrong record_version")
+    if rec.get("resolved_case_id") != REPLACEMENT_CASE_ID:
+        raise ResolvedScopeError("binary-identity resolved_case_id != replacement case")
+    if rec.get("resolved_membership_sha256") != rm_sha:
+        raise ResolvedScopeError("binary-identity resolved_membership_sha256 mismatch")
+    if rec.get("base_toolchain_lock_sha256") != base_lock_sha:
+        raise ResolvedScopeError("binary-identity base_toolchain_lock_sha256 mismatch")
+    if rec.get("resolved_toolchain_overlay_sha256") != overlay_sha:
+        raise ResolvedScopeError("binary-identity resolved_toolchain_overlay_sha256 mismatch")
+    if rec.get("materializes_exact_binary_identity_ref") != ref:
+        raise ResolvedScopeError("binary-identity does not materialize the toolchain overlay's "
+                                 "exact_binary_identity_ref")
+    if rec.get("requested_toolchain") != BINID_CHANNEL or rec.get("channel") != BINID_CHANNEL:
+        raise ResolvedScopeError("binary-identity requested_toolchain/channel != pinned")
+    if rec.get("host_target") != BINID_HOST:
+        raise ResolvedScopeError("binary-identity host_target != pinned")
+
+    frozen_path = Path(evidence_dir) / "installed-identity.json"
+    if not frozen_path.is_file():
+        raise ResolvedScopeError("frozen installed-identity evidence missing")
+    ii = c.load_record(frozen_path).get("installed_identity") or {}
+    _ROLE_FROZEN = {
+        "rust": ("rustc", "rustc_binary_path", "rustc_binary_sha256", "rustc_binary_bytes",
+                 "rustc_shim_path", "rustc_shim_realpath", "rustc_version_verbose"),
+        "cargo": ("cargo", "cargo_binary_path", "cargo_binary_sha256", "cargo_binary_bytes",
+                  "cargo_shim_path", "cargo_shim_realpath", "cargo_version_verbose"),
+    }
+
+    roles = rec.get("role_identities") or []
+    seen_roles = [r.get("role") for r in roles]
+    if sorted(seen_roles) != ["cargo", "rust"]:
+        raise ResolvedScopeError(f"binary-identity role_identities must be exactly rust+cargo (once each), "
+                                 f"got {seen_roles}")
+    run_ids, case_ids = set(), set()
+    for r in roles:
+        role = r["role"]
+        proven = PROVEN_BINARY_IDENTITY[role]
+        binname, f_path, f_sha, f_bytes, f_inv, f_invreal, f_vv = _ROLE_FROZEN[role]
+        if r.get("binary_name") != binname:
+            raise ResolvedScopeError(f"binary-identity {role}: binary_name != {binname}")
+        # metadata-only guard: a measured executable digest MUST be present + well-formed
+        if not _is_sha256(r.get("measured_sha256")):
+            raise ResolvedScopeError(f"binary-identity {role}: measured_sha256 missing/invalid (metadata-only)")
+        if not isinstance(r.get("measured_bytes"), int) or r["measured_bytes"] <= 0:
+            raise ResolvedScopeError(f"binary-identity {role}: measured_bytes missing/invalid")
+        # anchor: the measured identity must equal the proven immutable binary (changed byte -> reject)
+        if r["measured_sha256"] != proven["sha256"] or r["measured_bytes"] != proven["bytes"]:
+            raise ResolvedScopeError(f"binary-identity {role}: measured identity != proven {binname} binary")
+        # referenced-artifact cross-check: the record must equal the committed frozen evidence
+        if (r["measured_sha256"] != ii.get(f_sha) or r.get("measured_bytes") != ii.get(f_bytes)
+                or r.get("measured_path") != ii.get(f_path) or r.get("invoked_path") != ii.get(f_inv)
+                or r.get("invoked_realpath") != ii.get(f_invreal)
+                or r.get("version_verbose") != ii.get(f_vv)):
+            raise ResolvedScopeError(f"binary-identity {role}: record disagrees with frozen installed-identity evidence")
+        # version text must attest the role binary + the resolved channel (disagreement -> reject)
+        first = (r.get("version_verbose") or "").splitlines()[0] if r.get("version_verbose") else ""
+        if not first.startswith(f"{binname} {BINID_CHANNEL}"):
+            raise ResolvedScopeError(f"binary-identity {role}: version text does not attest {binname} {BINID_CHANNEL}")
+        # resolve wrappers explicitly: invoked proxy + measured target must be the SAME role binary,
+        # invoked must resolve to the rustup wrapper, and invoked must differ from measured.
+        if Path(r.get("invoked_path", "")).name != binname:
+            raise ResolvedScopeError(f"binary-identity {role}: invoked_path is not the {binname} proxy")
+        if Path(r.get("measured_path", "")).name != binname:
+            raise ResolvedScopeError(f"binary-identity {role}: measured_path is not a {binname} binary")
+        if Path(r.get("invoked_realpath", "")).name != PROVEN_WRAPPER["name"]:
+            raise ResolvedScopeError(f"binary-identity {role}: invoked_realpath is not the {PROVEN_WRAPPER['name']} wrapper")
+        if r.get("invoked_path") == r.get("measured_path") or r.get("invoked_differs_from_measured") is not True:
+            raise ResolvedScopeError(f"binary-identity {role}: invoked path must differ from measured target")
+        if r.get("case_id") != REPLACEMENT_CASE_ID:
+            raise ResolvedScopeError(f"binary-identity {role}: case_id != replacement case")
+        run_ids.add(r.get("run_id"))
+        case_ids.add(r.get("case_id"))
+    # cross-role coherence: a single coherent measurement -- both roles from the SAME run + case
+    # (rust identity from run A paired with cargo identity from run B -> reject)
+    if len(run_ids) != 1 or len(case_ids) != 1:
+        raise ResolvedScopeError("binary-identity roles are cross-paired (different run_id/case_id)")
+    if run_ids != {BINID_RUN}:
+        raise ResolvedScopeError("binary-identity role run_id != the capture run")
+
+    # invoked wrapper identity
+    w = rec.get("invoked_wrapper") or {}
+    if w.get("name") != PROVEN_WRAPPER["name"] or w.get("sha256") != PROVEN_WRAPPER["sha256"] \
+            or w.get("bytes") != PROVEN_WRAPPER["bytes"]:
+        raise ResolvedScopeError("binary-identity invoked_wrapper identity != proven rustup wrapper")
+    if w.get("sha256") != ii.get("rustup_executable_sha256"):
+        raise ResolvedScopeError("binary-identity invoked_wrapper sha != frozen installed-identity")
+
+    # provenance is DESCRIPTIVE; bar diagnostic-only runs/impls
+    prov = rec.get("provenance") or {}
+    if prov.get("run_id") in BARRED_DIAGNOSTIC_RUNS or prov.get("producer_implementation") in BARRED_DIAGNOSTIC_IMPLS:
+        raise ResolvedScopeError("binary-identity provenance names a barred diagnostic-only run/impl")
+    if prov.get("run_id") != BINID_RUN or prov.get("producer_implementation") != BINID_IMPL:
+        raise ResolvedScopeError("binary-identity provenance run/impl != the capture run")
+    return rec
+
+
 def validate_resolved_closure() -> dict:
     """Validate the whole resolved closure fail-closed; return the effective-record hash
     map + parsed overlays. Raises ResolvedScopeError on any violation."""
@@ -247,6 +389,20 @@ def validate_resolved_closure() -> dict:
             "full_packages_metadata_sha256": snap["full_packages_metadata_sha256"],
             "host_resolved_package_count": snap["host_resolved_package_count"],
         }
+
+    # ---- P2: executed-binary identity ----
+    # REQUIRED whenever the frozen toolchain overlay carries an exact_binary_identity_ref, so the
+    # toolchain can never be validated while the identity of the binaries that actually executed is
+    # omitted, mismatched, or substituted.
+    tc = overlays["toolchain"]["resolved_rust_toolchain"]
+    binid_ref = tc.get("exact_binary_identity_ref")
+    if binid_ref is not None:
+        rec = _load_binid(BINID)
+        validate_toolchain_binary_identity(
+            rec, binid_ref, rm_sha, c.sha256_json_file(LOCK),
+            c.sha256_json_file(OV_TOOLCHAIN), BINID_DIR)
+        overlays["toolchain_binary_identity"] = rec
+        hashes["toolchain_binary_identity_sha256"] = c.sha256_json_file(BINID)
 
     hashes.update({
         "resolved_membership_sha256": rm_sha,
