@@ -73,15 +73,30 @@ def argv_equals_contract(argv: list, is_rtk: bool, rtk_bin: str | None) -> bool:
     a missing `cargo`, an injected `+1.81.0`, extra flags, or reordering all fail."""
     return list(argv) == expected_argv(is_rtk, rtk_bin)
 _FIXED = Path(tempfile.gettempdir()) / "n2e-fixedwork"
-# explicitly enumerated ephemeral files excluded from stable manifests (corrections 5/6).
-# .global-cache is cargo's global GC tracker DB ($CARGO_HOME/.global-cache): it records
-# last-use timestamps for automatic garbage collection of registry/cache, registry/src, and
-# git checkouts. It carries NO dependency content (only GC bookkeeping timestamps that vary
-# run-to-run), so it is ephemeral like .package-cache. Run 29648282170 showed .global-cache
-# as the SOLE full-manifest difference across two otherwise byte-identical acquisitions.
-_EPHEMERAL_SUFFIX = (".lock",)
-_EPHEMERAL_NAME = {".package-cache", ".package-cache-mutate", "config.json.lock",
-                   ".crates2.json.lock", ".global-cache"}
+def _is_ephemeral_cargo_home_path(parts: tuple) -> bool:
+    """True for CARGO_HOME paths that are cargo advisory locks / GC bookkeeping with NO
+    dependency content, excluded from stable manifests. Each case is scoped to WHERE cargo
+    actually writes it -- never a blanket basename match that could drop a legitimately-named
+    crate source file (e.g. a vendored crate that happens to contain a `.global-cache`)."""
+    parts = tuple(parts)
+    if not parts:
+        return False
+    # $CARGO_HOME/.global-cache: the global GC tracker DB (last-use timestamps for automatic
+    # garbage collection). ROOT-RELATIVE EXACT -- a `.global-cache` anywhere under
+    # registry/src, registry/cache, git/checkouts, or any nested crate source is real content
+    # and MUST be retained. (Run 29648282170 showed root .global-cache as the sole full-diff.)
+    if parts == (".global-cache",):
+        return True
+    name = parts[-1]
+    # advisory file locks cargo writes throughout CARGO_HOME (the package-cache mutate lock,
+    # per-registry index/config.json locks, the .crates2.json installed-binary lock): every
+    # *.lock in CARGO_HOME is a cargo advisory lock with no dependency content.
+    if name.endswith(".lock"):
+        return True
+    # the package-cache advisory markers (no dependency content)
+    if name in (".package-cache", ".package-cache-mutate"):
+        return True
+    return False
 
 
 def _run(argv, cwd=None, env=None, tmo=1800):
@@ -269,7 +284,7 @@ def _stable_manifest(root: Path) -> dict:
         parts = f.relative_to(root).parts
         if ".git" in parts:
             continue
-        if f.name in _EPHEMERAL_NAME or f.name.endswith(_EPHEMERAL_SUFFIX):
+        if _is_ephemeral_cargo_home_path(parts):
             continue
         try:
             out[str(f.relative_to(root))] = c.sha256_file(str(f))
@@ -297,7 +312,7 @@ def _cargo_cache_manifests(cargo_home: Path) -> dict:
         parts = f.relative_to(cargo_home).parts
         if ".git" in parts:
             continue
-        if f.name in _EPHEMERAL_NAME or f.name.endswith(_EPHEMERAL_SUFFIX):
+        if _is_ephemeral_cargo_home_path(parts):
             continue
         rel = str(f.relative_to(cargo_home))
         try:
@@ -384,16 +399,35 @@ def _normalize_resolve(meta: dict, tokens: list) -> dict:
     return {"packages": pkgs, "resolve_nodes": nodes, "resolve_root": norm(resolve.get("root") or "")}
 
 
+def _normalize_lock_packages(lock_bytes: bytes) -> list:
+    """The FULL cross-platform package resolution from the generated Cargo.lock: one
+    normalized record per [[package]] (name, version, source, checksum), sorted. The lock is
+    platform-INDEPENDENT, so this is every dependency for every target -- distinct from the
+    host-filtered resolve graph. Path-independent, so byte-identical across A/B when the lock
+    is identical."""
+    import tomllib
+    data = tomllib.loads(lock_bytes.decode("utf-8"))
+    pkgs = [{"name": p.get("name"), "version": p.get("version"),
+             "source": p.get("source"), "checksum": p.get("checksum")}
+            for p in data.get("package", [])]
+    pkgs.sort(key=lambda p: (p["name"] or "", p["version"] or "", p["source"] or ""))
+    return pkgs
+
+
 def _resolved_dependency_snapshot(repo_dir: Path, cargo_home: Path) -> dict:
-    """Offline FULL-dependency resolution snapshot (req 3): `cargo metadata` (includes deps
-    AND the resolve graph -- never --no-deps) plus the generated Cargo.lock, path-normalized
-    so two independent acquisitions produce a byte-identical snapshot. Read-only: does not
-    mutate the (already disposable) acquisition checkout beyond the lock cargo itself wrote."""
+    """Offline resolved-dependency snapshot (req 3). Two DISTINCT scopes are captured with
+    accurate terminology (the complete metadata document is NOT host-only):
+      * full_packages_metadata / cargo_lock_scope = "full cross-platform resolution": every
+        dependency package record (name/version/source/checksum) from the generated Cargo.lock,
+        which is platform-independent.
+      * resolve_graph (resolve_graph_scope = "host-filtered", resolve_graph_platform =
+        x86_64-unknown-linux-gnu): the resolve graph from `cargo metadata --filter-platform
+        <host>`, scoped to the host so `--offline` succeeds (the all-platform resolve would
+        need target-only deps such as android-tzdata that host-only `cargo test --no-run`
+        never downloaded) and matching exactly the deps the measurement substrate compiles.
+    Both are path-normalized so two independent acquisitions produce byte-identical snapshots.
+    Read-only: does not mutate the (already disposable) checkout beyond the lock cargo wrote."""
     env = _cargo_env(cargo_home, {"CARGO_NET_OFFLINE": "true", "RUSTUP_TOOLCHAIN": CHANNEL})
-    # scope resolution to the HOST target so `--offline` succeeds: `cargo metadata` resolves
-    # for ALL platforms by default and would need target-specific deps (e.g. android-tzdata)
-    # that host-only `cargo test --no-run` never downloaded. --filter-platform gives exactly
-    # the deps the measurement substrate compiles, and is what makes the graph reproducible.
     r = _run(["cargo", "metadata", "--format-version", "1", "--offline",
               "--filter-platform", HOST], cwd=str(repo_dir), env=env, tmo=300)
     lock = repo_dir / "Cargo.lock"
@@ -401,16 +435,23 @@ def _resolved_dependency_snapshot(repo_dir: Path, cargo_home: Path) -> dict:
     out = {"metadata_exit": r["exit"], "metadata_ok": r["exit"] == 0,
            "cargo_lock_present": lock_bytes is not None,
            "cargo_lock_sha256": (_sha(lock_bytes) if lock_bytes else None),
-           "cargo_lock_bytes": (len(lock_bytes) if lock_bytes else 0)}
+           "cargo_lock_bytes": (len(lock_bytes) if lock_bytes else 0),
+           "cargo_lock_scope": "full cross-platform resolution",
+           "resolve_graph_platform": HOST, "resolve_graph_scope": "host-filtered"}
+    if lock_bytes is not None:
+        full_pkgs = _normalize_lock_packages(lock_bytes)
+        out["full_packages_metadata"] = full_pkgs
+        out["full_packages_metadata_sha256"] = _manifest_hash(full_pkgs)
+        out["full_package_count"] = len(full_pkgs)
     if r["exit"] != 0:
         out["metadata_stderr_tail"] = r["stderr"][-800:].decode("utf-8", "replace")
         return out
     tokens = [(str(repo_dir), "<REPO>"), (str(cargo_home), "<CARGO_HOME>"),
               (str(Path(cargo_home).parent), "<ROOT>")]
     norm = _normalize_resolve(json.loads(r["stdout"]), tokens)
-    out["resolved_graph"] = norm
-    out["resolved_graph_normalized_sha256"] = _manifest_hash(norm)
-    out["package_count"] = len(norm["packages"])
+    out["resolve_graph"] = norm
+    out["resolve_graph_normalized_sha256"] = _manifest_hash(norm)
+    out["host_resolved_package_count"] = len(norm["packages"])
     return out
 
 
@@ -495,13 +536,17 @@ def _write_cargo_cache_evidence(A: dict, B: dict, evidence: Path) -> dict:
         cache_path = d / f"{label}-cache-semantic.json"
         cache_path.write_text(json.dumps({"entries": entries, "entry_count": len(entries)},
                                          sort_keys=True, indent=1))
-        graph = (acq.get("resolved_dependency_snapshot") or {}).get("resolved_graph")
+        rds = acq.get("resolved_dependency_snapshot") or {}
         graph_path = d / f"{label}-resolved-graph.json"
         graph_path.write_text(json.dumps({
-            "resolved_graph": graph,
-            "resolved_graph_normalized_sha256": (acq.get("resolved_dependency_snapshot") or {}).get(
-                "resolved_graph_normalized_sha256"),
-            "cargo_lock_sha256": (acq.get("resolved_dependency_snapshot") or {}).get("cargo_lock_sha256"),
+            "resolve_graph": rds.get("resolve_graph"),
+            "resolve_graph_scope": rds.get("resolve_graph_scope"),
+            "resolve_graph_platform": rds.get("resolve_graph_platform"),
+            "resolve_graph_normalized_sha256": rds.get("resolve_graph_normalized_sha256"),
+            "full_packages_metadata": rds.get("full_packages_metadata"),
+            "full_packages_metadata_sha256": rds.get("full_packages_metadata_sha256"),
+            "cargo_lock_scope": rds.get("cargo_lock_scope"),
+            "cargo_lock_sha256": rds.get("cargo_lock_sha256"),
         }, sort_keys=True, indent=1))
         written[label] = {"cache_semantic": str(cache_path.relative_to(evidence)),
                           "resolved_graph": str(graph_path.relative_to(evidence)),
@@ -547,10 +592,13 @@ def _classify_acquisitions(A: dict, B: dict, tool_ident: dict) -> dict:
                                     and A["install"]["timed_out"] == B["install"]["timed_out"]),
         # SEMANTIC sparse-index cache equality: validator-only differences do NOT count
         "cargo_cache_semantic_equal": cache_diff["semantic_diff_count"] == 0,
-        # req 3: offline full resolved graph + generated lock byte-identical across A/B
+        # req 3: host-filtered resolve graph + full cross-platform package metadata +
+        # generated lock, each byte-identical across A/B
         "resolved_metadata_ok": resolved_ok,
-        "resolved_graph_equal": (resolved_ok and ra.get("resolved_graph_normalized_sha256")
-                                 == rb.get("resolved_graph_normalized_sha256")),
+        "host_resolve_graph_equal": (resolved_ok and ra.get("resolve_graph_normalized_sha256")
+                                     == rb.get("resolve_graph_normalized_sha256")),
+        "full_packages_metadata_equal": (ra.get("full_packages_metadata_sha256")
+                                         == rb.get("full_packages_metadata_sha256")),
         "generated_lock_equal": (ra.get("cargo_lock_sha256") == rb.get("cargo_lock_sha256")),
     }
 
@@ -567,10 +615,15 @@ def _classify_acquisitions(A: dict, B: dict, tool_ident: dict) -> dict:
     if not all(parity.values()):
         return {"outcome": "COREUTILS_ACQUISITION_NONDETERMINISTIC", "parity": parity,
                 "cargo_cache_full_diff_summary": cache_diff,
-                "resolved_graph_sha_A": ra.get("resolved_graph_normalized_sha256"),
-                "resolved_graph_sha_B": rb.get("resolved_graph_normalized_sha256"),
+                "host_resolve_graph_sha_A": ra.get("resolve_graph_normalized_sha256"),
+                "host_resolve_graph_sha_B": rb.get("resolve_graph_normalized_sha256"),
+                "full_packages_metadata_sha_A": ra.get("full_packages_metadata_sha256"),
+                "full_packages_metadata_sha_B": rb.get("full_packages_metadata_sha256"),
                 "generated_lock_sha_A": ra.get("cargo_lock_sha256"),
                 "generated_lock_sha_B": rb.get("cargo_lock_sha256"),
+                "resolved_metadata_ok_A": ra.get("metadata_ok"), "resolved_metadata_ok_B": rb.get("metadata_ok"),
+                "metadata_stderr_tail_A": ra.get("metadata_stderr_tail"),
+                "metadata_stderr_tail_B": rb.get("metadata_stderr_tail"),
                 "note": "harness/acquisition investigation state, not a candidate disqualification"}
     # reproducible: Model B -- freeze the (A==B) generated resolved dependency snapshot
     lock_present = ra.get("cargo_lock_present") and rb.get("cargo_lock_present")
@@ -579,8 +632,13 @@ def _classify_acquisitions(A: dict, B: dict, tool_ident: dict) -> dict:
                 "measurement_model": MEASUREMENT_MODEL, "parity": parity,
                 "cargo_cache_full_diff_summary": cache_diff,
                 "frozen_lock_sha256": ra.get("cargo_lock_sha256"), "frozen_lock_bytes": ra.get("cargo_lock_bytes"),
-                "resolved_graph_normalized_sha256": ra.get("resolved_graph_normalized_sha256"),
-                "package_count": ra.get("package_count"),
+                "cargo_lock_scope": "full cross-platform resolution",
+                "resolve_graph_platform": ra.get("resolve_graph_platform"),
+                "resolve_graph_scope": ra.get("resolve_graph_scope"),
+                "resolve_graph_normalized_sha256": ra.get("resolve_graph_normalized_sha256"),
+                "full_packages_metadata_sha256": ra.get("full_packages_metadata_sha256"),
+                "full_package_count": ra.get("full_package_count"),
+                "host_resolved_package_count": ra.get("host_resolved_package_count"),
                 "byte_identical_across_A_B": True}
     # no generated lock at all (no dependencies) -> genuinely pristine
     return {"outcome": "pristine_dependency_state", "measurement_model": MEASUREMENT_MODEL,
@@ -890,12 +948,16 @@ def main() -> int:
             _emit(out, body); print("coreutils-diagnostic:", body["outcome"]); return 0
         # Model B: record the frozen (A==B) generated resolved-dependency snapshot the
         # measurement substrate carries (the frozen-env copytree below uses A's repo+lock).
+        _rdsA = A.get("resolved_dependency_snapshot") or {}
         body["frozen_resolved_dependency_snapshot"] = {
             "measurement_model": MEASUREMENT_MODEL,
-            "cargo_lock_sha256": (A.get("resolved_dependency_snapshot") or {}).get("cargo_lock_sha256"),
-            "cargo_lock_bytes": (A.get("resolved_dependency_snapshot") or {}).get("cargo_lock_bytes"),
-            "resolved_graph_normalized_sha256": (A.get("resolved_dependency_snapshot") or {}).get(
-                "resolved_graph_normalized_sha256"),
+            "cargo_lock_sha256": _rdsA.get("cargo_lock_sha256"),
+            "cargo_lock_bytes": _rdsA.get("cargo_lock_bytes"),
+            "cargo_lock_scope": "full cross-platform resolution",
+            "full_packages_metadata_sha256": _rdsA.get("full_packages_metadata_sha256"),
+            "resolve_graph_platform": _rdsA.get("resolve_graph_platform"),
+            "resolve_graph_scope": _rdsA.get("resolve_graph_scope"),
+            "resolve_graph_normalized_sha256": _rdsA.get("resolve_graph_normalized_sha256"),
             "byte_identical_across_A_B": True,
             "harness_owned": True,
         }

@@ -298,11 +298,13 @@ def _canon_sha_compact(obj) -> str:
 
 
 def _verify_resolved_graph_evidence(evidence, fail) -> dict:
-    """req 5.5: reopen the RETAINED offline resolved graphs for A and B, re-derive each
-    normalized sha (must match the recorded value), and require A == B. Also compares the
-    generated Cargo.lock sha. Never trusts resolved_graph_equal / generated_lock_equal."""
+    """req 5.5: reopen the RETAINED resolved-dependency snapshots for A and B and independently
+    re-derive, requiring A == B for each: the HOST-filtered resolve graph sha (platform must be
+    x86_64-unknown-linux-gnu), the FULL cross-platform package-metadata sha, and the generated
+    Cargo.lock sha. Never trusts host_resolve_graph_equal / full_packages_metadata_equal /
+    generated_lock_equal."""
     d = evidence / "cargo-cache"
-    shas, locks, present = {}, {}, {}
+    gshas, pshas, locks, present = {}, {}, {}, {}
     for label in ("A", "B"):
         p = d / f"{label}-resolved-graph.json"
         if not p.is_file():
@@ -311,29 +313,40 @@ def _verify_resolved_graph_evidence(evidence, fail) -> dict:
             data = json.loads(p.read_text())
         except Exception as e:  # noqa: BLE001
             fail.append(f"resolved-graph {label}: unreadable ({e})"); continue
-        graph = data.get("resolved_graph")
+        graph = data.get("resolve_graph")
         present[label] = graph is not None
+        if data.get("resolve_graph_platform") not in (None, "x86_64-unknown-linux-gnu"):
+            fail.append(f"resolved-graph {label}: resolve_graph_platform != host")
         if graph is not None:
-            redigest = _canon_sha(graph)
-            if redigest != data.get("resolved_graph_normalized_sha256"):
-                fail.append(f"resolved-graph {label}: re-derived sha != recorded")
-            shas[label] = redigest
+            g = _canon_sha(graph)
+            if g != data.get("resolve_graph_normalized_sha256"):
+                fail.append(f"resolved-graph {label}: re-derived host graph sha != recorded")
+            gshas[label] = g
+        fp = data.get("full_packages_metadata")
+        if fp is not None:
+            fh = _canon_sha(fp)
+            if fh != data.get("full_packages_metadata_sha256"):
+                fail.append(f"resolved-graph {label}: re-derived full package-metadata sha != recorded")
+            pshas[label] = fh
         locks[label] = data.get("cargo_lock_sha256")
-    graph_equal = ("A" in shas and "B" in shas and shas["A"] == shas["B"])
-    if "A" in shas and "B" in shas and not graph_equal:
-        fail.append("resolved-graph: A and B normalized resolved graphs differ")
+    graph_equal = ("A" in gshas and "B" in gshas and gshas["A"] == gshas["B"])
+    if "A" in gshas and "B" in gshas and not graph_equal:
+        fail.append("resolved-graph: A and B host-filtered resolve graphs differ")
+    full_pkgs_equal = ("A" in pshas and "B" in pshas and pshas["A"] == pshas["B"])
+    if "A" in pshas and "B" in pshas and not full_pkgs_equal:
+        fail.append("resolved-graph: A and B full cross-platform package metadata differ")
     lock_equal = (locks.get("A") == locks.get("B"))
     if not lock_equal:
         fail.append(f"resolved-graph: generated Cargo.lock sha differs A={locks.get('A')} B={locks.get('B')}")
-    return {"graph_equal": graph_equal, "lock_equal": lock_equal,
+    return {"graph_equal": graph_equal, "full_pkgs_equal": full_pkgs_equal, "lock_equal": lock_equal,
             "lock_present": bool(present.get("A")) and bool(present.get("B")),
             "lock_sha": locks.get("A")}
 
 
-def _derive_acq_classification(A, B, cache_sem_equal, graph_equal, lock_equal, lock_present):
-    """re-derive the acquisition classification + parity from the primitive pre/post states
-    AND the independently-verified semantic-cache / resolved-graph determinants. Never trusts
-    the producer classification, cargo_cache_semantic_equal, or resolved_graph_equal."""
+def _derive_acq_classification(A, B, cache_sem_equal, graph_equal, full_pkgs_equal, lock_equal, lock_present):
+    """re-derive the acquisition classification + parity from the primitive pre/post states AND
+    the independently-verified semantic-cache / host-resolve-graph / full-package-metadata
+    determinants. Never trusts the producer classification or its equality booleans."""
     if not (A and B) or A.get("install", {}).get("exit") != 0 or B.get("install", {}).get("exit") != 0:
         return {"outcome": "COREUTILS_ACQUISITION_INSTALL_FAILURE"}, {}
     if A.get("cargo_index_cache_unparseable") or B.get("cargo_index_cache_unparseable"):
@@ -354,7 +367,8 @@ def _derive_acq_classification(A, B, cache_sem_equal, graph_equal, lock_equal, l
                                     and A["install"]["timed_out"] == B["install"]["timed_out"]),
         # independently-derived determinants (from retained evidence, NOT producer booleans)
         "cargo_cache_semantic_equal": cache_sem_equal is True,
-        "resolved_graph_equal": graph_equal is True,
+        "host_resolve_graph_equal": graph_equal is True,
+        "full_packages_metadata_equal": full_pkgs_equal is True,
         "generated_lock_equal": lock_equal is True,
     }
 
@@ -555,16 +569,19 @@ def verify(rec_path: Path, evidence: Path) -> tuple[bool, list, dict]:
     cache_v = _verify_cargo_cache_evidence(evidence, fail)
     graph_v = _verify_resolved_graph_evidence(evidence, fail)
     facts["cargo_cache_semantic_equal"] = cache_v.get("semantic_equal")
-    facts["resolved_graph_equal"] = graph_v.get("graph_equal")
+    facts["host_resolve_graph_equal"] = graph_v.get("graph_equal")
+    facts["full_packages_metadata_equal"] = graph_v.get("full_pkgs_equal")
     if cache_v.get("semantic_equal") is not True:
         fail.append("cargo-cache: semantic sparse-index cache not proven equal across A/B")
     if graph_v.get("graph_equal") is not True:
-        fail.append("resolved-graph: offline resolved dependency graph not proven equal across A/B")
+        fail.append("resolved-graph: host-filtered resolve graph not proven equal across A/B")
+    if graph_v.get("full_pkgs_equal") is not True:
+        fail.append("resolved-graph: full cross-platform package metadata not proven equal across A/B")
     if graph_v.get("lock_equal") is not True:
         fail.append("resolved-graph: generated Cargo.lock not proven equal across A/B")
     derived_cls, derived_parity = _derive_acq_classification(
         A, B, cache_v.get("semantic_equal"), graph_v.get("graph_equal"),
-        graph_v.get("lock_equal"), graph_v.get("lock_present"))
+        graph_v.get("full_pkgs_equal"), graph_v.get("lock_equal"), graph_v.get("lock_present"))
     facts["derived_acquisition_outcome"] = derived_cls["outcome"]
     recorded_cls = (rec.get("acquisition_classification") or {}).get("outcome")
     if derived_cls["outcome"] not in ACQ_ELIGIBLE:

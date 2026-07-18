@@ -12,6 +12,33 @@ sys.path.insert(0, str(N2E_DIR / "tools"))
 import probe_coreutils_diagnostic as probe  # noqa: E402
 
 
+class TestGlobalCacheRootExact(unittest.TestCase):
+    """Root-relative exact exclusion: only $CARGO_HOME/.global-cache is ephemeral. A file
+    literally named .global-cache anywhere deeper is real content and must be retained."""
+
+    def test_root_global_cache_excluded(self):
+        self.assertTrue(probe._is_ephemeral_cargo_home_path((".global-cache",)))
+
+    def test_registry_src_global_cache_retained(self):
+        self.assertFalse(probe._is_ephemeral_cargo_home_path(
+            ("registry", "src", "x", "crate", ".global-cache")))
+
+    def test_registry_cache_global_cache_retained(self):
+        self.assertFalse(probe._is_ephemeral_cargo_home_path(("registry", "cache", "x", ".global-cache")))
+
+    def test_git_checkouts_global_cache_retained(self):
+        self.assertFalse(probe._is_ephemeral_cargo_home_path(("git", "checkouts", "x", ".global-cache")))
+
+    def test_nested_global_cache_retained(self):
+        self.assertFalse(probe._is_ephemeral_cargo_home_path(("some", "nested", ".global-cache")))
+
+    def test_locks_and_package_cache_still_excluded(self):
+        # existing lock/bookkeeping scope retained (documented)
+        self.assertTrue(probe._is_ephemeral_cargo_home_path(("registry", "index", "x", ".cache", "config.json.lock")))
+        self.assertTrue(probe._is_ephemeral_cargo_home_path((".package-cache",)))
+        self.assertTrue(probe._is_ephemeral_cargo_home_path((".crates2.json.lock",)))
+
+
 class TestCargoHomeEphemeral(unittest.TestCase):
     def setUp(self):
         self.ch = Path(tempfile.mkdtemp())
