@@ -50,6 +50,12 @@ CANARY = N2E_DIR / "n2e-canary-membership-v1.json"
 PINS = N2E_DIR / "n2e-source-pins-v1.json"
 RTK_BINARY_SHA256 = "41f316adf7b30a568208a0a4f824bffb266ecb6d01bd9de81bed58e1d469dfcf"
 REPS = 3
+# FIXED per-rep work path: run_arm rebuilds this exact path (a fresh copy of the
+# frozen env) for every rep. Publisher jvm cases point GRADLE_USER_HOME at a cache
+# seed *inside* the frozen env, so each rep gets a fresh writable copy of that seed
+# at a stable per-rep path (no shared mutable gradle home across reps).
+_FIXEDWORK = Path(tempfile.gettempdir()) / "n2e-fixedwork"
+_GRADLE_SEED_DIRNAME = ".n2e-gradle-home"
 
 
 def _git_env(home: Path | None = None) -> dict:
@@ -335,20 +341,28 @@ def run_isolated(argv, cwd, timeout, wrapper_prefix, env_extra=None):
 
 
 def run_arm(argv, frozen_dir: Path, policy_id: str, timeout: int, wrapper_prefix, env_extra=None,
-            is_rtk: bool = False) -> dict:
+            is_rtk: bool = False, jvm_proof_class: str | None = None) -> dict:
     """RAW or RTK arm: REPS runs in FRESH copies of the frozen env, network-denied.
     Canonicalize each combined stream under policy_id; the ACCEPTED stream is the
     canonical bytes (identical across reps when deterministic). For the RTK arm ONLY,
     the bounded rtk-envelope-v1 policy first normalizes the epoch inside RTK's own
-    tee-log envelope line (recorded in the result)."""
+    tee-log envelope line (recorded in the result).
+
+    jvm_proof_class: when set (Gradle cases), each rep's output is checked to PROVE the
+    target test task actually executed offline (not UP-TO-DATE / FROM-CACHE / NO-SOURCE
+    / SKIPPED). A rep that short-circuited is an offline-execution failure, not a pass;
+    because each rep runs against a fresh copy of the frozen env (including a fresh copy
+    of the GRADLE_USER_HOME cache seed at _FIXEDWORK/.n2e-gradle-home), no surviving
+    task history can make the target task UP-TO-DATE."""
     runs, canon_hashes, raw_hashes, canon_streams = [], [], [], []
     accepted_canonical = None
     timed_out_any = False
+    per_rep_proof = []
     # FIXED work path across reps: many tools echo their absolute working directory
     # into output (e.g. vitest's "RUN vX /path"), so a per-rep random tempdir path
     # is itself a source of nondeterminism. Reusing one constant path removes that
     # variance WITHOUT masking any semantic difference (a real diff still differs).
-    work = Path(tempfile.gettempdir()) / "n2e-fixedwork"
+    work = _FIXEDWORK
     try:
         for _ in range(REPS):
             if work.exists():
@@ -366,10 +380,17 @@ def run_arm(argv, frozen_dir: Path, policy_id: str, timeout: int, wrapper_prefix
             raw_hashes.append(hashlib.sha256(r["combined"]).hexdigest())
             canon_streams.append(cb)
             accepted_canonical = cb  # identical across reps iff deterministic
+            if jvm_proof_class:
+                # prove THIS rep executed the target class offline (full output, not tail)
+                per_rep_proof.append(_gradle_test_proof(
+                    r["combined"].decode("utf-8", "replace"), jvm_proof_class))
     finally:
         shutil.rmtree(work, ignore_errors=True)
     exit_stable = len({x["exit_code"] for x in runs}) == 1
     deterministic = len(set(canon_hashes)) == 1
+    execution_ok = None
+    if jvm_proof_class:
+        execution_ok = all(p["executed_ok"] for p in per_rep_proof)
     return {
         "reps_completed": len(runs), "exit_code": runs[0]["exit_code"],
         "exit_code_stable": exit_stable, "canonical_deterministic": deterministic,
@@ -378,6 +399,8 @@ def run_arm(argv, frozen_dir: Path, policy_id: str, timeout: int, wrapper_prefix
         "canonical_sha256": canon_hashes[0] if deterministic else None,
         "raw_capture_hashes": raw_hashes, "runs": runs,
         "nondeterminism_sample": _nd_sample(canon_streams) if not deterministic else None,
+        "per_rep_execution_proof": per_rep_proof or None,
+        "target_execution_ok": execution_ok,
         "_accepted_canonical": accepted_canonical if deterministic else None,
         "_output_tail": (canon_streams[-1][-2500:]).decode("utf-8", "replace") if canon_streams else "",
     }
@@ -522,20 +545,13 @@ def acquire_swebench(scen, workroot):
     _git_fetch_checkout(f"https://github.com/{repo}.git", base, repo_dir, home)
     # frozen-input baseline BEFORE any scenario construction (pristine checkout)
     protected_pristine = _protected_hashes(repo_dir, fam)
-    applied = []
-    for name, key in (("test_patch", "test_patch"), ("patch", "patch")):
-        if name == "patch" and scen["snapshot_variant"] != "fixed":
-            continue
-        blob = (row.get(key) or "").encode()
-        if not blob:
-            continue
-        pf = workroot / f"{name}.diff"
-        pf.write_bytes(blob)
-        subprocess.run(["git", "-C", str(repo_dir), "apply", str(pf)], check=True, env=_git_env(home))
-        applied.append({name: hashlib.sha256(blob).hexdigest()})
-    # the declared patches ARE the scenario: their tracked worktree changes are the
-    # constructed frozen input, not a mutation. Record them as the expected baseline.
-    patch_paths = _worktree_modified(repo_dir, home)
+    # the declared patches: the GOLD (source/fix) patch is applied only for the ::fixed
+    # snapshot; the test_patch always. They are NOT applied here -- for a publisher
+    # recipe they are threaded into the ordered acquisition (gold + test AFTER the
+    # publisher `--locked` install warms the frozen lockfile), so the publisher install
+    # never sees a manifest the gold patch has already mutated.
+    gold_blob = (row.get("patch") or "").encode() if scen["snapshot_variant"] == "fixed" else b""
+    test_blob = (row.get("test_patch") or "").encode()
     # Publisher-recipe path: if this instance has a curated SWE-bench Multilingual
     # environment recipe, acquire + measure under the EXACT publisher toolchain +
     # scoped test command (never a generic whole-suite command). Record a Phase-A
@@ -546,7 +562,8 @@ def acquire_swebench(scen, workroot):
     if recipe:
         assert recipe["instance_id"] == instance_id, "recipe/instance binding mismatch"
         warm, policy, offline_env, resolved, env_identity = _publisher_warm(
-            recipe, fam, sub, scen, repo_dir, home)
+            recipe, fam, sub, scen, repo_dir, home, gold_blob, test_blob)
+        applied = env_identity["acquisition_order"]["applied_patches"]
         pub_argv = pub.parse_command(recipe["test_cmd"][0])
         if list(scen.get("original_argv") or []) != pub_argv:
             phase_a_defect = {
@@ -559,11 +576,23 @@ def acquire_swebench(scen, workroot):
                 "publisher_source": recipe["source"],
             }
     else:
+        # No publisher recipe: apply the declared patches up-front (gold before test),
+        # then warm generically. Their tracked worktree changes ARE the scenario.
+        applied = []
+        for name, blob in (("patch", gold_blob), ("test_patch", test_blob)):
+            if not blob:
+                continue
+            pf = workroot / f"{name}.diff"
+            pf.write_bytes(blob)
+            subprocess.run(["git", "-C", str(repo_dir), "apply", str(pf)], check=True, env=_git_env(home))
+            applied.append({name: hashlib.sha256(blob).hexdigest()})
+        patch_paths = _worktree_modified(repo_dir, home)
         warm, policy, offline_env, resolved, env_identity = _warm_test_env(
             fam, sub, scen, repo_dir, home, protected_pristine, patch_paths)
     acq = {"identity_verified": True, "repository": repo, "base_commit": base,
            "instance_id": instance_id, "applied_patches": applied, "warm": warm,
            "resolved_raw_argv": resolved.get("raw_argv"), "resolved_rtk_argv": resolved.get("rtk_argv"),
+           "jvm_proof_class": resolved.get("jvm_proof_class"),
            "offline_env": offline_env, "environment_identity": env_identity,
            "workdir": "repo", "home_local": True, "policy": policy}
     if recipe:
@@ -810,23 +839,87 @@ def _gradle_test_proof(text: str, test_class: str) -> dict:
                                 and not infra_fail and test_outcome_seen)}
 
 
-def _publisher_warm(recipe: dict, fam: str, sub: str, scen, repo_dir: Path, home: Path):
-    """Acquire a SWE-bench case under its EXACT publisher recipe (source-derived):
-    run the publisher pre-install shell (materializes the per-instance lockfile via
-    its own heredoc / applies the gradle logging edit), populate caches with the
-    publisher `install` (warm) command, then measure the publisher `test_cmd`. Every
-    command is the exact upstream string from n2e-publisher-env-registry-v1.json.
-    Returns the same 5-tuple as _warm_test_env."""
+def _gradle_target_class(argv: list) -> str | None:
+    if "--tests" in argv:
+        i = argv.index("--tests")
+        if i + 1 < len(argv):
+            return argv[i + 1]
+    return None
+
+
+def _sanitize_gradle_seed(seed: Path | None) -> list:
+    """Strip everything from a GRADLE_USER_HOME cache seed that would let a measured
+    rep SHORT-CIRCUIT (build/output cache) or carry per-run mutable state (daemon,
+    journal, locks, worker temp): keep only the reusable dependency + wrapper-dist +
+    compiled-script caches. Combined with deleting the project `.gradle` task history,
+    this guarantees no UP-TO-DATE / FROM-CACHE result can mask a rep that never
+    executed the target class."""
+    if not seed or not seed.exists():
+        return []
+    removed = []
+    for rel in ("daemon", "notifications", "kotlin", "kotlin-profile", ".tmp",
+                "workers", "caches/journal-1", "caches/build-cache-1"):
+        p = seed / rel
+        if p.exists():
+            shutil.rmtree(p, ignore_errors=True)
+            removed.append(rel)
+    for lk in seed.rglob("*.lock"):
+        try:
+            lk.unlink()
+            removed.append(str(lk.relative_to(seed)))
+        except OSError:
+            pass
+    return removed
+
+
+ACQ_ORDER_POLICY_ID = "publisher-acquisition-order-v1"
+
+
+def _publisher_order_sequence(variant: str) -> list:
+    """The one faithful gold-evaluation boundary order. The publisher `--locked`
+    install warms the FROZEN lockfile on the pristine manifest; only AFTERWARDS is the
+    gold (source/fix) patch applied (::fixed), then the test_patch, then measurement."""
+    seq = ["base", "pre_install", "install_warm"]
+    if variant == "fixed":
+        seq.append("gold_patch")
+    seq.append("test_patch")
+    return seq
+
+
+def _publisher_warm(recipe: dict, fam: str, sub: str, scen, repo_dir: Path, home: Path,
+                    gold_blob: bytes = b"", test_blob: bytes = b""):
+    """Acquire a SWE-bench case under its EXACT publisher recipe (source-derived) in the
+    faithful gold-evaluation ORDER (correction / item 4):
+
+        base checkout -> publisher pre_install (frozen lockfile heredoc / gradle edit)
+        -> publisher install/warm (populate offline cache; rust compiles under `--locked`
+           against the FROZEN lockfile, on the PRISTINE manifest)
+        -> gold/source patch (::fixed only)
+        -> publisher test_patch
+        -> measured publisher test_cmd (offline).
+
+    The critical invariant is that the `--locked` install runs BEFORE the gold patch
+    mutates the manifest (Cargo.toml) -- applying the gold patch first makes `--locked`
+    fail because Cargo.toml no longer matches the frozen Cargo.lock. sha256 + tracked
+    worktree state are recorded at every boundary (`acquisition_order`) so the verifier
+    can independently enforce the order. Returns the same 5-tuple as _warm_test_env."""
     tc_spec = recipe.get("toolchain") or {}
     spec_label = recipe["source"]["spec_dict"] + "[" + recipe["source"]["spec_key"] + "]"
     warm_extra, offline_env = _publisher_lang_env(fam, home, tc_spec)
-    for k in ("JAVA_HOME", "RUSTUP_HOME", "GRADLE_USER_HOME"):
+    for k in ("JAVA_HOME", "RUSTUP_HOME"):
         if os.environ.get(k) and k not in warm_extra:
             warm_extra[k] = os.environ[k]
-    if fam == "jvm":  # keep gradle deps in a home-local cache that survives per-rep copies
-        warm_extra["GRADLE_USER_HOME"] = offline_env["GRADLE_USER_HOME"] = str(home / ".gradle")
+    gradle_seed = None
+    if fam == "jvm":
+        # network-enabled warm populates a GRADLE_USER_HOME cache seed INSIDE the frozen
+        # env; run_arm then gives every measured rep a FRESH writable copy of that seed
+        # at _FIXEDWORK/.n2e-gradle-home (no shared mutable gradle home across reps).
+        gradle_seed = repo_dir / _GRADLE_SEED_DIRNAME
+        warm_extra["GRADLE_USER_HOME"] = str(gradle_seed)
+        offline_env["GRADLE_USER_HOME"] = str(_FIXEDWORK / _GRADLE_SEED_DIRNAME)
     env = m.measurement_env(warm_extra)
     warm = {"steps": [], "publisher_recipe": spec_label, "instance_id": recipe["instance_id"]}
+    ge = _git_env(home)
 
     def run(argv, extra_env=None, tmo=1800, kind="step"):
         try:
@@ -840,73 +933,141 @@ def _publisher_warm(recipe: dict, fam: str, sub: str, scen, repo_dir: Path, home
                                   "tail": ((e.stdout or b"")[-900:] + (e.stderr or b"")[-900:]).decode("utf-8", "replace")})
             return None
 
-    # ---- pre-install (publisher-mandated frozen construction, before the baseline) ----
-    # Each pre_install entry is an exact upstream shell command (e.g. tokio's
-    # `cat > Cargo.lock <<EOF...` lockfile heredoc, lucene's testLogging sed).
-    for cmd in recipe.get("pre_install", []):
-        run(["bash", "-c", cmd], tmo=300, kind="pre_install")
-    protected_base = _protected_hashes(repo_dir, fam)  # publisher lockfile IS a frozen input
+    def _git(*args):
+        return subprocess.run(["git", "-C", str(repo_dir), *args],
+                              capture_output=True, text=True, env=ge)
 
-    # ---- warm: publisher `install` (network-enabled cache population + compile) ----
-    for cmd in recipe.get("install", []):
-        wenv, wargv = pub.split_env(cmd)
-        run(wargv, extra_env=wenv, kind="install")
-    test_env, test_argv = pub.split_env(recipe["test_cmd"][0])
-    # execution-control seed (lucene-randomized-seed-v1): appended to BOTH arms + the
-    # warm prime, so the fixed seed the reps use is exactly what was cache-primed.
+    def boundary(label, **extra):
+        diff = _git("diff", "HEAD").stdout.encode("utf-8", "replace")
+        status = [ln for ln in _git("status", "--porcelain", "--untracked-files=no").stdout.splitlines()
+                  if ln.strip()]
+        return {"label": label, "protected": _protected_hashes(repo_dir, fam),
+                "worktree_diff_sha256": hashlib.sha256(diff).hexdigest(),
+                "worktree_diff_bytes": len(diff), "tracked_status": status, **extra}
+
+    def apply_patch(name, blob):
+        pf = home.parent / f"{name}.diff"
+        pf.write_bytes(blob)
+        r = _git("apply", str(pf))
+        return {"name": name, "sha256": hashlib.sha256(blob).hexdigest(),
+                "apply_exit": r.returncode, "apply_stderr": (r.stderr or "")[-400:]}
+
     seed_pol = xctl.policy_for_case(scen["case_id"])
     seed_extra = [seed_pol["arg"]] if seed_pol else []
-    test_argv = [*test_argv, *seed_extra]
+    gradle_extra = xctl.gradle_offline_args() if fam == "jvm" else []
+    gradle_extra_online = [a for a in gradle_extra if a != "--offline"]  # warm must fetch
     if seed_pol:
         warm["execution_control"] = seed_pol
-    if not recipe.get("install"):
-        # no publisher install step (e.g. lucene): prime caches + compile by running
-        # the exact test command ONCE online. Its RESULT is not measured -- see the
-        # jvm cleanup below which forces the measured reps to actually re-execute.
-        run(test_argv, extra_env=test_env, kind="warm_prime")
-    jvm_prime_proof = None
     if fam == "jvm":
-        # item 6: prove the warm prime actually EXECUTED the declared target test (a
-        # start/JDK/dependency failure is a harness defect, not an acceptable prime).
-        test_class = next((a for a in test_argv if "." in a and "/" not in a
-                           and a == test_argv[test_argv.index("--tests") + 1]), None) \
-            if "--tests" in test_argv else None
-        prime = next((s for s in warm["steps"] if s.get("kind") == "warm_prime"), None)
-        if prime and test_class:
-            jvm_prime_proof = _gradle_test_proof(prime.get("tail", ""), test_class)
-            warm["jvm_prime_proof"] = jvm_prime_proof
-        # then delete the project-local gradle task history + test outputs so each of
-        # the 3 measured reps re-runs the target test offline (KEEP the home-local
-        # dependency cache in GRADLE_USER_HOME).
+        warm["gradle_offline_policy"] = xctl.gradle_offline_policy()
+
+    boundaries = [boundary("base")]
+
+    # ---- (1) pre_install: publisher frozen construction on the PRISTINE tree ----
+    for cmd in recipe.get("pre_install", []):
+        run(["bash", "-c", cmd], tmo=300, kind="pre_install")
+    boundaries.append(boundary("pre_install"))
+    protected_pre_install = _protected_hashes(repo_dir, fam)
+
+    # ---- (2) install / warm: populate the offline cache; rust compiles `--locked`
+    #          against the FROZEN lockfile, BEFORE any patch mutates the manifest ----
+    install_steps, locked_seen = [], False
+    for cmd in recipe.get("install", []):
+        wenv, wargv = pub.split_env(cmd)
+        wargv_eff = [*wargv, *gradle_extra_online] if fam == "jvm" else wargv
+        r = run(wargv_eff, extra_env=wenv, kind="install")
+        locked_seen = locked_seen or ("--locked" in wargv)
+        install_steps.append({"cmd": wargv, "effective_cmd": wargv_eff,
+                              "locked": "--locked" in wargv,
+                              "exit": (r.returncode if r is not None else None)})
+    boundaries.append(boundary("install_warm"))
+    protected_after_install = boundaries[-1]["protected"]
+
+    # measured argv (offline) vs warm argv (online population, no --offline)
+    test_env, test_argv_base = pub.split_env(recipe["test_cmd"][0])
+    measured_argv = [*test_argv_base, *seed_extra, *gradle_extra]
+    warm_test_argv = [*test_argv_base, *seed_extra, *gradle_extra_online]
+
+    # ---- (3) gold/source patch, ::fixed only, AFTER the locked install ----
+    applied_patches = []
+    if scen["snapshot_variant"] == "fixed":
+        if gold_blob:
+            applied_patches.append(apply_patch("patch", gold_blob))
+        boundaries.append(boundary("gold_patch", applied=bool(gold_blob),
+                                   patch_sha256=hashlib.sha256(gold_blob).hexdigest() if gold_blob else None))
+
+    # ---- (4) test_patch AFTER the gold patch ----
+    if test_blob:
+        applied_patches.append(apply_patch("test_patch", test_blob))
+    boundaries.append(boundary("test_patch", applied=bool(test_blob),
+                               patch_sha256=hashlib.sha256(test_blob).hexdigest() if test_blob else None))
+
+    # ---- (5) jvm no-install: warm-prime (online) the NOW-PATCHED target test to compile
+    #          + populate the cache; then sanitize the seed + strip project task history
+    #          so each measured rep re-executes offline (item 5 / item 6) ----
+    jvm_prime_proof = None
+    target_class = _gradle_target_class(measured_argv) if fam == "jvm" else None
+    if fam == "jvm":
+        if not recipe.get("install"):
+            run(warm_test_argv, extra_env=test_env, kind="warm_prime")
+            prime = next((s for s in warm["steps"] if s.get("kind") == "warm_prime"), None)
+            if prime and target_class:
+                jvm_prime_proof = _gradle_test_proof(prime.get("tail", ""), target_class)
+                warm["jvm_prime_proof"] = jvm_prime_proof
+        removed = _sanitize_gradle_seed(gradle_seed)
         for rel in (".gradle", "build/test-results", "build/reports"):
             shutil.rmtree(repo_dir / rel, ignore_errors=True)
         warm["jvm_rerun_cleanup"] = [".gradle", "build/test-results", "build/reports"]
-    # warm success = pre-install + dependency population succeeded. A `warm_prime`
-    # step RUNS the target test only to populate caches/compile; for a ::buggy variant
-    # that test legitimately exits non-zero (that IS the bug), so its exit is
-    # informational -- BUT (item 6) the prime must have actually executed the target
-    # test, not died before it. A prime TIMEOUT is still a failure.
-    warm["ok"] = (all(s.get("exit") == 0 for s in warm["steps"] if s.get("kind") != "warm_prime")
+        warm["gradle_seed_sanitized_removed"] = removed
+        warm["jvm_target_class"] = target_class
+
+    # warm success = pre_install + dependency population + patch application succeeded.
+    # A `warm_prime` RUNS the target test only to compile/populate caches; for ::buggy
+    # that test legitimately exits non-zero, so its exit is informational -- but (item 6)
+    # it must have actually EXECUTED the target test. A patch that fails to apply, an
+    # install non-zero exit, or any timeout is a warm failure.
+    warm["ok"] = (all(s.get("exit") == 0 for s in warm["steps"] if s.get("kind") not in ("warm_prime",))
                   and not any(s.get("timed_out") for s in warm["steps"])
+                  and all(p.get("apply_exit") == 0 for p in applied_patches)
                   and (jvm_prime_proof is None or jvm_prime_proof["executed_ok"]))
 
     policy = canon.policy_for(fam, sub, jvm_build=("gradle" if fam == "jvm" else None),
                               case_id=scen["case_id"])
-    resolved = {"raw_argv": test_argv, "rtk_argv": ["rtk", *test_argv]}
+    resolved = {"raw_argv": measured_argv, "rtk_argv": ["rtk", *measured_argv],
+                "jvm_proof_class": target_class}
     offline_env = {**offline_env, **test_env}  # publisher test env (e.g. RUSTFLAGS) on both arms
 
-    protected_after = _protected_hashes(repo_dir, fam)
-    committed_mutated = sorted(k for k, h in protected_base.items()
-                               if h is not None and protected_after.get(k) != h)
+    # committed-input mutation guard, isolated to the WARM/install step: a COMMITTED
+    # protected manifest that the install step changed between pre_install and
+    # install_warm is a real mutation. The declared gold/test patches (applied AFTER
+    # install_warm) legitimately change tracked inputs -- they ARE the scenario -- so
+    # they are excluded from this guard.
+    committed_mutated = sorted(k for k, h in protected_pre_install.items()
+                               if h is not None and protected_after_install.get(k) != h)
+    protected_after = _protected_hashes(repo_dir, fam)  # final frozen input (post-patches)
     rust_channel = (tc_spec.get("version", "") + ".0") if (fam == "rust_cargo"
                     and tc_spec.get("version", "").count(".") == 1) else tc_spec.get("version")
+    acquisition_order = {
+        "policy_id": ACQ_ORDER_POLICY_ID,
+        "snapshot_variant": scen["snapshot_variant"],
+        "canonical_sequence": _publisher_order_sequence(scen["snapshot_variant"]),
+        "boundaries": boundaries,
+        "install": {"ran": bool(recipe.get("install")), "locked": locked_seen, "steps": install_steps},
+        "applied_patches": applied_patches,
+        "gold_applied": bool(gold_blob) and scen["snapshot_variant"] == "fixed",
+        "test_applied": bool(test_blob),
+        "invariant": "publisher --locked install runs on the pristine manifest; the gold "
+                     "patch is applied only afterwards, then the test_patch, then measured.",
+    }
     env_identity = {
         "toolchain": _toolchain_identity(fam, repo_dir, rust_channel=rust_channel),
         "toolchain_pin": tc_spec,
         "platform": _platform_identity(fam),
+        "acquisition_order": acquisition_order,
         "dependencies": {
             "protected_files": _PROTECTED_FILES.get(fam, []),
-            "post_construction": protected_base,
+            "pristine_pre_install": protected_pre_install,
+            "after_install_warm": protected_after_install,
             "after_acquisition": protected_after,
             "committed_mutated": committed_mutated,
             "mutation_guard_ok": committed_mutated == [],
@@ -1034,7 +1195,8 @@ def main() -> int:
             raw = _docker_arm(scen["original_argv"], policy, scen["timeout_seconds"])
             rtk_run = None
         else:
-            raw = run_arm(raw_argv, frozen, policy, scen["timeout_seconds"], wrapper, env_extra)
+            raw = run_arm(raw_argv, frozen, policy, scen["timeout_seconds"], wrapper, env_extra,
+                          jvm_proof_class=acq.get("jvm_proof_class"))
             rtk_run = None
 
         # ---- RAW acceptance gate ----
@@ -1055,7 +1217,7 @@ def main() -> int:
             rtk_run = _docker_arm([rtk_bin] + rtk_argv[1:], policy, scen["timeout_seconds"])
         else:
             rtk_run = run_arm([rtk_bin] + rtk_argv[1:], frozen, policy, scen["timeout_seconds"],
-                              wrapper, env_extra, is_rtk=True)
+                              wrapper, env_extra, is_rtk=True, jvm_proof_class=acq.get("jvm_proof_class"))
 
         rtk_ok, rtk_reasons, rtk_oracle = _rtk_accept(scen, raw, rtk_run, rtk_bin)
         # post-measurement mutation guard (the real correction #2 invariant): after
@@ -1134,6 +1296,9 @@ def _raw_accept(scen, raw, acq, iso):
         reasons.append("raw exit unstable")
     if not raw["canonical_deterministic"]:
         reasons.append("raw not canonically deterministic")
+    if raw.get("target_execution_ok") is False:
+        reasons.append("gradle target test task did not execute offline in every raw rep "
+                       "(UP-TO-DATE / FROM-CACHE / NO-SOURCE / SKIPPED or infra failure)")
     if not acq.get("identity_verified"):
         reasons.append("acquisition identity unverified")
     if iso.get("host_side_observation"):
@@ -1156,6 +1321,9 @@ def _rtk_accept(scen, raw, rtk, rtk_bin):
         reasons.append("rtk exit unstable")
     if not rtk["canonical_deterministic"]:
         reasons.append("rtk not canonically deterministic")
+    if rtk.get("target_execution_ok") is False:
+        reasons.append("gradle target test task did not execute offline in every rtk rep "
+                       "(UP-TO-DATE / FROM-CACHE / NO-SOURCE / SKIPPED or infra failure)")
     if c.sha256_file(rtk_bin) != RTK_BINARY_SHA256:
         reasons.append("rtk binary identity")
     oracle = ora.rtk_agrees(scen, raw["_accepted_canonical"] or b"", rtk.get("_accepted_canonical") or b"")

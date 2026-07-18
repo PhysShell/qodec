@@ -20,6 +20,7 @@ HERE = Path(__file__).resolve().parent
 N2E_DIR = HERE.parent
 sys.path.insert(0, str(HERE))
 import n2e_common as c  # noqa: E402
+import verify_n2e_acquisition_order as vao  # noqa: E402
 
 CANARY = N2E_DIR / "n2e-canary-membership-v1.json"
 OUT = N2E_DIR / "n2e-canary-acceptance-v1.json"
@@ -51,6 +52,18 @@ def rederive_verdict(rec: dict) -> tuple[str, list]:
         reasons.append("raw_oracle_fail")
     if not acq.get("identity_verified"):
         reasons.append("acquisition_unverified")
+    # publisher acquisition-ORDER gate (item 4): when the record carries acquisition_
+    # order evidence, the faithful `--locked`-install-before-gold-patch order must
+    # independently verify -- a wrong order cannot be accepted.
+    env_id = acq.get("environment_identity") or {}
+    if env_id.get("acquisition_order") is not None:
+        ok_ord, ord_reasons = vao.verify_record(rec)
+        if not ok_ord:
+            reasons.append("acquisition_order:" + ";".join(ord_reasons))
+    # gradle per-rep OFFLINE-EXECUTION proof (item 5): every rep must have actually
+    # executed the target test task offline (not UP-TO-DATE / FROM-CACHE / SKIPPED).
+    if raw.get("target_execution_ok") is False:
+        reasons.append("raw_target_not_executed_offline")
     # isolation: netns-denial required for all families except containers
     if fam == "containers":
         if not iso.get("host_side_observation", True):
@@ -70,6 +83,8 @@ def rederive_verdict(rec: dict) -> tuple[str, list]:
             reasons.append("rtk_nondeterministic")
         if rtk_orc.get("verdict") is not True:
             reasons.append("rtk_oracle_fail")
+        if rtk.get("target_execution_ok") is False:
+            reasons.append("rtk_target_not_executed_offline")
     return ("PASS" if not reasons else "FAIL", reasons)
 
 
