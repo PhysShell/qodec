@@ -25,7 +25,8 @@
         "test",
         "--tests",
         "org.apache.lucene.search.TestLatLonDocValuesQueries",
-        "-Ptests.seed=965304069726D5D6"
+        "-Ptests.seed=965304069726D5D6",
+        "-Ptests.jvms=1"
       ],
       "effective_rtk_argv": [
         "rtk",
@@ -33,15 +34,21 @@
         "test",
         "--tests",
         "org.apache.lucene.search.TestLatLonDocValuesQueries",
-        "-Ptests.seed=965304069726D5D6"
+        "-Ptests.seed=965304069726D5D6",
+        "-Ptests.jvms=1"
       ],
       "execution_control": {
         "arg": "-Ptests.seed=965304069726D5D6",
+        "args": [
+          "-Ptests.seed=965304069726D5D6",
+          "-Ptests.jvms=1"
+        ],
         "derivation": "sha256(lucene-randomized-seed-v1+selection_seed+case_id)[:16].upper()",
         "flag": "-Ptests.seed",
         "policy_id": "lucene-randomized-seed-v1",
         "seed": "965304069726D5D6",
-        "selection_seed": "20260717"
+        "selection_seed": "20260717",
+        "single_jvm": "-Ptests.jvms=1"
       },
       "frozen_rtk_resolution_rule": null,
       "isolation_method": "network-denied-netns(lo-up); positive denial probe",
@@ -698,7 +705,7 @@
   "mission": "N2-E",
   "mission_title": "external RTK-native claim-aligned command corpus",
   "purpose": "Immutable per-case effective-execution contract; normative source for argv/canon/oracle resolution, toolchain+dependency identity references, and mutation guards (correction #3).",
-  "record_sha256": "sha256:57ed179dcf0e8a41f86f5a660413513c79d12eedd1f03ec6d2b030187ca5d96c",
+  "record_sha256": "sha256:785852708491d1fa7bd8ffe16bf1b3a1247873f0750d39ea53a38178b8c5227d",
   "record_type": "n2e-canary-execution-contract",
   "record_version": "v1",
   "schema_version": "n2e-record-1"

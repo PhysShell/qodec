@@ -25,7 +25,11 @@ _GOTEST_OKFAIL = re.compile(rb"^(ok|FAIL|PASS)\b", re.MULTILINE)
 _PYTEST_SUM = re.compile(rb"(\d+) passed|(\d+) failed|(\d+) error|(\d+) skipped")
 _PYTEST_FAIL = re.compile(rb"^FAILED\s+(\S+)", re.MULTILINE)
 _PYTEST_FAIL2 = re.compile(rb"_{3,}\s+(\S+)\s+_{3,}")
-_VITEST_FAIL = re.compile(rb"(?:FAIL|\xc3\x97)\s+(\S+)")
+# vitest verbose marks a failed test with a leading `×` (U+00D7 = \xc3\x97) or a
+# file-level `FAIL`, followed by the FULL `path > suite > test` chain. Capture the
+# whole chain (not just the first token) and strip any trailing ` NNNms` duration so
+# the parsed identity normalizes to the same leaf as the declared target id.
+_VITEST_FAIL = re.compile(rb"^\s*(?:\xc3\x97|FAIL)\s+(\S.*?)(?:\s+\d+ms)?\s*$", re.MULTILINE)
 _DIAG = re.compile(rb"(?P<file>[\w./\-]+):(?P<line>\d+):(?:(?P<col>\d+):)?\s*(?P<sev>error|warning|note)?", re.IGNORECASE)
 
 
@@ -61,9 +65,12 @@ def _test_summary(raw: bytes) -> dict:
             passed = total - failed
     for fm in _GRADLE_FAIL.finditer(raw):
         failing.add(f"{fm.group(1).decode('utf-8','replace')}::{fm.group(2).decode('utf-8','replace')}")
-    for pat in (_CARGO_FAIL, _GOTEST_FAIL, _PYTEST_FAIL):
+    for pat in (_CARGO_FAIL, _GOTEST_FAIL, _PYTEST_FAIL, _VITEST_FAIL):
         for fm in pat.finditer(raw):
-            failing.add(fm.group(1).decode("utf-8", "replace"))
+            ident = fm.group(1).decode("utf-8", "replace").strip()
+            # ignore the `Test Files`/`Tests` summary lines that also contain 'failed'
+            if ident and not ident.startswith(("Test Files", "Tests ")):
+                failing.add(ident)
     # pytest summary counts
     if passed is None:
         p = f = e = s = 0

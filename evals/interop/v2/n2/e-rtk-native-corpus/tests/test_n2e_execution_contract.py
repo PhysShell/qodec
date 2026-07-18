@@ -46,8 +46,11 @@ class TestResolver(unittest.TestCase):
         r = resolver.resolve(SCEN[cid])
         self.assertEqual(r["execution_control"]["policy_id"], "lucene-randomized-seed-v1")
         seed_arg = xctl.seed_arg(cid)
-        self.assertEqual(r["effective_raw_argv"][-1], seed_arg)
-        self.assertEqual(r["effective_rtk_argv"][-1], seed_arg)  # same seed both arms
+        # both membership-preserving determinism controls are appended identically to
+        # both arms: the fixed seed AND the single test JVM.
+        for arm in ("effective_raw_argv", "effective_rtk_argv"):
+            self.assertIn(seed_arg, r[arm])
+            self.assertEqual(r[arm][-1], "-Ptests.jvms=1")
         self.assertRegex(seed_arg, r"^-Ptests\.seed=[0-9A-F]{16}$")
         # non-seed cases carry no execution-control
         self.assertIsNone(resolver.resolve(SCEN["caddyserver__caddy-5870::go::test::buggy"])["execution_control"])

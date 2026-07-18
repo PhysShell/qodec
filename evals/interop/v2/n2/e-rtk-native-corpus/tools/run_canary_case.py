@@ -940,30 +940,38 @@ def _publisher_lang_env(fam: str, home: Path, toolchain: dict) -> tuple[dict, di
 
 
 def _gradle_test_proof(text: str, test_class: str) -> dict:
-    """Prove a Gradle run actually EXECUTED the declared target test (item 6): the
-    test task must have run (not UP-TO-DATE / FROM-CACHE / NO-SOURCE), the class must
-    be discovered, and any non-zero must come from the test outcome -- not a Gradle
-    start / JDK / dependency-resolution failure."""
+    """Prove a Gradle run actually EXECUTED the declared target test: the target class
+    is discovered, a genuine test RESULT is present (not merely a build message), and
+    the run did not die on a Gradle start / JDK / dependency-resolution failure.
+
+    NOTE: a bare `:test SKIPPED/NO-SOURCE` scan is NOT used to disqualify -- a multi-
+    module build (e.g. Lucene) legitimately reports SKIPPED/NO-SOURCE for OTHER modules
+    while the target module's test task runs. The per-rep isolation (a FRESH copy of the
+    frozen GRADLE_USER_HOME seed + the stripped project `.gradle`) already makes it
+    impossible for the target task to be UP-TO-DATE/FROM-CACHE, so real-execution
+    evidence (failing/completed tests) is the sound gate."""
     t = text or ""
     task_ran = ":test" in t or "> Task :" in t
-    short = test_class.rsplit(".", 1)[-1]
-    discovered = (test_class in t) or (short in t)
-    skipped = any(m in t for m in (":test UP-TO-DATE", ":test FROM-CACHE", ":test NO-SOURCE",
-                                   ":test SKIPPED"))
+    short = test_class.rsplit(".", 1)[-1] if test_class else ""
+    discovered = bool(test_class) and ((test_class in t) or (short in t))
+    skipped_markers = any(m in t for m in (":test UP-TO-DATE", ":test FROM-CACHE",
+                                           ":test NO-SOURCE", ":test SKIPPED"))
     gradle_started = ("Welcome to Gradle" in t) or ("> Task" in t) or ("BUILD " in t)
-    # a start/JDK/dependency failure is a harness defect, NOT an acceptable prime
+    # a start/JDK/dependency failure is a harness defect, NOT an acceptable execution
     infra_fail = any(m in t for m in ("Could not determine java version",
                                       "Unable to locate a Java Runtime", "command not found",
                                       "Could not resolve all files", "Could not download",
                                       "Plugin [id:", "Could not create service"))
-    test_outcome_seen = any(m in t for m in ("There were failing tests", "tests completed",
-                                             "BUILD SUCCESSFUL", "BUILD FAILED", "Tests failed:"))
-    return {"gradle_started": gradle_started, "target_task_executed": task_ran and not skipped,
-            "test_class_discovered": discovered, "skipped_markers": skipped,
-            "infra_failure": infra_fail, "test_outcome_seen": test_outcome_seen,
-            "target_test_class": test_class,
-            "executed_ok": bool(gradle_started and task_ran and not skipped and discovered
-                                and not infra_fail and test_outcome_seen)}
+    # a genuine TEST result (as opposed to a mere build banner) proves the tests ran
+    real_test_result = any(m in t for m in ("There were failing tests", "tests completed",
+                                            "Tests failed:", " PASSED", " FAILED"))
+    build_result = any(m in t for m in ("BUILD SUCCESSFUL", "BUILD FAILED"))
+    return {"gradle_started": gradle_started, "target_task_executed": task_ran and not skipped_markers,
+            "test_class_discovered": discovered, "skipped_markers": skipped_markers,
+            "infra_failure": infra_fail, "test_outcome_seen": real_test_result or build_result,
+            "real_test_result": real_test_result, "target_test_class": test_class,
+            "executed_ok": bool(gradle_started and discovered and not infra_fail
+                                and real_test_result)}
 
 
 def _gradle_target_class(argv: list) -> str | None:
@@ -1118,7 +1126,7 @@ def _publisher_warm(recipe: dict, fam: str, sub: str, scen, repo_dir: Path, home
                 "apply_exit": r.returncode, "apply_stderr": (r.stderr or "")[-400:]}
 
     seed_pol = xctl.policy_for_case(scen["case_id"])
-    seed_extra = [seed_pol["arg"]] if seed_pol else []
+    seed_extra = (seed_pol.get("args") or [seed_pol["arg"]]) if seed_pol else []
     gradle_extra = xctl.gradle_offline_args() if fam == "jvm" else []
     gradle_extra_online = [a for a in gradle_extra if a != "--offline"]  # warm must fetch
     if seed_pol:

@@ -61,13 +61,22 @@ def seed_arg(case_id: str) -> str | None:
     return f"{flag}={derive_seed(case_id)}"
 
 
+# Lucene runs its test methods across MULTIPLE forked JVMs by default (`-Ptests.jvms`
+# defaults to a CPU-derived value), so even with a fixed master seed the interleaved
+# per-fork output is nondeterministic across reps. Forcing a SINGLE test JVM removes
+# that interleaving without changing which tests run (same seed, same membership).
+_SINGLE_JVM_ARG = "-Ptests.jvms=1"
+
+
 def policy_for_case(case_id: str) -> dict | None:
     ent = _SEED_CASES.get(case_id)
     if not ent:
         return None
     pid, flag = ent
+    args = [seed_arg(case_id), _SINGLE_JVM_ARG]
     return {"policy_id": pid, "flag": flag, "seed": derive_seed(case_id),
-            "arg": seed_arg(case_id), "selection_seed": selection_seed(),
+            "arg": seed_arg(case_id), "args": args, "single_jvm": _SINGLE_JVM_ARG,
+            "selection_seed": selection_seed(),
             "derivation": f"sha256({pid}+selection_seed+case_id)[:16].upper()"}
 
 

@@ -90,10 +90,11 @@ def resolve(scen: dict, repo_dir: Path | None = None) -> dict:
         assert recipe["command_family"] == fam and recipe["command_subfamily"] == sub
         assert recipe["snapshot_variant"] == scen.get("snapshot_variant")
         argv = pub.parse_command(recipe["test_cmd"][0])
-        # execution-control (e.g. lucene-randomized-seed-v1): a mechanically-derived
-        # fixed seed appended IDENTICALLY to both arms (no test-membership change).
+        # execution-control (e.g. lucene-randomized-seed-v1): mechanically-derived,
+        # membership-preserving determinism controls (fixed seed + single test JVM)
+        # appended IDENTICALLY to both arms.
         seed_pol = xctl.policy_for_case(scen["case_id"])
-        seed = [seed_pol["arg"]] if seed_pol else []
+        seed = (seed_pol.get("args") or [seed_pol["arg"]]) if seed_pol else []
         return {**base, "resolution_rule": "publisher_recipe",
                 "runtime_resolved": False, "publisher_recipe": recipe["source"]["spec_dict"],
                 "scheduler_env": _publisher_scheduler_env(recipe),
