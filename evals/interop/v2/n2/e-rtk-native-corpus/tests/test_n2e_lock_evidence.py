@@ -398,6 +398,47 @@ class TestReachableIds(unittest.TestCase):
         self.assertEqual(P._reachable_ids([], nodes), [])
 
 
+class TestNormalizeResolveRoots(unittest.TestCase):
+    """item C regression: a workspace with BOTH a root package AND sibling members (uutils/
+    coreutils shape) must derive resolve_roots = ALL workspace_members (+ resolve.root), so every
+    workspace-member node is reachable and none is spuriously 'disconnected'. resolve.root alone
+    left the sibling members disconnected and forced a pristine misclassification."""
+
+    def _meta(self, root):
+        return {
+            "workspace_members": ["ws#coreutils@0.0.27", "ws/uu/arch#uu_arch@0.0.27"],
+            "resolve": {
+                "root": root,
+                "nodes": [
+                    {"id": "ws#coreutils@0.0.27", "deps": [{"name": "libc", "pkg": "libc@0.2", "dep_kinds": []}]},
+                    # uu_arch is a workspace member NOT reachable from the coreutils aggregator
+                    {"id": "ws/uu/arch#uu_arch@0.0.27", "deps": [{"name": "libc", "pkg": "libc@0.2", "dep_kinds": []}]},
+                    {"id": "libc@0.2", "deps": []},
+                ],
+            },
+        }
+
+    def _assert_all_reachable(self, g):
+        node_ids = {n["id"] for n in g["resolve_nodes"]}
+        self.assertEqual(set(g["reachable_package_ids"]), node_ids)          # nothing disconnected
+        self.assertIn("ws/uu/arch#uu_arch@0.0.27", g["resolve_roots"])       # sibling member is a root
+        # the verifier's own structural validation must pass on this graph
+        vg = dict(g, resolve_graph_platform="x86_64-unknown-linux-gnu", resolve_graph_scope="host-filtered")
+        fail = []
+        V._validate_graph_structure(vg, "A", fail)
+        self.assertEqual(fail, [], fail)
+
+    def test_workspace_with_root_package(self):
+        g = P._normalize_resolve(self._meta("ws#coreutils@0.0.27"), [])
+        self.assertEqual(g["resolve_roots"], ["ws#coreutils@0.0.27", "ws/uu/arch#uu_arch@0.0.27"])
+        self._assert_all_reachable(g)
+
+    def test_virtual_workspace_root_null(self):
+        g = P._normalize_resolve(self._meta(None), [])
+        self.assertEqual(g["resolve_roots"], ["ws#coreutils@0.0.27", "ws/uu/arch#uu_arch@0.0.27"])
+        self._assert_all_reachable(g)
+
+
 class TestClassifyFetchPrecedence(unittest.TestCase):
     """follow-up item A (producer side): _classify_acquisitions returns the dependency-fetch
     terminal status even when a malformed sparse-cache entry is also present, and short-circuits

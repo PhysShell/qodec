@@ -399,9 +399,14 @@ def _normalize_resolve(meta: dict, tokens: list) -> dict:
     derived from the Cargo.lock instead). Only the resolve structure + the set of package IDs
     reachable through the filtered graph are kept. Path-normalized for A/B byte-equality.
 
-    Resolve roots are EXPLICIT (item C): `[resolve.root]` when Cargo supplies a concrete root
-    (a single-package workspace), otherwise the normalized `metadata.workspace_members` (a
-    virtual workspace, where `resolve.root` is null). Reachability BFS starts only from these."""
+    Resolve roots are EXPLICIT (item C): the complete set of normalized `metadata.workspace_members`
+    -- every workspace member is a root of Cargo's resolve graph -- UNIONed with `resolve.root`
+    when Cargo supplies a concrete primary root. `resolve.root` ALONE is insufficient for a
+    workspace that has BOTH a root package and sibling members (e.g. uutils/coreutils: the
+    `coreutils` aggregator is `resolve.root`, but the ~50 `src/uu/*` member crates and their
+    exclusive transitive deps are workspace-member roots that the aggregator only reaches under
+    non-default features, so they would be spuriously "disconnected"). Reachability BFS starts
+    from all roots, which spans every node in the (workspace-scoped) resolve graph."""
     def norm(s):
         s = s or ""
         for a, b in tokens:
@@ -421,11 +426,11 @@ def _normalize_resolve(meta: dict, tokens: list) -> dict:
                 key=lambda d: (norm(d.get("pkg")), str(d.get("name")))),
         })
     nodes.sort(key=lambda n: n["id"])
+    roots = {norm(m) for m in (meta.get("workspace_members") or [])}   # every workspace member is a root
     raw_root = resolve.get("root")
     if raw_root:
-        roots = [norm(raw_root)]                                   # concrete single-package root
-    else:
-        roots = sorted({norm(m) for m in (meta.get("workspace_members") or [])})  # virtual workspace
+        roots.add(norm(raw_root))                                      # + the concrete primary root, if any
+    roots = sorted(roots)
     return {"resolve_roots": roots, "resolve_nodes": nodes,
             "reachable_package_ids": _reachable_ids(roots, nodes)}
 
