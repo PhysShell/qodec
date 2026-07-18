@@ -278,9 +278,10 @@ def _manifest_hash(man: dict) -> str:
 def _artifact_manifest(evidence: Path, record_path: Path) -> list:
     out = []
     for f in sorted(list(evidence.rglob("*")) + [record_path]):
-        if f.is_file():
-            out.append({"file": str(f.relative_to(N2E_DIR)), "bytes": f.stat().st_size,
-                        "sha256": c.sha256_file(str(f))})
+        fa = f.resolve()  # rebase absolutely so a relative rglob path never trips relative_to
+        if fa.is_file():
+            out.append({"file": str(fa.relative_to(N2E_DIR)), "bytes": fa.stat().st_size,
+                        "sha256": c.sha256_file(str(fa))})
     return out
 
 
@@ -611,7 +612,12 @@ def main() -> int:
     ap.add_argument("--out", default=str(N2E_DIR / "coreutils-6731-diagnostic-v1.json"))
     ap.add_argument("--evidence", default=str(N2E_DIR / "out" / "evidence" / "coreutils-6731"))
     args = ap.parse_args()
-    out = Path(args.out); evidence = Path(args.evidence); evidence.mkdir(parents=True, exist_ok=True)
+    # resolve to absolute so evidence.rglob() yields absolute paths that relative_to(N2E_DIR)
+    # can rebase to stable N2E-relative manifest strings regardless of the process cwd (the
+    # workflow passes RELATIVE --out/--evidence with cwd=N2E; relative rglob paths vs an
+    # absolute N2E_DIR previously raised ValueError inside _artifact_manifest).
+    out = Path(args.out).resolve(); evidence = Path(args.evidence).resolve()
+    evidence.mkdir(parents=True, exist_ok=True)
 
     bundle = loader.load_case_bundle(CASE_ID, "resolved")
     recipe = bundle["publisher_recipe"]; scen = bundle["scenario"]
