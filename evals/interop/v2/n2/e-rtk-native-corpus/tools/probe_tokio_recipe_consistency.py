@@ -242,10 +242,17 @@ def part_d(base, workroot, checkout, registry_pre_install):
     bundle_head = _git(checkout, "rev-parse", "HEAD")["stdout"].strip()
     if bundle_head != HARNESS_COMMIT:
         reasons.append(f"bundle HEAD {bundle_head} != pinned harness {HARNESS_COMMIT}")
+    # Load the pinned rust.py DIRECTLY from the checkout file via importlib (it imports
+    # only pathlib) -- this proves it is loaded from the checkout via __file__ WITHOUT
+    # triggering swebench/__init__.py (which eagerly imports swebench.collect -> requests).
+    rust_py = checkout / "swebench" / "harness" / "constants" / "rust.py"
     penv = {**os.environ, "PYTHONPATH": str(checkout)}
     probe = (
-        "import json,swebench.harness.constants.rust as R\n"
+        "import json,importlib.util\n"
         "from pathlib import Path\n"
+        f"rp={str(rust_py)!r}\n"
+        "spec=importlib.util.spec_from_file_location('pinned_rust', rp)\n"
+        "R=importlib.util.module_from_spec(spec); spec.loader.exec_module(R)\n"
         "specs=R.MAP_REPO_VERSION_TO_SPECS_RUST.get('tokio-rs/tokio',{})\n"
         "fx=Path(R.__file__).parent/'fixtures'/'tokio-rs__tokio-4384.Cargo.lock'\n"
         "pre=R._write_cargo_lock_script('tokio-rs__tokio-4384.Cargo.lock')\n"
@@ -285,24 +292,32 @@ def part_d(base, workroot, checkout, registry_pre_install):
 
 
 def _provenance_evidence(checkout: Path, revision: str) -> dict:
-    """Immutable evidence connecting harness f7bbbb2 <-> dataset revision (item 6). Both
-    merely containing instance '4384' is INSUFFICIENT. Search publisher-controlled files
-    in the pinned harness for an explicit dataset reference/revision."""
-    hits = []
-    for rel in ("swebench/harness/constants/__init__.py", "swebench/harness/constants/rust.py",
-                "swebench/harness/run_evaluation.py", "README.md", "pyproject.toml",
-                "swebench/collect/build_dataset_ft.py"):
-        p = checkout / rel
-        if p.is_file():
+    """Immutable evidence connecting harness f7bbbb2 <-> dataset revision (item 6). A
+    shared instance '4384', or a mere dataset-NAME mention, is INSUFFICIENT: a published
+    manifest/workflow/reference tying the exact REVISION to the harness is required. Walk
+    the whole pinned harness tree for the revision and for the dataset name."""
+    name_hits, revision_hits = [], []
+    for p in sorted(checkout.rglob("*")):
+        if not p.is_file() or p.suffix not in (".py", ".md", ".toml", ".yaml", ".yml", ".json", ".txt", ".cfg"):
+            continue
+        try:
             txt = p.read_text(errors="replace")
-            if "Multilingual" in txt or revision in txt or "SWE-bench_Multilingual" in txt:
-                hits.append({"path": rel, "mentions_revision": revision in txt,
-                             "mentions_multilingual": "Multilingual" in txt})
+        except OSError:
+            continue
+        rel = str(p.relative_to(checkout))
+        if revision in txt:
+            revision_hits.append(rel)
+        if "SWE-bench_Multilingual" in txt or "SWE-bench Multilingual" in txt:
+            name_hits.append(rel)
     return {"dataset_revision": revision, "harness_commit": HARNESS_COMMIT,
-            "publisher_pair_evidence": hits,
-            "compatible_pair_proven": any(h["mentions_revision"] for h in hits),
-            "note": "shared presence of instance '4384' is NOT a pair proof; a published "
-                    "manifest/workflow/dataset reference tying the revision to the harness is required"}
+            "dataset_name_level_link_files": name_hits[:20],
+            "dataset_revision_level_link_files": revision_hits[:20],
+            "name_level_link": bool(name_hits), "revision_level_link": bool(revision_hits),
+            # a compatible PAIR requires a revision-level tie, not just a name mention
+            "compatible_pair_proven": bool(revision_hits),
+            "note": "a dataset-NAME mention or a shared instance '4384' is NOT a pair proof; "
+                    "a published reference tying the exact dataset revision to this harness "
+                    "commit is required. Absent that -> SOURCE_PROVENANCE_DEFECT."}
 
 
 def _unbundle_checkout(workroot: Path) -> Path:
