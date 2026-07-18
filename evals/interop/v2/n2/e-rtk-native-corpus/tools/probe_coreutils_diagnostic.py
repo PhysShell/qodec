@@ -437,38 +437,70 @@ def _normalize_lock_packages(lock_bytes: bytes) -> list:
     return pkgs
 
 
-def _resolved_dependency_snapshot(repo_dir: Path, cargo_home: Path) -> dict:
-    """Resolved-dependency snapshot (req 3). Two DISTINCT scopes with accurate terminology:
+DEPENDENCY_FETCH_ARGV = ["cargo", "fetch", "--locked"]
+
+
+def _dependency_fetch(repo_dir: Path, cargo_home: Path) -> dict:
+    """Lock-preserving, fail-closed dependency fetch (correction items 1/2). Requires the
+    generated Cargo.lock to exist, captures its pre-fetch identity, runs EXACTLY
+    `cargo fetch --locked` (RUSTUP_TOOLCHAIN=1.81.0, CARGO_NET_OFFLINE=false), records the full
+    command identity, and requires exit==0 & not timed_out. `--locked` forbids any lock update,
+    so a lock that would need changing fails the fetch (COREUTILS_DEPENDENCY_FETCH_FAILURE)
+    rather than silently mutating. The post-fetch lock is re-read and required byte-identical to
+    the pre-fetch lock (COREUTILS_DEPENDENCY_FETCH_LOCK_MUTATION otherwise). Returns the public
+    fetch record + pre/post identities + the private post-fetch raw bytes (the SOLE lock source
+    for every downstream identity)."""
+    lock = repo_dir / "Cargo.lock"
+    if not lock.is_file():
+        return {"status": "COREUTILS_DEPENDENCY_FETCH_FAILURE", "pre_fetch_lock_present": False,
+                "reason": "no generated Cargo.lock before dependency fetch"}
+    pre = lock.read_bytes()
+    env = _cargo_env(cargo_home, {"CARGO_NET_OFFLINE": "false", "RUSTUP_TOOLCHAIN": CHANNEL})
+    r = _run(DEPENDENCY_FETCH_ARGV, cwd=str(repo_dir), env=env, tmo=1800)
+    fetch = {"argv": DEPENDENCY_FETCH_ARGV,
+             "env": {"RUSTUP_TOOLCHAIN": CHANNEL, "CARGO_NET_OFFLINE": "false"},
+             "exit": r["exit"], "timed_out": r["timed_out"],
+             "stdout_sha256": _sha(r["stdout"]), "stderr_sha256": _sha(r["stderr"]),
+             "stderr_tail": r["stderr"][-1500:].decode("utf-8", "replace")}
+    out = {"dependency_fetch": fetch, "pre_fetch_lock_present": True,
+           "pre_fetch_lock_sha256": _sha(pre), "pre_fetch_lock_bytes": len(pre)}
+    if r["exit"] != 0 or r["timed_out"]:
+        out["status"] = "COREUTILS_DEPENDENCY_FETCH_FAILURE"
+        return out
+    if not lock.is_file():
+        out["status"] = "COREUTILS_DEPENDENCY_FETCH_FAILURE"; out["reason"] = "lock removed by fetch"
+        return out
+    post = lock.read_bytes()
+    out["post_fetch_lock_sha256"] = _sha(post); out["post_fetch_lock_bytes"] = len(post)
+    out["_post_fetch_lock_raw"] = post
+    if _sha(pre) != _sha(post) or len(pre) != len(post):
+        out["status"] = "COREUTILS_DEPENDENCY_FETCH_LOCK_MUTATION"
+        return out
+    out["status"] = "ok"
+    return out
+
+
+def _resolved_dependency_snapshot(repo_dir: Path, cargo_home: Path, post_fetch_lock: bytes | None) -> dict:
+    """Resolved-dependency snapshot (req 3), derived EXCLUSIVELY from the POST-FETCH lock bytes.
+    Two DISTINCT scopes with accurate terminology:
       * full_packages_metadata / cargo_lock_scope = "full cross-platform resolution": every
-        dependency package record (name/version/source/checksum) from the generated Cargo.lock,
+        dependency package record (name/version/source/checksum) from the (post-fetch) Cargo.lock,
         which is platform-independent.
       * host_resolve_graph (resolve_graph_scope = "host-filtered", resolve_graph_platform =
-        x86_64-unknown-linux-gnu): the resolve graph from `cargo metadata --filter-platform
-        <host>`.
-    Host-only `cargo test --no-run <target>` downloads only the crates that ONE test target
-    builds, so `cargo metadata` (which must read the Cargo.toml of every host package, incl.
-    host build-deps such as bindgen) fails offline against that partial cache. So the online
-    acquisition phase runs a bounded `cargo fetch` first -- populating the cache with the exact
-    lock-pinned dependency set (deterministic: versions are fixed by the generated Cargo.lock)
-    -- and the RESOLUTION itself is then performed OFFLINE for determinism. Mutates only the
-    (disposable) acquisition cargo cache, never the normative checkout beyond cargo's lock."""
-    lock = repo_dir / "Cargo.lock"
-    lock_bytes = lock.read_bytes() if lock.is_file() else None
-    online = _cargo_env(cargo_home, {"CARGO_NET_OFFLINE": "false", "RUSTUP_TOOLCHAIN": CHANNEL})
-    # populate the full lock-pinned cache online, then resolve offline
-    fetch = _run(["cargo", "fetch"], cwd=str(repo_dir), env=online, tmo=900)
+        x86_64-unknown-linux-gnu): the host resolve graph from `cargo metadata --offline
+        --filter-platform <host>`, run AFTER the lock-pinned `cargo fetch --locked` populated
+        the cache. A successful offline metadata never compensates for a failed fetch (the
+        caller gates on dependency-fetch status first)."""
     env = _cargo_env(cargo_home, {"CARGO_NET_OFFLINE": "true", "RUSTUP_TOOLCHAIN": CHANNEL})
     r = _run(["cargo", "metadata", "--format-version", "1", "--offline",
               "--filter-platform", HOST], cwd=str(repo_dir), env=env, tmo=300)
-    out = {"fetch_exit": fetch["exit"], "metadata_exit": r["exit"], "metadata_ok": r["exit"] == 0,
-           "cargo_lock_present": lock_bytes is not None,
-           "cargo_lock_sha256": (_sha(lock_bytes) if lock_bytes else None),
-           "cargo_lock_bytes": (len(lock_bytes) if lock_bytes else 0),
+    out = {"metadata_exit": r["exit"], "metadata_ok": r["exit"] == 0,
+           "cargo_lock_present": post_fetch_lock is not None,
+           "cargo_lock_sha256": (_sha(post_fetch_lock) if post_fetch_lock else None),
+           "cargo_lock_bytes": (len(post_fetch_lock) if post_fetch_lock else 0),
            "cargo_lock_scope": "full cross-platform resolution"}
-    if fetch["exit"] != 0:
-        out["fetch_stderr_tail"] = fetch["stderr"][-800:].decode("utf-8", "replace")
-    if lock_bytes is not None:
-        full_pkgs = _normalize_lock_packages(lock_bytes)
+    if post_fetch_lock is not None:
+        full_pkgs = _normalize_lock_packages(post_fetch_lock)
         out["full_packages_metadata"] = full_pkgs
         out["full_packages_metadata_sha256"] = _manifest_hash(full_pkgs)
         out["full_package_count"] = len(full_pkgs)
@@ -518,18 +550,19 @@ def _acquire(label: str, root: Path, recipe: dict, base: str) -> dict:
     inst_env, inst_argv = drv.pub.split_env(recipe["install"][0])   # ['cargo','test','backslash','--no-run']
     install = _run(inst_argv, cwd=str(repo_dir),
                    env=_cargo_env(cargo_home, {**inst_env, "CARGO_NET_OFFLINE": "false"}), tmo=1800)
-    # resolved snapshot FIRST: it runs `cargo fetch` (online) to complete the lock-pinned cache,
-    # then resolves the host graph offline. The post-install state, cache manifest, and frozen
-    # lock bytes are all captured AFTERWARD so they reflect the exact substrate the measurement
-    # freezes (repo + fetched cache) and stay mutually consistent.
-    resolved = _resolved_dependency_snapshot(repo_dir, cargo_home)
+    # lock-preserving fail-closed dependency fetch (items 1/2): `cargo fetch --locked` populates
+    # the full lock-pinned cache online without mutating the lock, then the host graph is
+    # resolved OFFLINE from the (verified-unchanged) POST-FETCH lock bytes. The post-install
+    # state, cache manifest, and frozen lock bytes are captured AFTERWARD so they reflect the
+    # exact substrate the measurement freezes and stay mutually consistent -- all derived from
+    # the single post-fetch lock, never a pre/post mixture.
+    fetch = _dependency_fetch(repo_dir, cargo_home)
+    post_fetch_lock = fetch.get("_post_fetch_lock_raw")
+    resolved = _resolved_dependency_snapshot(repo_dir, cargo_home, post_fetch_lock)
     post = capture_dependency_state_passive(repo_dir, ge)
     post_md = probe_cargo_metadata_disposable(repo_dir, cargo_home, offline=post["cargo_lock"]["present"])
     ccm = _cargo_cache_manifests(cargo_home)
-    # exact post-fetch Cargo.lock bytes of THIS acquisition's frozen state, retained privately
-    # and written to the A-/B-Cargo.lock evidence files (req 1); never emitted inline.
-    _lock_path = repo_dir / "Cargo.lock"
-    lock_raw = _lock_path.read_bytes() if _lock_path.is_file() else None
+    fetch_pub = {k: v for k, v in fetch.items() if not k.startswith("_")}
     return {
         "label": label, "base_commit": base, "head_matches_base": head_ok, "fetch_exit": fe["exit"],
         "install": {"argv": inst_argv, "env": inst_env, "exit": install["exit"], "timed_out": install["timed_out"],
@@ -538,6 +571,7 @@ def _acquire(label: str, root: Path, recipe: dict, base: str) -> dict:
                     "stderr_tail": install["stderr"][-1500:].decode("utf-8", "replace")},
         "pristine_state": pristine, "post_install_state": post,
         "pre_install_metadata": pre_md, "post_install_metadata": post_md,
+        "dependency_fetch_result": fetch_pub,   # status + fetch record + pre/post lock identities
         # SEMANTIC cargo-cache seed hash (validator excluded via the pinned Cargo-1.81 parser)
         "cargo_cache_semantic_manifest_hash": _manifest_hash(ccm["semantic"]),
         "cargo_cache_validator_manifest_hash": _manifest_hash(ccm["validator"]),
@@ -546,7 +580,7 @@ def _acquire(label: str, root: Path, recipe: dict, base: str) -> dict:
         "resolved_dependency_snapshot": resolved,
         "_root": str(root), "_repo_dir": str(repo_dir), "_cargo_home": str(cargo_home), "_ge": ge,
         "_cargo_cache_manifests": ccm,   # private full/semantic/validator, for the A/B diff summary
-        "_cargo_lock_raw": lock_raw,     # private raw post-install lock bytes -> A/B-Cargo.lock
+        "_cargo_lock_raw": post_fetch_lock,   # SOLE lock source: post-fetch bytes -> A/B-Cargo.lock
     }
 
 
@@ -618,6 +652,14 @@ def _classify_acquisitions(A: dict, B: dict, tool_ident: dict) -> dict:
         return {"outcome": "COREUTILS_CARGO_INDEX_CACHE_UNPARSEABLE",
                 "unparseable_entries": unparseable[:50], "unparseable_count": len(unparseable),
                 "note": "a sparse-index cache entry did not conform to the pinned Cargo-1.81 format"}
+    # items 1/2: dependency fetch must have succeeded (cargo fetch --locked, exit 0, no timeout)
+    # and must not have mutated the lock. A successful offline metadata never compensates.
+    fa = A.get("dependency_fetch_result") or {}
+    fb = B.get("dependency_fetch_result") or {}
+    for st in ("COREUTILS_DEPENDENCY_FETCH_FAILURE", "COREUTILS_DEPENDENCY_FETCH_LOCK_MUTATION"):
+        if fa.get("status") == st or fb.get("status") == st:
+            return {"outcome": st, "a_dependency_fetch": fa, "b_dependency_fetch": fb,
+                    "note": "lock-preserving dependency fetch gate failed before metadata/measurement"}
     pa, pb = A["post_install_state"], B["post_install_state"]
     # req 4: always compute the A/B cargo-cache diff at full/semantic/validator levels
     cache_diff = _cargo_cache_full_diff_summary(A["_cargo_cache_manifests"], B["_cargo_cache_manifests"])
@@ -637,6 +679,12 @@ def _classify_acquisitions(A: dict, B: dict, tool_ident: dict) -> dict:
                                    == B["post_install_metadata"].get("members")),
         "install_semantics_equal": (A["install"]["exit"] == B["install"]["exit"]
                                     and A["install"]["timed_out"] == B["install"]["timed_out"]),
+        # items 1/2: lock-preserving dependency fetch succeeded and did not mutate the lock (A&B)
+        "dependency_fetch_ok": fa.get("status") == "ok" and fb.get("status") == "ok",
+        "fetch_lock_unchanged": (fa.get("pre_fetch_lock_sha256") == fa.get("post_fetch_lock_sha256")
+                                 and fb.get("pre_fetch_lock_sha256") == fb.get("post_fetch_lock_sha256")
+                                 and fa.get("pre_fetch_lock_sha256") is not None
+                                 and fb.get("pre_fetch_lock_sha256") is not None),
         # SEMANTIC sparse-index cache equality: validator-only differences do NOT count
         "cargo_cache_semantic_equal": cache_diff["semantic_diff_count"] == 0,
         # req 3: host-filtered resolve graph + full cross-platform package metadata +

@@ -55,7 +55,8 @@ FATAL_OUTCOMES = {"COREUTILS_DIAGNOSTIC_ERROR"}
 ACQ_FAILURE_OUTCOMES = {"COREUTILS_ACQUISITION_INSTALL_FAILURE", "COREUTILS_ACQUISITION_NONDETERMINISTIC",
                         "COREUTILS_ACQUISITION_UNAUTHORIZED_MUTATION", "COREUTILS_TOOLCHAIN_PINS_UNVERIFIED",
                         "COREUTILS_FINAL_INPUT_PARITY_FAILURE", "REJECTED_NO_ISOLATION",
-                        "COREUTILS_CARGO_INDEX_CACHE_UNPARSEABLE"}
+                        "COREUTILS_CARGO_INDEX_CACHE_UNPARSEABLE",
+                        "COREUTILS_DEPENDENCY_FETCH_FAILURE", "COREUTILS_DEPENDENCY_FETCH_LOCK_MUTATION"}
 
 
 def _dz(p: Path) -> bytes:
@@ -318,76 +319,153 @@ def _lock_packages_from_toml(lock_bytes: bytes) -> list:
     return pkgs
 
 
+DEP_FETCH_ARGV = ["cargo", "fetch", "--locked"]
+DEP_FETCH_ENV = {"RUSTUP_TOOLCHAIN": "1.81.0", "CARGO_NET_OFFLINE": "false"}
+HOST_GRAPH_KEYS = {"resolve_root", "resolve_nodes", "reachable_package_ids",
+                   "resolve_graph_platform", "resolve_graph_scope"}
+
+
+def _recompute_reachable(graph: dict) -> list:
+    """INDEPENDENTLY recompute reachable package IDs by traversing dependency edges from
+    resolve_root over resolve_nodes (BFS). Verifier's own derivation, not the producer's."""
+    nodes = graph.get("resolve_nodes") or []
+    by_id = {n.get("id"): n for n in nodes}
+    root = graph.get("resolve_root") or ""
+    seeds = [root] if root and root in by_id else [n.get("id") for n in nodes]
+    seen, stack = set(), list(seeds)
+    while stack:
+        nid = stack.pop()
+        if nid in seen or nid not in by_id:
+            seen.add(nid); continue
+        seen.add(nid)
+        for dep in by_id[nid].get("deps") or []:
+            pk = dep.get("pkg")
+            if pk and pk not in seen:
+                stack.append(pk)
+    return sorted(i for i in seen if i in by_id)
+
+
+def _verify_dependency_fetch(label, acq, retained_lock_sha, retained_lock_size, fail) -> bool:
+    """item 3: independently require the lock-preserving dependency fetch for this acquisition:
+    exact argv/env, exit==0, not timed_out, pre-fetch lock == retained (post-fetch) lock, and
+    post-fetch lock == post_install_state.cargo_lock == resolved_dependency_snapshot. A
+    successful offline metadata cannot compensate. Returns (fetch_ok, lock_unchanged)."""
+    dfr = acq.get("dependency_fetch_result") or {}
+    df = dfr.get("dependency_fetch") or {}
+    ok = True
+    if dfr.get("status") != "ok":
+        fail.append(f"dependency-fetch {label}: status != ok ({dfr.get('status')})"); ok = False
+    if df.get("argv") != DEP_FETCH_ARGV:
+        fail.append(f"dependency-fetch {label}: argv != {DEP_FETCH_ARGV}"); ok = False
+    if df.get("env") != DEP_FETCH_ENV:
+        fail.append(f"dependency-fetch {label}: env != {DEP_FETCH_ENV}"); ok = False
+    if df.get("exit") != 0:
+        fail.append(f"dependency-fetch {label}: exit != 0"); ok = False
+    if df.get("timed_out") is not False:
+        fail.append(f"dependency-fetch {label}: timed_out != false"); ok = False
+    pre_sha, post_sha = dfr.get("pre_fetch_lock_sha256"), dfr.get("post_fetch_lock_sha256")
+    pre_b, post_b = dfr.get("pre_fetch_lock_bytes"), dfr.get("post_fetch_lock_bytes")
+    unchanged = (pre_sha is not None and pre_sha == post_sha and pre_b == post_b)
+    if not unchanged:
+        fail.append(f"dependency-fetch {label}: pre-fetch lock != post-fetch lock (fetch mutated the lock)")
+        ok = False
+    # retained (post-fetch) lock identity must equal both pre and post fetch identities
+    if retained_lock_sha is not None:
+        if post_sha != retained_lock_sha or pre_sha != retained_lock_sha:
+            fail.append(f"dependency-fetch {label}: pre/post-fetch lock sha != retained post-fetch lock"); ok = False
+        if post_b not in (None, retained_lock_size) or pre_b not in (None, retained_lock_size):
+            fail.append(f"dependency-fetch {label}: pre/post-fetch lock size != retained lock size"); ok = False
+    return ok, unchanged
+
+
 def _verify_resolved_graph_evidence(rec, evidence, fail) -> dict:
-    """reqs 4/5 + follow-up items 1/2/4: reopen the RETAINED host_resolve_graph JSON AND the
-    RETAINED A-/B-Cargo.lock bytes for A and B, and INDEPENDENTLY derive, requiring A == B for
-    each:
-      * host_resolve_graph_sha (structural host graph; must carry resolve_graph_platform=host
-        and no top-level `packages` array);
-      * full_packages_metadata_sha DERIVED BY RE-PARSING the retained Cargo.lock (a producer
-        metadata list + producer hash is NOT independent evidence), cross-checked against the
-        retained resolved-graph JSON, the producer's post_install_state.cargo_lock, and the
-        resolved_dependency_snapshot lock sha/bytes;
-      * the generated Cargo.lock sha/size.
-    lock_present is derived STRICTLY from both retained lock files verifying, never from graph
-    presence. Never trusts host_resolve_graph_equal / full_packages_metadata_equal /
-    generated_lock_equal / cargo_lock_present."""
+    """reqs 4/5 + follow-up items 1/2/3/4: reopen the RETAINED host_resolve_graph JSON, the
+    RETAINED A-/B-Cargo.lock bytes, and the dependency-fetch record for A and B, and
+    INDEPENDENTLY derive/require A == B for the host graph, the lock-derived full package
+    metadata, and the generated lock -- plus item-3 dependency-fetch gating and item-4 exact
+    host-graph structural validation with an independently-recomputed reachable set. lockok is
+    set false on EVERY lock identity/size/parse/metadata/fetch cross-check failure; a passing
+    offline metadata never compensates for a failed or partial fetch. Never trusts producer
+    booleans."""
     d = evidence / "cargo-cache"
     gshas, pshas, locksha, lockok = {}, {}, {}, {}
+    depok, unchanged = {}, {}
     for label in ("A", "B"):
         acq = rec.get(f"acquisition_{label}") or {}
         rds = acq.get("resolved_dependency_snapshot") or {}
-        p = d / f"{label}-resolved-graph.json"
-        if not p.is_file():
-            fail.append(f"resolved-graph: retained {label} evidence missing"); continue
-        try:
-            data = json.loads(p.read_text())
-        except Exception as e:  # noqa: BLE001
-            fail.append(f"resolved-graph {label}: unreadable ({e})"); continue
+        bad = False   # any check for this label failing -> lockok false
+
+        # ---- item 4: host resolve graph structure ----
+        gp = d / f"{label}-resolved-graph.json"
+        if not gp.is_file():
+            fail.append(f"resolved-graph: retained {label} evidence missing"); bad = True; data = {}
+        else:
+            try:
+                data = json.loads(gp.read_text())
+            except Exception as e:  # noqa: BLE001
+                fail.append(f"resolved-graph {label}: unreadable ({e})"); bad = True; data = {}
         graph = data.get("host_resolve_graph")
-        if graph is not None:
-            if (graph.get("resolve_graph_platform") or "x86_64-unknown-linux-gnu") != "x86_64-unknown-linux-gnu":
-                fail.append(f"resolved-graph {label}: host graph platform != host")
-            if "packages" in graph:
-                fail.append(f"resolved-graph {label}: host graph must not embed a packages array")
+        if graph is None:
+            fail.append(f"resolved-graph {label}: host_resolve_graph missing"); bad = True
+        else:
+            keys = set(graph.keys())
+            if keys != HOST_GRAPH_KEYS:
+                fail.append(f"resolved-graph {label}: host graph keys {sorted(keys)} != {sorted(HOST_GRAPH_KEYS)}")
+                bad = True
+            if graph.get("resolve_graph_platform") != "x86_64-unknown-linux-gnu":
+                fail.append(f"resolved-graph {label}: resolve_graph_platform != x86_64-unknown-linux-gnu"); bad = True
+            if graph.get("resolve_graph_scope") != "host-filtered":
+                fail.append(f"resolved-graph {label}: resolve_graph_scope != host-filtered"); bad = True
+            # independently recompute reachable_package_ids and cross-check + count
+            recomputed = _recompute_reachable(graph)
+            if graph.get("reachable_package_ids") != recomputed:
+                fail.append(f"resolved-graph {label}: recorded reachable_package_ids != recomputed"); bad = True
+            if data.get("host_resolved_package_count") not in (None, len(recomputed)):
+                fail.append(f"resolved-graph {label}: host_resolved_package_count != len(recomputed reachable)")
+                bad = True
             g = _canon_sha(graph)
             if g != data.get("host_resolve_graph_sha256"):
-                fail.append(f"resolved-graph {label}: re-derived host graph sha != recorded")
+                fail.append(f"resolved-graph {label}: re-derived host graph sha != recorded"); bad = True
             gshas[label] = g
-        # ---- item 1/2: independently verify the retained Cargo.lock ----
+
+        # ---- item 1/2: independently verify the retained Cargo.lock (post-fetch) ----
         lp = d / f"{label}-Cargo.lock"
+        sha = size = None
         if not lp.is_file():
-            fail.append(f"cargo-lock: retained {label}-Cargo.lock missing"); continue
-        raw = lp.read_bytes()
-        lockok[label] = True
-        sha, size = hashlib.sha256(raw).hexdigest(), len(raw)
-        locksha[label] = sha
-        # (3) cross-check with post_install_state.cargo_lock
-        pil = (acq.get("post_install_state") or {}).get("cargo_lock") or {}
-        if pil.get("sha256") != sha:
-            fail.append(f"cargo-lock {label}: retained lock sha != post_install_state.cargo_lock.sha256")
-        if pil.get("bytes") not in (None, size):
-            fail.append(f"cargo-lock {label}: retained lock size != post_install_state.cargo_lock.bytes")
-        # (4) cross-check with resolved_dependency_snapshot
-        if rds.get("cargo_lock_sha256") != sha:
-            fail.append(f"cargo-lock {label}: retained lock sha != resolved_dependency_snapshot.cargo_lock_sha256")
-        if rds.get("cargo_lock_bytes") not in (None, size):
-            fail.append(f"cargo-lock {label}: retained lock size != resolved_dependency_snapshot.cargo_lock_bytes")
-        # (5/6/7) independently parse + derive the full package records + their sha
-        try:
-            derived_pkgs = _lock_packages_from_toml(raw)
-        except Exception as e:  # noqa: BLE001
-            fail.append(f"cargo-lock {label}: independent TOML parse failed ({e})"); lockok[label] = False; continue
-        fh = _canon_sha(derived_pkgs)
-        pshas[label] = fh
-        # (8) compare with the retained resolved-graph JSON's recorded full-package sha AND the producer record
-        if data.get("full_packages_metadata_sha256") not in (None, fh):
-            fail.append(f"cargo-lock {label}: lock-derived package sha != retained resolved-graph record")
-        if rds.get("full_packages_metadata_sha256") not in (None, fh):
-            fail.append(f"cargo-lock {label}: lock-derived package sha != producer full_packages_metadata_sha256")
-        retained_pkgs = data.get("full_packages_metadata")
-        if retained_pkgs is not None and _canon_sha(retained_pkgs) != fh:
-            fail.append(f"cargo-lock {label}: retained package list != lock-derived package list")
+            fail.append(f"cargo-lock: retained {label}-Cargo.lock missing"); bad = True
+        else:
+            raw = lp.read_bytes()
+            sha, size = hashlib.sha256(raw).hexdigest(), len(raw)
+            locksha[label] = sha
+            pil = (acq.get("post_install_state") or {}).get("cargo_lock") or {}
+            if pil.get("sha256") != sha:
+                fail.append(f"cargo-lock {label}: retained lock sha != post_install_state.cargo_lock.sha256"); bad = True
+            if pil.get("bytes") not in (None, size):
+                fail.append(f"cargo-lock {label}: retained lock size != post_install_state.cargo_lock.bytes"); bad = True
+            if rds.get("cargo_lock_sha256") != sha:
+                fail.append(f"cargo-lock {label}: retained lock sha != resolved_dependency_snapshot.cargo_lock_sha256"); bad = True
+            if rds.get("cargo_lock_bytes") not in (None, size):
+                fail.append(f"cargo-lock {label}: retained lock size != resolved_dependency_snapshot.cargo_lock_bytes"); bad = True
+            try:
+                derived_pkgs = _lock_packages_from_toml(raw)
+                fh = _canon_sha(derived_pkgs); pshas[label] = fh
+                if data.get("full_packages_metadata_sha256") not in (None, fh):
+                    fail.append(f"cargo-lock {label}: lock-derived package sha != retained resolved-graph record"); bad = True
+                if rds.get("full_packages_metadata_sha256") not in (None, fh):
+                    fail.append(f"cargo-lock {label}: lock-derived package sha != producer full_packages_metadata_sha256"); bad = True
+                retained_pkgs = data.get("full_packages_metadata")
+                if retained_pkgs is not None and _canon_sha(retained_pkgs) != fh:
+                    fail.append(f"cargo-lock {label}: retained package list != lock-derived package list"); bad = True
+            except Exception as e:  # noqa: BLE001
+                fail.append(f"cargo-lock {label}: independent TOML parse failed ({e})"); bad = True
+
+        # ---- item 3: lock-preserving dependency fetch ----
+        df_ok, df_unchanged = _verify_dependency_fetch(label, acq, sha, size, fail)
+        depok[label] = df_ok; unchanged[label] = df_unchanged
+        if not df_ok:
+            bad = True
+        lockok[label] = not bad
+
     graph_equal = ("A" in gshas and "B" in gshas and gshas["A"] == gshas["B"])
     if "A" in gshas and "B" in gshas and not graph_equal:
         fail.append("resolved-graph: A and B host resolve graphs differ")
@@ -397,19 +475,26 @@ def _verify_resolved_graph_evidence(rec, evidence, fail) -> dict:
     lock_equal = ("A" in locksha and "B" in locksha and locksha["A"] == locksha["B"])
     if "A" in locksha and "B" in locksha and not lock_equal:
         fail.append(f"cargo-lock: retained Cargo.lock bytes differ A={locksha.get('A')} B={locksha.get('B')}")
-    lock_present = bool(lockok.get("A")) and bool(lockok.get("B"))   # from RETAINED locks only
+    lock_present = bool(lockok.get("A")) and bool(lockok.get("B"))   # from RETAINED locks + all cross-checks
     return {"graph_equal": graph_equal, "full_pkgs_equal": full_pkgs_equal, "lock_equal": lock_equal,
-            "lock_present": lock_present, "lock_sha": locksha.get("A")}
+            "lock_present": lock_present, "lock_sha": locksha.get("A"),
+            "dependency_fetch_ok": bool(depok.get("A")) and bool(depok.get("B")),
+            "fetch_lock_unchanged": bool(unchanged.get("A")) and bool(unchanged.get("B"))}
 
 
-def _derive_acq_classification(A, B, cache_sem_equal, graph_equal, full_pkgs_equal, lock_equal, lock_present):
+def _derive_acq_classification(A, B, cache_sem_equal, graph_equal, full_pkgs_equal, lock_equal,
+                               lock_present, dep_fetch_ok, fetch_lock_unchanged):
     """re-derive the acquisition classification + parity from the primitive pre/post states AND
-    the independently-verified semantic-cache / host-resolve-graph / full-package-metadata
-    determinants. Never trusts the producer classification or its equality booleans."""
+    the independently-verified semantic-cache / host-resolve-graph / full-package-metadata /
+    dependency-fetch determinants. Never trusts the producer classification or its booleans."""
     if not (A and B) or A.get("install", {}).get("exit") != 0 or B.get("install", {}).get("exit") != 0:
         return {"outcome": "COREUTILS_ACQUISITION_INSTALL_FAILURE"}, {}
     if A.get("cargo_index_cache_unparseable") or B.get("cargo_index_cache_unparseable"):
         return {"outcome": "COREUTILS_CARGO_INDEX_CACHE_UNPARSEABLE"}, {}
+    for lbl, acq in (("A", A), ("B", B)):
+        st = (acq.get("dependency_fetch_result") or {}).get("status")
+        if st in ("COREUTILS_DEPENDENCY_FETCH_FAILURE", "COREUTILS_DEPENDENCY_FETCH_LOCK_MUTATION"):
+            return {"outcome": st}, {}
     pa, pb = A["post_install_state"], B["post_install_state"]
     parity = {
         "workspace_manifests_equal": pa["workspace_cargo_tomls"] == pb["workspace_cargo_tomls"],
@@ -425,6 +510,8 @@ def _derive_acq_classification(A, B, cache_sem_equal, graph_equal, full_pkgs_equ
         "install_semantics_equal": (A["install"]["exit"] == B["install"]["exit"]
                                     and A["install"]["timed_out"] == B["install"]["timed_out"]),
         # independently-derived determinants (from retained evidence, NOT producer booleans)
+        "dependency_fetch_ok": dep_fetch_ok is True,
+        "fetch_lock_unchanged": fetch_lock_unchanged is True,
         "cargo_cache_semantic_equal": cache_sem_equal is True,
         "host_resolve_graph_equal": graph_equal is True,
         "full_packages_metadata_equal": full_pkgs_equal is True,
@@ -638,9 +725,16 @@ def verify(rec_path: Path, evidence: Path) -> tuple[bool, list, dict]:
         fail.append("resolved-graph: full cross-platform package metadata not proven equal across A/B")
     if graph_v.get("lock_equal") is not True:
         fail.append("resolved-graph: generated Cargo.lock not proven equal across A/B")
+    facts["dependency_fetch_ok"] = graph_v.get("dependency_fetch_ok")
+    facts["fetch_lock_unchanged"] = graph_v.get("fetch_lock_unchanged")
+    if graph_v.get("dependency_fetch_ok") is not True:
+        fail.append("dependency-fetch: cargo fetch --locked not proven ok for A and B")
+    if graph_v.get("fetch_lock_unchanged") is not True:
+        fail.append("dependency-fetch: Cargo.lock not proven unchanged by fetch for A and B")
     derived_cls, derived_parity = _derive_acq_classification(
         A, B, cache_v.get("semantic_equal"), graph_v.get("graph_equal"),
-        graph_v.get("full_pkgs_equal"), graph_v.get("lock_equal"), graph_v.get("lock_present"))
+        graph_v.get("full_pkgs_equal"), graph_v.get("lock_equal"), graph_v.get("lock_present"),
+        graph_v.get("dependency_fetch_ok"), graph_v.get("fetch_lock_unchanged"))
     facts["derived_acquisition_outcome"] = derived_cls["outcome"]
     recorded_cls = (rec.get("acquisition_classification") or {}).get("outcome")
     if derived_cls["outcome"] not in ACQ_ELIGIBLE:
