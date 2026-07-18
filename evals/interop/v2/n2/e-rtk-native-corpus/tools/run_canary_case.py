@@ -348,13 +348,41 @@ def _leaf(tid: str) -> str:
     return tid.split("::")[-1].split("/")[-1].split(".")[-1]
 
 
+def _parse_sidecar_proof(sidecar: bytes | None, measured: bytes, required_leaves: set,
+                         pointer: str | None) -> dict:
+    """PARSER-BOUNDED semantic-loss evidence for one rep (correction 2). A failing
+    identity is established ONLY by the exact same test-output parser + identity
+    normalization used for the measured RAW/RTK streams (ora._test_summary ->
+    ora._leaf_ids). Mere textual presence -- an argv/selector echo, a `=== RUN` line,
+    test-discovery output, a stack trace that names the test, the tee pointer itself --
+    is NOT a failing identity and does NOT count. Records both parsed summaries so the
+    ledger builder can re-run the parsers independently."""
+    measured_summary = ora._test_summary(measured or b"")
+    measured_fail = set(ora._leaf_ids(measured_summary["failing_ids"]))
+    sidecar_summary = ora._test_summary(sidecar) if sidecar is not None else None
+    sidecar_fail = set(ora._leaf_ids(sidecar_summary["failing_ids"])) if sidecar_summary else set()
+    return {
+        "tee_pointer_present": bool(pointer), "tee_pointer": pointer,
+        "sidecar_read": sidecar is not None,
+        "sidecar_bytes": (len(sidecar) if sidecar is not None else None),
+        "sidecar_sha256": (hashlib.sha256(sidecar).hexdigest() if sidecar is not None else None),
+        "sidecar_parsed_summary": sidecar_summary,
+        "sidecar_failing_ids": sorted(sidecar_fail),
+        "measured_parsed_summary": measured_summary,
+        "measured_failing_ids": sorted(measured_fail),
+        "required_ids": sorted(required_leaves),
+        # a required id is a semantic-loss identity for THIS rep iff it is PARSED as a
+        # failing id in the sidecar AND is NOT a parsed failing id in the measured stream
+        "required_parsed_failing_in_sidecar": sorted(required_leaves & sidecar_fail),
+        "required_missing_from_measured": sorted(required_leaves - measured_fail),
+        "semantic_loss_ids_this_rep": sorted(required_leaves & sidecar_fail - measured_fail),
+    }
+
+
 def _rtk_sidecar_proof(raw_combined: bytes, measured: bytes, work: Path, target_ids: list) -> dict:
-    """For the RTK arm of a target-bearing case: prove whether a required failing test
-    IDENTITY that RAW observed exists ONLY in RTK's unmeasured tee sidecar and NOT in
-    the MEASURED (canonical) RTK stream. This is the exact evidence a DISQUALIFIED_RTK_
-    SEMANTIC_LOSS ledger entry needs -- a sidecar path does not make omitted content
-    present in the measured artifact."""
-    leaves = [_leaf(t) for t in (target_ids or [])]
+    """Locate RTK's tee sidecar via the bounded envelope pointer, read it, and produce
+    the PARSER-BOUNDED per-rep semantic-loss evidence (see _parse_sidecar_proof)."""
+    required = set(ora._leaf_ids(target_ids or []))
     mm = _TEE_PATH.search(raw_combined or b"")
     pointer = mm.group(1).decode("utf-8", "replace") if mm else None
     sidecar = None
@@ -375,15 +403,7 @@ def _rtk_sidecar_proof(raw_combined: bytes, measured: bytes, work: Path, target_
                     break
                 except OSError:
                     pass
-
-    def _present(hay, ids):
-        return sorted(i for i in ids if hay is not None and i.encode() in hay)
-
-    return {"tee_pointer_present": bool(pointer), "tee_pointer": pointer,
-            "sidecar_read": sidecar is not None,
-            "target_in_sidecar": _present(sidecar, leaves),
-            "target_in_measured": _present(measured, leaves),
-            "required_leaves": leaves}
+    return _parse_sidecar_proof(sidecar, measured, required, pointer)
 
 
 def run_arm(argv, frozen_dir: Path, policy_id: str, timeout: int, wrapper_prefix, env_extra=None,
@@ -444,15 +464,19 @@ def run_arm(argv, frozen_dir: Path, policy_id: str, timeout: int, wrapper_prefix
         execution_ok = all(p["executed_ok"] for p in per_rep_proof)
     rtk_sidecar = None
     if is_rtk and rtk_target_ids:
-        # semantic loss confirmed iff EVERY rep has the required identity in the sidecar
-        # but ABSENT from the measured stream (and never present in measured).
+        # PARSER-BOUNDED semantic loss (correction 2): confirmed iff EVERY required
+        # failing identity is PARSED as a failing id in EVERY sidecar rep AND is a parsed
+        # failing id in NO measured rep. A substring match never contributes.
+        required = set(ora._leaf_ids(rtk_target_ids or []))
+        confirmed = bool(required) and bool(sidecar_reps) and all(
+            required <= set(p["sidecar_failing_ids"])
+            and not (required & set(p["measured_failing_ids"])) for p in sidecar_reps)
         rtk_sidecar = {
             "reps": sidecar_reps,
-            "semantic_loss_confirmed": bool(sidecar_reps) and all(
-                p["target_in_sidecar"] and not p["target_in_measured"] for p in sidecar_reps),
-            "identity_only_in_unmeasured_sidecar": bool(sidecar_reps) and all(
-                p["target_in_sidecar"] and not p["target_in_measured"]
-                and p["tee_pointer_present"] for p in sidecar_reps),
+            "required_ids": sorted(required),
+            "semantic_loss_confirmed": confirmed,
+            "identity_only_in_unmeasured_sidecar":
+                confirmed and all(p["tee_pointer_present"] for p in sidecar_reps),
         }
     return {
         "reps_completed": len(runs), "exit_code": runs[0]["exit_code"],
