@@ -83,6 +83,19 @@ class TestRtkAgreementNormalized(unittest.TestCase):
         v = ora.rtk_agrees(SCEN, RAW_STREAM, two)
         self.assertFalse(v["verdict"])  # raw failed=1, rtk failed=2
 
+    def test_unproven_family_fails_closed(self):
+        # a family with no proven RTK dialect must FAIL CLOSED (never reuse the Go parser)
+        for fam in ("rust_cargo", "js_ts", "jvm", "python"):
+            self.assertIsNone(ora.rtk_dialect_for(fam), fam)
+            scen = {"command_family": fam, "command_subfamily": "test", "snapshot_variant": "buggy"}
+            v = ora.rtk_agrees(scen, RAW_STREAM, RTK_STREAM)
+            self.assertFalse(v["verdict"], fam)
+            self.assertIsNone(v["evidence"]["rtk_dialect"], fam)
+            self.assertEqual(v["evidence"]["unproven_family"], fam)
+
+    def test_go_family_has_proven_dialect(self):
+        self.assertEqual(ora.rtk_dialect_for("go"), "rtk-go-test-summary-v1")
+
 
 if __name__ == "__main__":
     unittest.main()

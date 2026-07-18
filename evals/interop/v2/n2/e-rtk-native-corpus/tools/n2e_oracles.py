@@ -47,6 +47,23 @@ _GRADLE_FAIL = re.compile(rb"^(\S+) > (\S+) FAILED", re.MULTILINE)
 RAW_GO_DIALECT = "go-test-native-v1"      # `--- FAIL: <id>`
 RTK_GO_DIALECT = "rtk-go-test-summary-v1"  # bounded `[FAIL] <id>` record (RTK source @5d32d07)
 
+# RTK filter dialects keyed by command family. Each value is a PROVEN parser (derived
+# from the pinned RTK source + real measured fixtures for that ecosystem). A family with
+# NO proven dialect must FAIL CLOSED in rtk_agrees -- it must NEVER silently reuse the Go
+# parser. A common cross-ecosystem policy may only be added here after it is proven from
+# the pinned RTK source (commit 5d32d07) with a real fixture for every affected ecosystem.
+RTK_DIALECTS = {
+    "go": RTK_GO_DIALECT,   # proven: caddy diagnostic RAW/RTK primary streams
+    # "rust_cargo": <proven RTK cargo dialect>,   # not yet proven
+    # "js_ts":      <proven RTK vitest dialect>,   # not yet proven
+    # "jvm":        <proven RTK gradle dialect>,   # not yet proven
+    # "python":     <proven RTK pytest dialect>,   # not yet proven
+}
+
+
+def rtk_dialect_for(family: str) -> str | None:
+    return RTK_DIALECTS.get(family)
+
 # RTK emits one BOUNDED per-test record per line: the whole bracketed status token at the
 # START of the (whitespace-stripped) line, then exactly the failure identity, then EOL.
 # This rejects `text [FAIL] X` (marker not line-anchored), `[PASS] X`, a `-run X` selector,
@@ -249,11 +266,18 @@ def _leaf_ids(ids: list) -> list:
 def rtk_agrees(scenario: dict, raw: bytes, rtk: bytes) -> dict:
     fam, sub = scenario["command_family"], scenario["command_subfamily"]
     if sub in ("test", "pytest"):
-        # DIALECT-AWARE: parse RAW with the native tool grammar and RTK with its bounded
-        # summary grammar, then compare NORMALIZED semantic events (failed_count +
-        # failing_ids) -- never byte-format equality. RTK reformatting `--- FAIL: X` to
-        # `[FAIL] X` preserves the identity and must agree.
+        # DIALECT-AWARE + ECOSYSTEM-BOUND: parse RAW with the native tool grammar and RTK
+        # with the PROVEN dialect for this family, then compare NORMALIZED semantic events
+        # (failed_count + failing_ids) -- never byte-format equality. A family with no
+        # proven RTK dialect FAILS CLOSED (never reuse the Go parser).
         r = _test_summary(raw, dialect="native")
+        rtk_dialect = rtk_dialect_for(fam)
+        if rtk_dialect is None:
+            return {"oracle": "test_agreement", "verdict": False,
+                    "evidence": {"error": f"no proven RTK dialect for family {fam!r} -- "
+                                          f"fail-closed (do not reuse the Go parser)",
+                                 "raw": r, "rtk_dialect": None,
+                                 "unproven_family": fam}}
         k = _test_summary(rtk, dialect="rtk")
         raw_fail = set(_leaf_ids(r["failing_ids"]))
         rtk_fail = set(_leaf_ids(k["failing_ids"]))
@@ -262,7 +286,7 @@ def rtk_agrees(scenario: dict, raw: bytes, rtk: bytes) -> dict:
         count_ok = (r["failed"] is None or k["failed"] is None or r["failed"] == k["failed"])
         return {"oracle": "test_agreement", "verdict": bool(ids_ok and count_ok),
                 "evidence": {"raw": r, "rtk": k, "raw_dialect": RAW_GO_DIALECT,
-                             "rtk_dialect": RTK_GO_DIALECT,
+                             "rtk_dialect": rtk_dialect,
                              "compared": "normalized_semantic_events"}}
     if sub in ("build", "check", "clippy", "vet", "tsc", "lint", "ruff"):
         raw_d, rtk_d = _diagnostics(raw), _diagnostics(rtk)
