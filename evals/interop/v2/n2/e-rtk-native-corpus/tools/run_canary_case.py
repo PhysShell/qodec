@@ -88,7 +88,7 @@ def _tool_identity(exe: str, path: str | None = None) -> dict:
     return {"present": True, "path": path, "sha256": c.sha256_file(path), "version": ver}
 
 
-def _toolchain_identity(fam: str, repo_dir: Path) -> dict:
+def _toolchain_identity(fam: str, repo_dir: Path, venv_bin: str | None = None) -> dict:
     tc: dict = {}
     if fam == "rust_cargo":
         tc["rustc"], tc["cargo"] = _tool_identity("rustc"), _tool_identity("cargo")
@@ -97,7 +97,11 @@ def _toolchain_identity(fam: str, repo_dir: Path) -> dict:
     elif fam == "js_ts":
         tc["node"], tc["corepack"] = _tool_identity("node"), _tool_identity("corepack")
     elif fam == "python":
-        tc["python3"], tc["pip"] = _tool_identity("python3"), _tool_identity("pip")
+        # the case-pinned venv interpreter/pip if provisioned, else the runner default
+        py = f"{venv_bin}/python" if venv_bin else None
+        pip = f"{venv_bin}/pip" if venv_bin else None
+        tc["python3"] = _tool_identity("python3", py)
+        tc["pip"] = _tool_identity("pip", pip)
     elif fam == "jvm":
         tc["java"] = _tool_identity("java")
         gw = repo_dir / "gradlew"
@@ -144,6 +148,29 @@ def _platform_identity(fam: str) -> dict:
             if ln.startswith("host:"):
                 ident["rust_target"] = ln.split(":", 1)[1].strip()
     return ident
+
+
+def _post_measurement_state(repo_dir: Path, home: Path, fam: str, env_id: dict) -> dict:
+    """Compare the worktree + committed protected files AFTER the measurement arms
+    against the constructed frozen-input baseline captured during acquisition. New
+    tracked drift, or a change to a committed protected file, is a real mutation."""
+    deps = (env_id.get("dependencies") or {})
+    baseline_tracked = ((env_id.get("construction") or {}).get("baseline_tracked_status")) or []
+    after_acq = deps.get("after_acquisition") or {}
+    final_tracked = _worktree_modified(repo_dir, home)
+    final_protected = _protected_hashes(repo_dir, fam)
+    new_tracked = sorted(set(final_tracked) - set(baseline_tracked))
+    protected_changed = sorted(k for k, h in after_acq.items()
+                               if h is not None and final_protected.get(k) != h)
+    reasons = []
+    if new_tracked:
+        reasons.append(f"measured command mutated tracked input(s) beyond the "
+                       f"declared-patch baseline: {new_tracked}")
+    if protected_changed:
+        reasons.append(f"measured command changed committed protected file(s): {protected_changed}")
+    return {"ok": not reasons, "reasons": reasons,
+            "final_tracked_status": final_tracked, "new_tracked": new_tracked,
+            "final_protected": final_protected, "protected_changed": protected_changed}
 
 
 def _git_acquisition_evidence(repo_dir: Path, home: Path, commit: str, sub: str,
@@ -462,6 +489,8 @@ def acquire_swebench(scen, workroot):
     home.mkdir()
     repo_dir = workroot / "repo"
     _git_fetch_checkout(f"https://github.com/{repo}.git", base, repo_dir, home)
+    # frozen-input baseline BEFORE any scenario construction (pristine checkout)
+    protected_pristine = _protected_hashes(repo_dir, fam)
     applied = []
     for name, key in (("test_patch", "test_patch"), ("patch", "patch")):
         if name == "patch" and scen["snapshot_variant"] != "fixed":
@@ -473,7 +502,11 @@ def acquire_swebench(scen, workroot):
         pf.write_bytes(blob)
         subprocess.run(["git", "-C", str(repo_dir), "apply", str(pf)], check=True, env=_git_env(home))
         applied.append({name: hashlib.sha256(blob).hexdigest()})
-    warm, policy, offline_env, resolved, env_identity = _warm_test_env(fam, sub, scen, repo_dir, home)
+    # the declared patches ARE the scenario: their tracked worktree changes are the
+    # constructed frozen input, not a mutation. Record them as the expected baseline.
+    patch_paths = _worktree_modified(repo_dir, home)
+    warm, policy, offline_env, resolved, env_identity = _warm_test_env(
+        fam, sub, scen, repo_dir, home, protected_pristine, patch_paths)
     return {"identity_verified": True, "repository": repo, "base_commit": base,
             "instance_id": instance_id, "applied_patches": applied, "warm": warm,
             "resolved_raw_argv": resolved.get("raw_argv"), "resolved_rtk_argv": resolved.get("rtk_argv"),
@@ -481,34 +514,68 @@ def acquire_swebench(scen, workroot):
             "workdir": "repo", "home_local": True, "policy": policy}
 
 
+def _resolve_interpreter(python_version: str | None) -> str:
+    """Resolve the case-PINNED CPython interpreter. CI exposes provisioned versions
+    via N2E_PY_INTERPRETERS ({"3.8": "/path/to/python", ...}); otherwise try
+    pythonX.Y on PATH, finally python3. The pin is the frozen environment identity
+    (e.g. scrapy needs 3.8: inspect.getargspec was removed in 3.11)."""
+    if not python_version:
+        return "python3"
+    mm = ".".join(python_version.split(".")[:2])  # "3.8.3" -> "3.8"
+    try:
+        table = json.loads(os.environ.get("N2E_PY_INTERPRETERS", "{}"))
+    except Exception:  # noqa: BLE001
+        table = {}
+    if mm in table and Path(table[mm]).exists():
+        return table[mm]
+    cand = shutil.which(f"python{mm}")
+    return cand or "python3"
+
+
 def acquire_bugsinpy(scen, workroot):
     ident = scen["source_image_identity"]
     repo = ident["repository"]
     commit = ident.get("fixed_commit") if scen["snapshot_variant"] == "fixed" else ident.get("buggy_commit")
-    gh = next((b["github_url"] for b in c.load_record(N2E_DIR / "n2e-bugsinpy-bugs-v1.json")["bugs"]
-               if f"bugsinpy/{b['project']}" == repo), None)
-    if not gh:
-        raise SystemExit(f"github_url for {repo} not found")
+    bug = next((b for b in c.load_record(N2E_DIR / "n2e-bugsinpy-bugs-v1.json")["bugs"]
+                if f"bugsinpy/{b['project']}" == repo), None)
+    if not bug:
+        raise SystemExit(f"bug record for {repo} not found")
+    gh = bug["github_url"]
+    interpreter = _resolve_interpreter(bug.get("python_version"))
     home = workroot / ".home"
     home.mkdir()
     repo_dir = workroot / "repo"
     _git_fetch_checkout(f"{gh}.git", commit, repo_dir, home)
+    protected_pristine = _protected_hashes(repo_dir, "python")  # frozen-input baseline
     warm, policy, offline_env, resolved, env_identity = _warm_test_env(
-        "python", scen["command_subfamily"], scen, repo_dir, home)
+        "python", scen["command_subfamily"], scen, repo_dir, home, protected_pristine, [],
+        interpreter=interpreter)
+    env_identity["python_version_pin"] = bug.get("python_version")
     return {"identity_verified": True, "repository": repo, "github_url": gh, "commit": commit,
             "warm": warm, "resolved_raw_argv": resolved.get("raw_argv"), "resolved_rtk_argv": resolved.get("rtk_argv"),
             "offline_env": offline_env, "environment_identity": env_identity,
             "workdir": "repo", "home_local": True, "policy": policy}
 
 
-def _warm_test_env(fam, sub, scen, repo_dir: Path, home: Path):
+def _warm_test_env(fam, sub, scen, repo_dir: Path, home: Path,
+                   protected_pristine: dict, patch_paths: list, interpreter=None):
     """Populate offline caches during the network-enabled acquisition phase. The
     MEASURED command stays the frozen scenario command (original_argv / explicit_
     rtk_argv); warm only fills dependency caches and `offline_env` enforces the
     network-denied execution of that exact command (identical for RAW and RTK).
 
-    Returns (warm, policy, offline_env, resolved). `resolved` overrides argv ONLY
-    where the frozen scenario explicitly intends build-system/runner resolution:
+    Frozen-input identity (correction #2): the frozen input for a SWE-bench/BugsInPy
+    case is `base_commit + the declared patches`. `protected_pristine` is the
+    protected-file hash map at the PRISTINE checkout (before any patch); `patch_paths`
+    is the tracked worktree change set produced by the declared patches (the
+    constructed scenario baseline, NOT a mutation). A protected file that was
+    committed and is CHANGED by warm is a real mutation; a lockfile that was ABSENT
+    and is GENERATED by warm (e.g. cargo fetch writing Cargo.lock) is deterministic
+    dependency resolution, recorded transparently, not a mutation.
+
+    Returns (warm, policy, offline_env, resolved, env_identity). `resolved` overrides
+    argv ONLY where the frozen scenario explicitly intends build-system/runner
+    resolution:
       - js_ts: rtk_argv_resolution 'test_runner_from_package_json' (explicit RTK
         argv is null) -> resolve runner for BOTH arms + record scheduler profile;
       - jvm:   'test' resolves to the repo's actual build system (gradle|maven).
@@ -523,7 +590,8 @@ def _warm_test_env(fam, sub, scen, repo_dir: Path, home: Path):
             warm_extra[k] = os.environ[k]
     env = m.measurement_env(warm_extra)
     warm = {"steps": []}
-    protected_before = _protected_hashes(repo_dir, fam)  # BEFORE any warm cache-population
+    venv_bin = None  # set only for python (case-pinned interpreter venv)
+    protected_before = _protected_hashes(repo_dir, fam)  # post-construction, pre-warm
 
     def step(cmd, tmo=1200):
         try:
@@ -559,8 +627,21 @@ def _warm_test_env(fam, sub, scen, repo_dir: Path, home: Path):
         else:
             step(["./gradlew", "testClasses", "--no-daemon", "--console=plain"], tmo=1800)
     elif fam == "python":
-        step(["python3", "-m", "pip", "install", "-e", "."], tmo=1800)
-        step(["python3", "-m", "pip", "install", "pytest"])
+        # SWE-bench/BugsInPy tests are version-sensitive (e.g. scrapy calls
+        # inspect.getargspec, removed in Python 3.11): run the FROZEN command against
+        # the case's PINNED interpreter, not whatever python3 the runner defaults to.
+        # A dedicated venv on that interpreter is built online during warm; the frozen
+        # `pytest` then resolves to this venv offline (venv bin is prepended to PATH).
+        interp = interpreter or "python3"
+        venv = repo_dir.parent / ".venv"
+        step([interp, "-m", "venv", str(venv)])
+        vpy = str(venv / "bin" / "python")
+        venv_bin = str(venv / "bin")
+        step([vpy, "-m", "pip", "install", "--upgrade", "pip", "setuptools", "wheel"])
+        step([vpy, "-m", "pip", "install", "-e", "."], tmo=1800)
+        step([vpy, "-m", "pip", "install", "pytest"])
+        warm["python_interpreter"] = interp
+        warm["venv_bin"] = venv_bin
     else:
         raise SystemExit(f"no warm step for {fam}/{sub}")
 
@@ -573,19 +654,39 @@ def _warm_test_env(fam, sub, scen, repo_dir: Path, home: Path):
     policy = canon.policy_for(fam, sub, git=(fam == "git"),
                               jvm_build=r.get("build_system"), case_id=scen["case_id"])
     resolved = {"raw_argv": r["effective_raw_argv"], "rtk_argv": r["effective_rtk_argv"]}
-    offline_env = r["scheduler_env"]
+    offline_env = dict(r["scheduler_env"])
+    if venv_bin:
+        # the frozen `pytest` must resolve to the case-pinned venv, offline
+        offline_env["PATH"] = f"{venv_bin}:{os.environ.get('PATH', '/usr/bin:/bin')}"
     warm["ok"] = all(s.get("exit") == 0 for s in warm["steps"])
     protected_after = _protected_hashes(repo_dir, fam)  # AFTER acquisition/warm
+    # classify every protected-file delta across acquisition:
+    #   committed_mutated: was committed (pristine hash present) and warm CHANGED it
+    #                      -> a real mutation of a frozen input;
+    #   generated:         was ABSENT at pristine and warm produced it (e.g. cargo
+    #                      fetch writing Cargo.lock) -> deterministic resolution.
+    committed_mutated = sorted(k for k, h in protected_pristine.items()
+                               if h is not None and protected_after.get(k) != h)
+    generated = sorted(k for k, h in protected_pristine.items()
+                       if h is None and protected_after.get(k) is not None)
+    # the constructed baseline = the declared-patch tracked change set; the measured
+    # command must not add tracked changes BEYOND this (checked post-measurement).
+    baseline_tracked = _worktree_modified(repo_dir, home)
     env_identity = {
-        "toolchain": _toolchain_identity(fam, repo_dir),
+        "toolchain": _toolchain_identity(fam, repo_dir, venv_bin=venv_bin),
         "platform": _platform_identity(fam),
         "dependencies": {
             "protected_files": _PROTECTED_FILES.get(fam, []),
-            "before_acquisition": protected_before,
+            "pristine_checkout": protected_pristine,
             "after_acquisition": protected_after,
-            "mutation_guard_ok": protected_before == protected_after,
+            "committed_mutated": committed_mutated,   # real frozen-input mutations
+            "generated": generated,                    # benign lockfile generation
+            "mutation_guard_ok": committed_mutated == [],
         },
-        "worktree_modified_tracked": _worktree_modified(repo_dir, home),
+        "construction": {
+            "declared_patch_tracked": patch_paths,        # the scenario itself
+            "baseline_tracked_status": baseline_tracked,  # patches (+ any warm tracked)
+        },
         "warm_commands": [{"cmd": s["cmd"], "exit": s.get("exit")} for s in warm["steps"]],
     }
     return warm, policy, offline_env, resolved, env_identity
@@ -654,17 +755,17 @@ def main() -> int:
             emit("REJECTED_WARM", acquisition=acq, isolation=iso,
                  rejection_reasons=["offline dependency preparation (warm) failed"])
             return 1
-        # protected-file mutation guard: a change to a frozen dependency/build input
-        # during acquisition is a typed harness rejection, even on success exit.
+        # protected-file mutation guard (acquisition): a COMMITTED frozen dependency/
+        # build input that warm CHANGED is a typed harness rejection even on success.
+        # (Benign lockfile GENERATION of a previously-absent file is not a mutation --
+        # it is recorded under dependencies.generated, never rejected here. The
+        # declared SWE-bench patches are the scenario baseline, not a mutation.)
         env_id = acq.get("environment_identity") or {}
         deps = env_id.get("dependencies") or {}
         if deps and deps.get("mutation_guard_ok") is False:
             emit("REJECTED_MUTATION", acquisition=acq, isolation=iso,
-                 rejection_reasons=["protected dependency/build file mutated during acquisition"])
-            return 1
-        if env_id.get("worktree_modified_tracked"):
-            emit("REJECTED_MUTATION", acquisition=acq, isolation=iso,
-                 rejection_reasons=["frozen tracked worktree inputs mutated during acquisition"])
+                 rejection_reasons=[f"committed protected input(s) mutated during warm: "
+                                    f"{deps.get('committed_mutated')}"])
             return 1
         policy = acq["policy"]
         frozen = workroot / acq.get("workdir", ".")
@@ -722,6 +823,18 @@ def main() -> int:
             rtk_run = run_arm([rtk_bin] + rtk_argv[1:], frozen, policy, scen["timeout_seconds"], wrapper, env_extra)
 
         rtk_ok, rtk_reasons, rtk_oracle = _rtk_accept(scen, raw, rtk_run, rtk_bin)
+        # post-measurement mutation guard (the real correction #2 invariant): after
+        # both arms have run against the constructed frozen input, no COMMITTED
+        # protected file may have changed, and the tracked worktree may not have
+        # drifted BEYOND the declared-patch baseline. A measured command that mutates
+        # a frozen tracked input is a typed harness rejection even on a green oracle.
+        if fam not in ("containers", "git", "files_search", "logs"):
+            post = _post_measurement_state(frozen, home, fam, env_id)
+            if not post["ok"]:
+                emit("REJECTED_MUTATION", acquisition=acq, isolation=iso,
+                     raw_arm=_arm_public(raw), rtk_arm=_arm_public(rtk_run),
+                     post_measurement=post, rejection_reasons=post["reasons"])
+                return 1
         raw_tokens = m.o200k_tokens(raw["_accepted_canonical"], qodec_bin)
         rtk_tokens = m.o200k_tokens(rtk_run["_accepted_canonical"], qodec_bin) if rtk_run.get("_accepted_canonical") is not None else None
         savings = round(100 * (raw_tokens - rtk_tokens) / raw_tokens, 2) if (rtk_tokens and raw_tokens) else None
