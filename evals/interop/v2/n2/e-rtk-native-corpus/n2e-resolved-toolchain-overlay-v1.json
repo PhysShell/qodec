@@ -1,0 +1,55 @@
+{
+  "base_lock_state": "COMPLETE",
+  "base_toolchain_lock_sha256": "sha256:accd21272b7985122a3522e4c0ff94746a919bc3c3dabec91cd285978d7f61cf",
+  "does_not_weaken_base": "adds the resolved rust 1.81.0 toolchain; the base lock's exact-identity discipline is preserved -- on-disk binaries are captured at acquisition and verified against the immutable channel pins",
+  "generated_by": "evals/interop/v2/n2/e-rtk-native-corpus/tools/build_n2e_resolved_overlays.py",
+  "mission": "N2-E",
+  "mission_title": "external RTK-native claim-aligned command corpus",
+  "purpose": "Resolved-scope overlay for the coreutils-6731 replacement; frozen base is never modified. Effective contract = frozen base + verified replacement overlay.",
+  "record_sha256": "sha256:2caa7e74bb97c842370c7628bbfd186dc18a99b1ac7f10676a73ae26602b0175",
+  "record_type": "n2e-resolved-toolchain-overlay",
+  "record_version": "v1",
+  "replaces": "tokio-rs__tokio-4384::rust_cargo::test::fixed",
+  "resolved_case_id": "uutils__coreutils-6731::rust_cargo::test::fixed",
+  "resolved_membership_sha256": "sha256:d3bdb6637d391c0eabba008abd6b03385267486e6c0ccea99fd574f190fcf69f",
+  "resolved_rust_toolchain": {
+    "channel_manifest": {
+      "manifest_date": "2024-09-05",
+      "sha256": "5596679723faf7e63772bacb1d0c898abaa51eb4ed193b328929d907c8c4bd5a",
+      "url": "https://static.rust-lang.org/dist/channel-rust-1.81.0.toml"
+    },
+    "components_x86_64_unknown_linux_gnu": {
+      "cargo": {
+        "hash": "e735432b85349aa78ed164ff03a31c43298f46a085fef047a33607adee80adc3",
+        "xz_hash": "c50ee4b1ae8695461930e36d5465dddb7c7a0e0f0aa6cbd60de120b17c38b841"
+      },
+      "rust": {
+        "hash": "4ca7c24e573dae2f382d8d266babfddc307155e1a0a4025f3bc11db58a6cab3e",
+        "xz_hash": "1a9ee8caaa18a3e433fef93cea8a55dc1ebd478ed761b2fef69d4565f9d00e7f"
+      },
+      "rustc": {
+        "hash": "d1e8db8c3ce0bd4b8a99e29bbd5132a3cf6a7e88ba4004bf7ce889fac7aa7e8d",
+        "xz_hash": "988a4e4cdecebe4f4a0c52ec4ade5a5bfc58d6958969f5b1e8aac033bda2613e"
+      }
+    },
+    "exact_binary_identity_ref": {
+      "required_keys": [
+        "resolved_channel_exact",
+        "cargo_binary_sha256",
+        "rustc_binary_sha256",
+        "rustup_shim_realpath",
+        "rustup_realpath_sha256",
+        "host_target",
+        "cargo_version_verbose",
+        "rustc_version_verbose",
+        "installed_components"
+      ],
+      "status": "captured_at_acquisition",
+      "where": "focused coreutils diagnostic: acquisition.environment_identity.toolchain"
+    },
+    "host_target": "x86_64-unknown-linux-gnu",
+    "publisher_docker_rust_version": "1.81",
+    "resolved_channel": "1.81.0"
+  },
+  "schema_version": "n2e-record-1"
+}

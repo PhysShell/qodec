@@ -1,0 +1,57 @@
+{
+  "base_publisher_registry_sha256": "sha256:8cdf9ca1cf9434f0210b144b22946065037fb485e36040eab580c256da324d96",
+  "generated_by": "evals/interop/v2/n2/e-rtk-native-corpus/tools/build_n2e_resolved_overlays.py",
+  "mission": "N2-E",
+  "mission_title": "external RTK-native claim-aligned command corpus",
+  "overlay_recipe_count": 1,
+  "overlay_recipes": [
+    {
+      "case_id": "uutils__coreutils-6731::rust_cargo::test::fixed",
+      "command_family": "rust_cargo",
+      "command_subfamily": "test",
+      "install": [
+        "cargo test backslash --no-run"
+      ],
+      "install_env": {},
+      "instance_id": "uutils__coreutils-6731",
+      "language": "rust_cargo",
+      "oracle_policy_id": "n2e-oracle-test-v1",
+      "pre_install": [],
+      "repository": "uutils/coreutils",
+      "slot": "rust_test_pass",
+      "snapshot_variant": "fixed",
+      "source": {
+        "file": "rust.py",
+        "git_blob_sha1": "068c7c2414edbcc14d42cca3bae96d27bdfb39f4",
+        "sha256": "1ad97f35f1202ef2a69c066b29d2edc5f552fd62db2230f38d2f7dd91a4a3da2",
+        "spec_dict": "COREUTILS_SPECS",
+        "spec_key": "6731"
+      },
+      "test_argv": [
+        "cargo",
+        "test",
+        "backslash",
+        "--no-fail-fast"
+      ],
+      "test_cmd": [
+        "cargo test backslash --no-fail-fast"
+      ],
+      "test_env": {},
+      "toolchain": {
+        "docker_specs": {
+          "rust_version": "1.81"
+        },
+        "kind": "rust",
+        "version": "1.81"
+      }
+    }
+  ],
+  "purpose": "Resolved-scope overlay for the coreutils-6731 replacement; frozen base is never modified. Effective contract = frozen base + verified replacement overlay.",
+  "record_sha256": "sha256:46b453fc6fd650ed855898946fc2be043544471fe5515a419a86ee587db6c238",
+  "record_type": "n2e-resolved-publisher-env-overlay",
+  "record_version": "v1",
+  "replaces": "tokio-rs__tokio-4384::rust_cargo::test::fixed",
+  "resolved_case_id": "uutils__coreutils-6731::rust_cargo::test::fixed",
+  "resolved_membership_sha256": "sha256:d3bdb6637d391c0eabba008abd6b03385267486e6c0ccea99fd574f190fcf69f",
+  "schema_version": "n2e-record-1"
+}

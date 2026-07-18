@@ -1,0 +1,82 @@
+{
+  "base_execution_contract_sha256": "sha256:e7cff3ea7a0e2fb914b589c0679502016910dd48eccdd4a7b1de37988749d899",
+  "generated_by": "evals/interop/v2/n2/e-rtk-native-corpus/tools/build_n2e_resolved_overlays.py",
+  "mission": "N2-E",
+  "mission_title": "external RTK-native claim-aligned command corpus",
+  "overlay_contract_count": 1,
+  "overlay_contracts": [
+    {
+      "argv_resolver_policy_id": "n2e-argv-resolver-v1",
+      "canonicalization_policy_id": "cargo-test-v1",
+      "case_id": "uutils__coreutils-6731::rust_cargo::test::fixed",
+      "command_family": "rust_cargo",
+      "command_subfamily": "test",
+      "dependency_environment_identity_ref": {
+        "protected_files": [
+          "Cargo.lock",
+          "Cargo.toml"
+        ],
+        "where": "focused coreutils diagnostic: acquisition.environment_identity.dependencies"
+      },
+      "effective_raw_argv": [
+        "cargo",
+        "test",
+        "backslash",
+        "--no-fail-fast"
+      ],
+      "effective_rtk_argv": [
+        "rtk",
+        "cargo",
+        "test",
+        "backslash",
+        "--no-fail-fast"
+      ],
+      "execution_control": null,
+      "frozen_rtk_resolution_rule": null,
+      "isolation_method": "network-denied-netns(lo-up); positive denial probe",
+      "mutation_guard": "before/after SHA-256 equality across acquisition + every measurement arm; any change is a typed harness rejection even on success exit",
+      "original_raw_argv": [
+        "cargo",
+        "test"
+      ],
+      "original_rtk_argv": [
+        "rtk",
+        "cargo",
+        "test"
+      ],
+      "protected_files": [
+        "Cargo.lock",
+        "Cargo.toml"
+      ],
+      "resolution_rule": "publisher_recipe",
+      "rtk_test_dialect_policy_id": null,
+      "runtime_resolved": false,
+      "scheduler_env": {
+        "CARGO_BUILD_JOBS": "1",
+        "CARGO_NET_OFFLINE": "true",
+        "RUSTUP_TOOLCHAIN": "1.81",
+        "RUST_TEST_THREADS": "1"
+      },
+      "scheduler_flags": null,
+      "semantic_oracle_policy_id": "n2e-oracle-test-v1",
+      "snapshot_variant": "fixed",
+      "timeout_seconds": 600,
+      "timeout_tier": "extended-600s",
+      "toolchain_identity_ref": {
+        "required_keys": [
+          "rustc",
+          "cargo"
+        ],
+        "where": "focused coreutils diagnostic: acquisition.environment_identity.toolchain"
+      }
+    }
+  ],
+  "purpose": "Resolved-scope overlay for the coreutils-6731 replacement; frozen base is never modified. Effective contract = frozen base + verified replacement overlay.",
+  "record_sha256": "sha256:3ff2f4bb4f20e21d2e004110d7c7b145277e024e98189430a7706f693dcabf4c",
+  "record_type": "n2e-resolved-execution-contract-overlay",
+  "record_version": "v1",
+  "replaces": "tokio-rs__tokio-4384::rust_cargo::test::fixed",
+  "resolved_case_id": "uutils__coreutils-6731::rust_cargo::test::fixed",
+  "resolved_membership_sha256": "sha256:d3bdb6637d391c0eabba008abd6b03385267486e6c0ccea99fd574f190fcf69f",
+  "schema_version": "n2e-record-1"
+}
