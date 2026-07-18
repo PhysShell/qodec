@@ -1,0 +1,133 @@
+{
+  "dataset": {
+    "id": "SWE-bench/SWE-bench_Multilingual",
+    "revision": "2b7aced941b4873e9cad3e76abbae93f481d1beb"
+  },
+  "fixture_sha256": {
+    "apache__lucene-13704.pre_install.sh": "2978d41cb3fc68f70dc95be56d66c236903c1aad9587354922d558d8db7bb239",
+    "tokio-rs__tokio-4384.Cargo.lock": "6f7401a1c6c2690bc5b48d54b1be4a87a443252febe89ccc74ac4e9e65f38dba"
+  },
+  "generated_by": "evals/interop/v2/n2/e-rtk-native-corpus/tools/build_n2e_publisher_registry.py",
+  "harness": {
+    "commit": "f7bbbb2ccdf479001d6467c9e34af59e44a840f9",
+    "constants_module": "swebench/harness/constants",
+    "repo": "SWE-bench/SWE-bench"
+  },
+  "mission": "N2-E",
+  "mission_title": "external RTK-native claim-aligned command corpus",
+  "purpose": "Self-hash-locked SWE-bench Multilingual publisher environment registry: the normative per-instance toolchain + pre-install/warm/test recipe + fixture hashes from which the execution contract and driver derive effective commands.",
+  "recipe_count": 4,
+  "recipes": [
+    {
+      "base_image": "golang:1.23.8",
+      "case_id": "caddyserver__caddy-5870::go::test::buggy",
+      "env": {},
+      "install": [
+        "go test -c . -run \"TestUnsyncedConfigAccess\""
+      ],
+      "instance_id": "caddyserver__caddy-5870",
+      "language": "go",
+      "lockfile": null,
+      "oracle_policy_id": "n2e-oracle-test-v1",
+      "pre_install": [],
+      "repo": "caddyserver/caddy",
+      "slot": "go_test_fail",
+      "spec": "GO caddy 5870",
+      "test_cmd": [
+        "go test -v . -run \"TestUnsyncedConfigAccess\""
+      ],
+      "toolchain": {
+        "kind": "go",
+        "version": "1.23.8"
+      }
+    },
+    {
+      "base_image": "rust:1.83",
+      "case_id": "tokio-rs__tokio-4384::rust_cargo::test::fixed",
+      "env": {
+        "RUSTFLAGS": "-Awarnings"
+      },
+      "install": [
+        "cargo test --locked --package tokio --test net_lookup_host --features full --no-fail-fast --no-run"
+      ],
+      "instance_id": "tokio-rs__tokio-4384",
+      "language": "rust",
+      "lockfile": {
+        "fixture": "tokio-rs__tokio-4384.Cargo.lock",
+        "sha256": "6f7401a1c6c2690bc5b48d54b1be4a87a443252febe89ccc74ac4e9e65f38dba",
+        "target": "Cargo.lock"
+      },
+      "oracle_policy_id": "n2e-oracle-test-v1",
+      "pre_install": [
+        {
+          "materialize_lockfile": "tokio-rs__tokio-4384.Cargo.lock",
+          "target": "Cargo.lock"
+        }
+      ],
+      "repo": "tokio-rs/tokio",
+      "slot": "rust_test_pass",
+      "spec": "TOKIO 4384",
+      "test_cmd": [
+        "cargo test --package tokio --test net_types_unwind --features full --no-fail-fast"
+      ],
+      "toolchain": {
+        "kind": "rust",
+        "version": "1.83"
+      }
+    },
+    {
+      "base_image": "ubuntu:22.04+nodesource20",
+      "case_id": "vuejs__core-11589::js_ts::test::buggy",
+      "env": {},
+      "install": [
+        "pnpm i"
+      ],
+      "instance_id": "vuejs__core-11589",
+      "language": "js_ts",
+      "lockfile": null,
+      "oracle_policy_id": "n2e-oracle-test-v1",
+      "pre_install": [],
+      "repo": "vuejs/core",
+      "slot": "js_test_fail",
+      "spec": "SPECS_VUEJS 11589 (js_2 variant)",
+      "test_cmd": [
+        "pnpm run test packages/runtime-core/__tests__/apiWatch.spec.ts --no-watch --reporter=verbose"
+      ],
+      "toolchain": {
+        "kind": "node",
+        "package_manager": "pnpm",
+        "version": "20"
+      }
+    },
+    {
+      "base_image": "maven:3.9-eclipse-temurin-21",
+      "case_id": "apache__lucene-13704::jvm::test::buggy",
+      "env": {},
+      "install": [],
+      "instance_id": "apache__lucene-13704",
+      "language": "jvm",
+      "lockfile": null,
+      "oracle_policy_id": "n2e-oracle-test-v1",
+      "pre_install": [
+        {
+          "shell_fixture": "apache__lucene-13704.pre_install.sh"
+        }
+      ],
+      "repo": "apache/lucene",
+      "slot": "jvm_test_fail",
+      "spec": "SPECS_LUCENE 13704",
+      "test_cmd": [
+        "./gradlew test --tests org.apache.lucene.search.TestLatLonDocValuesQueries"
+      ],
+      "toolchain": {
+        "build": "gradle_wrapper",
+        "kind": "java",
+        "version": "21"
+      }
+    }
+  ],
+  "record_sha256": "sha256:976808d338cd2a4465a8fcfea63fb3ebe132adad09f6cbcd8bd3502d472b1434",
+  "record_type": "n2e-publisher-env-registry",
+  "record_version": "v1",
+  "schema_version": "n2e-record-1"
+}

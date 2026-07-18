@@ -20,8 +20,19 @@
         ],
         "where": "per-case record: acquisition.environment_identity.dependencies"
       },
-      "effective_raw_argv": null,
-      "effective_rtk_argv": null,
+      "effective_raw_argv": [
+        "./gradlew",
+        "test",
+        "--tests",
+        "org.apache.lucene.search.TestLatLonDocValuesQueries"
+      ],
+      "effective_rtk_argv": [
+        "rtk",
+        "./gradlew",
+        "test",
+        "--tests",
+        "org.apache.lucene.search.TestLatLonDocValuesQueries"
+      ],
       "frozen_rtk_resolution_rule": null,
       "isolation_method": "network-denied-netns(lo-up); positive denial probe",
       "mutation_guard": "before/after SHA-256 equality across acquisition + every measurement arm; any change is a typed harness rejection even on success exit",
@@ -41,8 +52,8 @@
         "gradle.lockfile",
         "pom.xml"
       ],
-      "resolution_rule": "build_system_from_repo",
-      "runtime_resolved": true,
+      "resolution_rule": "publisher_recipe",
+      "runtime_resolved": false,
       "scheduler_env": {},
       "scheduler_flags": null,
       "semantic_oracle_policy_id": "n2e-oracle-test-v1",
@@ -136,13 +147,19 @@
       "effective_raw_argv": [
         "go",
         "test",
-        "./..."
+        "-v",
+        ".",
+        "-run",
+        "TestUnsyncedConfigAccess"
       ],
       "effective_rtk_argv": [
         "rtk",
         "go",
         "test",
-        "./..."
+        "-v",
+        ".",
+        "-run",
+        "TestUnsyncedConfigAccess"
       ],
       "frozen_rtk_resolution_rule": null,
       "isolation_method": "network-denied-netns(lo-up); positive denial probe",
@@ -162,7 +179,7 @@
         "go.mod",
         "go.sum"
       ],
-      "resolution_rule": "frozen_argv_verbatim",
+      "resolution_rule": "publisher_recipe",
       "runtime_resolved": false,
       "scheduler_env": {
         "GOFLAGS": "-mod=readonly",
@@ -533,12 +550,26 @@
       },
       "effective_raw_argv": [
         "cargo",
-        "test"
+        "test",
+        "--package",
+        "tokio",
+        "--test",
+        "net_types_unwind",
+        "--features",
+        "full",
+        "--no-fail-fast"
       ],
       "effective_rtk_argv": [
         "rtk",
         "cargo",
-        "test"
+        "test",
+        "--package",
+        "tokio",
+        "--test",
+        "net_types_unwind",
+        "--features",
+        "full",
+        "--no-fail-fast"
       ],
       "frozen_rtk_resolution_rule": null,
       "isolation_method": "network-denied-netns(lo-up); positive denial probe",
@@ -556,11 +587,13 @@
         "Cargo.lock",
         "Cargo.toml"
       ],
-      "resolution_rule": "frozen_argv_verbatim",
+      "resolution_rule": "publisher_recipe",
       "runtime_resolved": false,
       "scheduler_env": {
         "CARGO_BUILD_JOBS": "1",
         "CARGO_NET_OFFLINE": "true",
+        "RUSTFLAGS": "-Awarnings",
+        "RUSTUP_TOOLCHAIN": "1.83",
         "RUST_TEST_THREADS": "1"
       },
       "scheduler_flags": null,
@@ -591,8 +624,23 @@
         ],
         "where": "per-case record: acquisition.environment_identity.dependencies"
       },
-      "effective_raw_argv": null,
-      "effective_rtk_argv": null,
+      "effective_raw_argv": [
+        "pnpm",
+        "run",
+        "test",
+        "packages/runtime-core/__tests__/apiWatch.spec.ts",
+        "--no-watch",
+        "--reporter=verbose"
+      ],
+      "effective_rtk_argv": [
+        "rtk",
+        "pnpm",
+        "run",
+        "test",
+        "packages/runtime-core/__tests__/apiWatch.spec.ts",
+        "--no-watch",
+        "--reporter=verbose"
+      ],
       "frozen_rtk_resolution_rule": "acquisition:test_runner_from_package_json -> rtk jest|vitest",
       "isolation_method": "network-denied-netns(lo-up); positive denial probe",
       "mutation_guard": "before/after SHA-256 equality across acquisition + every measurement arm; any change is a typed harness rejection even on success exit",
@@ -607,8 +655,8 @@
         "package-lock.json",
         "yarn.lock"
       ],
-      "resolution_rule": "test_runner_from_package_json+sequential_scheduler",
-      "runtime_resolved": true,
+      "resolution_rule": "publisher_recipe",
+      "runtime_resolved": false,
       "scheduler_env": {},
       "scheduler_flags": null,
       "semantic_oracle_policy_id": "n2e-oracle-test-v1",
@@ -628,7 +676,7 @@
   "mission": "N2-E",
   "mission_title": "external RTK-native claim-aligned command corpus",
   "purpose": "Immutable per-case effective-execution contract; normative source for argv/canon/oracle resolution, toolchain+dependency identity references, and mutation guards (correction #3).",
-  "record_sha256": "sha256:f524863ff2fa68d0506ef3e7e77af36bc2ba70ab83db28558ebccbb0afee9b28",
+  "record_sha256": "sha256:d2760d0fe6ad689c6a55a7697511d4a758affcd10e22a50e46184ed9a09a45fb",
   "record_type": "n2e-canary-execution-contract",
   "record_version": "v1",
   "schema_version": "n2e-record-1"

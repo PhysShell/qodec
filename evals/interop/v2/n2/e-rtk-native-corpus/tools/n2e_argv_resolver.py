@@ -29,7 +29,20 @@ from __future__ import annotations
 
 from pathlib import Path
 
+import n2e_publisher_registry as pub
+
 RESOLVER_POLICY_ID = "n2e-argv-resolver-v1"
+
+
+def _publisher_scheduler_env(recipe: dict) -> dict:
+    fam = {"rust": "rust_cargo", "go": "go", "js_ts": "js_ts", "jvm": "jvm",
+           "node": "js_ts", "java": "jvm"}.get(recipe["language"], recipe["language"])
+    env = dict(scheduler_env(fam, "test"))
+    tc = recipe.get("toolchain") or {}
+    if recipe["language"] == "rust" and tc.get("version"):
+        env["RUSTUP_TOOLCHAIN"] = tc["version"]
+    env.update(recipe.get("env") or {})  # e.g. RUSTFLAGS, applied to both arms
+    return env
 
 
 def scheduler_env(fam: str, sub: str) -> dict:
@@ -65,6 +78,19 @@ def resolve(scen: dict, repo_dir: Path | None = None) -> dict:
     base = {"resolver_policy_id": RESOLVER_POLICY_ID, "scheduler_env": senv,
             "original_raw_argv": raw0, "original_rtk_argv": rtk0,
             "frozen_rtk_resolution": scen.get("rtk_argv_resolution")}
+
+    # PUBLISHER RECIPE (highest precedence for SWE-bench cases): the effective command
+    # is the publisher-scoped test command from the self-hash-locked registry, NEVER a
+    # generic whole-suite command. This is the corrected derived contract for a
+    # Phase-A scenario-ingestion command mismatch.
+    inst = (scen.get("source_image_identity") or {}).get("instance_id")
+    recipe = pub.recipe_for(inst) if inst else None
+    if recipe:
+        argv = pub.parse_command(recipe["test_cmd"][0])
+        return {**base, "resolution_rule": "publisher_recipe",
+                "runtime_resolved": False, "publisher_recipe": recipe["spec"],
+                "scheduler_env": _publisher_scheduler_env(recipe),
+                "effective_raw_argv": argv, "effective_rtk_argv": ["rtk", *argv]}
 
     if fam == "js_ts" and sub == "test":
         rule = "test_runner_from_package_json+sequential_scheduler"

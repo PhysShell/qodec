@@ -59,11 +59,16 @@ jobs:
           python3 tools/verify_n2e_candidate_inventory.py
           python3 tools/verify_n2e_selection.py
           python3 tools/verify_n2e_command_scenarios.py
+      - name: Verify publisher environment registry (self-hash + fixtures + resolver agreement)
+        run: |
+          cd "$N2E"
+          python3 tools/verify_n2e_publisher_registry.py
       - name: Verify execution contract (offline; correction #3)
         run: |
           cd "$N2E"
           # self-hash + independent per-case re-derivation + _CASE_POLICY agreement
-          # (caddy MUST be the case-scoped caddy-go-test-v1, never the family generic).
+          # (caddy MUST be the case-scoped caddy-go-test-v1, never the family generic;
+          # the four SWE-bench test cases derive their publisher-scoped commands).
           python3 tools/verify_n2e_execution_contract.py
 
   substrate:
@@ -160,10 +165,26 @@ jobs:
           "$QODEC" --help >/dev/null
           echo "RTK_BIN=$RTK" >> "$GITHUB_ENV"
           echo "QODEC_BIN=$QODEC" >> "$GITHUB_ENV"
-      - name: Toolchains
+      - name: Toolchains (publisher-recipe pinned versions)
         run: |
-          rustup default stable 2>/dev/null || true
-          # gradle/maven cases (e.g. lucene) require JDK 21+; the runner defaults to 17.
+          set -e
+          # Rust 1.83 (tokio-rs__tokio-4384 publisher recipe). Install the exact
+          # toolchain and export RUSTUP_HOME so the network-denied measurement (which
+          # runs under a stripped env) can still resolve it.
+          rustup toolchain install 1.83 --profile minimal --no-self-update
+          rustup default 1.83
+          echo "RUSTUP_HOME=${RUSTUP_HOME:-$HOME/.rustup}" >> "$GITHUB_ENV"
+          rustc --version
+          # Go 1.23.8 (caddyserver__caddy-5870 publisher recipe)
+          GO_TGZ=go1.23.8.linux-amd64.tar.gz
+          curl -fsSL "https://go.dev/dl/$GO_TGZ" -o "/tmp/$GO_TGZ"
+          sudo rm -rf /usr/local/go && sudo tar -C /usr/local -xzf "/tmp/$GO_TGZ"
+          echo "/usr/local/go/bin" >> "$GITHUB_PATH"
+          /usr/local/go/bin/go version
+          # Node 20 + corepack/pnpm (vuejs__core-11589 publisher recipe)
+          corepack enable 2>/dev/null || sudo corepack enable 2>/dev/null || true
+          node --version || true
+          # JDK 21 (apache__lucene-13704 publisher recipe: maven:3.9-eclipse-temurin-21)
           if [ -n "$JAVA_HOME_21_X64" ]; then
             echo "JAVA_HOME=$JAVA_HOME_21_X64" >> "$GITHUB_ENV"
             echo "$JAVA_HOME_21_X64/bin" >> "$GITHUB_PATH"
