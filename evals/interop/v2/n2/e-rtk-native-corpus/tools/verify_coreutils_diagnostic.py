@@ -22,6 +22,7 @@ from __future__ import annotations
 
 import hashlib
 import json
+import re
 import sys
 import zlib
 from pathlib import Path
@@ -35,12 +36,20 @@ import n2e_canon_policies as canon  # noqa: E402
 import n2e_resolved_loader as loader  # noqa: E402
 
 PINNED_MANIFEST_SHA = "5596679723faf7e63772bacb1d0c898abaa51eb4ed193b328929d907c8c4bd5a"
+CASE_ID = "uutils__coreutils-6731::rust_cargo::test::fixed"
+RTK_SOURCE_COMMIT = "5d32d0736f686b69d1e8b9dc45c007d4eb77a0a2"
 CONTRACT_RAW_ARGV = ["cargo", "test", "backslash", "--no-fail-fast"]
 CONTRACT_ENV = {"RUSTUP_TOOLCHAIN": "1.81.0", "CARGO_NET_OFFLINE": "true",
                 "RUST_TEST_THREADS": "1", "CARGO_BUILD_JOBS": "1"}
 EXPECTED_POLICY = "cargo-test-v2"
 EVIDENCE_ROOT = "out/evidence/coreutils-6731"
 TARGET_IDS = ["test_tr::test_trailing_backslash"]
+CHAIN_ORDER = ["cli_dispatch_cargo_test", "cargo_filter", "cargo_parser", "summary_formatter"]
+ACQ_ELIGIBLE = {"pristine_dependency_state", "publisher_install_dependency_snapshot"}
+# independent Rust item-definition regex (NOT imported from the producer -- re-derived here)
+_VDEF = re.compile(
+    rb"^[ \t]*(?:pub(?:\([^)]*\))?[ \t]+)?(?:async[ \t]+)?(?:unsafe[ \t]+)?"
+    rb"(fn|struct|enum|trait|const|static)[ \t]+([A-Za-z_][A-Za-z0-9_]*)", re.MULTILINE)
 FATAL_OUTCOMES = {"COREUTILS_DIAGNOSTIC_ERROR"}
 ACQ_FAILURE_OUTCOMES = {"COREUTILS_ACQUISITION_INSTALL_FAILURE", "COREUTILS_ACQUISITION_NONDETERMINISTIC",
                         "COREUTILS_ACQUISITION_UNAUTHORIZED_MUTATION", "COREUTILS_TOOLCHAIN_PINS_UNVERIFIED",
@@ -153,9 +162,12 @@ def _check_acquisition(rec, fail):
             fail.append(f"acquisition {label}: unauthorized tracked mutation {sorted(changed_tracked)}")
 
 
-def _check_manifest(rec, outcome, fail):
-    """corr 7: exact relative paths, no duplicate paths/basenames, all under the evidence
-    root, external-manifest cross-agreement for shared files."""
+def _check_manifest(rec, outcome, fail, root, require_external=False):
+    """corr 7 + hardening 4d: exact relative paths, no duplicate paths/basenames, all files
+    independently rehashed; the external manifest MUST exist for a complete diagnostic; the
+    exact required-file set must appear in BOTH manifests; internal/external must agree on
+    every shared primitive. Paths are rebased against `root` (the artifact root implied by the
+    evidence dir) so the verifier replays against a downloaded artifact, not only CI cwd."""
     manifest = rec.get("file_manifest") or []
     if not manifest:
         fail.append("file_manifest missing"); return
@@ -166,7 +178,7 @@ def _check_manifest(rec, outcome, fail):
     if len(stream_names) != len(set(stream_names)):
         fail.append("duplicate evidence basenames")
     for e in manifest:
-        fp = N2E_DIR / e["file"]
+        fp = root / e["file"]
         if fp.name.endswith(".json") and Path(e["file"]).name.startswith("coreutils-6731-diagnostic"):
             continue
         if not fp.is_file():
@@ -174,20 +186,185 @@ def _check_manifest(rec, outcome, fail):
         elif c.sha256_file(str(fp)) != e["sha256"]:
             fail.append(f"manifest hash mismatch: {e['file']}")
     manifested = set(paths)
-    for req in _required_paths(outcome):
+    required = _required_paths(outcome)
+    for req in required:
         if req not in manifested:
-            fail.append(f"required evidence omitted from manifest (exact path): {req}")
-    # external artifact manifest (built by the workflow) re-verify + agree for shared files
-    ext = N2E_DIR / "out" / "external-artifact-manifest.json"
-    if ext.is_file():
-        try:
-            ej = json.loads(ext.read_text())
-            ext_by = {e["file"]: e["sha256"] for e in ej.get("files", [])}
-            for e in manifest:
-                if e["file"] in ext_by and ext_by[e["file"]] != e["sha256"]:
-                    fail.append(f"internal/external manifest disagree: {e['file']}")
-        except Exception as ex:  # noqa: BLE001
-            fail.append(f"external manifest unreadable: {ex}")
+            fail.append(f"required evidence omitted from internal manifest (exact path): {req}")
+    # external artifact manifest (built by the workflow, NOT self-referential): independently
+    # re-hash each present file, require required-set inclusion, and require agreement.
+    ext = root / "out" / "external-artifact-manifest.json"
+    if not ext.is_file():
+        if require_external:
+            fail.append("external-artifact-manifest.json missing (required for a complete diagnostic)")
+        return
+    try:
+        ej = json.loads(ext.read_text())
+    except Exception as ex:  # noqa: BLE001
+        fail.append(f"external manifest unreadable: {ex}"); return
+    ext_by = {e["file"]: e["sha256"] for e in ej.get("files", [])}
+    for e in ej.get("files", []):
+        fp = root / e["file"]
+        if fp.is_file() and c.sha256_file(str(fp)) != e["sha256"]:
+            fail.append(f"external manifest hash mismatch: {e['file']}")
+    for req in required:
+        if req not in ext_by:
+            fail.append(f"required evidence omitted from external manifest (exact path): {req}")
+    for e in manifest:
+        if e["file"] in ext_by and ext_by[e["file"]] != e["sha256"]:
+            fail.append(f"internal/external manifest disagree: {e['file']}")
+
+
+def _derive_toolchain(rec, pins, fail) -> bool:
+    """hardening 4a: independently compare recorded manifest/component/host/version/installed-
+    binary identities against the resolved toolchain overlay pins. Never trusts te['ok']."""
+    te = rec.get("toolchain_enforcement") or {}
+    cm = pins["channel_manifest"]; comps = pins["components_x86_64_unknown_linux_gnu"]
+    d = []
+    if te.get("manifest_sha256") != cm["sha256"]:
+        d.append(f"manifest sha {te.get('manifest_sha256')} != pinned {cm['sha256']}")
+    if te.get("manifest_date") != cm["manifest_date"]:
+        d.append(f"manifest date {te.get('manifest_date')} != pinned {cm['manifest_date']}")
+    arts = te.get("distribution_artifacts") or {}
+    for name in ("cargo", "rustc", "rust"):
+        a = arts.get(name) or {}
+        if a.get("hash") != comps[name]["hash"]:
+            d.append(f"{name} component hash != pinned")
+        if a.get("xz_hash") != comps[name]["xz_hash"]:
+            d.append(f"{name} xz artifact hash != pinned")
+    ii = te.get("installed_identity") or {}
+    if ii.get("host_target") != pins["host_target"]:
+        d.append(f"host_target {ii.get('host_target')} != pinned {pins['host_target']}")
+    if ii.get("resolved_channel_exact") != pins["resolved_channel"]:
+        d.append(f"resolved_channel {ii.get('resolved_channel_exact')} != pinned {pins['resolved_channel']}")
+    for k in ("cargo_binary_sha256", "rustc_binary_sha256"):
+        v = ii.get(k)
+        if not (isinstance(v, str) and len(v) == 64):
+            d.append(f"installed {k} missing/invalid")
+    ch = pins["resolved_channel"]
+    for k, needle in (("cargo_version_verbose", f"cargo {ch}"), ("rustc_version_verbose", f"rustc {ch}")):
+        if needle not in (ii.get(k) or ""):
+            d.append(f"{k} does not attest {ch}")
+    for x in d:
+        fail.append("toolchain: " + x)
+    return not d
+
+
+def _derive_acq_classification(A, B):
+    """hardening 4b: re-derive the acquisition classification + A/B post-install parity from
+    the primitive pre/post states (never trusts the producer classification or all_equal)."""
+    if not (A and B) or A.get("install", {}).get("exit") != 0 or B.get("install", {}).get("exit") != 0:
+        return {"outcome": "COREUTILS_ACQUISITION_INSTALL_FAILURE"}, {}
+    pa, pb = A["post_install_state"], B["post_install_state"]
+    parity = {
+        "workspace_manifests_equal": pa["workspace_cargo_tomls"] == pb["workspace_cargo_tomls"],
+        "cargo_lock_equal": pa["cargo_lock"] == pb["cargo_lock"],
+        "cargo_config_equal": (pa["cargo_config"] == pb["cargo_config"]
+                               and pa["cargo_config_toml"] == pb["cargo_config_toml"]),
+        "rust_toolchain_equal": (pa["rust_toolchain"] == pb["rust_toolchain"]
+                                 and pa["rust_toolchain_toml"] == pb["rust_toolchain_toml"]),
+        "tracked_status_equal": pa["tracked_status"] == pb["tracked_status"],
+        "tracked_diff_equal": pa["tracked_diff_sha256"] == pb["tracked_diff_sha256"],
+        "metadata_members_equal": (A["post_install_metadata"].get("members")
+                                   == B["post_install_metadata"].get("members")),
+        "install_semantics_equal": (A["install"]["exit"] == B["install"]["exit"]
+                                    and A["install"]["timed_out"] == B["install"]["timed_out"]),
+        "cargo_cache_seed_equal": (A["cargo_cache_stable_manifest_hash"]
+                                   == B["cargo_cache_stable_manifest_hash"]),
+    }
+
+    def nonlock(a):
+        changed = set(a["post_install_state"]["tracked_status"]) - set(a["pristine_state"]["tracked_status"])
+        return sorted(x for x in changed if "Cargo.lock" not in x)
+    an, bn = nonlock(A), nonlock(B)
+    if not (parity["cargo_config_equal"] and parity["rust_toolchain_equal"]) or an or bn:
+        return {"outcome": "COREUTILS_ACQUISITION_UNAUTHORIZED_MUTATION"}, parity
+    if not all(parity.values()):
+        return {"outcome": "COREUTILS_ACQUISITION_NONDETERMINISTIC"}, parity
+    lock_created = (not A["pristine_state"]["cargo_lock"]["present"]) and pa["cargo_lock"]["present"]
+    lock_modified = (A["pristine_state"]["cargo_lock"]["present"] and pa["cargo_lock"]["present"]
+                     and A["pristine_state"]["cargo_lock"]["sha256"] != pa["cargo_lock"]["sha256"])
+    if lock_created or lock_modified:
+        return {"outcome": "publisher_install_dependency_snapshot"}, parity
+    return {"outcome": "pristine_dependency_state"}, parity
+
+
+def _derive_final_parity(rec) -> dict:
+    """hardening 4b: independently re-derive complete final A/B parity from finalize_A/B."""
+    fa, fb = (rec.get("finalize_A") or {}), (rec.get("finalize_B") or {})
+    sa, sb = fa.get("final_state") or {}, fb.get("final_state") or {}
+    ma, mb = fa.get("final_metadata") or {}, fb.get("final_metadata") or {}
+    p = {
+        "final_repo_state_equal": sa == sb,
+        "final_tracked_diff_equal": sa.get("tracked_diff_sha256") == sb.get("tracked_diff_sha256"),
+        "final_cargo_lock_equal": sa.get("cargo_lock") == sb.get("cargo_lock"),
+        "final_manifests_equal": sa.get("workspace_cargo_tomls") == sb.get("workspace_cargo_tomls"),
+        "final_metadata_equal": ma.get("members") == mb.get("members"),
+        "gold_test_applied_ok": bool(fa.get("all_ok")) and bool(fb.get("all_ok")),
+    }
+    p["all_equal"] = all(p.values())
+    return p
+
+
+def _check_env_approved(rec, approved, fail):
+    """hardening 4e: recorded semantic env must EXACTLY equal the approved set
+    (resolved scheduler_env + publisher test_env). Reject any unapproved variable."""
+    mse = rec.get("measurement_semantic_env") or {}
+    extra = sorted(set(mse) - set(approved))
+    missing = sorted(set(approved) - set(mse))
+    if extra:
+        fail.append(f"semantic env has unapproved variables: {extra}")
+    if missing:
+        fail.append(f"semantic env missing approved variables: {missing}")
+    for k in approved:
+        if k in mse and mse[k] != approved[k]:
+            fail.append(f"semantic env {k}={mse[k]!r} != approved {approved[k]!r}")
+
+
+def _verify_rtk_chain_bytes(rec, evidence, fail):
+    """hardening 4c: reopen the retained pinned source bytes and independently verify every
+    recorded path/blob/sha256/symbol-definition/reference-span/edge; recompute the complete
+    dispatch->filter->parser->formatter chain. Never trusts chain_complete/all_*_found."""
+    prov = rec.get("rtk_cargo_filter_source") or {}
+    if prov.get("commit") != RTK_SOURCE_COMMIT:
+        fail.append("rtk chain: recorded commit != pinned")
+    if prov.get("head") != RTK_SOURCE_COMMIT or not prov.get("head_proven"):
+        fail.append("rtk chain: HEAD not proven == pinned commit")
+    role_files = prov.get("role_files") or {}
+    for r in CHAIN_ORDER:
+        if not role_files.get(r):
+            fail.append(f"rtk chain: role {r} has no anchor file")
+    src_dir = evidence / "rtk-source-evidence"
+    edges = prov.get("edges") or {}
+    for a, b in zip(CHAIN_ORDER, CHAIN_ORDER[1:]):
+        e = edges.get(f"{a}->{b}")
+        if not e:
+            fail.append(f"rtk chain: edge {a}->{b} unresolved"); continue
+        data = {}
+        for side, path_key, blob_key in (("from", "from_path", "from_blob"), ("to", "to_path", "to_blob")):
+            rel = e.get(path_key); blob = e.get(blob_key) or {}
+            rf = (src_dir / rel.replace("/", "__")) if rel else None
+            if not (rf and rf.is_file()):
+                fail.append(f"rtk chain {a}->{b}: retained {side} bytes missing ({rel})"); continue
+            raw = rf.read_bytes(); data[side] = raw
+            if hashlib.sha256(raw).hexdigest() != blob.get("sha256"):
+                fail.append(f"rtk chain {a}->{b}: {side} sha256 != recorded blob")
+            if blob.get("bytes") is not None and len(raw) != blob["bytes"]:
+                fail.append(f"rtk chain {a}->{b}: {side} byte length != recorded blob")
+        sym = e.get("target_symbol")
+        if "from" not in data or "to" not in data or not sym:
+            continue
+        symb = sym.encode()
+        off = e.get("target_def_offset")
+        defs = {(m.group(2), m.start()) for m in _VDEF.finditer(data["to"])}
+        if (symb, off) not in defs:
+            defined_any = any(s == symb for s, _ in defs)
+            fail.append(f"rtk chain {a}->{b}: symbol {sym} not defined at recorded offset in to-file"
+                        + ("" if defined_any else " (symbol not defined at all)"))
+        roff = e.get("reference_offset")
+        ref_re = re.compile(rb"\b" + re.escape(symb) + rb"\b")
+        if not (isinstance(roff, int) and 0 <= roff and data["from"][roff:roff + len(symb)] == symb
+                and ref_re.search(data["from"])):
+            fail.append(f"rtk chain {a}->{b}: symbol {sym} not referenced at recorded offset in from-file")
 
 
 def verify(rec_path: Path, evidence: Path) -> tuple[bool, list, dict]:
@@ -196,6 +373,11 @@ def verify(rec_path: Path, evidence: Path) -> tuple[bool, list, dict]:
     ok, msg = c.verify_self_hash(rec)
     if not ok:
         return False, [f"diagnostic self-hash: {msg}"], facts
+    # artifact root implied by the evidence path (so this replays against a downloaded
+    # artifact in any directory, and against CI's cwd=N2E identically)
+    ev_abs = evidence.resolve()
+    root = Path(str(ev_abs)[:-len(EVIDENCE_ROOT)].rstrip("/")) if str(ev_abs).endswith(EVIDENCE_ROOT) else N2E_DIR
+    facts["artifact_root"] = str(root)
     outcome = rec.get("outcome"); facts["outcome"] = outcome
     if not outcome:
         return False, ["missing/malformed outcome"], facts
@@ -212,8 +394,9 @@ def verify(rec_path: Path, evidence: Path) -> tuple[bool, list, dict]:
     except Exception as e:  # noqa: BLE001
         fail.append(f"resolved closure invalid: {e}")
 
+    complete = outcome in ("RTK_DIALECT_UNPROVEN", "COREUTILS_RAW_NOT_QUALIFIED")
     if outcome not in ("COREUTILS_TOOLCHAIN_PINS_UNVERIFIED", "REJECTED_NO_ISOLATION"):
-        _check_manifest(rec, outcome, fail)
+        _check_manifest(rec, outcome, fail, root, require_external=complete)
 
     if outcome in ACQ_FAILURE_OUTCOMES:
         if outcome not in ("COREUTILS_TOOLCHAIN_PINS_UNVERIFIED", "REJECTED_NO_ISOLATION"):
@@ -258,19 +441,47 @@ def verify(rec_path: Path, evidence: Path) -> tuple[bool, list, dict]:
     if outcome != "RTK_DIALECT_UNPROVEN":
         return False, fail + [f"unexpected outcome: {outcome}"], facts
 
-    # ---- full RTK_DIALECT_UNPROVEN requirement set ----
-    tool = rec.get("toolchain_enforcement") or {}
-    if not tool.get("ok") or tool.get("manifest_sha256") != PINNED_MANIFEST_SHA:
-        fail.append("toolchain pins not verified")
+    # ---- full RTK_DIALECT_UNPROVEN requirement set (hardened: derive, never trust) ----
+    # resolved anchors: toolchain pins + approved semantic env (scheduler_env + test_env)
+    try:
+        pins = loader.validate_resolved_closure()["overlays"]["toolchain"]["resolved_rust_toolchain"]
+    except Exception as e:  # noqa: BLE001
+        pins = None; fail.append(f"cannot load resolved toolchain pins: {e}")
+    approved_env = {}
+    try:
+        approved_env = {**bundle["execution_contract"].get("scheduler_env", {}),
+                        **bundle["publisher_recipe"].get("test_env", {})}
+    except Exception as e:  # noqa: BLE001
+        fail.append(f"cannot load approved semantic env: {e}")
+    # sanity: the approved set the verifier enforces IS the resolved contract's, and the
+    # long-standing CONTRACT_ENV constant must not silently diverge from it
+    if approved_env and approved_env != CONTRACT_ENV:
+        fail.append(f"resolved scheduler_env+test_env {approved_env} != verifier CONTRACT_ENV {CONTRACT_ENV}")
+
+    # toolchain (hardening 4a): independently compare identities against pins
+    if pins is not None and not _derive_toolchain(rec, pins, fail):
+        pass  # _derive_toolchain already appended specifics
+    if (rec.get("toolchain_enforcement") or {}).get("manifest_sha256") != PINNED_MANIFEST_SHA:
+        fail.append("toolchain manifest sha != pinned constant")
+
+    # acquisition (hardening 4b): re-derive classification + parity from primitives
     _check_acquisition(rec, fail)
     A, B = rec.get("acquisition_A") or {}, rec.get("acquisition_B") or {}
-    if not (A.get("install", {}).get("exit") == 0 and B.get("install", {}).get("exit") == 0):
-        fail.append("acquisition install non-zero")
-    if (rec.get("acquisition_classification") or {}).get("outcome") not in (
-            "publisher_install_dependency_snapshot", "pristine_dependency_state"):
-        fail.append("acquisition classification not eligible")
-    if not (rec.get("final_env_parity") or {}).get("all_equal"):
-        fail.append("final env parity not all equal")
+    derived_cls, derived_parity = _derive_acq_classification(A, B)
+    facts["derived_acquisition_outcome"] = derived_cls["outcome"]
+    recorded_cls = (rec.get("acquisition_classification") or {}).get("outcome")
+    if derived_cls["outcome"] not in ACQ_ELIGIBLE:
+        fail.append(f"re-derived acquisition classification not eligible: {derived_cls['outcome']}")
+    if derived_cls["outcome"] != recorded_cls:
+        fail.append(f"acquisition classification disagreement: derived={derived_cls['outcome']} recorded={recorded_cls}")
+    if derived_parity and not all(derived_parity.values()):
+        fail.append(f"re-derived A/B post-install parity not all equal: "
+                    f"{sorted(k for k, v in derived_parity.items() if not v)}")
+    fin_parity = _derive_final_parity(rec)
+    facts["derived_final_parity_all_equal"] = fin_parity["all_equal"]
+    if not fin_parity["all_equal"]:
+        fail.append(f"re-derived final A/B parity not all equal: "
+                    f"{sorted(k for k, v in fin_parity.items() if not v)}")
 
     raw, rtk = rec.get("raw_arm") or {}, rec.get("rtk_arm") or {}
     rtk_bin = rec.get("rtk_binary_path")
@@ -279,12 +490,8 @@ def verify(rec_path: Path, evidence: Path) -> tuple[bool, list, dict]:
         fail.append("RAW argv != contract")
     if not _argv_ok(rtk.get("actual_argv") or [], True, rtk_bin):
         fail.append("RTK argv != [rtk_bin, *contract]")
-    # environment (corr 5)
-    if rec.get("actual_environment_equal_contract") is not True:
-        fail.append("environment != contract (producer flag not true)")
-    mse = rec.get("measurement_semantic_env") or {}
-    if not all(mse.get(k) == v for k, v in CONTRACT_ENV.items()):
-        fail.append("re-derived measurement env != contract")
+    # environment (hardening 4e): recorded semantic env == approved set exactly, no extras
+    _check_env_approved(rec, approved_env or CONTRACT_ENV, fail)
     if rec.get("raw_rtk_semantic_env_equal") is not True or raw.get("semantic_env") != rtk.get("semantic_env"):
         fail.append("RAW/RTK semantic env not equal")
     if raw.get("reps") != 3 or rtk.get("reps") != 3:
@@ -309,11 +516,8 @@ def verify(rec_path: Path, evidence: Path) -> tuple[bool, list, dict]:
     if not _raw_target_from_captures(evidence, rec):
         fail.append("RAW target execution not re-derivable as passing from primary captures")
 
-    prov = rec.get("rtk_cargo_filter_source") or {}
-    if not prov.get("head_proven"):
-        fail.append("RTK source HEAD not proven == pinned commit")
-    if not (prov.get("chain_complete") and prov.get("all_edges_resolved") and prov.get("all_roles_found")):
-        fail.append("RTK dispatch->filter->parser->formatter chain not mechanically resolved")
+    # RTK source chain (hardening 4c): reopen retained bytes, verify every edge
+    _verify_rtk_chain_bytes(rec, evidence, fail)
 
     facts["raw_rederivation"] = raw_rd
     facts["rtk_rederivation"] = rtk_rd
