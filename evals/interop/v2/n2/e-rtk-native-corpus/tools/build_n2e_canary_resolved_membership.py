@@ -34,7 +34,9 @@ N2E_DIR = HERE.parent
 sys.path.insert(0, str(HERE))
 import n2e_common as c  # noqa: E402
 import n2e_publisher_registry as pub  # noqa: E402
+import n2e_swebench_extract as ex  # noqa: E402
 
+SRC = N2E_DIR / "fixtures" / "swebench-source"
 MEMBERSHIP = N2E_DIR / "n2e-canary-membership-v1.json"
 SELECTION = N2E_DIR / "n2e-selection-result-v1.json"
 RESERVES = N2E_DIR / "n2e-reserve-list-v1.json"
@@ -90,10 +92,17 @@ def _eligible(ctx: Ctx, case_id: str) -> tuple[bool, str]:
         m.get(k) for k in ("raw_command_argv", "base_commit", "image_recipe"))
     if not constructible:
         return False, "scenario not available/constructible"
-    # publisher-recipe availability where required
-    if (m.get("command_family"), m.get("command_subfamily")) in _RECIPE_REQUIRED \
-            and pub.recipe_for_case(case_id) is None:
-        return False, "publisher recipe not yet available in registry"
+    # publisher-recipe availability where required: either already materialized in the
+    # frozen registry, OR faithfully EXTRACTABLE from the pinned harness source for this
+    # candidate's (repo, version). Extractability -- not current registry membership --
+    # is the outcome-blind criterion, so resolution is not biased by which recipes have
+    # already been materialized.
+    fam, sub = m.get("command_family"), m.get("command_subfamily")
+    if (fam, sub) in _RECIPE_REQUIRED:
+        if pub.recipe_for_case(case_id) is None:
+            version = (m.get("instance_id") or "").split("-")[-1]
+            if not ex.spec_resolves(SRC, fam, m.get("repository"), version):
+                return False, "publisher recipe neither in registry nor extractable from pinned source"
     return True, "eligible"
 
 
@@ -236,11 +245,21 @@ def build(args) -> dict:
                       and recheck["distinct_source_systems_not_reduced"]
                       and recheck["repos_per_language_not_reduced"])
 
+    # closure-state flags (ruling step 5); resolved_canary_pass stays False until a fresh
+    # resolved-twelve run passes 12/12.
+    ledger_entries = {e["case_id"]: e for e in ledger.get("terminal_rejections", [])}
+    tokio_entry = ledger_entries.get("tokio-rs__tokio-4384::rust_cargo::test::fixed")
+    original_tokio_outcome = tokio_entry.get("classification") if tokio_entry else None
+
     return c.envelope(
         record_type="n2e-canary-resolved-membership",
         generated_by="evals/interop/v2/n2/e-rtk-native-corpus/tools/build_n2e_canary_resolved_membership.py",
         purpose="Deterministic Option-D resolution of terminally-disqualified canary slots "
                 "via frozen per-slot reserve ordering; outcome-blind, savings never inspected.",
+        original_tokio_outcome=original_tokio_outcome,
+        original_canary_pass=False,
+        resolved_membership_required=bool(disq),
+        resolved_canary_pass=False,
         original_membership_sha256=c.sha256_json_file(MEMBERSHIP),
         selection_result_sha256=c.sha256_json_file(SELECTION),
         reserve_list_sha256=c.sha256_json_file(RESERVES),

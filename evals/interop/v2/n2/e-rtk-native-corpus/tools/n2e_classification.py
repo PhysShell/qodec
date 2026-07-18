@@ -20,6 +20,28 @@ PASS = "PASS"  # RAW x3 canonically deterministic + oracle true, RTK agrees, off
 # ---- non-terminal outcomes: MUST be fixed, never disqualified ----------------
 HARNESS_DEFECT = "HARNESS_DEFECT"
 METER_DEFECT = "METER_DEFECT"
+VERIFIER_DEFECT = "VERIFIER_DEFECT"
+
+# Named VERIFIER_DEFECT subtypes: the DEFECT IS IN THE VERIFIER (a classification
+# harness), not in a candidate. It is corrected, then classification is re-derived.
+# PROVENANCE_GATE_PRECEDENCE: a verifier wrongly placed a GLOBAL harness<->dataset
+# revision-pair cross-reference gate AHEAD of, and terminal over, the instance-level
+# recipe-applicability proof. The pinned harness selects a per-instance recipe purely
+# from (repo, version) via MAP_REPO_VERSION_TO_SPECS -- it never consults a global
+# dataset-revision cross-pin -- so the absence of a publisher document tying a harness
+# commit to a dataset README revision is NOT a candidate defect and does NOT block
+# classification once instance-level applicability is proven. SOURCE_PROVENANCE_DEFECT
+# is therefore a VERIFIER-level, NON-TERMINAL condition for a candidate; it never
+# invokes reserve fallback.
+VERIFIER_DEFECT_PROVENANCE_GATE_PRECEDENCE = "VERIFIER_DEFECT_PROVENANCE_GATE_PRECEDENCE"
+VERIFIER_DEFECT_SUBTYPES = frozenset({VERIFIER_DEFECT_PROVENANCE_GATE_PRECEDENCE})
+
+# Substrate-status axis (orthogonal to the candidate outcome). Once instance-level
+# recipe applicability is proven from the pinned harness's own recipe-selection
+# mechanism, the substrate is PROVEN. SOURCE_PROVENANCE_DEFECT is a substrate status
+# that is NEVER a terminal candidate outcome and NEVER triggers reserve fallback.
+SUBSTRATE_PROVEN = "PROVEN"
+SUBSTRATE_SOURCE_PROVENANCE_DEFECT = "SOURCE_PROVENANCE_DEFECT"
 
 # Named HARNESS_DEFECT subtypes (each is corrected, then the case is re-judged).
 # ORACLE_UNRECOGNIZED_RTK_TEST_GRAMMAR: the RTK agreement oracle applied the NATIVE
@@ -48,8 +70,11 @@ TERMINAL_DISQUALIFICATIONS = frozenset({
 })
 
 # non-terminal outcomes are candidate NEITHER for the passing gate NOR the
-# rejection ledger; they gate a re-run after the defect is corrected.
-NON_TERMINAL = frozenset({HARNESS_DEFECT, METER_DEFECT})
+# rejection ledger; they gate a re-run after the defect is corrected. A
+# VERIFIER_DEFECT gates a re-derivation of the classification once the verifier
+# is corrected -- it is never a terminal candidate outcome.
+NON_TERMINAL = frozenset({HARNESS_DEFECT, METER_DEFECT, VERIFIER_DEFECT,
+                          VERIFIER_DEFECT_PROVENANCE_GATE_PRECEDENCE})
 
 # The strict, human-normative meaning of each outcome. These strings are the
 # contract the rejection-ledger builder and the reviewer check against.
@@ -114,10 +139,14 @@ PRECONDITIONS = {
         "publisher_recipe_applied", "environment_reproduced",
         "exceeded_frozen_envelope",
     ],
+    # The bar is INSTANCE-LEVEL recipe applicability + faithful reproduction, NOT a
+    # global harness<->dataset revision cross-pin (that precedence was a VERIFIER_DEFECT).
     DISQUALIFIED_ENVIRONMENT_UNREPRODUCIBLE: [
+        "instance_recipe_applicability_proven",   # pinned harness maps (repo,version)->this exact recipe
         "publisher_recipe_revision_pinned", "all_referenced_artifacts_pinned",
         "exact_toolchain_installed", "publisher_lockfile_byte_identical",
         "acquisition_attempted_faithfully", "reconstruction_failed_candidate_specific",
+        "upstream_source_checkout_reproduced_identically",  # upstream == N2-E, same refusal
     ],
     DISQUALIFIED_RTK_SEMANTIC_LOSS: [
         "publisher_recipe_applied", "toolchain_identity_pinned",
@@ -140,6 +169,16 @@ def is_disqualification(outcome: str) -> bool:
 
 def requires_fix_before_judgement(outcome: str) -> bool:
     return outcome in NON_TERMINAL
+
+
+def is_verifier_defect(outcome: str) -> bool:
+    return outcome == VERIFIER_DEFECT or outcome in VERIFIER_DEFECT_SUBTYPES
+
+
+def substrate_proven(status: str) -> bool:
+    """SOURCE_PROVENANCE_DEFECT is never terminal for a candidate; only PROVEN admits
+    a terminal DISQUALIFIED_ENVIRONMENT_UNREPRODUCIBLE."""
+    return status == SUBSTRATE_PROVEN
 
 
 def all_outcomes() -> list[str]:

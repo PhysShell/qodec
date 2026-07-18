@@ -28,6 +28,44 @@ SELECTORS = {
         {"file": "java.py", "map": "MAP_REPO_VERSION_TO_SPECS_JAVA", "repo": "apache/lucene", "pr": "13704"},
 }
 
+# Resolved-scope reserve replacements (NOT part of the frozen canary registry / toolchain
+# lock). Extracted from the SAME pinned harness source bytes when a slot is terminally
+# disqualified and resolved via the frozen reserve order.
+RESERVE_SELECTORS = {
+    # frozen-order replacement for the DISQUALIFIED_ENVIRONMENT_UNREPRODUCIBLE tokio-4384
+    # rust_test_pass slot (uutils/coreutils-6731: rust 1.81, no --locked, no Cargo.lock fixture).
+    "uutils__coreutils-6731::rust_cargo::test::fixed":
+        {"file": "rust.py", "map": "MAP_REPO_VERSION_TO_SPECS_RUST", "repo": "uutils/coreutils", "pr": "6731"},
+}
+
+# family -> pinned harness source file + rust/go/js/java repo->spec map name
+FAMILY_SOURCE = {
+    "rust_cargo": ("rust.py", "MAP_REPO_VERSION_TO_SPECS_RUST"),
+    "go": ("go.py", "MAP_REPO_VERSION_TO_SPECS_GO"),
+    "js_ts": ("javascript.py", "MAP_REPO_VERSION_TO_SPECS_JS"),
+    "jvm": ("java.py", "MAP_REPO_VERSION_TO_SPECS_JAVA"),
+}
+
+
+def spec_resolves(src_dir: Path, family: str, repo: str, version: str) -> bool:
+    """True iff the pinned harness source maps (repo, version) to a concrete spec entry
+    for the given command family -- the source-driven extractability of a publisher
+    recipe, independent of what is currently materialized in any registry."""
+    fs = FAMILY_SOURCE.get(family)
+    if not fs:
+        return False
+    fname, map_name = fs
+    p = src_dir / fname
+    if not p.is_file():
+        return False
+    try:
+        mod, _ = _module(src_dir, fname)
+        spec_name = _map_repo_to_specname(mod, map_name, repo)
+        _spec_entry(mod, spec_name, version)
+        return True
+    except (KeyError, ValueError):
+        return False
+
 
 def _module(src_dir: Path, fname: str) -> tuple[ast.Module, str]:
     text = (src_dir / fname).read_text()
@@ -88,7 +126,7 @@ def _field(entry: ast.Dict, key: str):
 
 
 def extract(src_dir: Path, case_id: str) -> dict:
-    sel = SELECTORS[case_id]
+    sel = SELECTORS.get(case_id) or RESERVE_SELECTORS[case_id]
     mod, text = _module(src_dir, sel["file"])
     spec_name = _map_repo_to_specname(mod, sel["map"], sel["repo"])
     entry = _spec_entry(mod, spec_name, sel["pr"])

@@ -1,0 +1,151 @@
+{
+  "candidate_inventory_sha256": "sha256:37990cd07fa5048c25e2c1a535c12c650434ba61dbc3a09eae6860eb73c5b7c1",
+  "constraints_ok": true,
+  "corpus_feasibility_blocker": false,
+  "disqualified_case_ids": [
+    "tokio-rs__tokio-4384::rust_cargo::test::fixed"
+  ],
+  "generated_by": "evals/interop/v2/n2/e-rtk-native-corpus/tools/build_n2e_canary_resolved_membership.py",
+  "global_constraints_recheck": {
+    "count_matches_original": true,
+    "distinct_repositories": 12,
+    "distinct_repositories_not_reduced": true,
+    "distinct_source_systems": 4,
+    "distinct_source_systems_not_reduced": true,
+    "duplicate_clusters": [],
+    "pct_cap_cases": 1,
+    "repos_per_language": {
+      "container": true,
+      "go": true,
+      "java": true,
+      "log": true,
+      "php": true,
+      "python": true,
+      "ruby": true,
+      "rust": true,
+      "typescript": true
+    },
+    "repos_per_language_not_reduced": true,
+    "repository_over_pct_cap": [],
+    "repository_over_source_unit_cap": []
+  },
+  "mission": "N2-E",
+  "mission_title": "external RTK-native claim-aligned command corpus",
+  "original_canary_pass": false,
+  "original_membership_sha256": "sha256:8f3bcf1e029c643d7b7937cee823786dd60f1a8c4874ca0f445b1756834c0e85",
+  "original_tokio_outcome": "DISQUALIFIED_ENVIRONMENT_UNREPRODUCIBLE",
+  "purpose": "Deterministic Option-D resolution of terminally-disqualified canary slots via frozen per-slot reserve ordering; outcome-blind, savings never inspected.",
+  "record_sha256": "sha256:b8c05d4fd71532f2d3bf7634ae326384226aa2ca163aebb519252b2fe2339fc8",
+  "record_type": "n2e-canary-resolved-membership",
+  "record_version": "v1",
+  "rejection_ledger_sha256": "sha256:f75cd225ab11cf8eb50e551e01f788cb63dfd64f5f03dd641b7c47ef75b45573",
+  "reserve_list_sha256": "sha256:88d114b690ab53ba167b899e861f4f027bfdac1adfe74fb2f1146db9846e6157",
+  "reserves_exhausted": [],
+  "resolution_order": [
+    "tokio-rs__tokio-4384::rust_cargo::test::fixed"
+  ],
+  "resolution_order_rule_sha256": "sha256:402b5c482fa4b87afde150b7b9444f408afbcdf1496c54a3b78fcae8f8b32a0f",
+  "resolution_traces": {
+    "tokio-rs__tokio-4384::rust_cargo::test::fixed": [
+      {
+        "accepted": true,
+        "candidate": "uutils__coreutils-6731::rust_cargo::test::fixed",
+        "reasons": []
+      }
+    ]
+  },
+  "resolutions": [
+    {
+      "cluster": "swebench:uutils__coreutils-6731",
+      "disqualified_case_id": "tokio-rs__tokio-4384::rust_cargo::test::fixed",
+      "repository": "uutils/coreutils",
+      "reserve_rank": 0,
+      "resolved_case_id": "uutils__coreutils-6731::rust_cargo::test::fixed",
+      "slot": "rust_test_pass"
+    }
+  ],
+  "resolved_canary_pass": false,
+  "resolved_case_count": 12,
+  "resolved_membership": [
+    {
+      "canary_slot": "test_generic",
+      "case_id": "apache__lucene-13704::jvm::test::buggy",
+      "command_family": "jvm",
+      "command_subfamily": "test"
+    },
+    {
+      "canary_slot": "python",
+      "case_id": "bugsinpy::scrapy-9::python::pytest::fixed",
+      "command_family": "python",
+      "command_subfamily": "pytest"
+    },
+    {
+      "canary_slot": "test_generic",
+      "case_id": "caddyserver__caddy-5870::go::test::buggy",
+      "command_family": "go",
+      "command_subfamily": "test"
+    },
+    {
+      "canary_slot": "docker",
+      "case_id": "container::redis::docker::images",
+      "command_family": "containers",
+      "command_subfamily": "images"
+    },
+    {
+      "canary_slot": "build_lint",
+      "case_id": "gin-gonic__gin-2755::go::vet",
+      "command_family": "go",
+      "command_subfamily": "vet"
+    },
+    {
+      "canary_slot": "log",
+      "case_id": "loghub::HDFS::log",
+      "command_family": "logs",
+      "command_subfamily": "log"
+    },
+    {
+      "canary_slot": "git_1",
+      "case_id": "php-cs-fixer__php-cs-fixer-8075::git::commit",
+      "command_family": "git",
+      "command_subfamily": "commit"
+    },
+    {
+      "canary_slot": "files_search_1",
+      "case_id": "preactjs__preact-3345::files_search::read",
+      "command_family": "files_search",
+      "command_subfamily": "read"
+    },
+    {
+      "canary_slot": "files_search_1",
+      "case_id": "projectlombok__lombok-3312::files_search::read",
+      "command_family": "files_search",
+      "command_subfamily": "read"
+    },
+    {
+      "canary_slot": "git_1",
+      "case_id": "rubocop__rubocop-13687::git::show",
+      "command_family": "git",
+      "command_subfamily": "show"
+    },
+    {
+      "canary_slot": "rust",
+      "case_id": "uutils__coreutils-6731::rust_cargo::test::fixed",
+      "command_family": "rust_cargo",
+      "command_subfamily": "test",
+      "replaces": "tokio-rs__tokio-4384::rust_cargo::test::fixed",
+      "reserve_rank": 0,
+      "snapshot_variant": "fixed"
+    },
+    {
+      "canary_slot": "js_ts",
+      "case_id": "vuejs__core-11589::js_ts::test::buggy",
+      "command_family": "js_ts",
+      "command_subfamily": "test"
+    }
+  ],
+  "resolved_membership_required": true,
+  "schema_version": "n2e-record-1",
+  "selection_policy_sha256": "sha256:7a103c20afc6f106d726baa77aab7f8f3f333fc27a8d0dbf12f09c0338fa46db",
+  "selection_result_sha256": "sha256:403845edd8f2463af496bc8091351113ded07880cb1b318de6b4ec98ab7f6c29",
+  "slot_quotas_preserved": true
+}

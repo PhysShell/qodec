@@ -39,11 +39,18 @@ class TestResolver(unittest.TestCase):
             self.assertEqual((m["command_family"], m["command_subfamily"], m["snapshot_variant"]),
                              ("go", "test", "buggy"))
 
-    def test_hugo_ineligible_without_recipe(self):
+    def test_hugo_eligible_via_source_extractability(self):
+        # ruling: recipe availability is EXTRACTABILITY from the pinned harness source,
+        # not current registry membership. hugo's go recipe IS extractable -> eligible,
+        # even though it is not materialized in the frozen 4-member registry.
         ok, msg = R._eligible(self.ctx, HUGO)
-        # go::test requires a publisher recipe; hugo's is not yet in the registry
+        self.assertTrue(ok, msg)
+
+    def test_recipe_required_not_in_inventory_ineligible(self):
+        # a recipe-required candidate absent from the frozen inventory cannot be resolved
+        ok, msg = R._eligible(self.ctx, "does-not__exist-1::go::test::buggy")
         self.assertFalse(ok)
-        self.assertIn("recipe", msg)
+        self.assertIn("inventory", msg)
 
     def test_like_for_like_signature_enforced(self):
         # a reserve of a different subfamily/variant is rejected on signature

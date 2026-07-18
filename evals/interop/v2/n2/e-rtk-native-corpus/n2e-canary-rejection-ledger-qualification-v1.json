@@ -1,0 +1,292 @@
+{
+  "classification_taxonomy_outcomes": [
+    "PASS",
+    "HARNESS_DEFECT",
+    "METER_DEFECT",
+    "DISQUALIFIED_ENVIRONMENT_UNREPRODUCIBLE",
+    "DISQUALIFIED_INTRINSIC_NONDETERMINISM",
+    "DISQUALIFIED_OFFLINE_EXECUTION",
+    "DISQUALIFIED_RESOURCE_LIMIT",
+    "DISQUALIFIED_RTK_SEMANTIC_LOSS"
+  ],
+  "execution_contract_sha256": "sha256:e7cff3ea7a0e2fb914b589c0679502016910dd48eccdd4a7b1de37988749d899",
+  "generated_by": "evals/interop/v2/n2/e-rtk-native-corpus/tools/build_n2e_canary_rejection_ledger.py",
+  "implementation_sha": "70b0b1d4bff49a87df18d938ad710ae2fdc718af",
+  "insufficient_evidence": [],
+  "mission": "N2-E",
+  "mission_title": "external RTK-native claim-aligned command corpus",
+  "publisher_registry_sha256": "sha256:8cdf9ca1cf9434f0210b144b22946065037fb485e36040eab580c256da324d96",
+  "purpose": "Typed terminal rejections re-derived FAIL-CLOSED + INDEPENDENTLY from primary per-rep stream evidence (never from producer status/oracle summaries).",
+  "raw_oracle_policy_id": "n2e-raw-strict-target-oracle-v1",
+  "record_sha256": "sha256:e4077bbbdcf73624ab822deac3e7cbf4769c8b26a52f3cdeef215fab908f44ef",
+  "record_type": "n2e-canary-rejection-ledger-qualification",
+  "record_version": "v1",
+  "run_id": "29639827628",
+  "scenario_correction_sha256": "sha256:1f308d6b2e41bd4aa53b5c20a831bb7eee496d7e446c27897340c8079f367ed0",
+  "scenario_sha256": "sha256:69f51947bdca6ae8c880b87e02cb43e7f24a2e435d465142e80b3f50fbdbd0e1",
+  "schema_version": "n2e-record-1",
+  "terminal_rejection_count": 1,
+  "terminal_rejections": [
+    {
+      "base_commit": "553cc3b194df875cac8736473e1f01cf3e40a660",
+      "canary_slot": "rust_test_pass",
+      "case_id": "tokio-rs__tokio-4384::rust_cargo::test::fixed",
+      "classification": "DISQUALIFIED_ENVIRONMENT_UNREPRODUCIBLE",
+      "complete_instance_row_sha256": "7b7906d880c8e121971a429bee0f7cd486fbab0911267fa1643c4c34c4d02c28",
+      "corrected_verifier_policy_id": "n2e-tokio-parity-verifier-v2",
+      "dataset": {
+        "id": "SWE-bench/SWE-bench_Multilingual",
+        "revision": "2b7aced941b4873e9cad3e76abbae93f481d1beb"
+      },
+      "decision_inputs_excluded": [
+        "rtk_savings",
+        "result_size",
+        "execution_ease",
+        "replacement_availability"
+      ],
+      "diagnostic_unlocked_lock_diff": {
+        "added_count": 0,
+        "after_sha256": "742db2f6b55e0b675f89dbdd699d0f5ebeec0516156724ec0b2f6815a2e8fb97",
+        "before_sha256": "893e9f8cdda5729df8bb00b28adc2d0bd67a16324517062c1edc518c7c1bde8d",
+        "keyed_by": "(name, version, source, checksum) multiset",
+        "package_count_after": 164,
+        "package_count_before": 186,
+        "removed_count": 22,
+        "tuples_removed": [
+          {
+            "checksum": "819e7219dbd41043ac279b19830f2efc897156490d7fd6ea916720117ee66311",
+            "count": 1,
+            "name": "android_system_properties",
+            "source": "registry+https://github.com/rust-lang/crates.io-index",
+            "version": "0.1.5"
+          },
+          {
+            "checksum": "d52a9bb7ec0cf484c551830a7ce27bd20d67eac647e1befb56b0be4ee39a55d2",
+            "count": 1,
+            "name": "ansi_term",
+            "source": "registry+https://github.com/rust-lang/crates.io-index",
+            "version": "0.12.1"
+          },
+          {
+            "checksum": "5dd9dc738b7a8311c7ade152424974d8115f2cdad61e8dab8dac9f2362298510",
+            "count": 1,
+            "name": "bumpalo",
+            "source": "registry+https://github.com/rust-lang/crates.io-index",
+            "version": "3.19.1"
+          },
+          {
+            "checksum": "145052bdd345b87320e369255277e3fb5152762ad123a901ef5c262dd38fe8d2",
+            "count": 1,
+            "name": "chrono",
+            "source": "registry+https://github.com/rust-lang/crates.io-index",
+            "version": "0.4.42"
+          },
+          {
+            "checksum": "773648b94d0e5d620f64f280777445740e61fe701025087ec8b57f45c791888b",
+            "count": 1,
+            "name": "core-foundation-sys",
+            "source": "registry+https://github.com/rust-lang/crates.io-index",
+            "version": "0.8.7"
+          },
+          {
+            "checksum": "33e57f83510bb73707521ebaffa789ec8caf86f9657cad665b092b581d40e9fb",
+            "count": 1,
+            "name": "iana-time-zone",
+            "source": "registry+https://github.com/rust-lang/crates.io-index",
+            "version": "0.1.64"
+          },
+          {
+            "checksum": "f31827a206f56af32e590ba56d5d2d085f558508192593743f16b2306495269f",
+            "count": 1,
+            "name": "iana-time-zone-haiku",
+            "source": "registry+https://github.com/rust-lang/crates.io-index",
+            "version": "0.1.2"
+          },
+          {
+            "checksum": "464a3709c7f55f1f721e5389aa6ea4e3bc6aba669353300af094b29ffbdde1d8",
+            "count": 1,
+            "name": "js-sys",
+            "source": "registry+https://github.com/rust-lang/crates.io-index",
+            "version": "0.3.83"
+          },
+          {
+            "checksum": "f099785f7595cc4b4553a174ce30dd7589ef93391ff414dbb67f62392b9e0ce1",
+            "count": 1,
+            "name": "matchers",
+            "source": "registry+https://github.com/rust-lang/crates.io-index",
+            "version": "0.0.1"
+          },
+          {
+            "checksum": "6c230d73fb8d8c1b9c0b3135c5142a8acee3a0558fb8db5cf1cb65f8d7862132",
+            "count": 1,
+            "name": "regex-automata",
+            "source": "registry+https://github.com/rust-lang/crates.io-index",
+            "version": "0.1.10"
+          },
+          {
+            "checksum": "f162c6dd7b008981e4d40210aca20b4bd0f9b60ca9271061b07f78537722f2e1",
+            "count": 1,
+            "name": "regex-syntax",
+            "source": "registry+https://github.com/rust-lang/crates.io-index",
+            "version": "0.6.29"
+          },
+          {
+            "checksum": "f751112709b4e791d8ce53e32c4ed2d353565a795ce84da2285393f41557bdf2",
+            "count": 1,
+            "name": "tracing-log",
+            "source": "registry+https://github.com/rust-lang/crates.io-index",
+            "version": "0.1.4"
+          },
+          {
+            "checksum": "0e0d2eaa99c3c2e41547cfa109e910a68ea03823cccad4a0525dcbc9b01e8c71",
+            "count": 1,
+            "name": "tracing-subscriber",
+            "source": "registry+https://github.com/rust-lang/crates.io-index",
+            "version": "0.2.25"
+          },
+          {
+            "checksum": "0d759f433fa64a2d763d1340820e46e111a7a5ab75f993d1852d70b03dbb80fd",
+            "count": 1,
+            "name": "wasm-bindgen",
+            "source": "registry+https://github.com/rust-lang/crates.io-index",
+            "version": "0.2.106"
+          },
+          {
+            "checksum": "48cb0d2638f8baedbc542ed444afc0644a29166f1595371af4fecf8ce1e7eeb3",
+            "count": 1,
+            "name": "wasm-bindgen-macro",
+            "source": "registry+https://github.com/rust-lang/crates.io-index",
+            "version": "0.2.106"
+          },
+          {
+            "checksum": "cefb59d5cd5f92d9dcf80e4683949f15ca4b511f4ac0a6e14d4e1ac60c6ecd40",
+            "count": 1,
+            "name": "wasm-bindgen-macro-support",
+            "source": "registry+https://github.com/rust-lang/crates.io-index",
+            "version": "0.2.106"
+          },
+          {
+            "checksum": "cbc538057e648b67f72a982e708d485b2efa771e1ac05fec311f9f63e5800db4",
+            "count": 1,
+            "name": "wasm-bindgen-shared",
+            "source": "registry+https://github.com/rust-lang/crates.io-index",
+            "version": "0.2.106"
+          },
+          {
+            "checksum": "b8e83a14d34d0623b51dce9581199302a221863196a1dde71a7663a4c2be9deb",
+            "count": 1,
+            "name": "windows-core",
+            "source": "registry+https://github.com/rust-lang/crates.io-index",
+            "version": "0.62.2"
+          },
+          {
+            "checksum": "053e2e040ab57b9dc951b72c264860db7eb3b0200ba345b4e4c3b14f67855ddf",
+            "count": 1,
+            "name": "windows-implement",
+            "source": "registry+https://github.com/rust-lang/crates.io-index",
+            "version": "0.60.2"
+          },
+          {
+            "checksum": "3f316c4a2570ba26bbec722032c4099d8c8bc095efccdc15688708623367e358",
+            "count": 1,
+            "name": "windows-interface",
+            "source": "registry+https://github.com/rust-lang/crates.io-index",
+            "version": "0.59.3"
+          },
+          {
+            "checksum": "7781fa89eaf60850ac3d2da7af8e5242a5ea78d1a11c49bf2910bb5a73853eb5",
+            "count": 1,
+            "name": "windows-result",
+            "source": "registry+https://github.com/rust-lang/crates.io-index",
+            "version": "0.4.1"
+          },
+          {
+            "checksum": "7837d08f69c77cf6b07689544538e017c1bfcf57e34b4c0ff58e6c2cd3b37091",
+            "count": 1,
+            "name": "windows-strings",
+            "source": "registry+https://github.com/rust-lang/crates.io-index",
+            "version": "0.5.1"
+          }
+        ]
+      },
+      "fixture_identity": {
+        "bytes": 43465,
+        "git_blob_sha1": "903110c1640b9c408631c89d642157b286bce642",
+        "path": "swebench/harness/constants/fixtures/tokio-rs__tokio-4384.Cargo.lock",
+        "sha256": "6f7401a1c6c2690bc5b48d54b1be4a87a443252febe89ccc74ac4e9e65f38dba"
+      },
+      "harness_bundle_sha256": "sha256:337fe73d1f0aa706eca746dae0f363c6d45ec2dd2e7ec18a7d31f2f277021a3f",
+      "harness_commit": "f7bbbb2ccdf479001d6467c9e34af59e44a840f9",
+      "identity_equality_map": {
+        "base_identity_equal": true,
+        "cargo_identity_equal": true,
+        "command_equal": true,
+        "environment_semantically_equal": true,
+        "failure_class_equal": true,
+        "fixture_source_equal": true,
+        "install_argv_equal": true,
+        "manifest_set_equal": true,
+        "materialized_lock_equal": true,
+        "platform_equal": true,
+        "toolchain_equal": true
+      },
+      "instance_applicability_internal_sha256": "sha256:2716077e33f7ad2fb58753d3398f1bc2124db3ebaf02a419ed306831de4682f7",
+      "instance_applicability_record_sha256": "sha256:38393cd35682420fe1f8cc3ba4568e7087c2e57d1d214972b366dc77359de805",
+      "materialized_lock_identity": {
+        "bytes": 43466,
+        "n2e_sha256": "893e9f8cdda5729df8bb00b28adc2d0bd67a16324517062c1edc518c7c1bde8d",
+        "upstream_sha256": "893e9f8cdda5729df8bb00b28adc2d0bd67a16324517062c1edc518c7c1bde8d"
+      },
+      "n2e_failure_class": "cargo_locked_resolution_refusal",
+      "n2e_full_output_sha256": {
+        "stderr": "b5e673bf64c1447bcf1ddb8fc71070e3f2c408dbc724de00e8a0f4ed7375d0b8",
+        "stdout": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      "note": "Environment faithfully reconstructed (upstream == N2-E, identical locked-resolution refusal); the candidate cannot be acquired under its pinned publisher recipe. Not an N2-E harness defect. SOURCE_PROVENANCE_DEFECT precedence was a verifier defect and is withdrawn.",
+      "pinned_instance_row_sha256": "sha256:1492ba1fa84d5c2ffbe70606c26b1fae5ca68bdd4d296a2e18a2c10d674e8fbc",
+      "precondition_truth": {
+        "acquisition_attempted_faithfully": true,
+        "all_referenced_artifacts_pinned": true,
+        "exact_toolchain_installed": true,
+        "instance_recipe_applicability_proven": true,
+        "publisher_lockfile_byte_identical": true,
+        "publisher_recipe_revision_pinned": true,
+        "reconstruction_failed_candidate_specific": true,
+        "upstream_source_checkout_reproduced_identically": true
+      },
+      "probe_provenance": {
+        "artifact_id": "8428264892",
+        "artifact_zip_sha256": "sha256:e7ca740192f57461ea8739777291e88b4ea28dc9b0af31b911278016a0404a94",
+        "implementation_sha": "70b0b1d4bff49a87df18d938ad710ae2fdc718af",
+        "run_id": "29639827628",
+        "trigger_head_sha": "536a1a3e6179e8c1a80da1301177c0e965ba9606",
+        "workflow": "qodec-n2e-tokio-probe"
+      },
+      "publisher_registry_sha256": "sha256:8cdf9ca1cf9434f0210b144b22946065037fb485e36040eab580c256da324d96",
+      "reason": "The exact publisher environment and the exact upstream source-checkout reproduction both reject the publisher-provided materialized Cargo.lock under the publisher's own --locked install command. An unlocked diagnostic resolution removes 22 stale/unselected package tuples. The candidate cannot be faithfully acquired under its pinned publisher recipe.",
+      "rederivation_map": {
+        "both_exit_101": true,
+        "both_locked_resolution_refusal": true,
+        "both_non_timeout": true,
+        "install_argv_equal": true,
+        "install_command_equal": true,
+        "materialized_lock_equal": true,
+        "n2e_states_locked_update_conflict": true,
+        "upstream_states_locked_update_conflict": true
+      },
+      "substrate_status": "PROVEN",
+      "swebench_instances_sha256": "sha256:4154254e8fe163aa06a8408b40eaa8ef28d96f546bef40be390b8a9b746d0d42",
+      "terminal": true,
+      "unmet_preconditions": [],
+      "upstream_failure_class": "cargo_locked_resolution_refusal",
+      "upstream_full_output_sha256": {
+        "stderr": "7a60dd029f5a1573eb931b606a6bb4f14ede1e1ec32202c44cb11f7b0c3e82ec",
+        "stdout": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      "v4_consistency_record_internal_sha256": "sha256:7e9d7f56435d2286b2fd03ba5af0cb31a52d733a8a213b010014ce5730591f1d",
+      "v4_consistency_record_sha256": "sha256:3492e24aa6b670081dc4bbd0047345e6b8aaf198026a96aea9ed10de9627944a",
+      "withdrawn_gate": "VERIFIER_DEFECT_PROVENANCE_GATE_PRECEDENCE"
+    }
+  ],
+  "toolchain_lock_sha256": "sha256:accd21272b7985122a3522e4c0ff94746a919bc3c3dabec91cd285978d7f61cf"
+}

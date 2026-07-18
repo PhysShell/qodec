@@ -33,6 +33,8 @@ SRC = N2E_DIR / "fixtures" / "swebench-source"
 CANARY = N2E_DIR / "n2e-canary-membership-v1.json"
 SCEN = N2E_DIR / "n2e-command-scenarios-v1.json"
 SELECTION = N2E_DIR / "n2e-selection-result-v1.json"
+INVENTORY = N2E_DIR / "n2e-candidate-inventory-v1.json"
+RESERVES = N2E_DIR / "n2e-reserve-list-v1.json"
 
 HARNESS = {
     "repo": "SWE-bench/SWE-bench",
@@ -87,25 +89,46 @@ def _source_bundle() -> dict:
     return files
 
 
+def _binding_meta(cid, scen_by_id, slot_by_id, inv, reserve_slot) -> dict:
+    """Binding metadata for a recipe. Canary members come from the frozen scenario +
+    selection; a resolved reserve replacement (not in the frozen scenarios) comes from
+    the frozen candidate inventory + reserve-list slot -- never from parsing case_id."""
+    if cid in scen_by_id:
+        scen = scen_by_id[cid]
+        return {"instance_id": scen["source_image_identity"]["instance_id"],
+                "repository": scen["source_image_identity"]["repository"],
+                "command_family": scen["command_family"],
+                "command_subfamily": scen["command_subfamily"],
+                "snapshot_variant": scen.get("snapshot_variant"),
+                "slot": slot_by_id.get(cid)}
+    m = inv[cid]
+    return {"instance_id": m["instance_id"], "repository": m["repository"],
+            "command_family": m["command_family"], "command_subfamily": m["command_subfamily"],
+            "snapshot_variant": m.get("snapshot_variant"), "slot": reserve_slot.get(cid)}
+
+
 def build() -> dict:
     scen_by_id = {s["case_id"]: s for s in c.load_record(SCEN)["scenarios"]}
     slot_by_id = {s["case_id"]: s["slot"] for s in c.load_record(SELECTION)["selection"]}
+    inv = {x["candidate_id"]: x for x in c.load_record(INVENTORY)["candidates"]}
+    reserve_slot = {cid: r["slot"] for r in c.load_record(RESERVES)["reserves"]
+                    for cid in r["reserve_case_ids"]}
     bundle = _source_bundle()
     recipes = []
     for cid in ex.all_case_ids():
         r = ex.extract(SRC, cid)
-        scen = scen_by_id[cid]
+        bm = _binding_meta(cid, scen_by_id, slot_by_id, inv, reserve_slot)
         tc = _toolchain(r["docker_specs"])
         warm_env, _ = split_env(r["install"][0]) if r["install"] else ({}, [])
         test_env, test_argv = split_env(r["test_cmd"][0])
         recipes.append({
             "case_id": cid,
-            "instance_id": scen["source_image_identity"]["instance_id"],
-            "repository": scen["source_image_identity"]["repository"],
-            "command_family": scen["command_family"],
-            "command_subfamily": scen["command_subfamily"],
-            "snapshot_variant": scen.get("snapshot_variant"),
-            "slot": slot_by_id.get(cid),
+            "instance_id": bm["instance_id"],
+            "repository": bm["repository"],
+            "command_family": bm["command_family"],
+            "command_subfamily": bm["command_subfamily"],
+            "snapshot_variant": bm["snapshot_variant"],
+            "slot": bm["slot"],
             "language": {"go": "go", "rust": "rust_cargo", "node": "js_ts", "java": "jvm"}[tc["kind"]],
             "source": {"file": r["source_file"], "spec_dict": r["spec_dict"], "spec_key": r["spec_key"],
                        "git_blob_sha1": bundle[r["source_file"]]["git_blob_sha1"],

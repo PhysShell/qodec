@@ -15,6 +15,7 @@ N2E_DIR = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(N2E_DIR / "tools"))
 import build_n2e_canary_rejection_ledger as L  # noqa: E402
 import n2e_common as c  # noqa: E402
+import n2e_classification as cls  # noqa: E402
 
 CADDY = "caddyserver__caddy-5870::go::test::buggy"
 INSTANCE = "caddyserver__caddy-5870"
@@ -179,8 +180,13 @@ class TestIndependentSemanticLoss(unittest.TestCase):
             class A:
                 run_id, impl_sha = "run-1", "i" * 40
             body = L.build(td, A())
-            self.assertEqual(body["terminal_rejection_count"], 1)
-            self.assertEqual(body["terminal_rejections"][0]["case_id"], CADDY)
+            # The synthetic caddy RTK-loss entry must be emitted. The build also folds in
+            # the real tokio DISQUALIFIED_ENVIRONMENT_UNREPRODUCIBLE entry when the committed
+            # tokio consistency + applicability records support it (independent evidence
+            # path), so assert by presence rather than exact count.
+            byid = {e["case_id"]: e for e in body["terminal_rejections"]}
+            self.assertIn(CADDY, byid)
+            self.assertEqual(byid[CADDY]["classification"], cls.DISQUALIFIED_RTK_SEMANTIC_LOSS)
 
 
 if __name__ == "__main__":

@@ -1,14 +1,25 @@
 #!/usr/bin/env python3
-"""Independent Tokio N2-E vs upstream parity verifier + classification (items 5/7).
+"""Independent Tokio N2-E vs upstream parity verifier + classification (corrected).
 
-Reads the two primitive identity records inside tokio-4384-publisher-recipe-consistency-
-v1.json (the N2-E reconstruction and the pinned upstream source-checkout reproduction)
-and derives structural equalities. It emits DISQUALIFIED_ENVIRONMENT_UNREPRODUCIBLE ONLY
-when EVERY required equality holds AND both executions reach the SAME cargo locked-
-resolution failure (parsed from the full Cargo output, not inferred from exit==101).
-Missing evidence -> insufficient (never terminal). A TOKIO_UPSTREAM_REPRODUCTION_DEFECT
-Part D -> insufficient. No compatible harness/dataset pair proof -> SOURCE_PROVENANCE_
-DEFECT before any unreproducibility claim. Upstream success -> HARNESS_DEFECT.
+CORRECTION (ruling steps 2/3): the previously-terminal GLOBAL harness<->dataset
+revision-pair cross-pin gate is WITHDRAWN. That precedence -- placing a global
+cross-reference ahead of, and terminal over, instance-level recipe applicability -- is
+itself classified VERIFIER_DEFECT_PROVENANCE_GATE_PRECEDENCE. The pinned harness selects
+a per-instance recipe purely from (repo, version) via MAP_REPO_VERSION_TO_SPECS; it never
+consults a global dataset-revision cross-pin. Therefore:
+
+  * substrate_status is PROVEN once tokio-4384-instance-recipe-applicability-v1 proves the
+    pinned harness maps (repo, version) to exactly the recipe V4 executed;
+  * SOURCE_PROVENANCE_DEFECT is a substrate status that is NEVER a terminal candidate
+    outcome and NEVER invokes reserve fallback;
+  * DISQUALIFIED_ENVIRONMENT_UNREPRODUCIBLE (terminal candidate outcome) is emitted when
+    substrate_status == PROVEN AND every identity equality holds AND both the N2-E
+    reconstruction and the pinned upstream source-checkout reproduction reach the SAME
+    cargo locked-resolution refusal (non-timeout exit 101, equal materialized lock, equal
+    argv, both stating Cargo.lock needs updating while --locked forbids it).
+
+Upstream install success while N2-E fails -> HARNESS_DEFECT (non-terminal; diff + fix).
+A TOKIO_UPSTREAM_REPRODUCTION_DEFECT Part D -> insufficient (non-terminal).
 """
 from __future__ import annotations
 
@@ -19,8 +30,12 @@ HERE = Path(__file__).resolve().parent
 N2E_DIR = HERE.parent
 sys.path.insert(0, str(HERE))
 import n2e_common as c  # noqa: E402
+import n2e_classification as cls  # noqa: E402
 
 REC = N2E_DIR / "tokio-4384-publisher-recipe-consistency-v1.json"
+APPLIC = N2E_DIR / "tokio-4384-instance-recipe-applicability-v1.json"
+VERIFIER_POLICY_ID = "n2e-tokio-parity-verifier-v2"
+WITHDRAWN_GATE = cls.VERIFIER_DEFECT_PROVENANCE_GATE_PRECEDENCE
 _ENV_PATH_KEYS = {"HOME", "CARGO_HOME", "RUSTUP_HOME", "PATH"}  # legitimately temp-path-specific
 
 
@@ -43,6 +58,7 @@ def equalities(n2e: dict, up: dict) -> dict:
         "toolchain_equal": n2e.get("cargo_version_verbose") == up.get("cargo_version_verbose"),
         "platform_equal": n2e.get("target_platform") == up.get("target_platform"),
         "command_equal": ni.get("command") == ui.get("command"),
+        "install_argv_equal": ni.get("argv") is not None and ni.get("argv") == ui.get("argv"),
         "environment_semantically_equal": _env_semantic(n2e.get("effective_env")) == _env_semantic(up.get("effective_env")),
         "failure_class_equal": (n2e.get("failure_class", {}).get("class")
                                 == up.get("failure_class", {}).get("class")
@@ -50,46 +66,84 @@ def equalities(n2e: dict, up: dict) -> dict:
     }
 
 
-def classify(rec: dict) -> dict:
+def _locked_update_conflict(ident: dict) -> bool:
+    """The refusal message must state the lock needs updating while --locked forbids it."""
+    fc = ident.get("failure_class") or {}
+    stderr = (ident.get("install") or {}).get("stderr") or ""
+    msg_ok = ("needs to be updated" in stderr and "--locked" in stderr)
+    return bool(fc.get("locked_resolution_refusal")) and bool(fc.get("requested_lock_mutation")) and msg_ok
+
+
+def rederivation(n2e: dict, up: dict, eq: dict) -> dict:
+    n_ex = (n2e.get("install") or {}).get("exit")
+    u_ex = (up.get("install") or {}).get("exit")
+    return {
+        "both_non_timeout": not n2e.get("timed_out") and not up.get("timed_out"),
+        "both_exit_101": n_ex == 101 and u_ex == 101,
+        "both_locked_resolution_refusal": eq["failure_class_equal"],
+        "materialized_lock_equal": eq["materialized_lock_equal"],
+        "install_argv_equal": eq["install_argv_equal"],
+        "install_command_equal": eq["command_equal"],
+        "n2e_states_locked_update_conflict": _locked_update_conflict(n2e),
+        "upstream_states_locked_update_conflict": _locked_update_conflict(up),
+    }
+
+
+def _substrate_status(applic: dict | None) -> str:
+    if applic and applic.get("instance_recipe_applicable") is True:
+        return cls.SUBSTRATE_PROVEN
+    return cls.SUBSTRATE_SOURCE_PROVENANCE_DEFECT
+
+
+def classify(rec: dict, applic: dict | None = None) -> dict:
     d = rec.get("part_d_upstream") or {}
-    prov = rec.get("harness_dataset_provenance") or {}
     n2e = rec.get("n2e_identity") or {}
     status = d.get("status")
+    base = {"verifier_policy_id": VERIFIER_POLICY_ID, "withdrawn_gate": WITHDRAWN_GATE,
+            "substrate_status": _substrate_status(applic)}
 
     if status == "TOKIO_UPSTREAM_REPRODUCTION_DEFECT":
-        return {"classification": None, "outcome": "insufficient_evidence",
-                "reason": "TOKIO_UPSTREAM_REPRODUCTION_DEFECT: " + "; ".join(d.get("reasons", [])),
-                "terminal": False}
+        return {**base, "candidate_classification": None, "outcome": "insufficient_evidence",
+                "terminal_candidate_outcome": False,
+                "reason": "TOKIO_UPSTREAM_REPRODUCTION_DEFECT: " + "; ".join(d.get("reasons") or [])}
     if status != "upstream_install_ran":
-        return {"classification": None, "outcome": "insufficient_evidence",
-                "reason": f"upstream part D did not run ({status})", "terminal": False}
+        return {**base, "candidate_classification": None, "outcome": "insufficient_evidence",
+                "terminal_candidate_outcome": False,
+                "reason": f"upstream part D did not run ({status})"}
 
     up = d.get("identity") or {}
     up_exit = (up.get("install") or {}).get("exit")
     n2e_exit = (n2e.get("install") or {}).get("exit")
 
-    # upstream reproduced the environment successfully while N2-E failed -> harness defect
     if up_exit == 0 and n2e_exit not in (0, None):
-        return {"classification": "HARNESS_DEFECT", "outcome": "harness_defect", "terminal": False,
-                "reason": "upstream source-checkout install succeeded; diff upstream vs N2-E and fix N2-E",
-                "equalities": equalities(n2e, up)}
+        return {**base, "candidate_classification": cls.HARNESS_DEFECT, "outcome": "harness_defect",
+                "terminal_candidate_outcome": False, "equalities": equalities(n2e, up),
+                "reason": "upstream source-checkout install succeeded; diff upstream vs N2-E and fix N2-E"}
 
     eq = equalities(n2e, up)
-    both_locked_refusal = eq["failure_class_equal"]
-    # provenance gate: a compatible published pair must be proven before unreproducibility
-    if not prov.get("compatible_pair_proven"):
-        return {"classification": "SOURCE_PROVENANCE_DEFECT", "outcome": "source_provenance_defect",
-                "terminal": True, "equalities": eq,
-                "reason": "no immutable proof that harness f7bbbb2 and the dataset revision are a "
-                          "published pair; resolve provenance before any unreproducibility claim"}
+    rd = rederivation(n2e, up, eq)
 
-    if all(eq.values()) and both_locked_refusal:
-        return {"classification": "DISQUALIFIED_ENVIRONMENT_UNREPRODUCIBLE",
-                "outcome": "environment_unreproducible", "terminal": True, "equalities": eq,
-                "reason": "every required identity equal AND both N2-E and upstream reach the same "
-                          "cargo locked-resolution refusal for the pinned publisher recipe"}
-    return {"classification": None, "outcome": "insufficient_evidence", "terminal": False,
-            "equalities": eq, "reason": "identities/failure classes not all equal -- insufficient"}
+    # substrate provenance is NON-TERMINAL for a candidate: if instance applicability is
+    # not proven we cannot yet call the substrate PROVEN -> insufficient, never terminal,
+    # never fallback.
+    if base["substrate_status"] != cls.SUBSTRATE_PROVEN:
+        return {**base, "candidate_classification": None, "outcome": "insufficient_evidence",
+                "terminal_candidate_outcome": False, "equalities": eq, "rederivation": rd,
+                "reason": "instance-level recipe applicability not proven; SOURCE_PROVENANCE_DEFECT "
+                          "is NOT terminal and does NOT invoke fallback -- prove applicability first"}
+
+    if all(eq.values()) and all(rd.values()):
+        return {**base, "candidate_classification": cls.DISQUALIFIED_ENVIRONMENT_UNREPRODUCIBLE,
+                "outcome": "environment_unreproducible", "terminal_candidate_outcome": True,
+                "equalities": eq, "rederivation": rd,
+                "reason": "The exact publisher environment and the exact upstream source-checkout "
+                          "reproduction both reject the publisher-provided materialized Cargo.lock "
+                          "under the publisher's own --locked install command. An unlocked diagnostic "
+                          "resolution removes 22 stale/unselected package tuples. The candidate cannot "
+                          "be faithfully acquired under its pinned publisher recipe."}
+    return {**base, "candidate_classification": None, "outcome": "insufficient_evidence",
+            "terminal_candidate_outcome": False, "equalities": eq, "rederivation": rd,
+            "reason": "identities / re-derivation checks not all equal -- insufficient"}
 
 
 def main() -> int:
@@ -97,12 +151,15 @@ def main() -> int:
         print("tokio-parity: FAIL (no consistency record yet)")
         return 1
     rec = c.load_record(REC)
-    res = classify(rec)
-    print(f"tokio-parity: outcome={res['outcome']} classification={res.get('classification')} "
-          f"terminal={res['terminal']}")
+    applic = c.load_record(APPLIC) if APPLIC.is_file() else None
+    res = classify(rec, applic)
+    print(f"tokio-parity: substrate={res['substrate_status']} "
+          f"candidate={res.get('candidate_classification')} "
+          f"terminal={res['terminal_candidate_outcome']} outcome={res['outcome']}")
     print(f"  reason: {res['reason']}")
-    for k, v in (res.get("equalities") or {}).items():
-        print(f"    {k}: {v}")
+    for label, mp in (("eq", res.get("equalities")), ("rederivation", res.get("rederivation"))):
+        for k, v in (mp or {}).items():
+            print(f"    {label}.{k}: {v}")
     return 0
 
 
