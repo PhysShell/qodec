@@ -9,6 +9,9 @@ name: qodec-n2e-corpus-canary
 # and independently re-derives acceptance from primary evidence.
 on:
   workflow_dispatch: {}
+  push:
+    branches:
+      - 'ci-trigger/n2e-canary-**'
 
 permissions:
   contents: read
