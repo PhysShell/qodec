@@ -267,10 +267,10 @@
   "original_scenarios_sha256": "sha256:69f51947bdca6ae8c880b87e02cb43e7f24a2e435d465142e80b3f50fbdbd0e1",
   "publisher_registry_sha256": "sha256:8cdf9ca1cf9434f0210b144b22946065037fb485e36040eab580c256da324d96",
   "purpose": "Immutable Phase-A scenario-ingestion supersession: corrects the generic ingested command to the publisher-scoped test command for the SWE-bench test cases. The original scenarios record stays immutable; this is the normative correction.",
-  "record_sha256": "sha256:871cfc82db905fb1c74b132d4e4848daedcde22efe12fe415ef0171a27accb98",
+  "record_sha256": "sha256:fbc5901f99d43452ed525079c4f5bd637997da410c6a845a1360177323558076",
   "record_type": "n2e-scenario-correction",
   "record_version": "v1",
   "schema_version": "n2e-record-1",
-  "superseding_execution_contract_sha256": "sha256:bf79caac7a34b6268a7244e3762854409ff423330a00935cacba21c628052dbc",
+  "superseding_execution_contract_sha256": "sha256:e7cff3ea7a0e2fb914b589c0679502016910dd48eccdd4a7b1de37988749d899",
   "typed_defect": "SCENARIO_INGESTION_WRONG_WORKLOAD"
 }

@@ -23,8 +23,66 @@ RAW_STREAM = (b"=== RUN   TestUnsyncedConfigAccess\n"
               b"FAIL\tgithub.com/caddyserver/caddy/v2\t<dur>\nFAIL\n")
 
 
+DIA = ora.RTK_GO_DIALECT
+
+
 def rtk_ids(b):
-    return ora._test_summary(b, dialect="rtk")["failing_ids"]
+    return ora._test_summary(b, dialect=DIA)["failing_ids"]
+
+
+def rtk_sum(b):
+    return ora._test_summary(b, dialect=DIA)
+
+
+class TestStrictGoSummaryGrammar(unittest.TestCase):
+    OKFAIL = b"Go test: 0 passed, 1 failed in 1 packages\n  [FAIL] TestUnsyncedConfigAccess\n"
+
+    def test_valid_fail_summary_parses_counts(self):
+        s = rtk_sum(self.OKFAIL)
+        self.assertEqual((s["passed"], s["failed"], s["packages"]), (0, 1, 1))
+        self.assertTrue(s["aggregate_summary_present"])
+
+    def test_prefixed_summary_rejected(self):
+        s = rtk_sum(b"diagnostic Go test: 0 passed, 1 failed in 1 packages\n  [FAIL] X\n")
+        self.assertIsNone(s["failed"])
+        self.assertFalse(s["aggregate_summary_present"])
+
+    def test_wrong_tool_name_rejected(self):
+        s = rtk_sum(b"Tool test: 0 passed, 1 failed in 1 packages\n  [FAIL] X\n")
+        self.assertIsNone(s["failed"])
+
+    def test_fail_record_without_summary_is_incomplete(self):
+        s = rtk_sum(b"  [FAIL] TestUnsyncedConfigAccess\n")
+        self.assertIsNone(s["failed"])                       # counts NOT derived from [FAIL]
+        self.assertEqual(s["failing_ids"], ["TestUnsyncedConfigAccess"])
+
+    def test_summary_without_fail_identity(self):
+        s = rtk_sum(b"Go test: 0 passed, 1 failed in 1 packages\n")
+        self.assertEqual(s["failed"], 1)
+        self.assertEqual(s["failing_ids"], [])               # aggregate present, no per-test id
+
+    def test_package_suffix_removed_rejected(self):
+        s = rtk_sum(b"Go test: 0 passed, 1 failed in 1\n  [FAIL] X\n")
+        self.assertIsNone(s["failed"])
+
+    def test_changed_counts_observable(self):
+        self.assertEqual(rtk_sum(b"Go test: 3 passed, 0 failed in 2 packages\n")["failed"], 0)
+        s = rtk_sum(b"Go test: 1 passed, 2 failed, 4 skipped in 2 packages\n")
+        self.assertEqual((s["passed"], s["failed"], s["skipped"], s["packages"]), (1, 2, 4, 2))
+
+    def test_two_conflicting_summaries_incomplete(self):
+        s = rtk_sum(b"Go test: 0 passed, 1 failed in 1 packages\n"
+                    b"Go test: 3 passed, 0 failed in 1 packages\n")
+        self.assertIsNone(s["failed"])
+        self.assertTrue(s["aggregate_summary_conflict"])
+
+    def test_summary_embedded_mid_line_rejected(self):
+        s = rtk_sum(b"prefix Go test: 0 passed, 1 failed in 1 packages suffix\n")
+        self.assertIsNone(s["failed"])
+
+    def test_success_forms(self):
+        self.assertEqual(rtk_sum(b"Go test: 5 passed in 1 packages\n")["failed"], 0)
+        self.assertEqual(rtk_sum(b"Go test: No tests found\n")["failed"], 0)
 
 
 class TestRtkDialectParser(unittest.TestCase):
@@ -48,13 +106,13 @@ class TestRtkDialectParser(unittest.TestCase):
         self.assertEqual(rtk_ids(b"  [FAIL] TestSomethingElse\n"), ["TestSomethingElse"])
 
     def test_changed_failure_count_is_observable(self):
-        s0 = ora._test_summary(b"Go test: 3 passed, 0 failed in 1 packages\n", dialect="rtk")
-        s2 = ora._test_summary(b"Go test: 1 passed, 2 failed in 1 packages\n", dialect="rtk")
+        s0 = ora._test_summary(b"Go test: 3 passed, 0 failed in 1 packages\n", dialect=ora.RTK_GO_DIALECT)
+        s2 = ora._test_summary(b"Go test: 1 passed, 2 failed in 1 packages\n", dialect=ora.RTK_GO_DIALECT)
         self.assertEqual(s0["failed"], 0)
         self.assertEqual(s2["failed"], 2)
 
     def test_malformed_rtk_record_fails_closed(self):
-        s = ora._test_summary(b"garbage prose with no bounded record\n", dialect="rtk")
+        s = ora._test_summary(b"garbage prose with no bounded record\n", dialect=ora.RTK_GO_DIALECT)
         self.assertEqual(s["failing_ids"], [])
         self.assertIsNone(s["failed"])
 

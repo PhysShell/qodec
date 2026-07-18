@@ -64,37 +64,54 @@ RTK_DIALECTS = {
 def rtk_dialect_for(family: str) -> str | None:
     return RTK_DIALECTS.get(family)
 
-# RTK emits one BOUNDED per-test record per line: the whole bracketed status token at the
-# START of the (whitespace-stripped) line, then exactly the failure identity, then EOL.
-# This rejects `text [FAIL] X` (marker not line-anchored), `[PASS] X`, a `-run X` selector,
-# a `[full output: ...X...]` tee pointer, and any substring mention.
+# rtk-go-test-summary-v1: bounded, anchored records derived from the pinned RTK source
+# (commit 5d32d07). A per-test failure is the whole `[FAIL]` token at the START of the
+# (whitespace-stripped) line, then exactly the identity, then EOL -- rejecting `text
+# [FAIL] X`, `[PASS] X`, a `-run X` selector, a `[full output: ...X...]` tee pointer, and
+# any substring. The AGGREGATE summary is a SEPARATE, EXACT, line-anchored record (the
+# only three source-defined Go forms). Per-test records and the aggregate summary are
+# distinct evidence: a missing/malformed/duplicated aggregate summary is INCOMPLETE
+# (failed stays None) and is never derived from the `[FAIL]`/`[PASS]` record counts.
 _RTK_FAIL = re.compile(rb"^[ \t]*\[FAIL\][ \t]+(\S+)[ \t]*$", re.MULTILINE)
-_RTK_PASS = re.compile(rb"^[ \t]*\[PASS\][ \t]+(\S+)[ \t]*$", re.MULTILINE)
-# RTK's one-line summary: `<Tool> test: N passed, M failed in P packages`
-_RTK_SUMMARY = re.compile(rb"\btest:\s*(\d+)\s+passed,\s*(\d+)\s+failed\b")
+_RTK_GO_FAIL_SUMMARY = re.compile(
+    rb"^Go test: (\d+) passed, (\d+) failed(?:, (\d+) skipped)? in (\d+) packages$", re.MULTILINE)
+_RTK_GO_PASS_SUMMARY = re.compile(rb"^Go test: (\d+) passed in (\d+) packages$", re.MULTILINE)
+_RTK_GO_NOTESTS = re.compile(rb"^Go test: No tests found$", re.MULTILINE)
 
 
-def _rtk_summary(raw: bytes) -> dict:
-    """rtk-go-test-summary-v1 (+ siblings): parse RTK's bounded, anchored records only.
-    Fails closed -- unknown/malformed RTK output yields no failing ids and None counts."""
-    failing = {m.group(1).decode("utf-8", "replace") for m in _RTK_FAIL.finditer(raw)}
-    passed = failed = None
-    sm = _RTK_SUMMARY.search(raw)
-    if sm:
-        passed, failed = int(sm.group(1)), int(sm.group(2))
-    elif failing or _RTK_PASS.search(raw):
-        # anchored records but no summary line: derive a lower-bound failed count
-        failed = len(failing)
-        passed = len(_RTK_PASS.findall(raw))
-    return {"passed": passed, "failed": failed, "failing_ids": sorted(failing),
-            "dialect": RTK_GO_DIALECT}
+def _rtk_go_summary(raw: bytes) -> dict:
+    """rtk-go-test-summary-v1: parse RTK's Go filter output. Fails closed -- an absent,
+    malformed, or CONFLICTING (>1) aggregate summary leaves counts None (incomplete),
+    and counts are NEVER derived from the per-test `[FAIL]` records."""
+    failing = sorted({m.group(1).decode("utf-8", "replace") for m in _RTK_FAIL.finditer(raw)})
+    fails = _RTK_GO_FAIL_SUMMARY.findall(raw)
+    passes = _RTK_GO_PASS_SUMMARY.findall(raw)
+    notests = _RTK_GO_NOTESTS.findall(raw)
+    total = len(fails) + len(passes) + len(notests)
+    passed = failed = skipped = packages = None
+    if total == 1:  # exactly one aggregate summary of a source-defined form
+        if fails:
+            p, f, s, pk = fails[0]
+            passed, failed, skipped, packages = int(p), int(f), (int(s) if s else 0), int(pk)
+        elif passes:
+            p, pk = passes[0]
+            passed, failed, packages = int(p), 0, int(pk)
+        else:  # "No tests found"
+            passed, failed = 0, 0
+    return {"passed": passed, "failed": failed, "skipped": skipped, "packages": packages,
+            "failing_ids": failing, "dialect": RTK_GO_DIALECT,
+            "aggregate_summary_present": total == 1, "aggregate_summary_conflict": total > 1}
 
 
 def _test_summary(raw: bytes, dialect: str = "native") -> dict:
-    """Parse passed/failed + failing ids under the given output DIALECT. `dialect="rtk"`
-    uses RTK's bounded summary grammar; the default parses the native tool streams."""
-    if dialect == "rtk":
-        return _rtk_summary(raw)
+    """Parse passed/failed + failing ids under the given output DIALECT policy id.
+    RTK_GO_DIALECT uses the strict Go summary grammar; "native" parses the native tool
+    streams; any OTHER dialect id fails closed (unknown -> incomplete evidence)."""
+    if dialect == RTK_GO_DIALECT:
+        return _rtk_go_summary(raw)
+    if dialect != "native":
+        return {"passed": None, "failed": None, "failing_ids": [], "dialect": dialect,
+                "unknown_dialect": True}
     failing = set()
     passed = failed = None
     m = _CARGO.search(raw)
@@ -276,17 +293,18 @@ def rtk_agrees(scenario: dict, raw: bytes, rtk: bytes) -> dict:
             return {"oracle": "test_agreement", "verdict": False,
                     "evidence": {"error": f"no proven RTK dialect for family {fam!r} -- "
                                           f"fail-closed (do not reuse the Go parser)",
-                                 "raw": r, "rtk_dialect": None,
-                                 "unproven_family": fam}}
-        k = _test_summary(rtk, dialect="rtk")
+                                 "raw": r, "rtk_dialect": None, "unproven_family": fam}}
+        k = _test_summary(rtk, dialect=rtk_dialect)
         raw_fail = set(_leaf_ids(r["failing_ids"]))
         rtk_fail = set(_leaf_ids(k["failing_ids"]))
-        # no failing test id may disappear; failed count preserved when known
+        # BOTH aggregate failed counts must be known and equal (a missing count on EITHER
+        # side is NOT agreement), and every RAW failing id must be a subset of RTK's.
+        count_ok = (r["failed"] is not None and k["failed"] is not None
+                    and r["failed"] == k["failed"])
         ids_ok = raw_fail <= rtk_fail
-        count_ok = (r["failed"] is None or k["failed"] is None or r["failed"] == k["failed"])
         return {"oracle": "test_agreement", "verdict": bool(ids_ok and count_ok),
                 "evidence": {"raw": r, "rtk": k, "raw_dialect": RAW_GO_DIALECT,
-                             "rtk_dialect": rtk_dialect,
+                             "rtk_dialect": rtk_dialect, "count_ok": count_ok, "ids_ok": ids_ok,
                              "compared": "normalized_semantic_events"}}
     if sub in ("build", "check", "clippy", "vet", "tsc", "lint", "ruff"):
         raw_d, rtk_d = _diagnostics(raw), _diagnostics(rtk)

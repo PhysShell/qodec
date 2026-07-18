@@ -357,10 +357,10 @@ def _parse_sidecar_proof(sidecar: bytes | None, measured: bytes, required_leaves
     test-discovery output, a stack trace that names the test, the tee pointer itself --
     is NOT a failing identity and does NOT count. Records both parsed summaries so the
     ledger builder can re-run the parsers independently."""
-    # measured RTK stream uses RTK's bounded dialect; the tee sidecar is the unfiltered
+    # measured RTK stream uses RTK's bounded Go dialect; the tee sidecar is the unfiltered
     # native tool output. Parsing each with its OWN grammar means a preserved identity in
     # RTK's `[FAIL] X` form is correctly seen in the measured stream (no false loss).
-    measured_summary = ora._test_summary(measured or b"", dialect="rtk")
+    measured_summary = ora._test_summary(measured or b"", dialect=ora.RTK_GO_DIALECT)
     measured_fail = set(ora._leaf_ids(measured_summary["failing_ids"]))
     sidecar_summary = ora._test_summary(sidecar, dialect="native") if sidecar is not None else None
     sidecar_fail = set(ora._leaf_ids(sidecar_summary["failing_ids"])) if sidecar_summary else set()

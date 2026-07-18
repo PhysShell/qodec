@@ -116,9 +116,9 @@ def _independent_streams(rec: dict, case_dir: Path, required: set) -> dict:
             counts.append(summ["failed"])
         return fails, counts
 
-    # RAW: native tool grammar; measured RTK: RTK's bounded dialect; tee: native output.
+    # RAW: native tool grammar; measured RTK: RTK's bounded Go dialect; tee: native output.
     raw_fail, raw_cnt = parse(files(raw, "raw"), raw_runs, dialect="native")
-    rtk_fail, rtk_cnt = parse(files(rtk, "rtk"), rtk_runs, dialect="rtk")
+    rtk_fail, rtk_cnt = parse(files(rtk, "rtk"), rtk_runs, dialect=ora.RTK_GO_DIALECT)
     tee_fail, _ = parse(files(rtk, "rtk_tee"), dialect="native")
 
     have3 = (len(raw_fail) == 3 and len(rtk_fail) == 3 and len(tee_fail) == 3

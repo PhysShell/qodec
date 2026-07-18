@@ -29,6 +29,7 @@ sys.path.insert(0, str(HERE))
 import n2e_common as c  # noqa: E402
 import n2e_canon_policies as canon  # noqa: E402
 import n2e_argv_resolver as resolver  # noqa: E402
+import n2e_oracles as ora  # noqa: E402
 
 CANARY = N2E_DIR / "n2e-canary-membership-v1.json"
 SCEN = N2E_DIR / "n2e-command-scenarios-v1.json"
@@ -98,6 +99,10 @@ def build_contract(scen, cid) -> dict:
         "scheduler_flags": r.get("scheduler_flags"),
         "canonicalization_policy_id": _canon_policy_id(scen, cid),
         "semantic_oracle_policy_id": ORACLE_POLICY.get(scen.get("semantic_oracle_type"), "n2e-oracle-none-v1"),
+        # RTK filter dialect bound by ecosystem (test cases only). Derived from the family
+        # via the approved RTK resolver; None means no proven dialect (rtk_agrees fails
+        # closed). The verifier RE-DERIVES this, never trusting a producer-supplied string.
+        "rtk_test_dialect_policy_id": (ora.rtk_dialect_for(fam) if sub in ("test", "pytest") else None),
         "toolchain_identity_ref": {"where": "per-case record: acquisition.environment_identity.toolchain",
                                    "required_keys": TOOLCHAIN_KEYS.get(fam, [])},
         "dependency_environment_identity_ref": {

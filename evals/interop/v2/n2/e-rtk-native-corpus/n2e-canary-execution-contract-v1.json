@@ -70,6 +70,7 @@
         "pom.xml"
       ],
       "resolution_rule": "publisher_recipe",
+      "rtk_test_dialect_policy_id": null,
       "runtime_resolved": false,
       "scheduler_env": {},
       "scheduler_flags": null,
@@ -131,6 +132,7 @@
         "poetry.lock"
       ],
       "resolution_rule": "frozen_argv_verbatim",
+      "rtk_test_dialect_policy_id": null,
       "runtime_resolved": false,
       "scheduler_env": {
         "PYTHONDONTWRITEBYTECODE": "1",
@@ -199,6 +201,7 @@
         "go.sum"
       ],
       "resolution_rule": "publisher_recipe",
+      "rtk_test_dialect_policy_id": "rtk-go-test-summary-v1",
       "runtime_resolved": false,
       "scheduler_env": {
         "GOFLAGS": "-mod=readonly",
@@ -250,6 +253,7 @@
       ],
       "protected_files": [],
       "resolution_rule": "frozen_argv_verbatim",
+      "rtk_test_dialect_policy_id": null,
       "runtime_resolved": false,
       "scheduler_env": {},
       "scheduler_flags": null,
@@ -306,6 +310,7 @@
         "go.sum"
       ],
       "resolution_rule": "frozen_argv_verbatim",
+      "rtk_test_dialect_policy_id": null,
       "runtime_resolved": false,
       "scheduler_env": {
         "GOFLAGS": "-mod=readonly",
@@ -357,6 +362,7 @@
       ],
       "protected_files": [],
       "resolution_rule": "frozen_argv_verbatim",
+      "rtk_test_dialect_policy_id": null,
       "runtime_resolved": false,
       "scheduler_env": {},
       "scheduler_flags": null,
@@ -411,6 +417,7 @@
       ],
       "protected_files": [],
       "resolution_rule": "frozen_argv_verbatim",
+      "rtk_test_dialect_policy_id": null,
       "runtime_resolved": false,
       "scheduler_env": {},
       "scheduler_flags": null,
@@ -457,6 +464,7 @@
       ],
       "protected_files": [],
       "resolution_rule": "frozen_argv_verbatim",
+      "rtk_test_dialect_policy_id": null,
       "runtime_resolved": false,
       "scheduler_env": {},
       "scheduler_flags": null,
@@ -503,6 +511,7 @@
       ],
       "protected_files": [],
       "resolution_rule": "frozen_argv_verbatim",
+      "rtk_test_dialect_policy_id": null,
       "runtime_resolved": false,
       "scheduler_env": {},
       "scheduler_flags": null,
@@ -549,6 +558,7 @@
       ],
       "protected_files": [],
       "resolution_rule": "frozen_argv_verbatim",
+      "rtk_test_dialect_policy_id": null,
       "runtime_resolved": false,
       "scheduler_env": {},
       "scheduler_flags": null,
@@ -615,6 +625,7 @@
         "Cargo.toml"
       ],
       "resolution_rule": "publisher_recipe",
+      "rtk_test_dialect_policy_id": null,
       "runtime_resolved": false,
       "scheduler_env": {
         "CARGO_BUILD_JOBS": "1",
@@ -684,6 +695,7 @@
         "yarn.lock"
       ],
       "resolution_rule": "publisher_recipe",
+      "rtk_test_dialect_policy_id": null,
       "runtime_resolved": false,
       "scheduler_env": {},
       "scheduler_flags": null,
@@ -705,7 +717,7 @@
   "mission": "N2-E",
   "mission_title": "external RTK-native claim-aligned command corpus",
   "purpose": "Immutable per-case effective-execution contract; normative source for argv/canon/oracle resolution, toolchain+dependency identity references, and mutation guards (correction #3).",
-  "record_sha256": "sha256:785852708491d1fa7bd8ffe16bf1b3a1247873f0750d39ea53a38178b8c5227d",
+  "record_sha256": "sha256:b9456276cab45bc1e7fc162963bdc8499f29e5ddc6456630f968f05d5e4fdaf8",
   "record_type": "n2e-canary-execution-contract",
   "record_version": "v1",
   "schema_version": "n2e-record-1"
