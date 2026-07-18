@@ -374,21 +374,21 @@ def _cargo_cache_full_diff_summary(am: dict, bm: dict) -> dict:
     }
 
 
-def _reachable_ids(root: str, nodes: list) -> list:
-    """package IDs reachable through the filtered resolve graph from the resolve root (BFS over
-    each node's dep pkg ids). Falls back to every node id when the resolve has no single root
-    (virtual workspace). This is the STRUCTURAL host package set, not len(metadata.packages)."""
+def _reachable_ids(roots: list, nodes: list) -> list:
+    """package IDs reachable through the filtered resolve graph, BFS starting ONLY from the
+    explicit resolve roots (follow-up item C -- no fall-back to all-nodes: a root that is not a
+    node contributes nothing, and a node disconnected from every root is deliberately NOT
+    reachable). This is the STRUCTURAL host package set, not len(metadata.packages)."""
     by_id = {n["id"]: n for n in nodes}
-    seeds = [root] if root and root in by_id else [n["id"] for n in nodes]
-    seen, stack = set(), list(seeds)
+    seen, stack = set(), list(roots)
     while stack:
         nid = stack.pop()
-        if nid in seen or nid not in by_id:
-            seen.add(nid); continue
+        if nid in seen:
+            continue
         seen.add(nid)
-        for d in by_id[nid].get("deps", []):
+        for d in by_id.get(nid, {}).get("deps", []):
             pk = d.get("pkg")
-            if pk and pk not in seen:
+            if pk:
                 stack.append(pk)
     return sorted(i for i in seen if i in by_id)
 
@@ -397,7 +397,11 @@ def _normalize_resolve(meta: dict, tokens: list) -> dict:
     """HOST-ONLY resolve graph from `cargo metadata --filter-platform <host>`. The top-level
     `packages` array is deliberately NOT embedded (the full cross-platform package metadata is
     derived from the Cargo.lock instead). Only the resolve structure + the set of package IDs
-    reachable through the filtered graph are kept. Path-normalized for A/B byte-equality."""
+    reachable through the filtered graph are kept. Path-normalized for A/B byte-equality.
+
+    Resolve roots are EXPLICIT (item C): `[resolve.root]` when Cargo supplies a concrete root
+    (a single-package workspace), otherwise the normalized `metadata.workspace_members` (a
+    virtual workspace, where `resolve.root` is null). Reachability BFS starts only from these."""
     def norm(s):
         s = s or ""
         for a, b in tokens:
@@ -417,9 +421,13 @@ def _normalize_resolve(meta: dict, tokens: list) -> dict:
                 key=lambda d: (norm(d.get("pkg")), str(d.get("name")))),
         })
     nodes.sort(key=lambda n: n["id"])
-    root = norm(resolve.get("root") or "")
-    return {"resolve_root": root, "resolve_nodes": nodes,
-            "reachable_package_ids": _reachable_ids(root, nodes)}
+    raw_root = resolve.get("root")
+    if raw_root:
+        roots = [norm(raw_root)]                                   # concrete single-package root
+    else:
+        roots = sorted({norm(m) for m in (meta.get("workspace_members") or [])})  # virtual workspace
+    return {"resolve_roots": roots, "resolve_nodes": nodes,
+            "reachable_package_ids": _reachable_ids(roots, nodes)}
 
 
 def _normalize_lock_packages(lock_bytes: bytes) -> list:
@@ -550,38 +558,53 @@ def _acquire(label: str, root: Path, recipe: dict, base: str) -> dict:
     inst_env, inst_argv = drv.pub.split_env(recipe["install"][0])   # ['cargo','test','backslash','--no-run']
     install = _run(inst_argv, cwd=str(repo_dir),
                    env=_cargo_env(cargo_home, {**inst_env, "CARGO_NET_OFFLINE": "false"}), tmo=1800)
+    install_rec = {"argv": inst_argv, "env": inst_env, "exit": install["exit"], "timed_out": install["timed_out"],
+                   "stdout_sha256": _sha(install["stdout"]), "stderr_sha256": _sha(install["stderr"]),
+                   "stdout_bytes": len(install["stdout"]), "stderr_bytes": len(install["stderr"]),
+                   "stderr_tail": install["stderr"][-1500:].decode("utf-8", "replace")}
     # lock-preserving fail-closed dependency fetch (items 1/2): `cargo fetch --locked` populates
-    # the full lock-pinned cache online without mutating the lock, then the host graph is
-    # resolved OFFLINE from the (verified-unchanged) POST-FETCH lock bytes. The post-install
-    # state, cache manifest, and frozen lock bytes are captured AFTERWARD so they reflect the
-    # exact substrate the measurement freezes and stay mutually consistent -- all derived from
-    # the single post-fetch lock, never a pre/post mixture.
+    # the full lock-pinned cache online without mutating the lock.
     fetch = _dependency_fetch(repo_dir, cargo_home)
+    fetch_pub = {k: v for k, v in fetch.items() if not k.startswith("_")}
+    # required post-fetch state is a PASSIVE git/fs observation (executes NO cargo command); it is
+    # captured before any metadata probing so it is safe to include even on a terminal fetch.
+    post = capture_dependency_state_passive(repo_dir, ge)
+    rec = {
+        "label": label, "base_commit": base, "head_matches_base": head_ok, "fetch_exit": fe["exit"],
+        "install": install_rec,
+        "pristine_state": pristine, "post_install_state": post,
+        "pre_install_metadata": pre_md,
+        "dependency_fetch_result": fetch_pub,   # status + fetch record + pre/post lock identities
+        "_root": str(root), "_repo_dir": str(repo_dir), "_cargo_home": str(cargo_home), "_ge": ge,
+    }
+    # follow-up item A: a TERMINAL dependency-fetch status STOPS the acquisition. After
+    # _dependency_fetch() returns COREUTILS_DEPENDENCY_FETCH_FAILURE or
+    # COREUTILS_DEPENDENCY_FETCH_LOCK_MUTATION, NONE of `cargo metadata`, post-install metadata
+    # probing, cargo-cache semantic parsing, or measurement preparation runs -- the record carries
+    # only the fetch primitives + required post-fetch state, and classification treats the terminal
+    # status as taking precedence over any (never-computed) sparse-cache parse outcome.
+    if fetch.get("status") in ("COREUTILS_DEPENDENCY_FETCH_FAILURE", "COREUTILS_DEPENDENCY_FETCH_LOCK_MUTATION"):
+        rec["dependency_fetch_terminal"] = True
+        return rec
+    # fetch ok: the host graph is resolved OFFLINE from the (verified-unchanged) POST-FETCH lock
+    # bytes, then the post-install metadata, cache manifest, and frozen lock bytes are captured --
+    # all derived from the single post-fetch lock, never a pre/post mixture.
     post_fetch_lock = fetch.get("_post_fetch_lock_raw")
     resolved = _resolved_dependency_snapshot(repo_dir, cargo_home, post_fetch_lock)
-    post = capture_dependency_state_passive(repo_dir, ge)
     post_md = probe_cargo_metadata_disposable(repo_dir, cargo_home, offline=post["cargo_lock"]["present"])
     ccm = _cargo_cache_manifests(cargo_home)
-    fetch_pub = {k: v for k, v in fetch.items() if not k.startswith("_")}
-    return {
-        "label": label, "base_commit": base, "head_matches_base": head_ok, "fetch_exit": fe["exit"],
-        "install": {"argv": inst_argv, "env": inst_env, "exit": install["exit"], "timed_out": install["timed_out"],
-                    "stdout_sha256": _sha(install["stdout"]), "stderr_sha256": _sha(install["stderr"]),
-                    "stdout_bytes": len(install["stdout"]), "stderr_bytes": len(install["stderr"]),
-                    "stderr_tail": install["stderr"][-1500:].decode("utf-8", "replace")},
-        "pristine_state": pristine, "post_install_state": post,
-        "pre_install_metadata": pre_md, "post_install_metadata": post_md,
-        "dependency_fetch_result": fetch_pub,   # status + fetch record + pre/post lock identities
+    rec.update({
+        "post_install_metadata": post_md,
         # SEMANTIC cargo-cache seed hash (validator excluded via the pinned Cargo-1.81 parser)
         "cargo_cache_semantic_manifest_hash": _manifest_hash(ccm["semantic"]),
         "cargo_cache_validator_manifest_hash": _manifest_hash(ccm["validator"]),
         "cargo_cache_full_manifest_hash": _manifest_hash(ccm["full"]),
         "cargo_index_cache_unparseable": ccm["unparseable"],
         "resolved_dependency_snapshot": resolved,
-        "_root": str(root), "_repo_dir": str(repo_dir), "_cargo_home": str(cargo_home), "_ge": ge,
         "_cargo_cache_manifests": ccm,   # private full/semantic/validator, for the A/B diff summary
         "_cargo_lock_raw": post_fetch_lock,   # SOLE lock source: post-fetch bytes -> A/B-Cargo.lock
-    }
+    })
+    return rec
 
 
 def _acq_public(a: dict) -> dict:
@@ -646,20 +669,23 @@ def _classify_acquisitions(A: dict, B: dict, tool_ident: dict) -> dict:
     if A["install"]["exit"] != 0 or B["install"]["exit"] != 0:
         return {"outcome": "COREUTILS_ACQUISITION_INSTALL_FAILURE",
                 "a_exit": A["install"]["exit"], "b_exit": B["install"]["exit"]}
-    # req 2: any sparse-index cache entry that fails the pinned Cargo-1.81 parse is terminal
-    unparseable = (A.get("cargo_index_cache_unparseable") or []) + (B.get("cargo_index_cache_unparseable") or [])
-    if unparseable:
-        return {"outcome": "COREUTILS_CARGO_INDEX_CACHE_UNPARSEABLE",
-                "unparseable_entries": unparseable[:50], "unparseable_count": len(unparseable),
-                "note": "a sparse-index cache entry did not conform to the pinned Cargo-1.81 format"}
-    # items 1/2: dependency fetch must have succeeded (cargo fetch --locked, exit 0, no timeout)
-    # and must not have mutated the lock. A successful offline metadata never compensates.
+    # follow-up item A + items 1/2: the dependency-fetch terminal status TAKES PRECEDENCE over
+    # sparse-cache parsing outcomes. A failed/lock-mutating `cargo fetch --locked` stops the
+    # acquisition before the cache is ever parsed (so cargo_index_cache_unparseable is absent on a
+    # terminal record); a successful offline metadata never compensates. Checked FIRST so a
+    # malformed cache entry left behind by a failed fetch still classifies as the fetch failure.
     fa = A.get("dependency_fetch_result") or {}
     fb = B.get("dependency_fetch_result") or {}
     for st in ("COREUTILS_DEPENDENCY_FETCH_FAILURE", "COREUTILS_DEPENDENCY_FETCH_LOCK_MUTATION"):
         if fa.get("status") == st or fb.get("status") == st:
             return {"outcome": st, "a_dependency_fetch": fa, "b_dependency_fetch": fb,
                     "note": "lock-preserving dependency fetch gate failed before metadata/measurement"}
+    # req 2: any sparse-index cache entry that fails the pinned Cargo-1.81 parse is terminal
+    unparseable = (A.get("cargo_index_cache_unparseable") or []) + (B.get("cargo_index_cache_unparseable") or [])
+    if unparseable:
+        return {"outcome": "COREUTILS_CARGO_INDEX_CACHE_UNPARSEABLE",
+                "unparseable_entries": unparseable[:50], "unparseable_count": len(unparseable),
+                "note": "a sparse-index cache entry did not conform to the pinned Cargo-1.81 format"}
     pa, pb = A["post_install_state"], B["post_install_state"]
     # req 4: always compute the A/B cargo-cache diff at full/semantic/validator levels
     cache_diff = _cargo_cache_full_diff_summary(A["_cargo_cache_manifests"], B["_cargo_cache_manifests"])

@@ -321,28 +321,56 @@ def _lock_packages_from_toml(lock_bytes: bytes) -> list:
 
 DEP_FETCH_ARGV = ["cargo", "fetch", "--locked"]
 DEP_FETCH_ENV = {"RUSTUP_TOOLCHAIN": "1.81.0", "CARGO_NET_OFFLINE": "false"}
-HOST_GRAPH_KEYS = {"resolve_root", "resolve_nodes", "reachable_package_ids",
+HOST_GRAPH_KEYS = {"resolve_roots", "resolve_nodes", "reachable_package_ids",
                    "resolve_graph_platform", "resolve_graph_scope"}
+LOCK_SCOPE = "full cross-platform resolution"
 
 
 def _recompute_reachable(graph: dict) -> list:
-    """INDEPENDENTLY recompute reachable package IDs by traversing dependency edges from
-    resolve_root over resolve_nodes (BFS). Verifier's own derivation, not the producer's."""
+    """INDEPENDENTLY recompute reachable package IDs by traversing dependency edges (BFS) starting
+    ONLY from the explicit resolve_roots over resolve_nodes (item C -- no all-nodes fall-back:
+    a node disconnected from every root is deliberately unreachable). Verifier's own derivation."""
     nodes = graph.get("resolve_nodes") or []
     by_id = {n.get("id"): n for n in nodes}
-    root = graph.get("resolve_root") or ""
-    seeds = [root] if root and root in by_id else [n.get("id") for n in nodes]
-    seen, stack = set(), list(seeds)
+    roots = graph.get("resolve_roots") or []
+    seen, stack = set(), list(roots)
     while stack:
         nid = stack.pop()
-        if nid in seen or nid not in by_id:
-            seen.add(nid); continue
+        if nid in seen:
+            continue
         seen.add(nid)
-        for dep in by_id[nid].get("deps") or []:
+        for dep in by_id.get(nid, {}).get("deps") or []:
             pk = dep.get("pkg")
-            if pk and pk not in seen:
+            if pk:
                 stack.append(pk)
     return sorted(i for i in seen if i in by_id)
+
+
+def _validate_graph_structure(graph: dict, label: str, fail: list) -> None:
+    """item C structural validation of the host resolve graph: non-empty roots; every root is a
+    node; unique node IDs; every dependency edge references an existing node; no node is
+    disconnected from the roots (reachable set == node set). Each violation appends a failure."""
+    nodes = graph.get("resolve_nodes") or []
+    roots = graph.get("resolve_roots") or []
+    node_ids = [n.get("id") for n in nodes]
+    id_set = set(node_ids)
+    if not roots:
+        fail.append(f"resolved-graph {label}: resolve_roots empty")
+    for r in roots:
+        if r not in id_set:
+            fail.append(f"resolved-graph {label}: resolve_root {r!r} not present in resolve_nodes")
+    if len(node_ids) != len(id_set):
+        dupes = sorted({i for i in node_ids if node_ids.count(i) > 1})
+        fail.append(f"resolved-graph {label}: duplicate node ids {dupes[:10]}")
+    for n in nodes:
+        for dep in n.get("deps") or []:
+            pk = dep.get("pkg")
+            if pk is not None and pk not in id_set:
+                fail.append(f"resolved-graph {label}: dangling dependency edge {n.get('id')!r} -> {pk!r}")
+    recomputed = _recompute_reachable(graph)
+    if set(recomputed) != id_set:
+        orphans = sorted(id_set - set(recomputed))
+        fail.append(f"resolved-graph {label}: nodes disconnected from resolve_roots {orphans[:10]}")
 
 
 def _verify_dependency_fetch(label, acq, retained_lock_sha, retained_lock_size, fail) -> bool:
@@ -416,13 +444,30 @@ def _verify_resolved_graph_evidence(rec, evidence, fail) -> dict:
                 fail.append(f"resolved-graph {label}: resolve_graph_platform != x86_64-unknown-linux-gnu"); bad = True
             if graph.get("resolve_graph_scope") != "host-filtered":
                 fail.append(f"resolved-graph {label}: resolve_graph_scope != host-filtered"); bad = True
-            # independently recompute reachable_package_ids and cross-check + count
+            # item C: full structural validation (roots non-empty + present in nodes, unique node
+            # ids, no dangling edges, no nodes disconnected from the roots) before trusting the
+            # recorded reachability.
+            before = len(fail)
+            _validate_graph_structure(graph, label, fail)
+            if len(fail) != before:
+                bad = True
+            # independently recompute reachable_package_ids (BFS from resolve_roots only) + check
             recomputed = _recompute_reachable(graph)
             if graph.get("reachable_package_ids") != recomputed:
                 fail.append(f"resolved-graph {label}: recorded reachable_package_ids != recomputed"); bad = True
-            if data.get("host_resolved_package_count") not in (None, len(recomputed)):
-                fail.append(f"resolved-graph {label}: host_resolved_package_count != len(recomputed reachable)")
-                bad = True
+            # item B: host_resolved_package_count is MANDATORY (retained + producer), == reachable
+            hrc = data.get("host_resolved_package_count")
+            if hrc is None:
+                fail.append(f"resolved-graph {label}: host_resolved_package_count missing"); bad = True
+            elif hrc != len(recomputed):
+                fail.append(f"resolved-graph {label}: host_resolved_package_count {hrc} != "
+                            f"len(recomputed reachable) {len(recomputed)}"); bad = True
+            prc = rds.get("host_resolved_package_count")
+            if prc is None:
+                fail.append(f"resolved-graph {label}: producer host_resolved_package_count missing"); bad = True
+            elif prc != len(recomputed):
+                fail.append(f"resolved-graph {label}: producer host_resolved_package_count {prc} != "
+                            f"len(recomputed reachable) {len(recomputed)}"); bad = True
             g = _canon_sha(graph)
             if g != data.get("host_resolve_graph_sha256"):
                 fail.append(f"resolved-graph {label}: re-derived host graph sha != recorded"); bad = True
@@ -440,21 +485,41 @@ def _verify_resolved_graph_evidence(rec, evidence, fail) -> dict:
             pil = (acq.get("post_install_state") or {}).get("cargo_lock") or {}
             if pil.get("sha256") != sha:
                 fail.append(f"cargo-lock {label}: retained lock sha != post_install_state.cargo_lock.sha256"); bad = True
-            if pil.get("bytes") not in (None, size):
+            # item B: post_install_state.cargo_lock.bytes is MANDATORY and must equal the retained
+            # lock size (None is NOT acceptable).
+            if pil.get("bytes") is None:
+                fail.append(f"cargo-lock {label}: post_install_state.cargo_lock.bytes missing"); bad = True
+            elif pil.get("bytes") != size:
                 fail.append(f"cargo-lock {label}: retained lock size != post_install_state.cargo_lock.bytes"); bad = True
             if rds.get("cargo_lock_sha256") != sha:
                 fail.append(f"cargo-lock {label}: retained lock sha != resolved_dependency_snapshot.cargo_lock_sha256"); bad = True
-            if rds.get("cargo_lock_bytes") not in (None, size):
+            # item B: resolved_dependency_snapshot.cargo_lock_bytes MANDATORY + exact (no None)
+            if rds.get("cargo_lock_bytes") is None:
+                fail.append(f"cargo-lock {label}: resolved_dependency_snapshot.cargo_lock_bytes missing"); bad = True
+            elif rds.get("cargo_lock_bytes") != size:
                 fail.append(f"cargo-lock {label}: retained lock size != resolved_dependency_snapshot.cargo_lock_bytes"); bad = True
+            # item B: cargo_lock_scope MANDATORY == "full cross-platform resolution" (retained + producer)
+            if data.get("cargo_lock_scope") != LOCK_SCOPE:
+                fail.append(f"cargo-lock {label}: retained cargo_lock_scope != {LOCK_SCOPE!r}"); bad = True
+            if rds.get("cargo_lock_scope") != LOCK_SCOPE:
+                fail.append(f"cargo-lock {label}: producer cargo_lock_scope != {LOCK_SCOPE!r}"); bad = True
             try:
                 derived_pkgs = _lock_packages_from_toml(raw)
                 fh = _canon_sha(derived_pkgs); pshas[label] = fh
-                if data.get("full_packages_metadata_sha256") not in (None, fh):
+                # item B: retained full_packages_metadata_sha256 MANDATORY + == lock-derived (no None)
+                if data.get("full_packages_metadata_sha256") is None:
+                    fail.append(f"cargo-lock {label}: retained full_packages_metadata_sha256 missing"); bad = True
+                elif data.get("full_packages_metadata_sha256") != fh:
                     fail.append(f"cargo-lock {label}: lock-derived package sha != retained resolved-graph record"); bad = True
-                if rds.get("full_packages_metadata_sha256") not in (None, fh):
+                # item B: producer full_packages_metadata_sha256 MANDATORY + == lock-derived (no None)
+                if rds.get("full_packages_metadata_sha256") is None:
+                    fail.append(f"cargo-lock {label}: producer full_packages_metadata_sha256 missing"); bad = True
+                elif rds.get("full_packages_metadata_sha256") != fh:
                     fail.append(f"cargo-lock {label}: lock-derived package sha != producer full_packages_metadata_sha256"); bad = True
                 retained_pkgs = data.get("full_packages_metadata")
-                if retained_pkgs is not None and _canon_sha(retained_pkgs) != fh:
+                if retained_pkgs is None:
+                    fail.append(f"cargo-lock {label}: retained full_packages_metadata list missing"); bad = True
+                elif _canon_sha(retained_pkgs) != fh:
                     fail.append(f"cargo-lock {label}: retained package list != lock-derived package list"); bad = True
             except Exception as e:  # noqa: BLE001
                 fail.append(f"cargo-lock {label}: independent TOML parse failed ({e})"); bad = True
@@ -489,12 +554,16 @@ def _derive_acq_classification(A, B, cache_sem_equal, graph_equal, full_pkgs_equ
     dependency-fetch determinants. Never trusts the producer classification or its booleans."""
     if not (A and B) or A.get("install", {}).get("exit") != 0 or B.get("install", {}).get("exit") != 0:
         return {"outcome": "COREUTILS_ACQUISITION_INSTALL_FAILURE"}, {}
-    if A.get("cargo_index_cache_unparseable") or B.get("cargo_index_cache_unparseable"):
-        return {"outcome": "COREUTILS_CARGO_INDEX_CACHE_UNPARSEABLE"}, {}
+    # follow-up item A: dependency-fetch terminal status TAKES PRECEDENCE over sparse-cache parse
+    # outcomes -- a failed/lock-mutating fetch stops the acquisition before the cache is parsed,
+    # so a malformed cache entry left behind by a failed fetch still classifies as the fetch
+    # failure (never as UNPARSEABLE).
     for lbl, acq in (("A", A), ("B", B)):
         st = (acq.get("dependency_fetch_result") or {}).get("status")
         if st in ("COREUTILS_DEPENDENCY_FETCH_FAILURE", "COREUTILS_DEPENDENCY_FETCH_LOCK_MUTATION"):
             return {"outcome": st}, {}
+    if A.get("cargo_index_cache_unparseable") or B.get("cargo_index_cache_unparseable"):
+        return {"outcome": "COREUTILS_CARGO_INDEX_CACHE_UNPARSEABLE"}, {}
     pa, pb = A["post_install_state"], B["post_install_state"]
     parity = {
         "workspace_manifests_equal": pa["workspace_cargo_tomls"] == pb["workspace_cargo_tomls"],

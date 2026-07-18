@@ -155,6 +155,16 @@ class TestDeriveAcqClassification(unittest.TestCase):
         cls, _ = V._derive_acq_classification(a, _acq(dict(p), dict(post)), True, True, True, True, True, True, True)
         self.assertEqual(cls["outcome"], "COREUTILS_CARGO_INDEX_CACHE_UNPARSEABLE")
 
+    def test_fetch_failure_precedes_unparseable_cache(self):
+        # follow-up item A: a failed fetch that ALSO left a malformed sparse-cache entry must
+        # classify as the dependency-fetch failure (terminal precedence), NOT as unparseable-cache.
+        p = _state(False); post = _state(True, tracked=[" M Cargo.lock"])
+        a = _acq(p, post)
+        a["dependency_fetch_result"] = {"status": "COREUTILS_DEPENDENCY_FETCH_FAILURE"}
+        a["cargo_index_cache_unparseable"] = [{"path": "registry/index/x/.cache/li/libc"}]
+        cls, _ = V._derive_acq_classification(a, _acq(dict(p), dict(post)), True, True, True, True, True, False, True)
+        self.assertEqual(cls["outcome"], "COREUTILS_DEPENDENCY_FETCH_FAILURE")
+
 
 class TestDeriveFinalParity(unittest.TestCase):
     def _fin(self, sha):
