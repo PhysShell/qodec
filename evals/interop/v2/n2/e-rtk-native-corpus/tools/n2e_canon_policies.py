@@ -209,17 +209,9 @@ def policy_for(family: str, subfamily: str, git: bool = False,
     return _FAMILY_SUB_POLICY.get((family, subfamily), "identity-v1")
 
 
-# RTK tool-level wall-clock noise: rtk mirrors full output to a tee log whose path
-# carries a Unix-timestamp prefix ("~/.local/share/rtk/tee/<epoch>_<cmd>.log"). That
-# timestamp is pure wall-clock; it appears only in the RTK arm and is normalized
-# identically wherever it occurs (never touches command output content).
-_RTK_TEE = re.compile(rb"(rtk/tee/)\d+(_)")
-
-
 def canonicalize(data: bytes, policy_id: str) -> bytes:
     if policy_id not in _POLICIES:
         raise KeyError(f"unknown canonicalization policy {policy_id!r}")
-    data = _RTK_TEE.sub(rb"\1<ts>\2", data)  # rtk tee-log wall-clock, all policies
     spec = _POLICIES[policy_id]
     if callable(spec):
         return spec(data)
@@ -227,6 +219,25 @@ def canonicalize(data: bytes, policy_id: str) -> bytes:
     for pat, repl in spec:
         out = pat.sub(repl, out)  # repl may be bytes or a callable(match)->bytes
     return out
+
+
+# --------------------------------------------------------------------------
+# rtk-envelope-v1: a versioned, RTK-ARM-ONLY policy that normalizes ONLY the
+# wall-clock epoch inside RTK's own tee-log diagnostic line, whose exact grammar is
+#     [full output: <path>/rtk/tee/<epoch>_<name>.log]
+# It is anchored to that whole "[full output: ... .log]" envelope, so it normalizes
+# only the <epoch> digits and NOTHING else: an arbitrary command that merely prints
+# a lookalike path (e.g. "rtk/tee/123_x.log" without the envelope) is untouched, a
+# changed <name> suffix stays observable, and unrelated numeric paths are untouched.
+# Applied ONLY to the RTK arm; the policy id is recorded in the per-rep evidence.
+# --------------------------------------------------------------------------
+RTK_ENVELOPE_POLICY_ID = "rtk-envelope-v1"
+_RTK_ENVELOPE = re.compile(rb"(\[full output:[^\]\n]*?rtk/tee/)\d+(_[^\]\n]*?\.log\])")
+
+
+def rtk_envelope(data: bytes) -> bytes:
+    """Normalize ONLY the epoch in RTK's tee-log envelope line. RTK-arm only."""
+    return _RTK_ENVELOPE.sub(rb"\1<ts>\2", data)
 
 
 def all_policy_ids() -> list[str]:

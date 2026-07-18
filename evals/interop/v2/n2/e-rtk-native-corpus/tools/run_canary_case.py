@@ -89,10 +89,29 @@ def _tool_identity(exe: str, path: str | None = None) -> dict:
     return {"present": True, "path": path, "sha256": c.sha256_file(path), "version": ver}
 
 
-def _toolchain_identity(fam: str, repo_dir: Path, venv_bin: str | None = None) -> dict:
+def _rustup_which(exe: str, channel: str | None) -> str | None:
+    """Resolve the REAL toolchain binary (NOT the ~/.cargo/bin rustup shim) so its
+    SHA-256 matches the component-tarball binary pinned in the toolchain lock."""
+    args = ["rustup", "which"]
+    if channel:
+        args += ["--toolchain", channel]
+    args.append(exe)
+    try:
+        p = subprocess.run(args, capture_output=True, text=True, timeout=60,
+                           env={**os.environ, **({"RUSTUP_TOOLCHAIN": channel} if channel else {})})
+        path = p.stdout.strip()
+        return path or None
+    except Exception:  # noqa: BLE001
+        return None
+
+
+def _toolchain_identity(fam: str, repo_dir: Path, venv_bin: str | None = None,
+                        rust_channel: str | None = None) -> dict:
     tc: dict = {}
     if fam == "rust_cargo":
-        tc["rustc"], tc["cargo"] = _tool_identity("rustc"), _tool_identity("cargo")
+        # hash the REAL toolchain rustc/cargo (via rustup which), never the shim
+        tc["rustc"] = _tool_identity("rustc", _rustup_which("rustc", rust_channel))
+        tc["cargo"] = _tool_identity("cargo", _rustup_which("cargo", rust_channel))
     elif fam == "go":
         tc["go"] = _tool_identity("go")
     elif fam == "js_ts":
@@ -312,10 +331,13 @@ def run_isolated(argv, cwd, timeout, wrapper_prefix, env_extra=None):
         return {"exit_code": 124, "combined": combined, "timed_out": True}
 
 
-def run_arm(argv, frozen_dir: Path, policy_id: str, timeout: int, wrapper_prefix, env_extra=None) -> dict:
+def run_arm(argv, frozen_dir: Path, policy_id: str, timeout: int, wrapper_prefix, env_extra=None,
+            is_rtk: bool = False) -> dict:
     """RAW or RTK arm: REPS runs in FRESH copies of the frozen env, network-denied.
     Canonicalize each combined stream under policy_id; the ACCEPTED stream is the
-    canonical bytes (identical across reps when deterministic)."""
+    canonical bytes (identical across reps when deterministic). For the RTK arm ONLY,
+    the bounded rtk-envelope-v1 policy first normalizes the epoch inside RTK's own
+    tee-log envelope line (recorded in the result)."""
     runs, canon_hashes, raw_hashes, canon_streams = [], [], [], []
     accepted_canonical = None
     timed_out_any = False
@@ -331,7 +353,8 @@ def run_arm(argv, frozen_dir: Path, policy_id: str, timeout: int, wrapper_prefix
             shutil.copytree(frozen_dir, work, symlinks=True)
             r = run_isolated(argv, str(work), timeout, wrapper_prefix, env_extra)
             timed_out_any = timed_out_any or r.get("timed_out", False)
-            cb = canon.canonicalize(r["combined"], policy_id)
+            combined = canon.rtk_envelope(r["combined"]) if is_rtk else r["combined"]
+            cb = canon.canonicalize(combined, policy_id)
             runs.append({"exit_code": r["exit_code"],
                          "raw_combined_sha256": hashlib.sha256(r["combined"]).hexdigest(),
                          "canonical_sha256": hashlib.sha256(cb).hexdigest(),
@@ -348,6 +371,7 @@ def run_arm(argv, frozen_dir: Path, policy_id: str, timeout: int, wrapper_prefix
         "reps_completed": len(runs), "exit_code": runs[0]["exit_code"],
         "exit_code_stable": exit_stable, "canonical_deterministic": deterministic,
         "canonicalization_policy": policy_id, "timed_out": timed_out_any,
+        "rtk_envelope_policy": (canon.RTK_ENVELOPE_POLICY_ID if is_rtk else None),
         "canonical_sha256": canon_hashes[0] if deterministic else None,
         "raw_capture_hashes": raw_hashes, "runs": runs,
         "nondeterminism_sample": _nd_sample(canon_streams) if not deterministic else None,
@@ -827,8 +851,10 @@ def _publisher_warm(recipe: dict, fam: str, sub: str, scen, repo_dir: Path, home
     protected_after = _protected_hashes(repo_dir, fam)
     committed_mutated = sorted(k for k, h in protected_base.items()
                                if h is not None and protected_after.get(k) != h)
+    rust_channel = (tc_spec.get("version", "") + ".0") if (fam == "rust_cargo"
+                    and tc_spec.get("version", "").count(".") == 1) else tc_spec.get("version")
     env_identity = {
-        "toolchain": _toolchain_identity(fam, repo_dir),
+        "toolchain": _toolchain_identity(fam, repo_dir, rust_channel=rust_channel),
         "toolchain_pin": tc_spec,
         "platform": _platform_identity(fam),
         "dependencies": {
@@ -981,7 +1007,8 @@ def main() -> int:
         if fam == "containers":
             rtk_run = _docker_arm([rtk_bin] + rtk_argv[1:], policy, scen["timeout_seconds"])
         else:
-            rtk_run = run_arm([rtk_bin] + rtk_argv[1:], frozen, policy, scen["timeout_seconds"], wrapper, env_extra)
+            rtk_run = run_arm([rtk_bin] + rtk_argv[1:], frozen, policy, scen["timeout_seconds"],
+                              wrapper, env_extra, is_rtk=True)
 
         rtk_ok, rtk_reasons, rtk_oracle = _rtk_accept(scen, raw, rtk_run, rtk_bin)
         # post-measurement mutation guard (the real correction #2 invariant): after

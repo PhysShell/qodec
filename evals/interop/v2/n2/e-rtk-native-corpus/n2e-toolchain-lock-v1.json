@@ -1,10 +1,16 @@
 {
+  "acceptance_eligible": false,
   "generated_by": "evals/interop/v2/n2/e-rtk-native-corpus/tools/build_n2e_toolchain_lock.py",
+  "lock_state": "HARVEST",
+  "missing_expected_identities": [
+    "java.executables.java.expected_sha256",
+    "node.pnpm.resolved_entrypoint_sha256",
+    "gradle.wrapper.wrapper_jar_sha256"
+  ],
   "mission": "N2-E",
   "mission_title": "external RTK-native claim-aligned command corpus",
-  "note": "Download artifacts are SHA-256 pinned; per-executable binary SHA-256 is filled from a clean probe and then required to match exactly.",
-  "purpose": "Expected identities of the publisher-pinned toolchains; runtime evidence is compared by exact equality. Wrong-version substitution is a HARNESS_DEFECT.",
-  "record_sha256": "sha256:c419524ab4f92b8b0c22aceacddb73e4b4e90f9f4dd6ccfc48b3d7756f0b3079",
+  "purpose": "Expected identities of the publisher-pinned toolchains derived from immutable upstream artifacts; runtime evidence is compared by exact structured equality. Wrong-version or wrong-binary substitution is a HARNESS_DEFECT.",
+  "record_sha256": "sha256:87df927078c6ff8469e52fae1c30494eaa2c5a803db6cbb5feb8885513c97cb9",
   "record_type": "n2e-toolchain-lock",
   "record_version": "v1",
   "schema_version": "n2e-record-1",
@@ -17,27 +23,44 @@
       },
       "executables": {
         "go": {
-          "expected_binary_sha256": null
+          "expected_sha256": "0cdc4480040b5ef62eb17ba283ab92eca991794a937620604a2b5772201c2b59",
+          "resolve": "path"
         }
       },
-      "expected_version_contains": "go1.23.8",
-      "publisher_version": "1.23.8"
+      "platform": "linux-amd64",
+      "publisher_version": "1.23.8",
+      "release": "go1.23.8"
+    },
+    "gradle": {
+      "distribution": {
+        "sha256": "5b9c5eb3f9fc2c94abaea57d90bd78747ca117ddbbf96c859d3741181a12bf2a",
+        "url": "https://services.gradle.org/distributions/gradle-8.10-bin.zip"
+      },
+      "publisher_version": "8.10",
+      "resolved_from": "apache/lucene@ce4f56e gradle/wrapper/gradle-wrapper.properties",
+      "runtime_version": "8.10",
+      "wrapper": {
+        "gradlew_sha256": "fcd0fe684623b73d79454ede0834762ac7b547ef5291ca32c7691b2251406f32",
+        "properties_sha256": "2caec011a749b18ab9a7dea68bf7639a179a3b8316b0e35655d0a62a1d7390fd",
+        "wrapper_jar_sha256": null
+      }
     },
     "java": {
+      "artifact": {
+        "name": "OpenJDK21U-jdk_x64_linux_hotspot_21.0.11_10.tar.gz",
+        "sha256": "4b2220e232a97997b436ca6ab15cbf70171ecff52958a46159dfa5a8c44ca4de",
+        "url": "https://github.com/adoptium/temurin21-binaries/releases/download/jdk-21.0.11%2B10/OpenJDK21U-jdk_x64_linux_hotspot_21.0.11_10.tar.gz"
+      },
       "executables": {
         "java": {
-          "expected_binary_sha256": null
+          "expected_sha256": null,
+          "resolve": "path"
         }
       },
-      "expected_version_contains": "21.0",
-      "gradle": {
-        "distribution_sha256": null,
-        "distribution_url": null,
-        "resolved_from": "repo gradle/wrapper/gradle-wrapper.properties",
-        "runtime_version": null
-      },
+      "openjdk_version": "21.0.11+10-LTS",
+      "platform": "x64_linux",
       "publisher_version": "21",
-      "source": "runner JAVA_HOME_21_X64 (Temurin 21); exact build pinned from probe",
+      "release_name": "jdk-21.0.11+10",
       "vendor": "eclipse-temurin"
     },
     "node": {
@@ -46,34 +69,56 @@
         "sha256": "df770b2a6f130ed8627c9782c988fda9669fa23898329a61a871e32f965e007d",
         "url": "https://nodejs.org/dist/v20.20.2/node-v20.20.2-linux-x64.tar.xz"
       },
+      "corepack": {
+        "bundled_js_sha256": "3655bc798f300951f2070fee411b337d626b0c3ae80c2d24c46ccac4595d4bf9"
+      },
       "executables": {
         "node": {
-          "expected_binary_sha256": null
+          "expected_sha256": "6295488653f0d93b0a157841746fef7e72cc4328cfb60c4bbe0ca2668a836ffd",
+          "resolve": "path"
         }
       },
-      "expected_version_contains": "v20.20.2",
-      "package_manager": {
-        "expected_binary_sha256": null,
-        "kind": "pnpm",
-        "provisioned_by": "corepack",
-        "version_source": "repo package.json packageManager field"
+      "platform": "linux-x64",
+      "pnpm": {
+        "npm_integrity": "sha512-3AlDAVa0J/Xs/HmIiJnhw50taQ8AS+cOBSMLcssXPZaDlYdUXQlCm1WsPEKcgBtNw8DgAvZTgwpCD6LdTjz5zw==",
+        "npm_shasum": "8f12c476122faede7aed9a2126ef551c0dc65d7e",
+        "release": "9.7.0",
+        "resolved_entrypoint_sha256": null,
+        "source": "repo package.json packageManager (pnpm@9.7.0)",
+        "tarball": "https://registry.npmjs.org/pnpm/-/pnpm-9.7.0.tgz"
       },
-      "pinned_version": "v20.20.2",
-      "publisher_version": "20"
+      "publisher_version": "20",
+      "release": "v20.20.2"
     },
     "rust": {
       "channel": "1.83.0",
-      "executables": {
+      "channel_manifest": {
+        "sha256": "b3544fb72bc3189697fc18ac2d3fa27d57ee8434f59d9919d4d70af2c6f010b3",
+        "url": "https://static.rust-lang.org/dist/channel-rust-1.83.0.toml"
+      },
+      "components": {
         "cargo": {
-          "expected_binary_sha256": null
+          "url": "https://static.rust-lang.org/dist/2024-11-28/cargo-1.83.0-x86_64-unknown-linux-gnu.tar.xz",
+          "xz_sha256": "de834a4062d9cd200f8e0cdca894c0b98afe26f1396d80765df828880a39b98c"
         },
         "rustc": {
-          "expected_binary_sha256": null
+          "url": "https://static.rust-lang.org/dist/2024-11-28/rustc-1.83.0-x86_64-unknown-linux-gnu.tar.xz",
+          "xz_sha256": "6ec40e0405c8cbed3b786a97d374c144b012fc831b7c22b535f8ecb524f495ad"
         }
       },
-      "expected_version_contains": "1.83.0",
+      "executables": {
+        "cargo": {
+          "expected_sha256": "da77b17765651b7a4405178a21d3dab1fa39dddec927d37c0fd5663b7c8623de",
+          "resolve": "rustup_which"
+        },
+        "rustc": {
+          "expected_sha256": "6703c8f287653aae59b27849343fe64fa3893353f1c1d6037a608c18257afc2c",
+          "resolve": "rustup_which"
+        }
+      },
       "install": "rustup toolchain install 1.83.0 --profile minimal --no-self-update",
       "publisher_version": "1.83",
+      "release": "1.83.0",
       "target": "x86_64-unknown-linux-gnu"
     }
   }
