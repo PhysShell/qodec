@@ -35,13 +35,12 @@ RESOLVER_POLICY_ID = "n2e-argv-resolver-v1"
 
 
 def _publisher_scheduler_env(recipe: dict) -> dict:
-    fam = {"rust": "rust_cargo", "go": "go", "js_ts": "js_ts", "jvm": "jvm",
-           "node": "js_ts", "java": "jvm"}.get(recipe["language"], recipe["language"])
+    fam = recipe["language"]  # already rust_cargo/go/js_ts/jvm
     env = dict(scheduler_env(fam, "test"))
     tc = recipe.get("toolchain") or {}
-    if recipe["language"] == "rust" and tc.get("version"):
+    if fam == "rust_cargo" and tc.get("version"):
         env["RUSTUP_TOOLCHAIN"] = tc["version"]
-    env.update(recipe.get("env") or {})  # e.g. RUSTFLAGS, applied to both arms
+    env.update(recipe.get("test_env") or {})  # e.g. RUSTFLAGS, applied to both arms
     return env
 
 
@@ -80,15 +79,18 @@ def resolve(scen: dict, repo_dir: Path | None = None) -> dict:
             "frozen_rtk_resolution": scen.get("rtk_argv_resolution")}
 
     # PUBLISHER RECIPE (highest precedence for SWE-bench cases): the effective command
-    # is the publisher-scoped test command from the self-hash-locked registry, NEVER a
-    # generic whole-suite command. This is the corrected derived contract for a
-    # Phase-A scenario-ingestion command mismatch.
-    inst = (scen.get("source_image_identity") or {}).get("instance_id")
-    recipe = pub.recipe_for(inst) if inst else None
+    # is the publisher-scoped test command from the self-hash-locked registry, extracted
+    # from pinned upstream source, NEVER a generic whole-suite command. Bound by EXACT
+    # case_id -- a recipe never overrides another scenario sharing the same instance.
+    recipe = pub.recipe_for_case(scen["case_id"])
     if recipe:
+        # binding agreement: the recipe must describe THIS scenario, not merely its instance
+        assert recipe["instance_id"] == (scen.get("source_image_identity") or {}).get("instance_id")
+        assert recipe["command_family"] == fam and recipe["command_subfamily"] == sub
+        assert recipe["snapshot_variant"] == scen.get("snapshot_variant")
         argv = pub.parse_command(recipe["test_cmd"][0])
         return {**base, "resolution_rule": "publisher_recipe",
-                "runtime_resolved": False, "publisher_recipe": recipe["spec"],
+                "runtime_resolved": False, "publisher_recipe": recipe["source"]["spec_dict"],
                 "scheduler_env": _publisher_scheduler_env(recipe),
                 "effective_raw_argv": argv, "effective_rtk_argv": ["rtk", *argv]}
 

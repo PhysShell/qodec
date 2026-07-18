@@ -1,0 +1,215 @@
+{
+  "correction_count": 4,
+  "corrections": [
+    {
+      "case_id": "apache__lucene-13704::jvm::test::buggy",
+      "corrected_effective_argv": [
+        "./gradlew",
+        "test",
+        "--tests",
+        "org.apache.lucene.search.TestLatLonDocValuesQueries"
+      ],
+      "corrected_effective_rtk_argv": [
+        "rtk",
+        "./gradlew",
+        "test",
+        "--tests",
+        "org.apache.lucene.search.TestLatLonDocValuesQueries"
+      ],
+      "is_wrong_workload": true,
+      "original_incorrect_argv": [
+        "mvn",
+        "test"
+      ],
+      "publisher_source_evidence": {
+        "harness": {
+          "commit": "f7bbbb2ccdf479001d6467c9e34af59e44a840f9",
+          "constants_module": "swebench/harness/constants",
+          "repo": "SWE-bench/SWE-bench",
+          "source_dir": "fixtures/swebench-source"
+        },
+        "publisher_test_cmd": [
+          "./gradlew test --tests org.apache.lucene.search.TestLatLonDocValuesQueries"
+        ],
+        "source_file": "java.py",
+        "source_git_blob_sha1": "29a73dee8e538fa71fbda78ad34d9ff2977ee74d",
+        "source_sha256": "1d61ba16d37ed644fcaecff4707623c8dffd932c729c1a77b63811ee244eba1c",
+        "spec": "SPECS_LUCENE[13704]",
+        "toolchain": {
+          "build": "gradle_wrapper",
+          "docker_specs": {
+            "java_version": "21"
+          },
+          "kind": "java",
+          "version": "21"
+        }
+      },
+      "typed_defect": "SCENARIO_INGESTION_WRONG_WORKLOAD"
+    },
+    {
+      "case_id": "caddyserver__caddy-5870::go::test::buggy",
+      "corrected_effective_argv": [
+        "go",
+        "test",
+        "-v",
+        ".",
+        "-run",
+        "TestUnsyncedConfigAccess"
+      ],
+      "corrected_effective_rtk_argv": [
+        "rtk",
+        "go",
+        "test",
+        "-v",
+        ".",
+        "-run",
+        "TestUnsyncedConfigAccess"
+      ],
+      "is_wrong_workload": true,
+      "original_incorrect_argv": [
+        "go",
+        "test",
+        "./..."
+      ],
+      "publisher_source_evidence": {
+        "harness": {
+          "commit": "f7bbbb2ccdf479001d6467c9e34af59e44a840f9",
+          "constants_module": "swebench/harness/constants",
+          "repo": "SWE-bench/SWE-bench",
+          "source_dir": "fixtures/swebench-source"
+        },
+        "publisher_test_cmd": [
+          "go test -v . -run \"TestUnsyncedConfigAccess\""
+        ],
+        "source_file": "go.py",
+        "source_git_blob_sha1": "67e5e8ac31aa005c6516bc7b207bafc2f2fbe9a2",
+        "source_sha256": "fe81b00a47fd44f31ee3e3acd317fca49523ef96364ec6fb7c9d2832a2fc5305",
+        "spec": "SPECS_CADDY[5870]",
+        "toolchain": {
+          "docker_specs": {
+            "go_version": "1.23.8"
+          },
+          "kind": "go",
+          "version": "1.23.8"
+        }
+      },
+      "typed_defect": "SCENARIO_INGESTION_WRONG_WORKLOAD"
+    },
+    {
+      "case_id": "tokio-rs__tokio-4384::rust_cargo::test::fixed",
+      "corrected_effective_argv": [
+        "cargo",
+        "test",
+        "--package",
+        "tokio",
+        "--test",
+        "net_types_unwind",
+        "--features",
+        "full",
+        "--no-fail-fast"
+      ],
+      "corrected_effective_rtk_argv": [
+        "rtk",
+        "cargo",
+        "test",
+        "--package",
+        "tokio",
+        "--test",
+        "net_types_unwind",
+        "--features",
+        "full",
+        "--no-fail-fast"
+      ],
+      "is_wrong_workload": true,
+      "original_incorrect_argv": [
+        "cargo",
+        "test"
+      ],
+      "publisher_source_evidence": {
+        "harness": {
+          "commit": "f7bbbb2ccdf479001d6467c9e34af59e44a840f9",
+          "constants_module": "swebench/harness/constants",
+          "repo": "SWE-bench/SWE-bench",
+          "source_dir": "fixtures/swebench-source"
+        },
+        "publisher_test_cmd": [
+          "RUSTFLAGS=-Awarnings cargo test --package tokio --test net_types_unwind --features full --no-fail-fast"
+        ],
+        "source_file": "rust.py",
+        "source_git_blob_sha1": "068c7c2414edbcc14d42cca3bae96d27bdfb39f4",
+        "source_sha256": "1ad97f35f1202ef2a69c066b29d2edc5f552fd62db2230f38d2f7dd91a4a3da2",
+        "spec": "TOKIO_SPECS[4384]",
+        "toolchain": {
+          "docker_specs": {
+            "rust_version": "1.83"
+          },
+          "kind": "rust",
+          "version": "1.83"
+        }
+      },
+      "typed_defect": "SCENARIO_INGESTION_WRONG_WORKLOAD"
+    },
+    {
+      "case_id": "vuejs__core-11589::js_ts::test::buggy",
+      "corrected_effective_argv": [
+        "pnpm",
+        "run",
+        "test",
+        "packages/runtime-core/__tests__/apiWatch.spec.ts",
+        "--no-watch",
+        "--reporter=verbose"
+      ],
+      "corrected_effective_rtk_argv": [
+        "rtk",
+        "pnpm",
+        "run",
+        "test",
+        "packages/runtime-core/__tests__/apiWatch.spec.ts",
+        "--no-watch",
+        "--reporter=verbose"
+      ],
+      "is_wrong_workload": true,
+      "original_incorrect_argv": [
+        "npm",
+        "test"
+      ],
+      "publisher_source_evidence": {
+        "harness": {
+          "commit": "f7bbbb2ccdf479001d6467c9e34af59e44a840f9",
+          "constants_module": "swebench/harness/constants",
+          "repo": "SWE-bench/SWE-bench",
+          "source_dir": "fixtures/swebench-source"
+        },
+        "publisher_test_cmd": [
+          "pnpm run test packages/runtime-core/__tests__/apiWatch.spec.ts --no-watch --reporter=verbose"
+        ],
+        "source_file": "javascript.py",
+        "source_git_blob_sha1": "714a27841daaa584529f50c2efc39d974d933f64",
+        "source_sha256": "d8c68d79e1e01854ce8cc70c45df88cd1153cf2f213949131553bf14ca9886f5",
+        "spec": "SPECS_VUEJS[11589]",
+        "toolchain": {
+          "docker_specs": {
+            "_variant": "js_2",
+            "node_version": "20"
+          },
+          "kind": "node",
+          "package_manager": "pnpm",
+          "version": "20"
+        }
+      },
+      "typed_defect": "SCENARIO_INGESTION_WRONG_WORKLOAD"
+    }
+  ],
+  "generated_by": "evals/interop/v2/n2/e-rtk-native-corpus/tools/build_n2e_scenario_correction.py",
+  "mission": "N2-E",
+  "mission_title": "external RTK-native claim-aligned command corpus",
+  "original_scenarios_sha256": "sha256:69f51947bdca6ae8c880b87e02cb43e7f24a2e435d465142e80b3f50fbdbd0e1",
+  "publisher_registry_sha256": "sha256:f2214c37bc282b1027557fe40d33b68042c4207b7a00f55422270cee565f506d",
+  "purpose": "Immutable Phase-A scenario-ingestion supersession: corrects the generic ingested command to the publisher-scoped test command for the SWE-bench test cases. The original scenarios record stays immutable; this is the normative correction.",
+  "record_sha256": "sha256:db8afb8d974f673a48b86bf91abed9918c552af094bf0a304a8af02ab3fb8856",
+  "record_type": "n2e-scenario-correction",
+  "record_version": "v1",
+  "schema_version": "n2e-record-1",
+  "superseding_execution_contract_sha256": "sha256:983b55e19775768bc3df871f1bb035f04b038a62e24b799bdf0269a95c09781c",
+  "typed_defect": "SCENARIO_INGESTION_WRONG_WORKLOAD"
+}

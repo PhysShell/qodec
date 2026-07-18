@@ -511,20 +511,22 @@ def acquire_swebench(scen, workroot):
     # scoped test command (never a generic whole-suite command). Record a Phase-A
     # scenario-ingestion defect where the frozen scenario command disagrees with the
     # publisher test command (corrected transparently via the derived contract).
-    recipe = pub.recipe_for(instance_id)
+    recipe = pub.recipe_for_case(scen["case_id"])  # EXACT case binding, never by instance
     phase_a_defect = None
     if recipe:
+        assert recipe["instance_id"] == instance_id, "recipe/instance binding mismatch"
         warm, policy, offline_env, resolved, env_identity = _publisher_warm(
             recipe, fam, sub, scen, repo_dir, home)
         pub_argv = pub.parse_command(recipe["test_cmd"][0])
         if list(scen.get("original_argv") or []) != pub_argv:
             phase_a_defect = {
-                "kind": "scenario_ingestion_command_mismatch",
+                "typed_defect": "SCENARIO_INGESTION_WRONG_WORKLOAD",
                 "frozen_original_argv": scen.get("original_argv"),
                 "publisher_test_argv": pub_argv,
                 "resolution": "publisher recipe is normative; effective command derived "
                               "from n2e-publisher-env-registry-v1.json, not the frozen argv",
-                "publisher_recipe": recipe["spec"],
+                "publisher_recipe": recipe["source"]["spec_dict"] + "[" + recipe["source"]["spec_key"] + "]",
+                "publisher_source": recipe["source"],
             }
     else:
         warm, policy, offline_env, resolved, env_identity = _warm_test_env(
@@ -535,7 +537,8 @@ def acquire_swebench(scen, workroot):
            "offline_env": offline_env, "environment_identity": env_identity,
            "workdir": "repo", "home_local": True, "policy": policy}
     if recipe:
-        acq["publisher_recipe"] = recipe["spec"]
+        acq["publisher_recipe"] = recipe["source"]["spec_dict"] + "[" + recipe["source"]["spec_key"] + "]"
+        acq["publisher_case_id"] = recipe["case_id"]
         acq["pristine_checkout_protected"] = protected_pristine
     if phase_a_defect:
         acq["phase_a_scenario_ingestion_defect"] = phase_a_defect
@@ -747,84 +750,70 @@ def _publisher_lang_env(fam: str, home: Path, toolchain: dict) -> tuple[dict, di
 
 
 def _publisher_warm(recipe: dict, fam: str, sub: str, scen, repo_dir: Path, home: Path):
-    """Acquire a SWE-bench case under its EXACT publisher recipe: apply pre-install
-    (materialize the per-instance lockfile byte-for-byte / run the committed pre-
-    install script), populate caches with the publisher `install` (warm) command,
-    then measure the publisher `test_cmd`. The frozen input is base_commit + patches
-    + publisher pre-install; the measured command is the publisher test command, not
-    a generic whole-suite command. Returns the same 5-tuple as _warm_test_env."""
+    """Acquire a SWE-bench case under its EXACT publisher recipe (source-derived):
+    run the publisher pre-install shell (materializes the per-instance lockfile via
+    its own heredoc / applies the gradle logging edit), populate caches with the
+    publisher `install` (warm) command, then measure the publisher `test_cmd`. Every
+    command is the exact upstream string from n2e-publisher-env-registry-v1.json.
+    Returns the same 5-tuple as _warm_test_env."""
     tc_spec = recipe.get("toolchain") or {}
+    spec_label = recipe["source"]["spec_dict"] + "[" + recipe["source"]["spec_key"] + "]"
     warm_extra, offline_env = _publisher_lang_env(fam, home, tc_spec)
-    for k in ("JAVA_HOME", "RUSTUP_HOME"):
+    for k in ("JAVA_HOME", "RUSTUP_HOME", "GRADLE_USER_HOME"):
         if os.environ.get(k) and k not in warm_extra:
             warm_extra[k] = os.environ[k]
+    if fam == "jvm":  # keep gradle deps in a home-local cache that survives per-rep copies
+        warm_extra["GRADLE_USER_HOME"] = offline_env["GRADLE_USER_HOME"] = str(home / ".gradle")
     env = m.measurement_env(warm_extra)
-    warm = {"steps": [], "publisher_recipe": recipe["spec"], "instance_id": recipe["instance_id"]}
+    warm = {"steps": [], "publisher_recipe": spec_label, "instance_id": recipe["instance_id"]}
 
-    # ---- pre-install: publisher-mandated frozen construction (before baseline) ----
-    preinstall = []
-    for act in recipe.get("pre_install", []):
-        if "materialize_lockfile" in act:
-            fx = pub.fixture_path(act["materialize_lockfile"])
-            tgt = repo_dir / act["target"]
-            tgt.write_bytes(fx.read_bytes())
-            preinstall.append({"materialize_lockfile": act["materialize_lockfile"],
-                               "target": act["target"], "sha256": c.sha256_file(str(tgt))})
-        elif "shell_fixture" in act:
-            fx = pub.fixture_path(act["shell_fixture"])
-            r = subprocess.run(["bash", str(fx)], cwd=str(repo_dir), env=env,
-                               capture_output=True, timeout=300)
-            preinstall.append({"shell_fixture": act["shell_fixture"], "exit": r.returncode,
-                               "tail": (r.stdout[-400:] + r.stderr[-400:]).decode("utf-8", "replace")})
-    warm["pre_install"] = preinstall
-    # baseline AFTER pre-install: the publisher lockfile IS a frozen input
-    protected_base = _protected_hashes(repo_dir, fam)
-
-    def step(cmd_argv, tmo=1800):
+    def run(argv, extra_env=None, tmo=1800, kind="step"):
         try:
-            r = subprocess.run(cmd_argv, cwd=str(repo_dir), env=env, capture_output=True, timeout=tmo)
-            tail = (r.stdout[-1200:] + r.stderr[-1200:]).decode("utf-8", "replace")
-            warm["steps"].append({"cmd": cmd_argv, "exit": r.returncode, "tail": tail})
+            r = subprocess.run(argv, cwd=str(repo_dir), env={**env, **(extra_env or {})},
+                               capture_output=True, timeout=tmo)
+            warm["steps"].append({"kind": kind, "cmd": argv, "exit": r.returncode,
+                                  "tail": (r.stdout[-1200:] + r.stderr[-1200:]).decode("utf-8", "replace")})
             return r
         except subprocess.TimeoutExpired as e:
-            tail = ((e.stdout or b"")[-1200:] + (e.stderr or b"")[-1200:]).decode("utf-8", "replace")
-            warm["steps"].append({"cmd": cmd_argv, "exit": None, "timed_out": True, "tail": tail})
+            warm["steps"].append({"kind": kind, "cmd": argv, "exit": None, "timed_out": True,
+                                  "tail": ((e.stdout or b"")[-900:] + (e.stderr or b"")[-900:]).decode("utf-8", "replace")})
             return None
 
-    # ---- warm: publisher `install` commands (network-enabled cache population) ----
-    recipe_env = recipe.get("env") or {}
-    install_cmds = recipe.get("install") or []
-    test_argv = pub.parse_command(recipe["test_cmd"][0])
-    if not install_cmds:
-        # no publisher install step (e.g. lucene): prime caches by running the exact
-        # test command ONCE online -- cache population only, its result is not measured.
-        install_cmds = [recipe["test_cmd"][0]]
-    for cmd in install_cmds:
-        argv = pub.parse_command(cmd)
-        env_with = {**env, **recipe_env}
-        try:
-            r = subprocess.run(argv, cwd=str(repo_dir), env=env_with, capture_output=True, timeout=1800)
-            warm["steps"].append({"cmd": argv, "exit": r.returncode,
-                                  "tail": (r.stdout[-1200:] + r.stderr[-1200:]).decode("utf-8", "replace")})
-        except subprocess.TimeoutExpired as e:
-            warm["steps"].append({"cmd": argv, "exit": None, "timed_out": True,
-                                  "tail": ((e.stdout or b"")[-800:] + (e.stderr or b"")[-800:]).decode("utf-8", "replace")})
+    # ---- pre-install (publisher-mandated frozen construction, before the baseline) ----
+    # Each pre_install entry is an exact upstream shell command (e.g. tokio's
+    # `cat > Cargo.lock <<EOF...` lockfile heredoc, lucene's testLogging sed).
+    for cmd in recipe.get("pre_install", []):
+        run(["bash", "-c", cmd], tmo=300, kind="pre_install")
+    protected_base = _protected_hashes(repo_dir, fam)  # publisher lockfile IS a frozen input
+
+    # ---- warm: publisher `install` (network-enabled cache population + compile) ----
+    for cmd in recipe.get("install", []):
+        wenv, wargv = pub.split_env(cmd)
+        run(wargv, extra_env=wenv, kind="install")
+    test_env, test_argv = pub.split_env(recipe["test_cmd"][0])
+    if not recipe.get("install"):
+        # no publisher install step (e.g. lucene): prime caches + compile by running
+        # the exact test command ONCE online. Its RESULT is not measured -- see the
+        # jvm cleanup below which forces the measured reps to actually re-execute.
+        run(test_argv, extra_env=test_env, kind="warm_prime")
+    if fam == "jvm":
+        # correction: warm must not let the 3 measured reps skip the target test as
+        # UP-TO-DATE/FROM-CACHE. Delete the project-local gradle task history + test
+        # outputs (build/test-results, build/reports) while KEEPING the home-local
+        # dependency cache (GRADLE_USER_HOME), so each rep re-runs the test offline.
+        for rel in (".gradle", "build/test-results", "build/reports"):
+            shutil.rmtree(repo_dir / rel, ignore_errors=True)
+        warm["jvm_rerun_cleanup"] = [".gradle", "build/test-results", "build/reports"]
     warm["ok"] = all(s.get("exit") == 0 for s in warm["steps"])
 
     policy = canon.policy_for(fam, sub, jvm_build=("gradle" if fam == "jvm" else None),
                               case_id=scen["case_id"])
     resolved = {"raw_argv": test_argv, "rtk_argv": ["rtk", *test_argv]}
-    offline_env = {**offline_env, **recipe_env}  # recipe env (e.g. RUSTFLAGS) on both arms
+    offline_env = {**offline_env, **test_env}  # publisher test env (e.g. RUSTFLAGS) on both arms
 
     protected_after = _protected_hashes(repo_dir, fam)
     committed_mutated = sorted(k for k, h in protected_base.items()
                                if h is not None and protected_after.get(k) != h)
-    # publisher lockfile invariance: a materialized lockfile MUST be byte-stable
-    lock = recipe.get("lockfile")
-    lock_ok = True
-    if lock:
-        lock_now = c.sha256_file(str(repo_dir / lock["target"])) if (repo_dir / lock["target"]).is_file() else None
-        lock_ok = lock_now == lock["sha256"]
     env_identity = {
         "toolchain": _toolchain_identity(fam, repo_dir),
         "toolchain_pin": tc_spec,
@@ -834,18 +823,19 @@ def _publisher_warm(recipe: dict, fam: str, sub: str, scen, repo_dir: Path, home
             "post_construction": protected_base,
             "after_acquisition": protected_after,
             "committed_mutated": committed_mutated,
-            "publisher_lockfile": lock, "publisher_lockfile_intact": lock_ok,
-            "mutation_guard_ok": committed_mutated == [] and lock_ok,
+            "mutation_guard_ok": committed_mutated == [],
         },
         "construction": {
-            "publisher_recipe": recipe["spec"],
-            "pre_install": preinstall,
+            "publisher_recipe": spec_label,
+            "pre_install": recipe.get("pre_install"),
             "baseline_tracked_status": _worktree_modified(repo_dir, home),
         },
-        "publisher": {"recipe_spec": recipe["spec"], "test_cmd": recipe["test_cmd"],
-                      "install": recipe.get("install"), "toolchain": tc_spec,
+        "publisher": {"recipe_spec": spec_label, "case_id": recipe["case_id"],
+                      "test_cmd": recipe["test_cmd"], "install": recipe.get("install"),
+                      "toolchain": tc_spec, "source": recipe["source"],
                       "registry_sha256": pub.registry_sha256()},
-        "warm_commands": [{"cmd": s.get("cmd"), "exit": s.get("exit")} for s in warm["steps"]],
+        "warm_commands": [{"kind": s.get("kind"), "cmd": s.get("cmd"), "exit": s.get("exit")}
+                          for s in warm["steps"]],
     }
     return warm, policy, offline_env, resolved, env_identity
 

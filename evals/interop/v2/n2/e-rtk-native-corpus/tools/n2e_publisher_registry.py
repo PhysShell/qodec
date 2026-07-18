@@ -1,8 +1,9 @@
 """Loader for the self-hash-locked publisher environment registry.
 
-The registry is the NORMATIVE source of each SWE-bench case's effective commands
-+ toolchain + fixtures. The driver, the argv resolver, and the execution-contract
-builder all derive from here rather than guessing per-repository.
+The registry is the NORMATIVE source of each SWE-bench case's effective commands +
+toolchain + fixtures, extracted mechanically from pinned upstream source. Recipes
+bind by EXACT case_id. The driver, argv resolver, and execution-contract builder
+all derive from here rather than guessing per-repository.
 """
 from __future__ import annotations
 
@@ -13,7 +14,7 @@ import n2e_common as c
 
 N2E_DIR = Path(__file__).resolve().parent.parent
 REGISTRY = N2E_DIR / "n2e-publisher-env-registry-v1.json"
-FIX = N2E_DIR / "fixtures" / "swebench"
+SRC = N2E_DIR / "fixtures" / "swebench-source"
 
 _CACHE: dict | None = None
 
@@ -25,37 +26,40 @@ def load() -> dict:
     return _CACHE
 
 
-def recipe_for(instance_id: str) -> dict | None:
-    for r in load()["recipes"]:
-        if r["instance_id"] == instance_id:
-            return r
-    return None
-
-
 def recipe_for_case(case_id: str) -> dict | None:
+    """EXACT case-id binding: a recipe is applied only to the scenario it registers,
+    never to another scenario that merely shares the same SWE-bench instance."""
     for r in load()["recipes"]:
         if r["case_id"] == case_id:
             return r
     return None
 
 
-def parse_command(cmd: str) -> list[str]:
-    """Split a publisher command string into argv (POSIX). Leading VAR=val env
-    assignments (if any survive in a string) are NOT expected here -- recipe env
-    lives in recipe['env'] -- but we still strip any that appear, defensively."""
+def recipe_for_instance_debug(instance_id: str) -> list:
+    return [r["case_id"] for r in load()["recipes"] if r["instance_id"] == instance_id]
+
+
+def split_env(cmd: str) -> tuple[dict, list]:
+    """({ENV:val...}, argv) from a publisher command string. Leading upper-case
+    VAR=val tokens are environment assignments; the rest is argv."""
     parts = shlex.split(cmd)
-    argv = []
-    seen_cmd = False
+    env, argv, in_argv = {}, [], False
     for p in parts:
-        if not seen_cmd and "=" in p and p.split("=", 1)[0].isupper() and " " not in p:
-            continue  # a leading ENV=val assignment; env is carried in recipe['env']
-        seen_cmd = True
-        argv.append(p)
-    return argv
+        if not in_argv and "=" in p and p.split("=", 1)[0].isupper() and "/" not in p.split("=", 1)[0]:
+            k, v = p.split("=", 1)
+            env[k] = v
+        else:
+            in_argv = True
+            argv.append(p)
+    return env, argv
 
 
-def fixture_path(name: str) -> Path:
-    return FIX / name
+def parse_command(cmd: str) -> list[str]:
+    return split_env(cmd)[1]
+
+
+def source_path(rel: str) -> Path:
+    return SRC / rel
 
 
 def registry_sha256() -> str:

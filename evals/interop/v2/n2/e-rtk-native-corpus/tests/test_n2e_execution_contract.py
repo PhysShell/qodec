@@ -68,20 +68,35 @@ class TestContract(unittest.TestCase):
 
 
 class TestPublisherRegistry(unittest.TestCase):
-    def test_registry_verifies(self):
+    def test_registry_verifies_against_source(self):
         ok, msg = VP.verify()
         self.assertTrue(ok, msg)
 
     def test_recipe_lookup_and_toolchain(self):
-        r = pub.recipe_for("tokio-rs__tokio-4384")
+        r = pub.recipe_for_case("tokio-rs__tokio-4384::rust_cargo::test::fixed")
+        self.assertEqual(r["toolchain"]["kind"], "rust")
         self.assertEqual(r["toolchain"]["version"], "1.83")
-        self.assertEqual(r["lockfile"]["sha256"],
-                         "6f7401a1c6c2690bc5b48d54b1be4a87a443252febe89ccc74ac4e9e65f38dba")
-        self.assertIsNone(pub.recipe_for("gin-gonic__gin-2755"))  # vet case: no test recipe
+        self.assertEqual(r["test_env"]["RUSTFLAGS"], "-Awarnings")
 
-    def test_parse_command_strips_env_prefix(self):
-        self.assertEqual(pub.parse_command("RUSTFLAGS=-Awarnings cargo test --package tokio"),
-                         ["cargo", "test", "--package", "tokio"])
+    def test_exact_case_binding_not_by_instance(self):
+        # tokio-rs__tokio-4384 has TWO frozen scenarios; only the registered rust test
+        # case gets the recipe -- the git::add scenario sharing the instance must not.
+        self.assertIsNotNone(pub.recipe_for_case("tokio-rs__tokio-4384::rust_cargo::test::fixed"))
+        self.assertIsNone(pub.recipe_for_case("tokio-rs__tokio-4384::git::add"))
+        r = resolver.resolve(SCEN["tokio-rs__tokio-4384::git::add"])
+        self.assertNotEqual(r["resolution_rule"], "publisher_recipe")
+
+    def test_split_env_and_parse_command(self):
+        env, argv = pub.split_env("RUSTFLAGS=-Awarnings cargo test --package tokio")
+        self.assertEqual(env, {"RUSTFLAGS": "-Awarnings"})
+        self.assertEqual(argv, ["cargo", "test", "--package", "tokio"])
+        self.assertEqual(pub.parse_command("go test -v . -run X"), ["go", "test", "-v", ".", "-run", "X"])
+
+    def test_recipes_extracted_from_pinned_source(self):
+        # provenance: every recipe carries the pinned source-file blob id + sha256
+        for r in pub.load()["recipes"]:
+            self.assertRegex(r["source"]["git_blob_sha1"], r"^[0-9a-f]{40}$")
+            self.assertRegex(r["source"]["sha256"], r"^[0-9a-f]{64}$")
 
 
 if __name__ == "__main__":
