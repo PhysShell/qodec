@@ -1,0 +1,117 @@
+{
+  "dialects_still_fail_closed": [
+    "jvm",
+    "js_ts",
+    "python"
+  ],
+  "generated_by": "evals/interop/v2/n2/e-rtk-native-corpus/tools/build_n2e_ecosystem_rtk_seed.py",
+  "mission": "N2-E",
+  "mission_title": "external RTK-native claim-aligned command corpus",
+  "note": "jvm (lucene) is RAW_REJECTED in this run (RAW non-deterministic): no jvm RTK stream captured; the jvm blocker here is RAW determinism, not only the dialect.",
+  "provenance": {
+    "js_ts": {
+      "artifact_id": "8428324270",
+      "artifact_name": "case-11"
+    },
+    "jvm": {
+      "artifact_id": "8428364189",
+      "artifact_name": "case-0"
+    },
+    "python": {
+      "artifact_id": "8428318715",
+      "artifact_name": "case-1"
+    }
+  },
+  "purpose": "Characterize the real per-ecosystem RTK streams from non-acceptance run 29639560535 to seed the JVM/JS/Python RTK dialect proofs. Proves NO dialect and admits NO case -- those RTK arms remain fail-closed until a dialect is proven from pinned RTK source + real fixtures.",
+  "record_sha256": "sha256:c2b3de61ad2acbe2b234ad1fb4dae7e506cd7f9c49798cd7fa1c891af8393589",
+  "record_type": "n2e-ecosystem-rtk-dialect-seed",
+  "record_version": "v1",
+  "run_id": "29639560535",
+  "schema_version": "n2e-record-1",
+  "seeds": [
+    {
+      "case_id": "bugsinpy::scrapy-9::python::pytest::fixed",
+      "case_record_self_hash_ok": true,
+      "case_record_sha256": "sha256:ae0f0081be7e2ae55bd864f890167ce502734fd5e82f1c9c076ef27f5f405009",
+      "family": "python",
+      "observed_rtk_grammar_sample": [
+        "Pytest: 6 passed"
+      ],
+      "overall_status": "RTK_REJECTED",
+      "raw_stream": {
+        "content_sha256": [
+          "865efe963e7a8f07b97b1a742ca8ac60bdde4285d1e15bbf5669810c2037da7b",
+          "865efe963e7a8f07b97b1a742ca8ac60bdde4285d1e15bbf5669810c2037da7b",
+          "865efe963e7a8f07b97b1a742ca8ac60bdde4285d1e15bbf5669810c2037da7b"
+        ],
+        "deterministic": true,
+        "reps": 3
+      },
+      "rtk_oracle_fail_closed_reason": "no proven RTK dialect for family 'python' -- fail-closed (do not reuse the Go parser)",
+      "rtk_stream": {
+        "content_sha256": [
+          "8be4d1929f65ff74921c87ee607f1586974a531f49a7ae70e4dd079ea94442cd",
+          "8be4d1929f65ff74921c87ee607f1586974a531f49a7ae70e4dd079ea94442cd",
+          "8be4d1929f65ff74921c87ee607f1586974a531f49a7ae70e4dd079ea94442cd"
+        ],
+        "deterministic": true,
+        "reps": 3
+      },
+      "rtk_stream_present": true
+    },
+    {
+      "case_id": "vuejs__core-11589::js_ts::test::buggy",
+      "case_record_self_hash_ok": true,
+      "case_record_sha256": "sha256:3917d7b749d454192a7966f1fdfe19ed03152a6d70e4059f55b4ea3b31a0289f",
+      "family": "js_ts",
+      "observed_rtk_grammar_sample": [
+        " \u00d7 packages/runtime-core/__tests__/apiWatch.spec.ts > api: watch > should be executed correctly",
+        " Test Files  1 failed (1)",
+        "      Tests  1 failed | 78 passed (79)",
+        "\u2009ELIFECYCLE\u2009 Test failed. See above for more details.",
+        "\u23af\u23af\u23af\u23af\u23af\u23af\u23af Failed Tests 1 \u23af\u23af\u23af\u23af\u23af\u23af\u23af",
+        " FAIL  packages/runtime-core/__tests__/apiWatch.spec.ts > api: watch > should be executed correctly"
+      ],
+      "overall_status": "RTK_REJECTED",
+      "raw_stream": {
+        "content_sha256": [
+          "5e4b47936b20134d8488af698fb47aa6f08637cb9b62c259c12fee125996022c",
+          "5e4b47936b20134d8488af698fb47aa6f08637cb9b62c259c12fee125996022c",
+          "5e4b47936b20134d8488af698fb47aa6f08637cb9b62c259c12fee125996022c"
+        ],
+        "deterministic": true,
+        "reps": 3
+      },
+      "rtk_oracle_fail_closed_reason": "no proven RTK dialect for family 'js_ts' -- fail-closed (do not reuse the Go parser)",
+      "rtk_stream": {
+        "content_sha256": [
+          "5e4b47936b20134d8488af698fb47aa6f08637cb9b62c259c12fee125996022c",
+          "5e4b47936b20134d8488af698fb47aa6f08637cb9b62c259c12fee125996022c",
+          "5e4b47936b20134d8488af698fb47aa6f08637cb9b62c259c12fee125996022c"
+        ],
+        "deterministic": true,
+        "reps": 3
+      },
+      "rtk_stream_present": true
+    },
+    {
+      "case_id": "apache__lucene-13704::jvm::test::buggy",
+      "case_record_self_hash_ok": true,
+      "case_record_sha256": "sha256:652fafbb7bcad563b6d2db2baee411d0a5311316156e6cb334f4bd1e45dedb63",
+      "family": "jvm",
+      "overall_status": "RAW_REJECTED",
+      "raw_stream": {
+        "content_sha256": [
+          "4665c63afbb2e7ace7ff41ffb2f01950404912eebae6b3d582ccf8faa3e2bc2e",
+          "a7bde0a20d2b95393d03f16d73674092e28baed0d9e46d63af3be4708d868f02",
+          "8364dc40cc93d8dc2fae0615fa067b751d48cd4686ad42e8da91d5912785e0e4"
+        ],
+        "deterministic": false,
+        "reps": 3
+      },
+      "rtk_oracle_fail_closed_reason": null,
+      "rtk_stream": null,
+      "rtk_stream_present": false
+    }
+  ]
+}

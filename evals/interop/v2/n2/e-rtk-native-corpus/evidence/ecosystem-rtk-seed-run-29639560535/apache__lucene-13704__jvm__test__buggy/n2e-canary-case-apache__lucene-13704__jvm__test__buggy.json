@@ -1,0 +1,822 @@
+{
+  "acquisition": {
+    "applied_patches": [
+      {
+        "apply_exit": 0,
+        "apply_stderr": "",
+        "name": "test_patch",
+        "sha256": "020c5fcc4dd9fedf0d72c5478e4d466aa1044270996fdbd58b5fe7c356a206b7"
+      }
+    ],
+    "base_commit": "ce4f56e74ad1087df8bdc019fc09d1b40438e8b3",
+    "environment_identity": {
+      "acquisition_order": {
+        "applied_patches": [
+          {
+            "apply_exit": 0,
+            "apply_stderr": "",
+            "name": "test_patch",
+            "sha256": "020c5fcc4dd9fedf0d72c5478e4d466aa1044270996fdbd58b5fe7c356a206b7"
+          }
+        ],
+        "base_commit": "ce4f56e74ad1087df8bdc019fc09d1b40438e8b3",
+        "boundaries": [
+          {
+            "label": "base",
+            "protected": {
+              "build.gradle": "d25c6b99241bb67e895016fd975e5abbe098f9179da6dbc72ac5d3b3c6613218",
+              "build.gradle.kts": null,
+              "gradle.lockfile": null,
+              "pom.xml": null,
+              "settings.gradle": "32678d26e4be80d5eb841de05509b7c57ceda2a75c6bc358c3607b55bc0f780f"
+            },
+            "tracked_status": [],
+            "worktree_diff_bytes": 0,
+            "worktree_diff_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+          },
+          {
+            "label": "pre_install",
+            "protected": {
+              "build.gradle": "d25c6b99241bb67e895016fd975e5abbe098f9179da6dbc72ac5d3b3c6613218",
+              "build.gradle.kts": null,
+              "gradle.lockfile": null,
+              "pom.xml": null,
+              "settings.gradle": "32678d26e4be80d5eb841de05509b7c57ceda2a75c6bc358c3607b55bc0f780f"
+            },
+            "tracked_status": [
+              " M gradle/testing/defaults-tests.gradle"
+            ],
+            "worktree_diff_bytes": 2052,
+            "worktree_diff_sha256": "bbc32419f9583e83878e2c4fa7a4625cbccce57180c274d8e3447a1e1c4e7bcb"
+          },
+          {
+            "label": "install_warm",
+            "protected": {
+              "build.gradle": "d25c6b99241bb67e895016fd975e5abbe098f9179da6dbc72ac5d3b3c6613218",
+              "build.gradle.kts": null,
+              "gradle.lockfile": null,
+              "pom.xml": null,
+              "settings.gradle": "32678d26e4be80d5eb841de05509b7c57ceda2a75c6bc358c3607b55bc0f780f"
+            },
+            "tracked_status": [
+              " M gradle/testing/defaults-tests.gradle"
+            ],
+            "worktree_diff_bytes": 2052,
+            "worktree_diff_sha256": "bbc32419f9583e83878e2c4fa7a4625cbccce57180c274d8e3447a1e1c4e7bcb"
+          },
+          {
+            "base_commit": "ce4f56e74ad1087df8bdc019fc09d1b40438e8b3",
+            "gold_files": [],
+            "label": "test_files_reset",
+            "protected": {
+              "build.gradle": "d25c6b99241bb67e895016fd975e5abbe098f9179da6dbc72ac5d3b3c6613218",
+              "build.gradle.kts": null,
+              "gradle.lockfile": null,
+              "pom.xml": null,
+              "settings.gradle": "32678d26e4be80d5eb841de05509b7c57ceda2a75c6bc358c3607b55bc0f780f"
+            },
+            "reset_failed": [],
+            "reset_from_commit": "ce4f56e74ad1087df8bdc019fc09d1b40438e8b3",
+            "reset_paths": [
+              "lucene/test-framework/src/java/org/apache/lucene/tests/geo/BaseGeoPointTestCase.java"
+            ],
+            "test_patch_files": [
+              "lucene/test-framework/src/java/org/apache/lucene/tests/geo/BaseGeoPointTestCase.java"
+            ],
+            "test_patch_files_existing_at_base": [
+              "lucene/test-framework/src/java/org/apache/lucene/tests/geo/BaseGeoPointTestCase.java"
+            ],
+            "tracked_status": [
+              " M gradle/testing/defaults-tests.gradle"
+            ],
+            "worktree_diff_bytes": 2052,
+            "worktree_diff_sha256": "bbc32419f9583e83878e2c4fa7a4625cbccce57180c274d8e3447a1e1c4e7bcb"
+          },
+          {
+            "applied": true,
+            "label": "test_patch",
+            "patch_sha256": "020c5fcc4dd9fedf0d72c5478e4d466aa1044270996fdbd58b5fe7c356a206b7",
+            "protected": {
+              "build.gradle": "d25c6b99241bb67e895016fd975e5abbe098f9179da6dbc72ac5d3b3c6613218",
+              "build.gradle.kts": null,
+              "gradle.lockfile": null,
+              "pom.xml": null,
+              "settings.gradle": "32678d26e4be80d5eb841de05509b7c57ceda2a75c6bc358c3607b55bc0f780f"
+            },
+            "tracked_status": [
+              " M gradle/testing/defaults-tests.gradle",
+              " M lucene/test-framework/src/java/org/apache/lucene/tests/geo/BaseGeoPointTestCase.java"
+            ],
+            "worktree_diff_bytes": 4341,
+            "worktree_diff_sha256": "439e4ee93702f22c8f2302504d4f0b2e7bee849802aae3d9d22cf5c03b51a8d8"
+          }
+        ],
+        "canonical_sequence": [
+          "base",
+          "pre_install",
+          "install_warm",
+          "test_files_reset",
+          "test_patch"
+        ],
+        "gold_applied": false,
+        "gold_files": [],
+        "install": {
+          "locked": false,
+          "ran": false,
+          "steps": []
+        },
+        "invariant": "publisher --locked install runs on the pristine manifest; gold patch applied only afterwards; the test_patch-owned files are reset to base_commit (discarding gold edits to them) BEFORE test_patch, then measured.",
+        "policy_id": "publisher-acquisition-order-v1",
+        "snapshot_variant": "buggy",
+        "test_applied": true,
+        "test_files_reset": {
+          "existing_at_base": [
+            "lucene/test-framework/src/java/org/apache/lucene/tests/geo/BaseGeoPointTestCase.java"
+          ],
+          "reset_failed": [],
+          "reset_from_commit": "ce4f56e74ad1087df8bdc019fc09d1b40438e8b3",
+          "reset_paths": [
+            "lucene/test-framework/src/java/org/apache/lucene/tests/geo/BaseGeoPointTestCase.java"
+          ]
+        },
+        "test_patch_files": [
+          "lucene/test-framework/src/java/org/apache/lucene/tests/geo/BaseGeoPointTestCase.java"
+        ]
+      },
+      "construction": {
+        "baseline_tracked_status": [
+          " M gradle/testing/defaults-tests.gradle",
+          " M lucene/test-framework/src/java/org/apache/lucene/tests/geo/BaseGeoPointTestCase.java"
+        ],
+        "pre_install": [
+          "sed -i '\n/testLogging {/,/}/{\n  /testLogging {/r /dev/stdin\n  d\n}\n' gradle/testing/defaults-tests.gradle << 'EOF'\ntestLogging {\n  showStandardStreams = true\n  // set options for log level LIFECYCLE\n  events TestLogEvent.FAILED,\n         TestLogEvent.PASSED,\n         TestLogEvent.SKIPPED,\n         TestLogEvent.STANDARD_OUT\n  exceptionFormat TestExceptionFormat.FULL\n  showExceptions true\n  showCauses true\n  showStackTraces true\n\n  // set options for log level DEBUG and INFO\n  debug {\n      events TestLogEvent.STARTED,\n             TestLogEvent.FAILED,\n             TestLogEvent.PASSED,\n             TestLogEvent.SKIPPED,\n             TestLogEvent.STANDARD_ERROR,\n             TestLogEvent.STANDARD_OUT\n      exceptionFormat TestExceptionFormat.FULL\n  }\n  info.events = debug.events\n  info.exceptionFormat = debug.exceptionFormat\n\n  afterSuite { desc, result ->\n      if (!desc.parent) { // will match the outermost suite\n          def output = \"Results: ${result.resultType} (${result.testCount} tests, ${result.successfulTestCount} passed, ${result.failedTestCount} failed, ${result.skippedTestCount} skipped)\"\n          def startItem = '|  ', endItem = '  |'\n          def repeatLength = startItem.length() + output.length() + endItem.length()\n          println('\\n' + ('-' * repeatLength) + '\\n' + startItem + output + endItem + '\\n' + ('-' * repeatLength))\n      }\n  }\n}\nEOF"
+        ],
+        "publisher_recipe": "SPECS_LUCENE[13704]"
+      },
+      "dependencies": {
+        "after_acquisition": {
+          "build.gradle": "d25c6b99241bb67e895016fd975e5abbe098f9179da6dbc72ac5d3b3c6613218",
+          "build.gradle.kts": null,
+          "gradle.lockfile": null,
+          "pom.xml": null,
+          "settings.gradle": "32678d26e4be80d5eb841de05509b7c57ceda2a75c6bc358c3607b55bc0f780f"
+        },
+        "after_install_warm": {
+          "build.gradle": "d25c6b99241bb67e895016fd975e5abbe098f9179da6dbc72ac5d3b3c6613218",
+          "build.gradle.kts": null,
+          "gradle.lockfile": null,
+          "pom.xml": null,
+          "settings.gradle": "32678d26e4be80d5eb841de05509b7c57ceda2a75c6bc358c3607b55bc0f780f"
+        },
+        "committed_mutated": [],
+        "mutation_guard_ok": true,
+        "pristine_pre_install": {
+          "build.gradle": "d25c6b99241bb67e895016fd975e5abbe098f9179da6dbc72ac5d3b3c6613218",
+          "build.gradle.kts": null,
+          "gradle.lockfile": null,
+          "pom.xml": null,
+          "settings.gradle": "32678d26e4be80d5eb841de05509b7c57ceda2a75c6bc358c3607b55bc0f780f"
+        },
+        "protected_files": [
+          "build.gradle",
+          "build.gradle.kts",
+          "settings.gradle",
+          "gradle.lockfile",
+          "pom.xml"
+        ]
+      },
+      "platform": {
+        "machine": "x86_64",
+        "system": "Linux",
+        "uname": "Linux-6.17.0-1020-azure-x86_64-with-glibc2.39"
+      },
+      "publisher": {
+        "case_id": "apache__lucene-13704::jvm::test::buggy",
+        "install": [],
+        "recipe_spec": "SPECS_LUCENE[13704]",
+        "registry_sha256": "sha256:8cdf9ca1cf9434f0210b144b22946065037fb485e36040eab580c256da324d96",
+        "source": {
+          "file": "java.py",
+          "git_blob_sha1": "29a73dee8e538fa71fbda78ad34d9ff2977ee74d",
+          "sha256": "1d61ba16d37ed644fcaecff4707623c8dffd932c729c1a77b63811ee244eba1c",
+          "spec_dict": "SPECS_LUCENE",
+          "spec_key": "13704"
+        },
+        "test_cmd": [
+          "./gradlew test --tests org.apache.lucene.search.TestLatLonDocValuesQueries"
+        ],
+        "toolchain": {
+          "build": "gradle_wrapper",
+          "docker_specs": {
+            "java_version": "21"
+          },
+          "kind": "java",
+          "version": "21"
+        }
+      },
+      "toolchain": {
+        "gradlew_or_mvn": {
+          "kind": "gradle-wrapper",
+          "path": "/home/runner/work/_temp/n2e-case-lt2lg12c/repo/gradlew",
+          "present": true,
+          "sha256": "fcd0fe684623b73d79454ede0834762ac7b547ef5291ca32c7691b2251406f32",
+          "version": "https\\://services.gradle.org/distributions/gradle-8.10-bin.zip",
+          "wrapper_jar_sha256": "2db75c40782f5e8ba1fc278a5574bab070adccb2d21ca5a6e5ed840888448046",
+          "wrapper_properties_sha256": "2caec011a749b18ab9a7dea68bf7639a179a3b8316b0e35655d0a62a1d7390fd"
+        },
+        "java": {
+          "path": "/opt/n2e-jdk/bin/java",
+          "present": true,
+          "sha256": "b1b0a09aaa036695716c829cd7c5213ea055eecd475d1462020330e251b717b2",
+          "version": "openjdk version \"21.0.11\" 2026-04-21 LTS\nOpenJDK Runtime Environment Temurin-21.0.11+10 (build 21.0.11+10-LTS)\nOpenJDK 64-Bit Server VM Temurin-21.0.11+10 (build 21.0.11+10-LTS, mixed mode, sharing)"
+        }
+      },
+      "toolchain_pin": {
+        "build": "gradle_wrapper",
+        "docker_specs": {
+          "java_version": "21"
+        },
+        "kind": "java",
+        "version": "21"
+      },
+      "warm_commands": [
+        {
+          "cmd": [
+            "bash",
+            "-c",
+            "sed -i '\n/testLogging {/,/}/{\n  /testLogging {/r /dev/stdin\n  d\n}\n' gradle/testing/defaults-tests.gradle << 'EOF'\ntestLogging {\n  showStandardStreams = true\n  // set options for log level LIFECYCLE\n  events TestLogEvent.FAILED,\n         TestLogEvent.PASSED,\n         TestLogEvent.SKIPPED,\n         TestLogEvent.STANDARD_OUT\n  exceptionFormat TestExceptionFormat.FULL\n  showExceptions true\n  showCauses true\n  showStackTraces true\n\n  // set options for log level DEBUG and INFO\n  debug {\n      events TestLogEvent.STARTED,\n             TestLogEvent.FAILED,\n             TestLogEvent.PASSED,\n             TestLogEvent.SKIPPED,\n             TestLogEvent.STANDARD_ERROR,\n             TestLogEvent.STANDARD_OUT\n      exceptionFormat TestExceptionFormat.FULL\n  }\n  info.events = debug.events\n  info.exceptionFormat = debug.exceptionFormat\n\n  afterSuite { desc, result ->\n      if (!desc.parent) { // will match the outermost suite\n          def output = \"Results: ${result.resultType} (${result.testCount} tests, ${result.successfulTestCount} passed, ${result.failedTestCount} failed, ${result.skippedTestCount} skipped)\"\n          def startItem = '|  ', endItem = '  |'\n          def repeatLength = startItem.length() + output.length() + endItem.length()\n          println('\\n' + ('-' * repeatLength) + '\\n' + startItem + output + endItem + '\\n' + ('-' * repeatLength))\n      }\n  }\n}\nEOF"
+          ],
+          "exit": 0,
+          "kind": "pre_install"
+        },
+        {
+          "cmd": [
+            "./gradlew",
+            "test",
+            "--tests",
+            "org.apache.lucene.search.TestLatLonDocValuesQueries",
+            "-Ptests.seed=965304069726D5D6",
+            "-Ptests.jvms=1",
+            "--no-daemon",
+            "-Dorg.gradle.vfs.watch=false"
+          ],
+          "exit": 1,
+          "kind": "warm_prime"
+        }
+      ]
+    },
+    "home_local": true,
+    "identity_verified": true,
+    "instance_id": "apache__lucene-13704",
+    "jvm_proof_class": "org.apache.lucene.search.TestLatLonDocValuesQueries",
+    "offline_env": {
+      "GRADLE_USER_HOME": "/home/runner/work/_temp/n2e-fixedwork/.n2e-gradle-home",
+      "JAVA_HOME": "/opt/n2e-jdk"
+    },
+    "phase_a_scenario_ingestion_defect": {
+      "frozen_original_argv": [
+        "mvn",
+        "test"
+      ],
+      "publisher_recipe": "SPECS_LUCENE[13704]",
+      "publisher_source": {
+        "file": "java.py",
+        "git_blob_sha1": "29a73dee8e538fa71fbda78ad34d9ff2977ee74d",
+        "sha256": "1d61ba16d37ed644fcaecff4707623c8dffd932c729c1a77b63811ee244eba1c",
+        "spec_dict": "SPECS_LUCENE",
+        "spec_key": "13704"
+      },
+      "publisher_test_argv": [
+        "./gradlew",
+        "test",
+        "--tests",
+        "org.apache.lucene.search.TestLatLonDocValuesQueries"
+      ],
+      "resolution": "publisher recipe is normative; effective command derived from n2e-publisher-env-registry-v1.json, not the frozen argv",
+      "typed_defect": "SCENARIO_INGESTION_WRONG_WORKLOAD"
+    },
+    "policy": "gradle-test-v1",
+    "pristine_checkout_protected": {
+      "build.gradle": "d25c6b99241bb67e895016fd975e5abbe098f9179da6dbc72ac5d3b3c6613218",
+      "build.gradle.kts": null,
+      "gradle.lockfile": null,
+      "pom.xml": null,
+      "settings.gradle": "32678d26e4be80d5eb841de05509b7c57ceda2a75c6bc358c3607b55bc0f780f"
+    },
+    "publisher_case_id": "apache__lucene-13704::jvm::test::buggy",
+    "publisher_recipe": "SPECS_LUCENE[13704]",
+    "repository": "apache/lucene",
+    "resolved_raw_argv": [
+      "./gradlew",
+      "test",
+      "--tests",
+      "org.apache.lucene.search.TestLatLonDocValuesQueries",
+      "-Ptests.seed=965304069726D5D6",
+      "-Ptests.jvms=1",
+      "--offline",
+      "--no-daemon",
+      "-Dorg.gradle.vfs.watch=false"
+    ],
+    "resolved_rtk_argv": [
+      "rtk",
+      "./gradlew",
+      "test",
+      "--tests",
+      "org.apache.lucene.search.TestLatLonDocValuesQueries",
+      "-Ptests.seed=965304069726D5D6",
+      "-Ptests.jvms=1",
+      "--offline",
+      "--no-daemon",
+      "-Dorg.gradle.vfs.watch=false"
+    ],
+    "warm": {
+      "execution_control": {
+        "arg": "-Ptests.seed=965304069726D5D6",
+        "args": [
+          "-Ptests.seed=965304069726D5D6",
+          "-Ptests.jvms=1"
+        ],
+        "derivation": "sha256(lucene-randomized-seed-v1+selection_seed+case_id)[:16].upper()",
+        "flag": "-Ptests.seed",
+        "policy_id": "lucene-randomized-seed-v1",
+        "seed": "965304069726D5D6",
+        "selection_seed": "20260717",
+        "single_jvm": "-Ptests.jvms=1"
+      },
+      "gradle_offline_policy": {
+        "args": [
+          "--offline",
+          "--no-daemon",
+          "-Dorg.gradle.vfs.watch=false"
+        ],
+        "gradle_user_home_isolation": "per-repetition fresh copy of a frozen GRADLE_USER_HOME cache seed at a stable per-rep path; no shared mutable home; the seed is sanitized of daemon / journal / *.lock / task-history / test-output before the reps",
+        "per_rep_execution_proof": "each rep's output must show the target test task actually EXECUTED (not UP-TO-DATE / FROM-CACHE / NO-SOURCE / SKIPPED); otherwise the case is DISQUALIFIED_OFFLINE_EXECUTION, never a silent pass",
+        "policy_id": "gradle-offline-isolation-v1"
+      },
+      "gradle_seed_sanitized_removed": [
+        "daemon",
+        "notifications",
+        ".tmp",
+        "workers",
+        "caches/journal-1",
+        "native/100fb08df4bc3b14c8652ba06237920a3bd2aa13389f12d3474272988ae205f9/linux-amd64/libnative-platform-file-events.so.lock",
+        "native/c067742578af261105cb4f569cf0c3c89f3d7b1fecec35dd04571415982c5e48/linux-amd64-ncurses6/libnative-platform-curses.so.lock",
+        "native/c067742578af261105cb4f569cf0c3c89f3d7b1fecec35dd04571415982c5e48/linux-amd64-ncurses5/libnative-platform-curses.so.lock",
+        "native/c067742578af261105cb4f569cf0c3c89f3d7b1fecec35dd04571415982c5e48/linux-amd64/libnative-platform.so.lock",
+        "caches/user-id.txt.lock",
+        "caches/jars-9/jars-9.lock",
+        "caches/jars-9/0709e0cb22e37d81bb904c5319bc1d33/cp_dsl.lock.lock",
+        "caches/jars-9/af52de69fef069d52ba15addf66d9dda/proj.lock.lock",
+        "caches/jars-9/c9e356f0d9b9e6059896b2173851ee67/cp_dsl.lock.lock",
+        "caches/jars-9/5acdd775348f3ae034fd666c1e8e2f2a/dsl.lock.lock",
+        "caches/jars-9/57027898a4ef6eb7ad8035cb81f20f13/cp_proj.lock.lock",
+        "caches/jars-9/200b39e767a8d4ab5102da5d2da220c3/cp_proj.lock.lock",
+        "caches/jars-9/d4c5d6174b8b3fd957bb6ec975f05ff4/cp_proj.lock.lock",
+        "caches/jars-9/d471e5fd8c4672612bfe6d7a54be4eb8/cp_proj.lock.lock",
+        "caches/jars-9/9abf458551f9514eaa8b6d663e49a5fb/cp_dsl.lock.lock",
+        "caches/jars-9/067445293c2e0c4e903ed4a339655b20/dsl.lock.lock",
+        "caches/jars-9/8bf04dd6ba047538e2a3590a98ae7322/cp_dsl.lock.lock",
+        "caches/jars-9/144fa4c52caf9a5424a48616998684de/cp_proj.lock.lock",
+        "caches/jars-9/d203fc96baaa383f8a1303175a7451ca/dsl.lock.lock",
+        "caches/jars-9/92a0e6cf4ff36e6c6773bda7e2705849/proj.lock.lock",
+        "caches/jars-9/7190b6ab69a78c1303644f80a9ed9439/dsl.lock.lock",
+        "caches/jars-9/0a00a2b2e800d7eb4d30b0c0aa219627/dsl.lock.lock",
+        "caches/jars-9/78ae37fce6303da21f780fe8de35c75e/cp_proj.lock.lock",
+        "caches/jars-9/f4316d6a49b4d8ec4626e5464ff2ebd6/cp_dsl.lock.lock",
+        "caches/jars-9/b3e3313fbe4f494fe9b44224fc65fcd3/dsl.lock.lock",
+        "caches/jars-9/ce6744d93b3a76c1503dbfac44cd6ec2/cp_dsl.lock.lock",
+        "caches/jars-9/e40b0b333bab4568681509cd7b4653dd/cp_dsl.lock.lock",
+        "caches/jars-9/13ef8ff7400420189183bfc1a4cdd802/proj.lock.lock",
+        "caches/jars-9/a1071c4b0d3158907ef1da112123db32/proj.lock.lock",
+        "caches/jars-9/5fc36211e97796a908b14c92e11cdd34/dsl.lock.lock",
+        "caches/jars-9/f74f9aa14acd09bb2b30f620acc0681b/dsl.lock.lock",
+        "caches/jars-9/722d71891bf4bf0f10bcfe45adf2e3a3/cp_proj.lock.lock",
+        "caches/jars-9/21b4907cdf6abdbc62b7012d10679bcb/cp_dsl.lock.lock",
+        "caches/jars-9/452420328e343bbfdf00ebcb75b7924c/cp_dsl.lock.lock",
+        "caches/jars-9/52eea096ca2e14d2ab2443e7afab0921/dsl.lock.lock",
+        "caches/jars-9/15c831c22e123dfd72deb5f46144c59c/cp_dsl.lock.lock",
+        "caches/jars-9/41c54c527b84fecae800ed02ce7c94a9/cp_dsl.lock.lock",
+        "caches/jars-9/48ad6975a4dd8303f236b13f51e6a299/cp_settings.lock.lock",
+        "caches/jars-9/6a59380ab9e8d0647c0bc8a4e5b7cd19/dsl.lock.lock",
+        "caches/jars-9/1744bc3d0699e061136a5209b2f776d7/cp_proj.lock.lock",
+        "caches/jars-9/38c083fc8ef53838e4be27ac9ffc0416/cp_proj.lock.lock",
+        "caches/jars-9/1390ec278c8823f8eb64db771bebda2f/dsl.lock.lock",
+        "caches/jars-9/8d75a0ba8bb086fb2373e090b6437b82/cp_dsl.lock.lock",
+        "caches/jars-9/f51403ed0f02744b2cc7b00d575aa731/dsl.lock.lock",
+        "caches/jars-9/d60532688ecec1ea48458fff003521cd/cp_proj.lock.lock",
+        "caches/jars-9/db8bba6cde99f228c70a4ab3fb3ab2ce/dsl.lock.lock",
+        "caches/jars-9/4ffe60758f3e58ecdf326e8667865b1c/cp_proj.lock.lock",
+        "caches/jars-9/581197c1b19a8cdd4c349108922a4121/cp_dsl.lock.lock",
+        "caches/jars-9/e809d685dbc340cebc4b77564f9bcddd/cp_dsl.lock.lock",
+        "caches/jars-9/c242de8a73d3a7bf63cb0faa974d0423/dsl.lock.lock",
+        "caches/jars-9/9be66c3a14a58808378a673e3e1600d5/dsl.lock.lock",
+        "caches/jars-9/9740abbe313f04f0e9a1a5b3aed56001/proj.lock.lock",
+        "caches/jars-9/84695af36bb1744afabba86b8586cd58/cp_proj.lock.lock",
+        "caches/jars-9/187dcd05c36a4fdfda0c1be175c4670e/proj.lock.lock",
+        "caches/jars-9/8b86891170d29ef3c97ad38a1ea8b7a6/dsl.lock.lock",
+        "caches/jars-9/28edf8bdadc579de1ef7b9a76b4e809e/dsl.lock.lock",
+        "caches/jars-9/aaa53c48fd0cdb05fae0d18d0b7e86d4/cp_dsl.lock.lock",
+        "caches/jars-9/4aca091355ae5b1c486c0591c0d15269/cp_dsl.lock.lock",
+        "caches/jars-9/e8004442f27bb2d9ed785621d2f6040e/proj.lock.lock",
+        "caches/jars-9/0994566d931a89e8ebf820b28032a129/proj.lock.lock",
+        "caches/jars-9/64ec367c66b46e2a7c5e099807494c3c/dsl.lock.lock",
+        "caches/jars-9/212c7ea172eba128cb1d5b70d6662037/cp_dsl.lock.lock",
+        "caches/jars-9/4379e12a2ab522019b7b2b6a9f1518d3/dsl.lock.lock",
+        "caches/jars-9/d92791038d6b28e4e41fd5b409f0d59f/cp_dsl.lock.lock",
+        "caches/jars-9/fabbb802f9442e39bc2c59379b42c77d/dsl.lock.lock",
+        "caches/jars-9/7b4b125b3986f60e637694a14d6b5ee5/dsl.lock.lock",
+        "caches/jars-9/e31b3240377937bf461736a5ca912538/cp_dsl.lock.lock",
+        "caches/jars-9/8c761cbad14426a96f7d136e6b1b3ad4/dsl.lock.lock",
+        "caches/jars-9/39a47d6459db40c1db06276d7626e251/cp_dsl.lock.lock",
+        "caches/jars-9/589e605c5ef9504a27b6ac121ada50eb/dsl.lock.lock",
+        "caches/jars-9/d7016bbad1e9613f535587fe0a02fe41/dsl.lock.lock",
+        "caches/jars-9/7471e7e588fb1c1bf5e44b62385a2907/cp_dsl.lock.lock",
+        "caches/jars-9/c4a80e795ae6eb6363ae7fce9839f38a/cp_dsl.lock.lock",
+        "caches/jars-9/5700c69f405fce1eeee5fd8b5c586da6/proj.lock.lock",
+        "caches/jars-9/bd91840e77e93577d5c1e28c471a979e/cp_proj.lock.lock",
+        "caches/jars-9/4fde25c1eca9b5687f99e61e41233124/cp_dsl.lock.lock",
+        "caches/jars-9/977bdf60c1afb05700f4195e350fdefc/dsl.lock.lock",
+        "caches/jars-9/ce0bd0af8609b8119478ec1959148e39/dsl.lock.lock",
+        "caches/jars-9/18fadbf368bf315185cc0d48a1df3a93/cp_proj.lock.lock",
+        "caches/jars-9/998bd7dbd43f275d7d2e817ba1e91a8c/dsl.lock.lock",
+        "caches/jars-9/e865de9df74a19a7fd968e033799d021/dsl.lock.lock",
+        "caches/jars-9/9d5ffa5d082f6b9ca0eae5c6d5bba6e6/cp_dsl.lock.lock",
+        "caches/jars-9/6f37da12c41119527b95cd16a6d3df4f/cp_proj.lock.lock",
+        "caches/jars-9/3d382a82974173eb00d4dab24e3469fa/dsl.lock.lock",
+        "caches/jars-9/acae37238828319c75a99b41d76eb2ff/dsl.lock.lock",
+        "caches/jars-9/a78c37007a2ba062127f47dec4737b20/cp_dsl.lock.lock",
+        "caches/jars-9/0094c1ce15e0af1ba496c70e75f0be3f/dsl.lock.lock",
+        "caches/jars-9/854bc725e11f7c095aee9f59e8bbdb42/proj.lock.lock",
+        "caches/jars-9/0ef5f1facc6242ed443504b726b9a062/dsl.lock.lock",
+        "caches/jars-9/fe3db57b68e71fd5636dd585ada1cac6/cp_dsl.lock.lock",
+        "caches/jars-9/c4c3f796a2071c55cf56c4fcd9af5b72/proj.lock.lock",
+        "caches/jars-9/4e21207f03de4d99f564044d1c28069f/cp_dsl.lock.lock",
+        "caches/jars-9/e0c51cbf63ab8a5f11fe7f2fbd112e80/dsl.lock.lock",
+        "caches/jars-9/b878f758a5c2136bc113e70d19a025c7/cp_proj.lock.lock",
+        "caches/jars-9/133cbf1a7971bbe5662e2a390fa9d90b/cp_dsl.lock.lock",
+        "caches/jars-9/a129ee3cc51d543e802152bcea90352e/cp_proj.lock.lock",
+        "caches/jars-9/7eaa26b75f50a663217709dc8af64444/cp_dsl.lock.lock",
+        "caches/jars-9/e54ba89fe9eec4b490fab94caab73259/cp_dsl.lock.lock",
+        "caches/jars-9/8e98cf399a418049b0d482a08338a27b/proj.lock.lock",
+        "caches/jars-9/9201d1cd1e0c9bd5c5941fa2d6e3442e/proj.lock.lock",
+        "caches/jars-9/af364d9e151d00e9199a474b728ad89c/proj.lock.lock",
+        "caches/jars-9/a14ae4d1b9792d35dccd4911236eded0/proj.lock.lock",
+        "caches/jars-9/6425694aac5a91f9d7ae8be3adcb08f7/dsl.lock.lock",
+        "caches/jars-9/8061e30ecf86d288f28e58d9a0638f56/dsl.lock.lock",
+        "caches/jars-9/70e9f0fa71866a0835918dcf4a0aabf2/dsl.lock.lock",
+        "caches/jars-9/dd47e63d467f7dd91e2a546a936e8333/cp_proj.lock.lock",
+        "caches/jars-9/b1b85f78ed2acea6351d6d8325dad4ea/dsl.lock.lock",
+        "caches/jars-9/a00211895e21cd3476fab7aad31b071a/cp_proj.lock.lock",
+        "caches/jars-9/79550eddec3727ad7620e7c55817a07c/cp_dsl.lock.lock",
+        "caches/jars-9/c0efecc3f68059afb754156841a77a9a/dsl.lock.lock",
+        "caches/jars-9/80a9e0ec18b56e86b87cbbdcc08ec1a7/dsl.lock.lock",
+        "caches/jars-9/8f0833ff89acf00a4c42892da9ca630f/settings.lock.lock",
+        "caches/jars-9/8c7be39a21b4ee4dbff57ef3955e8b6c/proj.lock.lock",
+        "caches/jars-9/932192e99849c960dfc31a5c0d9c08f3/cp_dsl.lock.lock",
+        "caches/jars-9/6994b3e0752e294f8cfacabf87444c4a/cp_proj.lock.lock",
+        "caches/jars-9/5b6ded93f1923fa3fb71c92a47d62fb6/cp_dsl.lock.lock",
+        "caches/jars-9/4db000521d56cab770329b8939d2e4d4/cp_dsl.lock.lock",
+        "caches/jars-9/031dfef975d10429a80cba5b0b3f09c1/proj.lock.lock",
+        "caches/jars-9/5e2e9c8943a9379581f6584c6367caf7/cp_proj.lock.lock",
+        "caches/jars-9/2c1c0ed4542c81a7356aa7ed6d747ce8/cp_dsl.lock.lock",
+        "caches/jars-9/06d49b7ef3918251c4717f6e93722139/cp_proj.lock.lock",
+        "caches/jars-9/1a66a99626b3cc0d84538b416c942cfe/cp_dsl.lock.lock",
+        "caches/jars-9/4d79e2c3fbb3f0acd41715fa1a27ab3b/dsl.lock.lock",
+        "caches/jars-9/5316d1032cea9241db1b8f67db8fa150/proj.lock.lock",
+        "caches/jars-9/99aaa38bf2eb8e3786ac5d59d677d5da/proj.lock.lock",
+        "caches/jars-9/cec30fad20eecc7013acbc0dca84a7cb/cp_dsl.lock.lock",
+        "caches/jars-9/c6221ef36a166e635db0fa53ce742945/cp_dsl.lock.lock",
+        "caches/jars-9/6eba3f28bc19641bbcb5076e10dba980/cp_proj.lock.lock",
+        "caches/jars-9/af610dc512a03ba37b6a965324a83737/dsl.lock.lock",
+        "caches/jars-9/fe933466d157bb0667f4eb50d2e2536a/proj.lock.lock",
+        "caches/jars-9/dc9c1f44c39213e38b7eb35a17795a61/cp_dsl.lock.lock",
+        "caches/jars-9/1068dde1a6fba8ec88afe061898c5bb8/dsl.lock.lock",
+        "caches/jars-9/d124f2595e171f888a9f759016e18dc7/cp_dsl.lock.lock",
+        "caches/jars-9/cf9b9a399df968b935ff1d8a4f8fa130/cp_proj.lock.lock",
+        "caches/jars-9/958f10ada601b5055619441e23198aa7/dsl.lock.lock",
+        "caches/jars-9/de885951a52deb8e8cdcd2ca214a855d/proj.lock.lock",
+        "caches/jars-9/b3ad00d40af1edd46edf5313852c49c3/dsl.lock.lock",
+        "caches/jars-9/3160cd52296ecc9f3b597ac5855e0a61/cp_proj.lock.lock",
+        "caches/jars-9/8c08bf4c7b0f5ed1959293008126a16e/cp_proj.lock.lock",
+        "caches/jars-9/3e3607a01f1b462da5196ea0c1ed0d06/cp_dsl.lock.lock",
+        "caches/jars-9/8a2ad61bb22bceee93974d888b28c3af/proj.lock.lock",
+        "caches/jars-9/776ece1e391cc98508fa7bf80c56c33b/cp_dsl.lock.lock",
+        "caches/jars-9/fef8be25bca5e42db1b888a7f33601b3/proj.lock.lock",
+        "caches/jars-9/5cf3dab623c93d90bedc7fa7db8e7631/cp_dsl.lock.lock",
+        "caches/jars-9/4501a0fb28d101f9f9f22c5ec4c75ce5/cp_dsl.lock.lock",
+        "caches/jars-9/da728aa03f78cfd09a9632b5228a56ba/cp_dsl.lock.lock",
+        "caches/jars-9/63458ba33753eb6db1e93370e5041ba8/dsl.lock.lock",
+        "caches/jars-9/8d42a8518d47b9caa0b374f0578482ea/cp_settings.lock.lock",
+        "caches/jars-9/4a654763ae23170539fae34af5c0d722/cp_dsl.lock.lock",
+        "caches/jars-9/06a30222782db2065fcfb27f2b7c339c/dsl.lock.lock",
+        "caches/jars-9/4adc448067680432739c70938d7ad63c/dsl.lock.lock",
+        "caches/jars-9/ece1d3a6dba56aa30533ca0a7cfb6a86/cp_dsl.lock.lock",
+        "caches/jars-9/4fa255618ef41fa1ea7a3faeb0c03283/dsl.lock.lock",
+        "caches/jars-9/18ca908f897581cb5436d9f8e680ae27/cp_proj.lock.lock",
+        "caches/jars-9/3e4e8bac221975c3f90d4d3b8591a989/cp_dsl.lock.lock",
+        "caches/jars-9/3e23606f333252d8ffed81e75cbe0222/dsl.lock.lock",
+        "caches/jars-9/dc9426488b29eb011dd629829b0ef976/cp_dsl.lock.lock",
+        "caches/jars-9/4afaba1ea6fc519120ec2282cf951a10/cp_proj.lock.lock",
+        "caches/jars-9/a3bdf092e15ba6745035114997d52bd9/proj.lock.lock",
+        "caches/jars-9/e2ac69922b8152287501eb271d54eb52/dsl.lock.lock",
+        "caches/jars-9/2baaea272ebe813d411652f2b3d5b34d/cp_dsl.lock.lock",
+        "caches/jars-9/b0007674b14736158d3063d4169dec91/dsl.lock.lock",
+        "caches/jars-9/0a3052347c8971040bca47d817ac6aee/cp_dsl.lock.lock",
+        "caches/jars-9/413d55c26e092e60bd1a02df26b2e905/dsl.lock.lock",
+        "caches/jars-9/f215e33df2bc387101469c11444754d8/cp_proj.lock.lock",
+        "caches/jars-9/e49f1c8987082a2111fccacd8deefc19/dsl.lock.lock",
+        "caches/jars-9/0eae9a9a6956c280c23242af0fb56aee/cp_proj.lock.lock",
+        "caches/jars-9/eee3a18864a672d2c2eb53ca46766ce0/proj.lock.lock",
+        "caches/jars-9/58c4f2f35258ac11f9e4ac91d7d27f34/dsl.lock.lock",
+        "caches/jars-9/3a1eabdc150907aeeff8d800058fc9a2/proj.lock.lock",
+        "caches/jars-9/4896f9939b33f0b7a903498e223da45d/proj.lock.lock",
+        "caches/jars-9/dfec05b23ce0161ff250fdd5112582fb/proj.lock.lock",
+        "caches/jars-9/814dfba24760b8e9acd87669a7f38083/proj.lock.lock",
+        "caches/jars-9/00bf78f2ced117662a29a7afbd792d98/cp_dsl.lock.lock",
+        "caches/jars-9/ff8b5d603cf3cee02e12bad203d9f36d/cp_dsl.lock.lock",
+        "caches/jars-9/fded6adca17d59055d7e9ca5d38c5345/dsl.lock.lock",
+        "caches/jars-9/32adc487ad507e9726115a20be50d267/proj.lock.lock",
+        "caches/jars-9/3258393074116deb211a9d4e2a3b27ce/cp_proj.lock.lock",
+        "caches/jars-9/debc713a39a59fe6e2e225e71e25b65d/dsl.lock.lock",
+        "caches/jars-9/e6606ec4e04c03263421129dbe250816/dsl.lock.lock",
+        "caches/jars-9/1b8459a88c1c3896f6eba4139a508d9c/proj.lock.lock",
+        "caches/jars-9/a0f8529d2fc1825ddb0e7fc3aa15e528/cp_dsl.lock.lock",
+        "caches/jars-9/314c737256093e590503c359a1712293/cp_dsl.lock.lock",
+        "caches/jars-9/0512873f383aa5811d14a7ffea280b71/dsl.lock.lock",
+        "caches/jars-9/18e10e52bb14626a4b7991c6ee7910c9/cp_dsl.lock.lock",
+        "caches/jars-9/b1fbd5a577e870a0f66acea7d24a1ccb/proj.lock.lock",
+        "caches/jars-9/9bad19911f2d7cacf0932e6fc301dd9d/proj.lock.lock",
+        "caches/jars-9/2bc317f1f49a1b3c39872973d8c76829/cp_proj.lock.lock",
+        "caches/jars-9/b1b4a6cebbc08328aca446a506c2a1dd/cp_dsl.lock.lock",
+        "caches/jars-9/939a9913c32743614f209afe875ce540/cp_dsl.lock.lock",
+        "caches/jars-9/3c1a6f4933c104fc9dcf653d3c23cae6/dsl.lock.lock",
+        "caches/jars-9/3aff59ff97ba31a64e7746044f7c0557/proj.lock.lock",
+        "caches/jars-9/f9b6a9039a74b7fb621897771b09b5d2/cp_proj.lock.lock",
+        "caches/jars-9/db8bb7ec4ba53121c67b06b5a6cbbee9/dsl.lock.lock",
+        "caches/jars-9/544cf412673c9a22743e8930b1edb88c/cp_dsl.lock.lock",
+        "caches/jars-9/63a80dedc1800428760d210dc6085296/cp_dsl.lock.lock",
+        "caches/jars-9/f69a1d698a0ff9c12cbfb8bbb09a8f6a/cp_dsl.lock.lock",
+        "caches/jars-9/205e160c75aee5a26d77cbfb19442468/settings.lock.lock",
+        "caches/jars-9/725882fbdb8d94613eed14de9ec1add2/cp_proj.lock.lock",
+        "caches/jars-9/8570a411ca659066c74ef2be748bc00a/proj.lock.lock",
+        "caches/jars-9/3988f075de03025740a1747eb35a713b/proj.lock.lock",
+        "caches/jars-9/99178d4b2937aacbc29529ab36af0abd/cp_dsl.lock.lock",
+        "caches/jars-9/e24e29ee5056feea12b822b6e698e839/cp_proj.lock.lock",
+        "caches/jars-9/d4507ee49d3d0cf96ece90eae60e1cf4/dsl.lock.lock",
+        "caches/jars-9/74baea1bafb57084b6253e9107016abc/cp_dsl.lock.lock",
+        "caches/jars-9/f42db557aff15a7cd7573773ac7c63ea/dsl.lock.lock",
+        "caches/jars-9/6206a4af00888d7b385261d9bf7c1814/dsl.lock.lock",
+        "caches/jars-9/0feaeb0b1b56ed4d724ce3335413b56b/proj.lock.lock",
+        "caches/jars-9/cbf98bb16c0efaeb17551efca05baa88/proj.lock.lock",
+        "caches/jars-9/e73e2de8e012e2d30dba9fab78ee00b7/proj.lock.lock",
+        "caches/jars-9/f657794288bb96e65df402a114ce4861/proj.lock.lock",
+        "caches/jars-9/d61aa9f05e32e698d190deea1403ea02/cp_dsl.lock.lock",
+        "caches/jars-9/7decdce6e7d14764dad3c42226d04f10/proj.lock.lock",
+        "caches/jars-9/03cb71d6486d10ccf17e2a6b5ea78225/cp_proj.lock.lock",
+        "caches/jars-9/4dc1abbc2f54d196941b8c6af7a38f49/cp_settings.lock.lock",
+        "caches/jars-9/31f074ca59fd852d8df2666cb9864064/dsl.lock.lock",
+        "caches/jars-9/47d96a3cf36229d6d283bb6266c0b03e/cp_proj.lock.lock",
+        "caches/jars-9/dabc99d0cc8004f823a322e48bb0a626/dsl.lock.lock",
+        "caches/jars-9/39a53348cc1c5a79d43ba1fb955a9310/cp_proj.lock.lock",
+        "caches/jars-9/ea59771006ab3eba743f74aac841b82d/cp_proj.lock.lock",
+        "caches/jars-9/8ad42fb7491be1b3da11d1611c7fb4e0/cp_proj.lock.lock",
+        "caches/jars-9/4f292d6694953b9d67894eab1f79d35f/cp_proj.lock.lock",
+        "caches/jars-9/3b0dea5763f08483bcb1e9011996b576/cp_dsl.lock.lock",
+        "caches/jars-9/65bac5444c211b25c4e84e932abb60c0/cp_dsl.lock.lock",
+        "caches/jars-9/232653654de3001143560ba26617bd18/proj.lock.lock",
+        "caches/jars-9/e39f93456b8148010bb9f68f1e2dcef5/cp_proj.lock.lock",
+        "caches/jars-9/ea0552f6e1529784e02211cc076a5335/dsl.lock.lock",
+        "caches/jars-9/5dad88e763837723144a7e50ed2fddb9/cp_dsl.lock.lock",
+        "caches/jars-9/3abfc1d92a362f5798eac388e8b49e3f/cp_dsl.lock.lock",
+        "caches/jars-9/ff534f3d7337991f0b893bab38813012/proj.lock.lock",
+        "caches/jars-9/633a1aa4d23c9dc9802c2bf2dc9e4bdd/dsl.lock.lock",
+        "caches/jars-9/280e259d0a46fa05e19ab9aa8ba79547/proj.lock.lock",
+        "caches/jars-9/a35c78da7817703546b174910d9b9a8e/settings.lock.lock",
+        "caches/jars-9/f5632f86af2c86b4ea92f7c2c9ad4e26/dsl.lock.lock",
+        "caches/jars-9/c44cb3a0ddc9f9aa62551dd2d4010584/cp_proj.lock.lock",
+        "caches/jars-9/c1f81d35d524e84fd3b3ac99f52bcc01/cp_dsl.lock.lock",
+        "caches/jars-9/1ee05bf57baa5eb1348809344d3b7ab0/dsl.lock.lock",
+        "caches/jars-9/19a8f7ba0fe685eb71722e9f312ae96a/dsl.lock.lock",
+        "caches/jars-9/06bf414dcee36aaef42576678e1067a8/cp_dsl.lock.lock",
+        "caches/jars-9/c0d2e95b0aadbb1cf7226fa9b976864b/cp_dsl.lock.lock",
+        "caches/jars-9/c3d02ee3cd63cdb9b063b0ce9d2e042a/dsl.lock.lock",
+        "caches/jars-9/899e8524673cd47dd015a85df1336845/cp_proj.lock.lock",
+        "caches/8.10/md-supplier/md-supplier.lock",
+        "caches/8.10/javaCompile/javaCompile.lock",
+        "caches/8.10/generated-gradle-jars/generated-gradle-jars.lock",
+        "caches/8.10/md-rule/md-rule.lock",
+        "caches/8.10/fileHashes/fileHashes.lock",
+        "caches/8.10/workerMain/workerMain.lock",
+        "caches/8.10/fileContent/fileContent.lock",
+        "caches/modules-2/modules-2.lock"
+      ],
+      "instance_id": "apache__lucene-13704",
+      "jvm_prime_proof": {
+        "executed_ok": true,
+        "gradle_started": true,
+        "infra_failure": false,
+        "real_test_result": true,
+        "skipped_markers": false,
+        "target_task_executed": true,
+        "target_test_class": "org.apache.lucene.search.TestLatLonDocValuesQueries",
+        "test_class_discovered": true,
+        "test_outcome_seen": true
+      },
+      "jvm_rerun_cleanup": [
+        ".gradle",
+        "build/test-results",
+        "build/reports"
+      ],
+      "jvm_target_class": "org.apache.lucene.search.TestLatLonDocValuesQueries",
+      "ok": true,
+      "publisher_recipe": "SPECS_LUCENE[13704]",
+      "steps": [
+        {
+          "cmd": [
+            "bash",
+            "-c",
+            "sed -i '\n/testLogging {/,/}/{\n  /testLogging {/r /dev/stdin\n  d\n}\n' gradle/testing/defaults-tests.gradle << 'EOF'\ntestLogging {\n  showStandardStreams = true\n  // set options for log level LIFECYCLE\n  events TestLogEvent.FAILED,\n         TestLogEvent.PASSED,\n         TestLogEvent.SKIPPED,\n         TestLogEvent.STANDARD_OUT\n  exceptionFormat TestExceptionFormat.FULL\n  showExceptions true\n  showCauses true\n  showStackTraces true\n\n  // set options for log level DEBUG and INFO\n  debug {\n      events TestLogEvent.STARTED,\n             TestLogEvent.FAILED,\n             TestLogEvent.PASSED,\n             TestLogEvent.SKIPPED,\n             TestLogEvent.STANDARD_ERROR,\n             TestLogEvent.STANDARD_OUT\n      exceptionFormat TestExceptionFormat.FULL\n  }\n  info.events = debug.events\n  info.exceptionFormat = debug.exceptionFormat\n\n  afterSuite { desc, result ->\n      if (!desc.parent) { // will match the outermost suite\n          def output = \"Results: ${result.resultType} (${result.testCount} tests, ${result.successfulTestCount} passed, ${result.failedTestCount} failed, ${result.skippedTestCount} skipped)\"\n          def startItem = '|  ', endItem = '  |'\n          def repeatLength = startItem.length() + output.length() + endItem.length()\n          println('\\n' + ('-' * repeatLength) + '\\n' + startItem + output + endItem + '\\n' + ('-' * repeatLength))\n      }\n  }\n}\nEOF"
+          ],
+          "exit": 0,
+          "kind": "pre_install",
+          "tail": ""
+        },
+        {
+          "cmd": [
+            "./gradlew",
+            "test",
+            "--tests",
+            "org.apache.lucene.search.TestLatLonDocValuesQueries",
+            "-Ptests.seed=965304069726D5D6",
+            "-Ptests.jvms=1",
+            "--no-daemon",
+            "-Dorg.gradle.vfs.watch=false"
+          ],
+          "exit": 1,
+          "kind": "warm_prime",
+          "tail": "ng.Thread.run(Thread.java:1583)\n  2> NOTE: reproduce with: gradlew test --tests TestLatLonDocValuesQueries.testNarrowPolygonCloseToNorthPole -Dtests.seed=965304069726D5D6 -Dtests.locale=zh-Hant-HK -Dtests.timezone=Europe/Samara -Dtests.asserts=true -Dtests.file.encoding=UTF-8\n  2> NOTE: leaving temporary files on disk at: /home/runner/work/_temp/n2e-case-lt2lg12c/repo/lucene/core/build/tmp/tests-tmp/lucene.search.TestLatLonDocValuesQueries_965304069726D5D6-001\n  2> NOTE: test params are: codec=Lucene912, sim=Asserting(RandomSimilarity(queryNorm=true): {}), locale=zh-Hant-HK, timezone=Europe/Samara\n  2> NOTE: Linux 6.17.0-1020-azure amd64/Eclipse Adoptium 21.0.11 (64-bit)/cpus=1,threads=1,free=247143056,total=326107136\n  2> NOTE: All tests run in this JVM: [TestLatLonDocValuesQueries]\n\n:lucene:core:test (FAILURE): 42 test(s), 1 failure(s), 2 skipped\n\n-----------------------------------------------------------------\n|  Results: FAILURE (42 tests, 39 passed, 1 failed, 2 skipped)  |\n-----------------------------------------------------------------\n\n> Task :lucene:core:test FAILED\n> Task :lucene:core:wipeTaskTemp\n> Task :lucene:suggest:compileTestJava\n210 actionable tasks: 210 executed\n a deprecated API.\nNote: Recompile with -Xlint:deprecation for details.\nNote: Some input files use or override a deprecated API.\nNote: Recompile with -Xlint:deprecation for details.\n\n42 tests completed, 1 failed, 2 skipped\n\nERROR: The following test(s) have failed:\n  - org.apache.lucene.search.TestLatLonDocValuesQueries.testNarrowPolygonCloseToNorthPole (:lucene:core)\n    Test output: /home/runner/work/_temp/n2e-case-lt2lg12c/repo/lucene/core/build/test-results/test/outputs/OUTPUT-org.apache.lucene.search.TestLatLonDocValuesQueries.txt\n    Reproduce with: gradlew :lucene:core:test --tests \"org.apache.lucene.search.TestLatLonDocValuesQueries.testNarrowPolygonCloseToNorthPole\" -Ptests.jvms=1 \"-Ptests.jvmargs=-XX:TieredStopAtLevel=1 -XX:+UseParallelGC -XX:ActiveProcessorCount=1\" -Ptests.seed=965304069726D5D6 -Ptests.gui=false -Ptests.file.encoding=US-ASCII -Ptests.vectorsize=default -Ptests.forceintegervectors=false\n\n\nFAILURE: Build failed with an exception.\n\n* What went wrong:\nExecution failed for task ':lucene:core:test'.\n> There were failing tests. See the results at: file:///home/runner/work/_temp/n2e-case-lt2lg12c/repo/lucene/core/build/test-results/test/\n\nBUILD FAILED in 2m 17s\n"
+        }
+      ]
+    },
+    "workdir": "repo"
+  },
+  "case_id": "apache__lucene-13704::jvm::test::buggy",
+  "command_family": "jvm",
+  "command_subfamily": "test",
+  "generated_by": "tools/run_canary_case.py",
+  "isolation": {
+    "denial_probe": {
+      "denied": true,
+      "output": "DENIED 101"
+    },
+    "method": "sudo-unshare-n"
+  },
+  "mission": "N2-E",
+  "mission_title": "external RTK-native claim-aligned command corpus",
+  "raw_argv": [
+    "./gradlew",
+    "test",
+    "--tests",
+    "org.apache.lucene.search.TestLatLonDocValuesQueries",
+    "-Ptests.seed=965304069726D5D6",
+    "-Ptests.jvms=1",
+    "--offline",
+    "--no-daemon",
+    "-Dorg.gradle.vfs.watch=false"
+  ],
+  "raw_arm": {
+    "canonical_deterministic": false,
+    "canonical_sha256": null,
+    "canonicalization_policy": "gradle-test-v1",
+    "exit_code": 1,
+    "exit_code_stable": true,
+    "nondeterminism_sample": "--- rep0\n+++ repN\n@@ -133,3 +133,2 @@\n > Task :lucene:analysis:kuromoji:jar\n-> Task :lucene:test-framework:jar\n > Task :lucene:analysis:morfologik:compileJava\n@@ -137,2 +136,3 @@\n > Task :lucene:analysis:morfologik:jar\n+> Task :lucene:test-framework:jar\n > Task :lucene:analysis:opennlp:compileJava\n@@ -216,2 +216,5 @@\n > Task :lucene:benchmark:jar\n+\n+> Task :lucene:benchmark-jmh:compileJava\n+\n > Task :lucene:benchmark:compileTestJava\n@@ -226,5 +229,2 @@\n > Task :lucene:benchmark:wipeTaskTemp\n-\n-> Task :lucene:benchmark-jmh:compileJava\n-\n > Task :lucene:benchmark-jmh:classes\n@@ -459,2 +459,34 @@\n \n+> Task :lucene:core:test\n+\n+TestLatLonDocValuesQueries STANDARD_ERROR\n+    Jul 18, 2026 10:01:53 AM org.apache.lucene.internal.vectorization.VectorizationProvider lookup\n+    WARNING: C2 compiler is disabled; Java vector incubator API can't be enabled\n+\n+TestLatLonDocValuesQueries > testSmallSetTinyDistance PASSED\n+\n+TestLatLonDocValuesQueries > testBoxNull PASSED\n+\n+TestLatLonDocValuesQueries > testRandomDistance PASSED\n+\n+TestLatLonDocValuesQueries > testRandomDistanceHuge SKIPPED\n+\n+TestLatLonDocValuesQueries > testBoxInvalidCoordinates PASSED\n+\n+TestLatLonDocValuesQueries > testDistanceBasics PASSED\n+\n+TestLatLonDocValuesQueries > testRandomBig SKIPPED\n+\n+TestLatLonDocValuesQueries > testDistanceIllegal PASSED\n+\n+TestLatLonDocValuesQueries > testRandomTiny PASSED\n+\n+TestLatLonDocValuesQueries > testSmallSetPolyWholeMap PASSED\n+\n+TestLatLonDocValuesQueries > testPolygonHole PASSED\n+\n+TestLatLonDocValuesQueries > testIndexInfValues PASSED\n+\n+TestLatLonDocValuesQueries > testSmallSetMultiValued PASSED\n+\n > Task :lucene:sandbox:compileTestJava\n@@ -470,35 +502,2 @@\n > Task :lucene:sandbox:wipeTaskTemp\n-\n-> Task :lucene:core:test\n-\n-TestLatLonDocValuesQueries STANDARD_ERROR\n-    Jul 18, 2026 10:00:45 AM org.apache.lucene.internal.vectorization.VectorizationProvider lookup\n-    WARNING: C2 compiler is disabled; Java vector incubator API can't be enabled\n-\n-TestLatLonDocValuesQueries > testSmallSetTinyDistance PASSED\n-\n-TestLatLonDocValuesQueries > testBoxNull PASSED\n-\n-TestLatLonDocValuesQueries > testRandomDistance PASSED\n-\n-TestLatLonDocValuesQueries > testRandomDistanceHuge SKIPPED\n-\n-TestLatLonDocValuesQueries > testBoxInvalidCoordinates PASSED\n-\n-TestLatLonDocValuesQueries > testDistanceBasics PASSED\n-\n-TestLatLonDocValuesQueries > testRandomBig SKIPPED\n-\n-TestLatLonDocValuesQueries > testDistanceIllegal PASSED\n-\n-TestLatLonDocValuesQueries > testRandomTiny PASSED\n-\n-TestLatLonDocValuesQueries > testSmallSetPolyWholeMap PASSED\n-\n-TestLatLonDocValuesQueries > testPolygonHole PASSED\n-\n-TestLatLonDocValuesQueries > testIndexInfValues PASSED\n-\n-TestLatLonDocValuesQueries > testSmallSetMultiValued PASSED\n-\n > Task :lucene:spatial-test-fixtures:compileJava\n@@ -532,2 +531,4 @@\n > Task :lucene:spatial3d:wipeTaskTemp\n+> Task :lucene:suggest:compileTestJava\n+> Task :lucene:suggest:testClasses\n \n@@ -643,3 +644,3 @@\n     NOTE: test params are: codec=Lucene912, sim",
+    "per_rep_execution_proof": [
+      {
+        "executed_ok": true,
+        "gradle_started": true,
+        "infra_failure": false,
+        "real_test_result": true,
+        "skipped_markers": true,
+        "target_task_executed": false,
+        "target_test_class": "org.apache.lucene.search.TestLatLonDocValuesQueries",
+        "test_class_discovered": true,
+        "test_outcome_seen": true
+      },
+      {
+        "executed_ok": true,
+        "gradle_started": true,
+        "infra_failure": false,
+        "real_test_result": true,
+        "skipped_markers": true,
+        "target_task_executed": false,
+        "target_test_class": "org.apache.lucene.search.TestLatLonDocValuesQueries",
+        "test_class_discovered": true,
+        "test_outcome_seen": true
+      },
+      {
+        "executed_ok": true,
+        "gradle_started": true,
+        "infra_failure": false,
+        "real_test_result": true,
+        "skipped_markers": true,
+        "target_task_executed": false,
+        "target_test_class": "org.apache.lucene.search.TestLatLonDocValuesQueries",
+        "test_class_discovered": true,
+        "test_outcome_seen": true
+      }
+    ],
+    "primary_evidence_files": [
+      {
+        "bytes": 36140,
+        "case_id": "apache__lucene-13704::jvm::test::buggy",
+        "compression": "zlib",
+        "file": "raw.rep0.zst",
+        "policy_id": "gradle-test-v1",
+        "rep": 0,
+        "role": "raw",
+        "sha256": "4665c63afbb2e7ace7ff41ffb2f01950404912eebae6b3d582ccf8faa3e2bc2e"
+      },
+      {
+        "bytes": 36480,
+        "case_id": "apache__lucene-13704::jvm::test::buggy",
+        "compression": "zlib",
+        "file": "raw.rep1.zst",
+        "policy_id": "gradle-test-v1",
+        "rep": 1,
+        "role": "raw",
+        "sha256": "a7bde0a20d2b95393d03f16d73674092e28baed0d9e46d63af3be4708d868f02"
+      },
+      {
+        "bytes": 36478,
+        "case_id": "apache__lucene-13704::jvm::test::buggy",
+        "compression": "zlib",
+        "file": "raw.rep2.zst",
+        "policy_id": "gradle-test-v1",
+        "rep": 2,
+        "role": "raw",
+        "sha256": "8364dc40cc93d8dc2fae0615fa067b751d48cd4686ad42e8da91d5912785e0e4"
+      }
+    ],
+    "raw_capture_hashes": [
+      "45928c95e1f5a5248476ee37024ecba579fdc2aca32073a098d97b02b023a130",
+      "32f0a40034204207e66661e176ba8938d7b6f0a4dea16738cb1d5205ac58eeae",
+      "5d4c533fdf3668bf82a00ac234ff9fccc2c78843d6b0d412ec1a2042870e4599"
+    ],
+    "reps_completed": 3,
+    "rtk_envelope_policy": null,
+    "rtk_sidecar_proof": null,
+    "runs": [
+      {
+        "canonical_bytes": 36140,
+        "canonical_sha256": "4665c63afbb2e7ace7ff41ffb2f01950404912eebae6b3d582ccf8faa3e2bc2e",
+        "exit_code": 1,
+        "raw_combined_sha256": "45928c95e1f5a5248476ee37024ecba579fdc2aca32073a098d97b02b023a130"
+      },
+      {
+        "canonical_bytes": 36480,
+        "canonical_sha256": "a7bde0a20d2b95393d03f16d73674092e28baed0d9e46d63af3be4708d868f02",
+        "exit_code": 1,
+        "raw_combined_sha256": "32f0a40034204207e66661e176ba8938d7b6f0a4dea16738cb1d5205ac58eeae"
+      },
+      {
+        "canonical_bytes": 36478,
+        "canonical_sha256": "8364dc40cc93d8dc2fae0615fa067b751d48cd4686ad42e8da91d5912785e0e4",
+        "exit_code": 1,
+        "raw_combined_sha256": "5d4c533fdf3668bf82a00ac234ff9fccc2c78843d6b0d412ec1a2042870e4599"
+      }
+    ],
+    "target_execution_ok": true,
+    "timed_out": false
+  },
+  "raw_output_tail": "nomyFacetAssociations.java uses or overrides a deprecated API.\nNote: Recompile with -Xlint:deprecation for details.\nNote: Some input files use or override a deprecated API.\nNote: Recompile with -Xlint:deprecation for details.\nNote: /home/runner/work/_temp/n2e-fixedwork/lucene/highlighter/src/test/org/apache/lucene/search/highlight/TestHighlighter.java uses or overrides a deprecated API.\nNote: Recompile with -Xlint:deprecation for details.\nNote: /home/runner/work/_temp/n2e-fixedwork/lucene/join/src/test/org/apache/lucene/search/join/TestJoinUtil.java uses or overrides a deprecated API.\nNote: Recompile with -Xlint:deprecation for details.\nNote: Some input files use or override a deprecated API.\nNote: Recompile with -Xlint:deprecation for details.\nNote: Some input files use or override a deprecated API.\nNote: Recompile with -Xlint:deprecation for details.\nNote: /home/runner/work/_temp/n2e-fixedwork/lucene/replicator/src/test/org/apache/lucene/replicator/nrt/SimpleTransLog.java uses or overrides a deprecated API.\nNote: Recompile with -Xlint:deprecation for details.\nWARNING: Using incubator modules: jdk.incubator.vector\nWARNING: A command line option has enabled the Security Manager\nWARNING: The Security Manager is deprecated and will be removed in a future release\nNote: Some input files use or override a deprecated API.\nNote: Recompile with -Xlint:deprecation for details.\nNote: Some input files use or override a deprecated API.\nNote: Recompile with -Xlint:deprecation for details.\n\n42 tests completed, 1 failed, 2 skipped\n\nERROR: The following test(s) have failed:\n  - org.apache.lucene.search.TestLatLonDocValuesQueries.testNarrowPolygonCloseToNorthPole (:lucene:core)\n    Test output: /home/runner/work/_temp/n2e-fixedwork/lucene/core/build/test-results/test/outputs/OUTPUT-org.apache.lucene.search.TestLatLonDocValuesQueries.txt\n    Reproduce with: gradlew :lucene:core:test --tests \"org.apache.lucene.search.TestLatLonDocValuesQueries.testNarrowPolygonCloseToNorthPole\" -Ptests.jvms=1 \"-Ptests.jvmargs=-XX:TieredStopAtLevel=1 -XX:+UseParallelGC -XX:ActiveProcessorCount=1\" -Ptests.seed=965304069726D5D6 -Ptests.gui=false -Ptests.file.encoding=US-ASCII -Ptests.vectorsize=default -Ptests.forceintegervectors=false\n\n\nFAILURE: Build failed with an exception.\n\n* What went wrong:\nExecution failed for task ':lucene:core:test'.\n> There were failing tests. See the results at: file:///home/runner/work/_temp/n2e-fixedwork/lucene/core/build/test-results/test/\n\nBUILD FAILED in <dur>\n",
+  "raw_semantic_oracle": {
+    "evidence": {
+      "declared": "failing",
+      "exit": 1,
+      "observed_failing": [],
+      "reached_framework": false,
+      "required_targets": [
+        "TestLatLonDocValuesQueries > testNarrowPolygonCloseToNorthPole"
+      ],
+      "summary": {
+        "failed": null,
+        "failing_ids": [],
+        "passed": null
+      },
+      "targets_covered": false
+    },
+    "oracle": "test_outcome",
+    "verdict": false
+  },
+  "record_sha256": "sha256:7b29e0e58b98b712255817e276b4c63476b500ecf86cadc5e45bcaf411dc9eaf",
+  "record_type": "n2e-canary-case",
+  "record_version": "v1",
+  "rejection_reasons": [
+    "raw not canonically deterministic",
+    "raw oracle failed: test_outcome"
+  ],
+  "rtk_binary_sha256": "41f316adf7b30a568208a0a4f824bffb266ecb6d01bd9de81bed58e1d469dfcf",
+  "schema_version": "n2e-record-1",
+  "status": "RAW_REJECTED"
+}
