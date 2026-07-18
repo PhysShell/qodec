@@ -73,10 +73,15 @@ def argv_equals_contract(argv: list, is_rtk: bool, rtk_bin: str | None) -> bool:
     a missing `cargo`, an injected `+1.81.0`, extra flags, or reordering all fail."""
     return list(argv) == expected_argv(is_rtk, rtk_bin)
 _FIXED = Path(tempfile.gettempdir()) / "n2e-fixedwork"
-# explicitly enumerated ephemeral files excluded from stable manifests (corrections 5/6)
+# explicitly enumerated ephemeral files excluded from stable manifests (corrections 5/6).
+# .global-cache is cargo's global GC tracker DB ($CARGO_HOME/.global-cache): it records
+# last-use timestamps for automatic garbage collection of registry/cache, registry/src, and
+# git checkouts. It carries NO dependency content (only GC bookkeeping timestamps that vary
+# run-to-run), so it is ephemeral like .package-cache. Run 29648282170 showed .global-cache
+# as the SOLE full-manifest difference across two otherwise byte-identical acquisitions.
 _EPHEMERAL_SUFFIX = (".lock",)
 _EPHEMERAL_NAME = {".package-cache", ".package-cache-mutate", "config.json.lock",
-                   ".crates2.json.lock"}
+                   ".crates2.json.lock", ".global-cache"}
 
 
 def _run(argv, cwd=None, env=None, tmo=1800):
@@ -385,7 +390,12 @@ def _resolved_dependency_snapshot(repo_dir: Path, cargo_home: Path) -> dict:
     so two independent acquisitions produce a byte-identical snapshot. Read-only: does not
     mutate the (already disposable) acquisition checkout beyond the lock cargo itself wrote."""
     env = _cargo_env(cargo_home, {"CARGO_NET_OFFLINE": "true", "RUSTUP_TOOLCHAIN": CHANNEL})
-    r = _run(["cargo", "metadata", "--format-version", "1", "--offline"], cwd=str(repo_dir), env=env, tmo=300)
+    # scope resolution to the HOST target so `--offline` succeeds: `cargo metadata` resolves
+    # for ALL platforms by default and would need target-specific deps (e.g. android-tzdata)
+    # that host-only `cargo test --no-run` never downloaded. --filter-platform gives exactly
+    # the deps the measurement substrate compiles, and is what makes the graph reproducible.
+    r = _run(["cargo", "metadata", "--format-version", "1", "--offline",
+              "--filter-platform", HOST], cwd=str(repo_dir), env=env, tmo=300)
     lock = repo_dir / "Cargo.lock"
     lock_bytes = lock.read_bytes() if lock.is_file() else None
     out = {"metadata_exit": r["exit"], "metadata_ok": r["exit"] == 0,
