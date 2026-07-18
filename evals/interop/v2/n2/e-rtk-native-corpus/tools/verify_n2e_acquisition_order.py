@@ -40,7 +40,7 @@ def _seq_expected(variant: str) -> list:
     seq = ["base", "pre_install", "install_warm"]
     if variant == "fixed":
         seq.append("gold_patch")
-    seq.append("test_patch")
+    seq += ["test_files_reset", "test_patch"]
     return seq
 
 
@@ -98,6 +98,41 @@ def verify_acquisition_order(order: dict, fam: str) -> tuple[bool, list]:
         if "gold_patch" in bl:
             reasons.append("buggy snapshot must not have a gold_patch boundary")
 
+    # 4b. evaluation-time RESET of publisher-owned test files (correction 1)
+    rb = bl.get("test_files_reset")
+    base = order.get("base_commit")
+    if rb is None:
+        reasons.append("missing test_files_reset boundary (test files not reset to base)")
+    else:
+        declared = set(rb.get("test_patch_files") or [])
+        reset_paths = set(rb.get("reset_paths") or [])
+        existing = set(rb.get("test_patch_files_existing_at_base") or [])
+        if base and rb.get("reset_from_commit") != base:
+            reasons.append(f"test files reset from {rb.get('reset_from_commit')} != base_commit {base}")
+        if not declared:
+            reasons.append("test_files_reset declared no test_patch files")
+        # every reset path MUST be a file the test_patch actually touches (no undeclared reset)
+        undeclared = sorted(reset_paths - declared)
+        if undeclared:
+            reasons.append(f"reset of files not declared by test_patch: {undeclared}")
+        # every test_patch file that exists at base MUST have been reset (nothing skipped)
+        if reset_paths != existing:
+            reasons.append(f"reset paths {sorted(reset_paths)} != test_patch files existing at "
+                           f"base {sorted(existing)}")
+        if rb.get("reset_failed"):
+            reasons.append(f"test-file reset failed for {rb.get('reset_failed')}")
+        # fixed: any gold-touched file that test_patch also owns (and exists at base) MUST be
+        # reset -- else a gold edit could survive in a publisher-owned test file.
+        if variant == "fixed":
+            gold_owned_tests = (set(order.get("gold_files") or []) & declared & existing)
+            survivors = sorted(gold_owned_tests - reset_paths)
+            if survivors:
+                reasons.append(f"gold edits could survive in publisher test files: {survivors}")
+        # reset MUST occur before test_patch (sequence position)
+        if "test_patch" in seq and "test_files_reset" in seq \
+                and seq.index("test_files_reset") > seq.index("test_patch"):
+            reasons.append("test_patch applied before test_files_reset")
+
     # 5. test_patch applied cleanly
     tp = bl.get("test_patch")
     tpatch = _applied(patches, "test_patch")
@@ -106,7 +141,9 @@ def verify_acquisition_order(order: dict, fam: str) -> tuple[bool, list]:
     elif not tp.get("applied") or tpatch is None or tpatch.get("apply_exit") != 0:
         reasons.append("test_patch was not cleanly applied")
 
-    # 6. monotonic tracked-state across install_warm -> [gold_patch] -> test_patch
+    # 6. monotonic tracked-state across install_warm -> [gold_patch] -> test_patch. The
+    #    test_files_reset boundary is intentionally EXCLUDED: it reverts gold edits to
+    #    publisher test files (a legitimate DROP) which test_patch then re-adds.
     chain = ["install_warm"] + (["gold_patch"] if variant == "fixed" else []) + ["test_patch"]
     prev = None
     for lab in chain:

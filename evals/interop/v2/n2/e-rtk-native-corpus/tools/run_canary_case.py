@@ -626,7 +626,7 @@ def acquire_swebench(scen, workroot):
     if recipe:
         assert recipe["instance_id"] == instance_id, "recipe/instance binding mismatch"
         warm, policy, offline_env, resolved, env_identity = _publisher_warm(
-            recipe, fam, sub, scen, repo_dir, home, gold_blob, test_blob)
+            recipe, fam, sub, scen, repo_dir, home, gold_blob, test_blob, base=base)
         applied = env_identity["acquisition_order"]["applied_patches"]
         pub_argv = pub.parse_command(recipe["test_cmd"][0])
         if list(scen.get("original_argv") or []) != pub_argv:
@@ -939,19 +939,57 @@ def _sanitize_gradle_seed(seed: Path | None) -> list:
 ACQ_ORDER_POLICY_ID = "publisher-acquisition-order-v1"
 
 
+def _diff_modified_files(blob: bytes) -> list:
+    """The set of repo-relative files a unified diff touches, taken from its
+    `diff --git a/<p> b/<p>` headers (falling back to `+++ b/<p>`). This is exactly the
+    file set the SWE-bench harness resets from base_commit before applying test_patch."""
+    files = []
+    for ln in (blob or b"").decode("utf-8", "replace").splitlines():
+        if ln.startswith("diff --git "):
+            parts = ln.split()
+            if len(parts) >= 4:
+                b = parts[3]
+                files.append(b[2:] if b.startswith("b/") else b)
+        elif ln.startswith("+++ b/"):
+            f = ln[6:].strip()
+            if f and f != "/dev/null":
+                files.append(f)
+    return sorted(set(files))
+
+
+def _reset_test_files(repo_dir: Path, ge: dict, base: str, test_patch_files: list) -> tuple:
+    """Restore every test_patch-owned file that EXISTS at base_commit back to base (the
+    SWE-bench evaluation-time reset), so any gold edit to a publisher test file is
+    discarded before test_patch re-applies the publisher version. Returns
+    (existing_at_base, reset_paths, reset_failed)."""
+    def _git(*args):
+        return subprocess.run(["git", "-C", str(repo_dir), *args],
+                              capture_output=True, text=True, env=ge)
+    existing_at_base, reset_paths, reset_failed = [], [], []
+    for f in test_patch_files:
+        at_base = bool(base) and _git("cat-file", "-e", f"{base}:{f}").returncode == 0
+        if at_base:
+            existing_at_base.append(f)
+            rc = _git("checkout", base, "--", f).returncode
+            (reset_paths if rc == 0 else reset_failed).append(f)
+    return existing_at_base, reset_paths, reset_failed
+
+
 def _publisher_order_sequence(variant: str) -> list:
     """The one faithful gold-evaluation boundary order. The publisher `--locked`
     install warms the FROZEN lockfile on the pristine manifest; only AFTERWARDS is the
-    gold (source/fix) patch applied (::fixed), then the test_patch, then measurement."""
+    gold (source/fix) patch applied (::fixed). The publisher harness then RESETS the
+    files test_patch will touch back to base_commit (discarding any gold edits to those
+    publisher-owned test files) and only then applies test_patch, then measures."""
     seq = ["base", "pre_install", "install_warm"]
     if variant == "fixed":
         seq.append("gold_patch")
-    seq.append("test_patch")
+    seq += ["test_files_reset", "test_patch"]
     return seq
 
 
 def _publisher_warm(recipe: dict, fam: str, sub: str, scen, repo_dir: Path, home: Path,
-                    gold_blob: bytes = b"", test_blob: bytes = b""):
+                    gold_blob: bytes = b"", test_blob: bytes = b"", base: str = ""):
     """Acquire a SWE-bench case under its EXACT publisher recipe (source-derived) in the
     faithful gold-evaluation ORDER (correction / item 4):
 
@@ -1054,13 +1092,27 @@ def _publisher_warm(recipe: dict, fam: str, sub: str, scen, repo_dir: Path, home
 
     # ---- (3) gold/source patch, ::fixed only, AFTER the locked install ----
     applied_patches = []
+    gold_files = _diff_modified_files(gold_blob) if gold_blob else []
     if scen["snapshot_variant"] == "fixed":
         if gold_blob:
             applied_patches.append(apply_patch("patch", gold_blob))
         boundaries.append(boundary("gold_patch", applied=bool(gold_blob),
                                    patch_sha256=hashlib.sha256(gold_blob).hexdigest() if gold_blob else None))
 
-    # ---- (4) test_patch AFTER the gold patch ----
+    # ---- (3b) evaluation-time RESET of publisher-owned test files (item / correction 1):
+    #      the pinned SWE-bench harness restores the files test_patch will touch back to
+    #      base_commit BEFORE applying test_patch -- so any gold edit to a publisher test
+    #      file is discarded and the measured file is the base+test_patch version. ----
+    test_patch_files = _diff_modified_files(test_blob) if test_blob else []
+    existing_at_base, reset_paths, reset_failed = _reset_test_files(
+        repo_dir, ge, base, test_patch_files)
+    boundaries.append(boundary(
+        "test_files_reset", reset_from_commit=(base or None), base_commit=(base or None),
+        test_patch_files=test_patch_files, gold_files=gold_files,
+        test_patch_files_existing_at_base=existing_at_base,
+        reset_paths=sorted(reset_paths), reset_failed=sorted(reset_failed)))
+
+    # ---- (4) test_patch AFTER the reset ----
     if test_blob:
         applied_patches.append(apply_patch("test_patch", test_blob))
     boundaries.append(boundary("test_patch", applied=bool(test_blob),
@@ -1111,17 +1163,28 @@ def _publisher_warm(recipe: dict, fam: str, sub: str, scen, repo_dir: Path, home
     protected_after = _protected_hashes(repo_dir, fam)  # final frozen input (post-patches)
     rust_channel = (tc_spec.get("version", "") + ".0") if (fam == "rust_cargo"
                     and tc_spec.get("version", "").count(".") == 1) else tc_spec.get("version")
+    reset_boundary = next((b for b in boundaries if b["label"] == "test_files_reset"), {})
     acquisition_order = {
         "policy_id": ACQ_ORDER_POLICY_ID,
         "snapshot_variant": scen["snapshot_variant"],
+        "base_commit": base or None,
         "canonical_sequence": _publisher_order_sequence(scen["snapshot_variant"]),
         "boundaries": boundaries,
         "install": {"ran": bool(recipe.get("install")), "locked": locked_seen, "steps": install_steps},
         "applied_patches": applied_patches,
         "gold_applied": bool(gold_blob) and scen["snapshot_variant"] == "fixed",
+        "gold_files": gold_files,
         "test_applied": bool(test_blob),
-        "invariant": "publisher --locked install runs on the pristine manifest; the gold "
-                     "patch is applied only afterwards, then the test_patch, then measured.",
+        "test_patch_files": reset_boundary.get("test_patch_files", []),
+        "test_files_reset": {
+            "reset_from_commit": reset_boundary.get("reset_from_commit"),
+            "reset_paths": reset_boundary.get("reset_paths", []),
+            "reset_failed": reset_boundary.get("reset_failed", []),
+            "existing_at_base": reset_boundary.get("test_patch_files_existing_at_base", []),
+        },
+        "invariant": "publisher --locked install runs on the pristine manifest; gold patch "
+                     "applied only afterwards; the test_patch-owned files are reset to "
+                     "base_commit (discarding gold edits to them) BEFORE test_patch, then measured.",
     }
     env_identity = {
         "toolchain": _toolchain_identity(fam, repo_dir, rust_channel=rust_channel),
