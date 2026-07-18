@@ -175,26 +175,40 @@ _POLICIES: dict[str, object] = {
 }
 
 # --------------------------------------------------------------------------
-# cargo-test-v2: BOUNDED, line-by-line removal of EXACT Cargo status grammar only. Each
-# form is documented separately; a line is removed ONLY if it matches one of these exact
-# Cargo status shapes -- an arbitrary indented line that merely begins with "Finished",
-# "Checking", "Updating", "Downloading", "Building", "Removing", ... is PRESERVED.
-_V2_PKG_RECORD = re.compile(   # Compiling/Checking/Documenting/Fresh <crate> [v<semver>] [(<source>)]
-    rb"^[ ]+(?:Compiling|Checking|Documenting|Fresh) [A-Za-z0-9_+-]+"
-    rb"(?: v\d+\.\d+\.\d+(?:[-+][0-9A-Za-z.-]+)?)?(?: \(.+\))?$")
-_V2_FINISHED = re.compile(     # Finished `<profile>` profile [<qualifiers>] target(s) in <dur>
-    rb"^[ ]+Finished [`'\"]?[\w.+-]+[`'\"]?(?: profile)?(?: \[[^\]]*\])? target\(s\) in .+$")
-_V2_REGISTRY = re.compile(     # source-defined registry/package activity ONLY
-    rb"^[ ]+(?:"
-    rb"Updating crates\.io index"
-    rb"|Updating git repository .+"
-    rb"|Downloading(?: \d+ crates.*| crates \.\.\.)"
-    rb"|Downloaded [A-Za-z0-9_+-]+ v\d+\.\d+\.\d+.*"
-    rb"|Downloaded \d+ crates?.*"
-    rb"|Locking \d+ packages? to latest.*"
-    rb"|Blocking waiting for file lock on .+"
-    rb")$")
-_V2_KILL = (_V2_PKG_RECORD, _V2_FINISHED, _V2_REGISTRY)
+# cargo-test-v2: BOUNDED, line-by-line removal of EXACT Cargo status grammar only. Cargo
+# right-aligns each status verb so the word ENDS at column 12; we require that EXACT prefix
+# (12 - len(verb) leading spaces) plus the verb's full shape. A line is removed ONLY if it
+# matches one of these exact Cargo status forms -- an arbitrary indented line that merely
+# begins with "Finished"/"Checking"/"Fresh"/"Documenting"/"Compiling"/"Updating"/... (wrong
+# indentation, missing version, or a non-Cargo tail) is PRESERVED byte-for-byte.
+_CRATE = rb"[A-Za-z0-9_+-]+"
+_SEMVER = rb"\d+\.\d+\.\d+(?:[-+][0-9A-Za-z.-]+)?"
+_CARGO_DUR = rb"(?:\d+m )?\d+(?:\.\d+)?s"    # "0.05s", "40.21s", "2m 38s"
+
+
+def _prefix(verb: bytes) -> bytes:
+    return b" " * (12 - len(verb))
+
+
+# package records: <exact prefix>{verb} <crate> v<semver> [ (<source>)]  -- version REQUIRED
+_V2_PKG = [re.compile(rb"^" + _prefix(v) + v + rb" " + _CRATE + rb" v" + _SEMVER + rb"(?: \(.+\))?$")
+           for v in (b"Compiling", b"Checking", b"Documenting", b"Fresh")]
+# completion record: "    Finished `<profile>` profile [<qualifiers>] target(s) in <dur>"
+# 'profile' is REQUIRED and the tail must be an exact Cargo duration (no arbitrary tail).
+_V2_FINISHED = re.compile(
+    rb"^" + _prefix(b"Finished") + rb"Finished `[\w.+-]+` profile(?: \[[^\]]*\])? target\(s\) in "
+    + _CARGO_DUR + rb"$")
+# source-defined registry/package activity, each with its exact right-aligned prefix
+_V2_REGISTRY = [
+    re.compile(rb"^" + _prefix(b"Updating") + rb"Updating crates\.io index$"),
+    re.compile(rb"^" + _prefix(b"Updating") + rb"Updating git repository `.+`$"),
+    re.compile(rb"^" + _prefix(b"Downloading") + rb"Downloading(?: \d+)? crates ?\.\.\.$"),
+    re.compile(rb"^" + _prefix(b"Downloaded") + rb"Downloaded " + _CRATE + rb" v" + _SEMVER + rb".*$"),
+    re.compile(rb"^" + _prefix(b"Downloaded") + rb"Downloaded \d+ crates?.*$"),
+    re.compile(rb"^" + _prefix(b"Locking") + rb"Locking \d+ packages? to latest.*$"),
+    re.compile(rb"^" + _prefix(b"Blocking") + rb"Blocking waiting for file lock on .+$"),
+]
+_V2_KILL = tuple(_V2_PKG) + (_V2_FINISHED,) + tuple(_V2_REGISTRY)
 _V2_FINISHED_IN = re.compile(rb"finished in \d+\.\d+s")
 
 

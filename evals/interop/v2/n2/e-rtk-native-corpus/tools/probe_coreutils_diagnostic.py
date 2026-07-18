@@ -26,6 +26,7 @@ import argparse
 import hashlib
 import json
 import os
+import re
 import shutil
 import subprocess
 import sys
@@ -56,6 +57,20 @@ REPS = 3
 CONTRACT_RAW_ARGV = ["cargo", "test", "backslash", "--no-fail-fast"]
 CONTRACT_ENV = {"RUSTUP_TOOLCHAIN": "1.81.0", "CARGO_NET_OFFLINE": "true",
                 "RUST_TEST_THREADS": "1", "CARGO_BUILD_JOBS": "1"}
+# env keys that are legitimately per-run path-specific (compared for presence, not value,
+# and excluded from the RAW-vs-RTK semantic-equality comparison)
+_ENV_PATH_KEYS = {"HOME", "CARGO_HOME", "RUSTUP_HOME", "PATH"}
+
+
+def expected_argv(is_rtk: bool, rtk_bin: str | None) -> list:
+    return [rtk_bin, *CONTRACT_RAW_ARGV] if is_rtk else list(CONTRACT_RAW_ARGV)
+
+
+def argv_equals_contract(argv: list, is_rtk: bool, rtk_bin: str | None) -> bool:
+    """RAW: argv == CONTRACT_RAW_ARGV. RTK: argv == [RTK_BIN, *CONTRACT_RAW_ARGV]. The full
+    argv is compared (never argv[1:] vs CONTRACT[1:], which dropped the `cargo` element);
+    a missing `cargo`, an injected `+1.81.0`, extra flags, or reordering all fail."""
+    return list(argv) == expected_argv(is_rtk, rtk_bin)
 _FIXED = Path(tempfile.gettempdir()) / "n2e-fixedwork"
 # explicitly enumerated ephemeral files excluded from stable manifests (corrections 5/6)
 _EPHEMERAL_SUFFIX = (".lock",)
@@ -400,15 +415,16 @@ def _rustup_manifest(rustup_home: str) -> str:
     return _manifest_hash(_stable_manifest(root)) if root else ""
 
 
-def _measure_arm(is_rtk: bool, frozen_env: Path, argv: list, wrapper: list, off_env: dict,
-                 target_ids: list, evidence: Path, rustup_home: str) -> dict:
+def _measure_arm(is_rtk: bool, frozen_env: Path, argv: list, rtk_bin: str | None, wrapper: list,
+                 off_env: dict, target_ids: list, evidence: Path, rustup_home: str) -> dict:
     role = "rtk" if is_rtk else "raw"
     ge = _git_env(_FIXED / "home")
     runs, canon_hashes, per_rep, mut = [], [], [], []
     evidence.mkdir(parents=True, exist_ok=True)
     seed_cargo = _manifest_hash(_stable_manifest(frozen_env / "cargo-home"))
     seed_toolchain = _rustup_manifest(rustup_home)
-    contract_argv_ok = (argv[1:] == CONTRACT_RAW_ARGV[1:] if is_rtk else argv == CONTRACT_RAW_ARGV)
+    exp_argv = expected_argv(is_rtk, rtk_bin)
+    contract_argv_ok = argv_equals_contract(argv, is_rtk, rtk_bin)
     for i in range(REPS):
         if _FIXED.exists():
             shutil.rmtree(_FIXED, ignore_errors=True)
@@ -449,9 +465,11 @@ def _measure_arm(is_rtk: bool, frozen_env: Path, argv: list, wrapper: list, off_
             json.dump(mrec, fh, sort_keys=True)
     shutil.rmtree(_FIXED, ignore_errors=True)
     det = len(set(canon_hashes)) == 1
-    out = {"role": role, "reps": REPS, "actual_argv": argv,
+    semantic_env = {k: v for k, v in off_env.items() if k not in _ENV_PATH_KEYS}
+    out = {"role": role, "reps": REPS, "actual_argv": argv, "expected_argv": exp_argv,
            "canonicalization_policy": CANON_POLICY,
            "actual_argv_equal_contract": contract_argv_ok,
+           "semantic_env": semantic_env,
            "exit_stable": len({x["exit_code"] for x in runs}) == 1, "deterministic": det,
            "canonical_sha256": canon_hashes[0] if det else None,
            "timed_out_any": any(x["timed_out"] for x in runs), "runs": runs,
@@ -485,49 +503,102 @@ def _rtk_source_evidence(workroot: Path, evidence: Path) -> dict:
         return {"path": str(f.relative_to(co)), "git_blob_sha1": blob,
                 "sha256": c.sha256_file(str(f)), "bytes": f.stat().st_size}
 
-    # role signals -> derive the dispatch->filter->parser->formatter chain mechanically
-    roles = {"cli_dispatch_cargo_test": [], "cargo_filter": [], "cargo_parser": [], "summary_formatter": []}
-    src_bytes = {}
-    for f in co.rglob("*"):
-        if not f.is_file() or ".git" in f.parts:
-            continue
+    return _rtk_chain(co, head, tree, evidence, ident)
+
+
+# Rust symbol definition (fn / struct / enum / trait / const) with byte span.
+_RUST_DEF = re.compile(
+    rb"^[ \t]*(?:pub(?:\([^)]*\))?[ \t]+)?(?:async[ \t]+)?(?:unsafe[ \t]+)?"
+    rb"(fn|struct|enum|trait|const|static)[ \t]+([A-Za-z_][A-Za-z0-9_]*)", re.MULTILINE)
+
+
+def _rust_defs(text: bytes) -> dict:
+    """symbol -> (kind, byte_offset) for each Rust item definition in the file."""
+    out = {}
+    for m in _RUST_DEF.finditer(text):
+        out.setdefault(m.group(2).decode(), (m.group(1).decode(), m.start()))
+    return out
+
+
+def _rtk_chain(co: Path, head: str, tree: str, evidence: Path, ident) -> dict:
+    """Derive the CONNECTED source chain rtk `cargo test` dispatch -> cargo test filter ->
+    native cargo result parser -> summary formatter. Each role is anchored by an exact
+    content signal AND a Rust symbol; each edge is a MECHANICALLY-RESOLVED reference from
+    a role's file to a symbol DEFINED in the next role's file. Keyword hits alone never set
+    chain_complete=true."""
+    rs = [f for f in co.rglob("*.rs") if f.is_file() and ".git" not in f.parts]
+    files = {}
+    for f in rs:
         try:
             txt = f.read_bytes()
         except OSError:
             continue
-        low = txt.lower()
-        rel = str(f.relative_to(co))
-        # dispatch: routes the "cargo" subcommand / "cargo test" to a handler
-        if (b"cargo" in low and (b"subcommand" in low or b"match " in low or b"command" in low)
-                and b"test" in low):
-            roles["cli_dispatch_cargo_test"].append(rel); src_bytes[rel] = ident(f)
-        # native cargo parser: recognizes cargo's own "test result:" line
-        if b"test result:" in low:
-            roles["cargo_parser"].append(rel); src_bytes[rel] = ident(f)
-        # filter selection for cargo test
-        if b"cargo" in low and b"filter" in low:
-            roles["cargo_filter"].append(rel); src_bytes[rel] = ident(f)
-        # formatter emitting the RTK summary grammar (e.g. "Go test:", "Pytest:", "<Tool> test:")
-        if b" passed" in low and (b" failed" in low or b"packages" in low) and (
-                b"format" in low or b"write" in low or b"println" in low or b"summary" in low):
-            roles["summary_formatter"].append(rel); src_bytes[rel] = ident(f)
-    # copy the identified source bytes into the PERSISTED evidence dir for retention
+        files[str(f.relative_to(co))] = {"txt": txt, "defs": _rust_defs(txt), "path": f}
+
+    def anchors(pred) -> list:
+        return sorted(rel for rel, d in files.items() if pred(d["txt"].lower(), d["txt"]))
+
+    role_files = {
+        # dispatch: routes the cargo subcommand to test handling
+        "cli_dispatch_cargo_test": anchors(lambda low, t: b"cargo" in low and b"test" in low
+                                           and (b"subcommand" in low or b"=> " in t or b"match " in low)),
+        # filter selection for `cargo test`
+        "cargo_filter": anchors(lambda low, t: b"cargo" in low and b"filter" in low),
+        # native cargo result parser: recognizes cargo's own "test result:" line
+        "cargo_parser": anchors(lambda low, t: b"test result:" in low),
+        # summary formatter: emits the aggregate "<n> passed[, <n> failed]" record
+        "summary_formatter": anchors(lambda low, t: b"passed" in low and b"failed" in low
+                                     and (b"write!" in t or b"format!" in t or b"println!" in t)),
+    }
+    order = ["cli_dispatch_cargo_test", "cargo_filter", "cargo_parser", "summary_formatter"]
+
+    def resolve_edge(src_files: list, dst_files: list) -> dict | None:
+        """A resolved edge: some symbol DEFINED in a dst file is REFERENCED in a src file."""
+        for dst in dst_files:
+            for sym, (kind, off) in files[dst]["defs"].items():
+                if len(sym) < 4:
+                    continue
+                ref = re.compile(rb"\b" + re.escape(sym.encode()) + rb"\b")
+                for src in src_files:
+                    if src == dst:
+                        continue
+                    m = ref.search(files[src]["txt"])
+                    if m:
+                        return {"from_path": src, "to_path": dst, "target_symbol": sym,
+                                "target_kind": kind, "reference_offset": m.start(),
+                                "target_def_offset": off,
+                                "from_blob": ident(files[src]["path"]),
+                                "to_blob": ident(files[dst]["path"])}
+        return None
+
+    edges = {}
+    for a, b in zip(order, order[1:]):
+        edges[f"{a}->{b}"] = resolve_edge(role_files[a], role_files[b])
+    all_roles_found = all(role_files[r] for r in order)
+    all_edges_resolved = all(e is not None for e in edges.values())
+    chain_complete = bool(all_roles_found and all_edges_resolved)
+
+    # persist the exact source bytes for every file participating in a resolved edge
+    part = set()
+    for e in edges.values():
+        if e:
+            part.add(e["from_path"]); part.add(e["to_path"])
     ev_dir = evidence / "rtk-source-evidence"
     ev_dir.mkdir(parents=True, exist_ok=True)
     copied = []
-    for rel in sorted(src_bytes):
-        dst = ev_dir / rel.replace("/", "__")
+    for rel in sorted(part):
         try:
-            dst.write_bytes((co / rel).read_bytes())
-            copied.append(dst.name)
+            (ev_dir / rel.replace("/", "__")).write_bytes(files[rel]["txt"])
+            copied.append(rel.replace("/", "__"))
         except OSError:
             pass
-    complete = all(len(v) >= 1 for v in roles.values())
     return {"fetched": True, "commit": RTK_SOURCE_COMMIT, "head": head, "tree": tree,
-            "head_proven": head == RTK_SOURCE_COMMIT, "roles": roles,
-            "source_identities": src_bytes, "copied_evidence_files": sorted(copied),
-            "chain_complete": complete,
-            "chain": "rtk cargo test -> selected filter -> native cargo parser -> emitted RTK summary grammar"}
+            "head_proven": head == RTK_SOURCE_COMMIT,
+            "role_files": role_files, "edges": edges,
+            "all_roles_found": all_roles_found, "all_edges_resolved": all_edges_resolved,
+            "chain_complete": chain_complete, "copied_evidence_files": sorted(copied),
+            "chain": "rtk `cargo test` dispatch -> cargo test filter -> native cargo result "
+                     "parser -> summary formatter"}
 
 
 def _emit(out: Path, body: dict):
@@ -549,11 +620,17 @@ def main() -> int:
     row = c.load_record(ROW)
     gold = (row.get("patch") or "").encode(); test = (row.get("test_patch") or "").encode()
 
+    # producer-NEUTRAL fields (correction 2): the independent verifier -- not the producer --
+    # derives normative_evidence_eligible from re-verified primitive evidence.
     body = {"case_id": CASE_ID, "instance_id": INSTANCE_ID, "base_commit": base,
-            "diagnostic_classification": "COREUTILS_DIAGNOSTIC_NONCANONICAL",
+            "record_kind": "focused_diagnostic",
+            "acceptance_pass": False,
+            "normative_evidence_eligibility": "UNDETERMINED",
             "resolved_bundle_source": bundle["source"],
             "effective_record_hash_map": bundle["effective_record_hash_map"],
+            "canonicalization_policy_id": bundle["execution_contract"]["canonicalization_policy_id"],
             "contract_raw_argv": CONTRACT_RAW_ARGV, "contract_env": CONTRACT_ENV,
+            "rtk_binary_path": os.environ.get("RTK_BIN"),
             "rtk_binary_sha256": (c.sha256_file(os.environ["RTK_BIN"]) if os.environ.get("RTK_BIN") else None)}
 
     # correction 3: enforce toolchain pins BEFORE acquisition
@@ -605,22 +682,26 @@ def main() -> int:
         if rustflags:
             off["RUSTFLAGS"] = rustflags
         _env, test_argv = drv.pub.split_env(recipe["test_cmd"][0])
-        body["actual_environment_equal_contract"] = all(off.get(k) == v for k, v in CONTRACT_ENV.items())
-        raw = _measure_arm(False, frozen, list(CONTRACT_RAW_ARGV), wrapper, {**off, **_env},
+        meas_env = {**off, **_env}
+        body["measurement_semantic_env"] = {k: v for k, v in meas_env.items() if k not in _ENV_PATH_KEYS}
+        body["actual_environment_equal_contract"] = all(meas_env.get(k) == v for k, v in CONTRACT_ENV.items())
+        rtk_bin = os.environ.get("RTK_BIN")
+        raw = _measure_arm(False, frozen, list(CONTRACT_RAW_ARGV), rtk_bin, wrapper, meas_env,
                            target_ids, evidence, rustup_home)
         body["raw_arm"] = raw
         body["actual_raw_argv_equal_contract"] = raw["actual_argv_equal_contract"]
         if not raw["raw_qualified"]:
-            body["outcome"] = "COREUTILS_RAW_NOT_QUALIFIED"; body["acceptance_pass"] = False
+            body["outcome"] = "COREUTILS_RAW_NOT_QUALIFIED"
             body["file_manifest"] = _artifact_manifest(evidence, out)
             _emit(out, body); print("coreutils-diagnostic: RAW not qualified"); return 0
 
-        rtk_bin = os.environ.get("RTK_BIN")
-        rtk = _measure_arm(True, frozen, [rtk_bin, *CONTRACT_RAW_ARGV], wrapper, {**off, **_env},
+        rtk = _measure_arm(True, frozen, [rtk_bin, *CONTRACT_RAW_ARGV], rtk_bin, wrapper, meas_env,
                            target_ids, evidence, rustup_home)
         body["rtk_arm"] = rtk
         body["actual_rtk_argv_equal_contract"] = rtk["actual_argv_equal_contract"]
-        body["outcome"] = "RTK_DIALECT_UNPROVEN"; body["acceptance_pass"] = False
+        # RAW and RTK receive identical semantic env (RTK differs only by the wrapper argv[0])
+        body["raw_rtk_semantic_env_equal"] = raw["semantic_env"] == rtk["semantic_env"]
+        body["outcome"] = "RTK_DIALECT_UNPROVEN"
         body["rust_rtk_dialect_status"] = "unproven (fail-closed; bind from pinned RTK source + these streams)"
         body["file_manifest"] = _artifact_manifest(evidence, out)
         _emit(out, body)

@@ -13,26 +13,35 @@ import n2e_oracles as ora  # noqa: E402
 FIX = N2E_DIR / "tests" / "fixtures" / "coreutils_v1_raw"
 TARGET = ["test_tr::test_trailing_backslash"]
 
-# real Cargo status lines that MUST be removed
+# real Cargo status lines (EXACT column-12 alignment) that MUST be removed
 REAL_CARGO = [
     b"   Compiling libc v0.2.159",
     b"   Compiling coreutils v0.0.27 (/home/runner/work/_temp/n2e-fixedwork/repo)",
     b"    Finished `test` profile [unoptimized + debuginfo] target(s) in 2m 38s",
+    b"    Finished `release` profile target(s) in 0.05s",
     b"    Updating crates.io index",
-    b"   Locking 250 packages to latest compatible versions",
-    b"   Blocking waiting for file lock on package cache",
-    b" Downloading crates ...",
+    b"     Locking 250 packages to latest compatible versions",   # Locking=7 -> 5 spaces
+    b"    Blocking waiting for file lock on package cache",        # Blocking=8 -> 4 spaces
+    b" Downloading 5 crates ...",                                  # Downloading=11 -> 1 space
+    b"  Downloaded libc v0.2.159 (12.3 KB)",                       # Downloaded=10 -> 2 spaces
 ]
-# lookalike lines that MUST be preserved byte-for-byte
+# lookalike lines that MUST be preserved byte-for-byte (incl. correction-3 forms + wrong
+# indentation + missing version + non-Cargo Finished tail)
 PRESERVE = [
     b"    Finished processing sample",
+    b"    Finished test target(s) in memory",   # not `profile`, tail not a Cargo duration
     b"    Waiting for child process",
     b"    Checking generated output",
+    b"    Checking result",                      # no version
+    b"     Fresh state",                          # wrong prefix / no version
+    b"  Documenting failure",                     # wrong prefix / no version
+    b"   Compiling output",                       # no version
     b"    Building expected AST",
     b"    Removing temporary fixture",
     b"    Downloading was intentionally disabled",
     b"    Updating snapshot",
     b"    Blocking operation completed",
+    b"  Compiling libc v0.2.159",                 # wrong prefix (2 spaces)
     b"test test_trailing_backslash ... ok",
     b"thread 'main' panicked at 'Compiling failed unexpectedly'",
     b"    assertion failed: Finished == expected",
