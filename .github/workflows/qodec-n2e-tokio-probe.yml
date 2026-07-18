@@ -7,6 +7,9 @@ name: qodec-n2e-tokio-probe
 # commit I = HEAD~1 explicitly.
 on:
   workflow_dispatch: {}
+  push:
+    branches:
+      - 'ci-trigger/n2e-tokio-probe-**'
 
 permissions:
   contents: read
