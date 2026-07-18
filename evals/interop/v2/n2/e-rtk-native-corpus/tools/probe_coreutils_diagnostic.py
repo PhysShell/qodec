@@ -438,28 +438,35 @@ def _normalize_lock_packages(lock_bytes: bytes) -> list:
 
 
 def _resolved_dependency_snapshot(repo_dir: Path, cargo_home: Path) -> dict:
-    """Offline resolved-dependency snapshot (req 3). Two DISTINCT scopes are captured with
-    accurate terminology (the complete metadata document is NOT host-only):
+    """Resolved-dependency snapshot (req 3). Two DISTINCT scopes with accurate terminology:
       * full_packages_metadata / cargo_lock_scope = "full cross-platform resolution": every
         dependency package record (name/version/source/checksum) from the generated Cargo.lock,
         which is platform-independent.
-      * resolve_graph (resolve_graph_scope = "host-filtered", resolve_graph_platform =
+      * host_resolve_graph (resolve_graph_scope = "host-filtered", resolve_graph_platform =
         x86_64-unknown-linux-gnu): the resolve graph from `cargo metadata --filter-platform
-        <host>`, scoped to the host so `--offline` succeeds (the all-platform resolve would
-        need target-only deps such as android-tzdata that host-only `cargo test --no-run`
-        never downloaded) and matching exactly the deps the measurement substrate compiles.
-    Both are path-normalized so two independent acquisitions produce byte-identical snapshots.
-    Read-only: does not mutate the (already disposable) checkout beyond the lock cargo wrote."""
+        <host>`.
+    Host-only `cargo test --no-run <target>` downloads only the crates that ONE test target
+    builds, so `cargo metadata` (which must read the Cargo.toml of every host package, incl.
+    host build-deps such as bindgen) fails offline against that partial cache. So the online
+    acquisition phase runs a bounded `cargo fetch` first -- populating the cache with the exact
+    lock-pinned dependency set (deterministic: versions are fixed by the generated Cargo.lock)
+    -- and the RESOLUTION itself is then performed OFFLINE for determinism. Mutates only the
+    (disposable) acquisition cargo cache, never the normative checkout beyond cargo's lock."""
+    lock = repo_dir / "Cargo.lock"
+    lock_bytes = lock.read_bytes() if lock.is_file() else None
+    online = _cargo_env(cargo_home, {"CARGO_NET_OFFLINE": "false", "RUSTUP_TOOLCHAIN": CHANNEL})
+    # populate the full lock-pinned cache online, then resolve offline
+    fetch = _run(["cargo", "fetch"], cwd=str(repo_dir), env=online, tmo=900)
     env = _cargo_env(cargo_home, {"CARGO_NET_OFFLINE": "true", "RUSTUP_TOOLCHAIN": CHANNEL})
     r = _run(["cargo", "metadata", "--format-version", "1", "--offline",
               "--filter-platform", HOST], cwd=str(repo_dir), env=env, tmo=300)
-    lock = repo_dir / "Cargo.lock"
-    lock_bytes = lock.read_bytes() if lock.is_file() else None
-    out = {"metadata_exit": r["exit"], "metadata_ok": r["exit"] == 0,
+    out = {"fetch_exit": fetch["exit"], "metadata_exit": r["exit"], "metadata_ok": r["exit"] == 0,
            "cargo_lock_present": lock_bytes is not None,
            "cargo_lock_sha256": (_sha(lock_bytes) if lock_bytes else None),
            "cargo_lock_bytes": (len(lock_bytes) if lock_bytes else 0),
            "cargo_lock_scope": "full cross-platform resolution"}
+    if fetch["exit"] != 0:
+        out["fetch_stderr_tail"] = fetch["stderr"][-800:].decode("utf-8", "replace")
     if lock_bytes is not None:
         full_pkgs = _normalize_lock_packages(lock_bytes)
         out["full_packages_metadata"] = full_pkgs
@@ -511,15 +518,18 @@ def _acquire(label: str, root: Path, recipe: dict, base: str) -> dict:
     inst_env, inst_argv = drv.pub.split_env(recipe["install"][0])   # ['cargo','test','backslash','--no-run']
     install = _run(inst_argv, cwd=str(repo_dir),
                    env=_cargo_env(cargo_home, {**inst_env, "CARGO_NET_OFFLINE": "false"}), tmo=1800)
+    # resolved snapshot FIRST: it runs `cargo fetch` (online) to complete the lock-pinned cache,
+    # then resolves the host graph offline. The post-install state, cache manifest, and frozen
+    # lock bytes are all captured AFTERWARD so they reflect the exact substrate the measurement
+    # freezes (repo + fetched cache) and stay mutually consistent.
+    resolved = _resolved_dependency_snapshot(repo_dir, cargo_home)
     post = capture_dependency_state_passive(repo_dir, ge)
     post_md = probe_cargo_metadata_disposable(repo_dir, cargo_home, offline=post["cargo_lock"]["present"])
-    # exact post-install Cargo.lock bytes of THIS acquisition's frozen state, retained privately
+    ccm = _cargo_cache_manifests(cargo_home)
+    # exact post-fetch Cargo.lock bytes of THIS acquisition's frozen state, retained privately
     # and written to the A-/B-Cargo.lock evidence files (req 1); never emitted inline.
     _lock_path = repo_dir / "Cargo.lock"
     lock_raw = _lock_path.read_bytes() if _lock_path.is_file() else None
-    # semantic sparse-index cache manifests (reqs 1/2) + offline full resolved graph (req 3)
-    ccm = _cargo_cache_manifests(cargo_home)
-    resolved = _resolved_dependency_snapshot(repo_dir, cargo_home)
     return {
         "label": label, "base_commit": base, "head_matches_base": head_ok, "fetch_exit": fe["exit"],
         "install": {"argv": inst_argv, "env": inst_env, "exit": install["exit"], "timed_out": install["timed_out"],
