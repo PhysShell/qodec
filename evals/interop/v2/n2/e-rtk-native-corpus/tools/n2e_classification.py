@@ -26,12 +26,14 @@ DISQUALIFIED_INTRINSIC_NONDETERMINISM = "DISQUALIFIED_INTRINSIC_NONDETERMINISM"
 DISQUALIFIED_OFFLINE_EXECUTION = "DISQUALIFIED_OFFLINE_EXECUTION"
 DISQUALIFIED_RESOURCE_LIMIT = "DISQUALIFIED_RESOURCE_LIMIT"
 DISQUALIFIED_ENVIRONMENT_UNREPRODUCIBLE = "DISQUALIFIED_ENVIRONMENT_UNREPRODUCIBLE"
+DISQUALIFIED_RTK_SEMANTIC_LOSS = "DISQUALIFIED_RTK_SEMANTIC_LOSS"
 
 TERMINAL_DISQUALIFICATIONS = frozenset({
     DISQUALIFIED_INTRINSIC_NONDETERMINISM,
     DISQUALIFIED_OFFLINE_EXECUTION,
     DISQUALIFIED_RESOURCE_LIMIT,
     DISQUALIFIED_ENVIRONMENT_UNREPRODUCIBLE,
+    DISQUALIFIED_RTK_SEMANTIC_LOSS,
 })
 
 # non-terminal outcomes are candidate NEITHER for the passing gate NOR the
@@ -73,6 +75,15 @@ DEFINITIONS = {
         "installed byte-for-byte; acquisition attempted faithfully), but the "
         "environment still could not be reconstructed into a successful "
         "network-denied measurement substrate for a candidate-specific reason.",
+    DISQUALIFIED_RTK_SEMANTIC_LOSS:
+        "RAW fully qualifies under the faithful deterministic environment (the "
+        "declared target test itself failed/passed as required), RTK runs "
+        "successfully and deterministically, but the MEASURED RTK stream omits or "
+        "changes a semantic identity the frozen oracle requires (e.g. a RAW failing "
+        "test ID that disappears from RTK's measured output). Presence of the "
+        "identity only in an unmeasured tee sidecar does NOT count -- the measured "
+        "RTK stream is the artifact being qualified. Not intrinsic nondeterminism and "
+        "not a harness defect: the environment is reproducible and RTK executed.",
 }
 
 # Preconditions that MUST be evidenced in a per-case record before the given

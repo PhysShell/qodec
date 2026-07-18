@@ -129,13 +129,22 @@ def raw_outcome(scenario: dict, raw: bytes, raw_exit: int) -> dict:
     if sub in ("test", "pytest"):
         summ = _test_summary(raw)
         if variant in ("buggy", "fail"):
-            # declared: the target failing tests fail
+            # STRICT target-aware qualification (a package-setup/compile/panic failure,
+            # or an UNRELATED failing test, must NOT qualify the declared buggy case):
+            #   * the command reached the test framework (a summary was parsed);
+            #   * failed_count > 0 and the exit code is the declared failing outcome;
+            #   * EVERY required target identity appears in the parsed failing IDs.
             targets = set(_leaf_ids(scenario.get("target_test_ids") or []))
-            observed = set(summ["failing_ids"])
-            ok = (summ["failed"] or 0) > 0 and raw_exit != 0
-            covers = (not targets) or bool(targets & observed) or (summ["failed"] or 0) > 0
-            return {"oracle": "test_outcome", "verdict": bool(ok and covers),
-                    "evidence": {"summary": summ, "exit": raw_exit, "declared": "failing"}}
+            observed = set(_leaf_ids(summ["failing_ids"]))
+            reached = summ["failed"] is not None or summ["passed"] is not None
+            failed_n = summ["failed"] or 0
+            covers = bool(targets) and targets.issubset(observed)  # all targets present
+            ok = reached and failed_n > 0 and raw_exit != 0 and covers
+            return {"oracle": "test_outcome", "verdict": bool(ok),
+                    "evidence": {"summary": summ, "exit": raw_exit, "declared": "failing",
+                                 "required_targets": sorted(targets),
+                                 "observed_failing": sorted(observed),
+                                 "reached_framework": reached, "targets_covered": covers}}
         # fixed/pass: all pass
         ok = raw_exit == 0 and (summ["failed"] in (0, None))
         return {"oracle": "test_outcome", "verdict": bool(ok),
