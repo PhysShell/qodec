@@ -39,6 +39,88 @@ _VITEST_SUM_FAILONLY = re.compile(rb"Tests\s+(\d+) failed\b(?!\s*\|)")
 _GRADLE_SUM = re.compile(rb"(\d+) tests? completed(?:,\s*(\d+) failed)?")
 _GRADLE_FAIL = re.compile(rb"^(\S+) > (\S+) FAILED", re.MULTILINE)
 
+# --- native Cargo target-execution proof (bounded) ---------------------------------
+# `cargo test` runs one binary per test target; each emits `Running <src> (…/deps/<bin>-<hash>)`,
+# then `running N tests`, then `test <fn> ... ok|FAILED|ignored`, then an aggregate
+# `test result: <ok|FAILED>. P passed; F failed; I ignored; M measured; K filtered out`.
+_CARGO_RUNNING_BIN = re.compile(rb"^\s*Running\b.*?/deps/([A-Za-z0-9_]+?)-[0-9a-f]{5,}\b", re.MULTILINE)
+_CARGO_RUNNING_N = re.compile(rb"^running (\d+) tests?\b", re.MULTILINE)
+_CARGO_TEST_LINE = re.compile(rb"^test ([\w:]+) \.\.\. (ok|FAILED|ignored)\b", re.MULTILINE)
+_CARGO_RESULT_FULL = re.compile(
+    rb"test result:\s+(\w+)\.\s+(\d+) passed;\s+(\d+) failed(?:;\s+(\d+) ignored)?"
+    rb"(?:;\s+(\d+) measured)?(?:;\s+(\d+) filtered out)?")
+_CARGO_COMPILE_FAIL = re.compile(
+    rb"error\[E\d+\]|error: could not compile|error: no test target|error: test failed, "
+    rb"to rerun|error: could not find|error\[?:? linking with")
+
+
+def cargo_test_summary(raw: bytes) -> dict:
+    """Aggregate native `cargo test` output across ALL test binaries: total passed/failed/
+    ignored/measured/filtered_out, executed (binary::fn) ids by outcome, running-count total,
+    and compile/setup failure detection. Binary context comes from each `Running …/deps/<bin>`
+    line so a bare `test <fn>` line becomes `<bin>::<fn>`."""
+    passed = failed = ignored = measured = filtered = 0
+    results_seen = 0
+    executed_ok, executed_failed, executed_ignored = [], [], []
+    running_total = 0
+    # walk lines in order, tracking the current binary from Running lines
+    cur_bin = None
+    for ln in (raw or b"").splitlines():
+        mb = _CARGO_RUNNING_BIN.match(ln)
+        if mb:
+            cur_bin = mb.group(1).decode("utf-8", "replace")
+            continue
+        mn = _CARGO_RUNNING_N.match(ln)
+        if mn:
+            running_total += int(mn.group(1))
+            continue
+        mt = _CARGO_TEST_LINE.match(ln)
+        if mt:
+            fn = mt.group(1).decode("utf-8", "replace")
+            ident = f"{cur_bin}::{fn}" if cur_bin else fn
+            {"ok": executed_ok, "FAILED": executed_failed,
+             "ignored": executed_ignored}[mt.group(2).decode()].append(ident)
+            continue
+    for mm in _CARGO_RESULT_FULL.finditer(raw or b""):
+        results_seen += 1
+        passed += int(mm.group(2)); failed += int(mm.group(3))
+        ignored += int(mm.group(4) or 0); measured += int(mm.group(5) or 0)
+        filtered += int(mm.group(6) or 0)
+    return {"passed": passed, "failed": failed, "ignored": ignored, "measured": measured,
+            "filtered_out": filtered, "result_lines": results_seen, "running_total": running_total,
+            "executed_ok": sorted(executed_ok), "executed_failed": sorted(executed_failed),
+            "executed_ignored": sorted(executed_ignored),
+            "compile_or_setup_failure": bool(_CARGO_COMPILE_FAIL.search(raw or b""))}
+
+
+def cargo_target_execution_proof(raw: bytes, exit_code: int, target_ids: list) -> dict:
+    """Prove a RAW `cargo test` rep genuinely EXECUTED the declared target test(s) and
+    passed -- never inferred from exit 0 or the target string appearing in argv.
+
+    Requires (fixed snapshot): exit 0; aggregate failed == 0; every target leaf observed as
+    an executed PASSING test (`test <bin>::<fn> ... ok`); nonzero tests executed; not filtered
+    to zero; not compile-only; no compile/setup failure. Records the complete executed id set
+    so the caller can require determinism across reps."""
+    s = cargo_test_summary(raw)
+    targets = [t.split("::")[-1] for t in (target_ids or [])]
+    ok_leaves = {x.split("::")[-1] for x in s["executed_ok"]}
+    all_leaves = ({x.split("::")[-1] for x in s["executed_ok"]}
+                  | {x.split("::")[-1] for x in s["executed_failed"]})
+    target_executed_passing = bool(targets) and all(t in ok_leaves for t in targets)
+    checks = {
+        "exit_zero": exit_code == 0,
+        "aggregate_failed_zero": s["failed"] == 0,
+        "target_executed_passing": target_executed_passing,
+        "nonzero_tests_executed": (s["passed"] + s["failed"]) > 0,
+        "not_filtered_to_zero": s["running_total"] > 0 and (s["passed"] + s["failed"]) > 0,
+        "not_compile_only": s["result_lines"] > 0,
+        "no_compile_or_setup_failure": not s["compile_or_setup_failure"],
+    }
+    return {"summary": s, "target_ids": sorted(target_ids or []),
+            "targets_missing_from_executed": sorted(t for t in targets if t not in all_leaves),
+            "executed_ok_ids": s["executed_ok"], "checks": checks,
+            "executed_ok": all(checks.values())}
+
 # ---- test-output DIALECTS (separate semantic parsing from output format) ----
 # The native tool stream and RTK's filtered summary express the SAME semantic events
 # (failed_count, failing_ids) in different grammars. The oracle must parse each stream

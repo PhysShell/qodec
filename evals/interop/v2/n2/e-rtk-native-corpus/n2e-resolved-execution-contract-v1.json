@@ -54,7 +54,7 @@
       "scheduler_env": {
         "CARGO_BUILD_JOBS": "1",
         "CARGO_NET_OFFLINE": "true",
-        "RUSTUP_TOOLCHAIN": "1.81",
+        "RUSTUP_TOOLCHAIN": "1.81.0",
         "RUST_TEST_THREADS": "1"
       },
       "scheduler_flags": null,
@@ -64,15 +64,26 @@
       "timeout_tier": "extended-600s",
       "toolchain_identity_ref": {
         "required_keys": [
-          "rustc",
-          "cargo"
+          "resolved_channel_exact",
+          "cargo_binary_sha256",
+          "rustc_binary_sha256",
+          "rustup_shim_path",
+          "rustup_shim_realpath",
+          "rustup_realpath_sha256",
+          "host_target",
+          "cargo_version_verbose",
+          "rustc_version_verbose",
+          "installed_components",
+          "channel_manifest_sha256",
+          "cargo_component_artifact_sha256",
+          "rustc_component_artifact_sha256"
         ],
         "where": "focused coreutils diagnostic: acquisition.environment_identity.toolchain"
       }
     }
   ],
   "purpose": "Resolved-scope overlay for the coreutils-6731 replacement; frozen base is never modified. Effective contract = frozen base + verified replacement overlay.",
-  "record_sha256": "sha256:3ff2f4bb4f20e21d2e004110d7c7b145277e024e98189430a7706f693dcabf4c",
+  "record_sha256": "sha256:ce7d55ab19ee393c1143f13ba512a45f9435d84f070d7e2f8f1b63581f481d37",
   "record_type": "n2e-resolved-execution-contract-overlay",
   "record_version": "v1",
   "replaces": "tokio-rs__tokio-4384::rust_cargo::test::fixed",

@@ -64,12 +64,21 @@ RUST_181 = {
         "rustc": {"hash": "d1e8db8c3ce0bd4b8a99e29bbd5132a3cf6a7e88ba4004bf7ce889fac7aa7e8d",
                   "xz_hash": "988a4e4cdecebe4f4a0c52ec4ade5a5bfc58d6958969f5b1e8aac033bda2613e"},
     },
-    # exact on-disk identity captured at acquisition and verified against the channel pins
+    # exact on-disk identity captured at acquisition. Verification is TWO-STEP and the two
+    # steps are NEVER conflated: (1) verify the fetched distribution artifacts (cargo/rustc
+    # component archives) against the channel manifest hashes above; (2) SEPARATELY capture
+    # the installed executable identities (their own on-disk SHA-256). Installed-binary
+    # SHA-256 are NOT compared to the component-archive SHA-256.
     "exact_binary_identity_ref": {
         "status": "captured_at_acquisition",
+        "verification_discipline": "verify distribution artifacts against channel manifest, "
+                                   "then capture installed executable identities separately; "
+                                   "do not compare installed-binary sha256 to component-archive sha256",
         "required_keys": ["resolved_channel_exact", "cargo_binary_sha256", "rustc_binary_sha256",
-                          "rustup_shim_realpath", "rustup_realpath_sha256", "host_target",
-                          "cargo_version_verbose", "rustc_version_verbose", "installed_components"],
+                          "rustup_shim_path", "rustup_shim_realpath", "rustup_realpath_sha256",
+                          "host_target", "cargo_version_verbose", "rustc_version_verbose",
+                          "installed_components", "channel_manifest_sha256",
+                          "cargo_component_artifact_sha256", "rustc_component_artifact_sha256"],
         "where": "focused coreutils diagnostic: acquisition.environment_identity.toolchain",
     },
 }
@@ -175,15 +184,23 @@ def build_execution_contract_overlay() -> dict:
         "resolution_rule": "publisher_recipe", "runtime_resolved": False,
         "effective_raw_argv": argv, "effective_rtk_argv": ["rtk", *argv],
         "execution_control": None,
+        # effective runtime selector uses the EXACT resolved channel (1.81.0), not the
+        # publisher-facing docker rust_version "1.81".
         "scheduler_env": {"CARGO_BUILD_JOBS": "1", "CARGO_NET_OFFLINE": "true",
-                          "RUST_TEST_THREADS": "1", "RUSTUP_TOOLCHAIN": "1.81"},
+                          "RUST_TEST_THREADS": "1", "RUSTUP_TOOLCHAIN": "1.81.0"},
         "scheduler_flags": None,
         "canonicalization_policy_id": "cargo-test-v1",
         "semantic_oracle_policy_id": recipe["oracle_policy_id"],
         # rust RTK dialect is not yet proven -> None (fail-closed) until step 9 binds it
         "rtk_test_dialect_policy_id": ora.rtk_dialect_for("rust_cargo"),
-        "toolchain_identity_ref": {"where": "focused coreutils diagnostic: acquisition."
-                                   "environment_identity.toolchain", "required_keys": ["rustc", "cargo"]},
+        "toolchain_identity_ref": {
+            "where": "focused coreutils diagnostic: acquisition.environment_identity.toolchain",
+            "required_keys": [
+                "resolved_channel_exact", "cargo_binary_sha256", "rustc_binary_sha256",
+                "rustup_shim_path", "rustup_shim_realpath", "rustup_realpath_sha256",
+                "host_target", "cargo_version_verbose", "rustc_version_verbose",
+                "installed_components", "channel_manifest_sha256",
+                "cargo_component_artifact_sha256", "rustc_component_artifact_sha256"]},
         "dependency_environment_identity_ref": {
             "where": "focused coreutils diagnostic: acquisition.environment_identity.dependencies",
             "protected_files": ["Cargo.lock", "Cargo.toml"]},
