@@ -1,0 +1,126 @@
+#!/usr/bin/env python3
+"""Promotion P5.1: freeze the resolved-twelve manifest.
+
+ONE immutable manifest naming EXACTLY the twelve cases that constitute the resolved_canary_pass
+claim, in the frozen resolved-membership order. Every per-case policy field is DERIVED from the
+frozen base/overlay execution contract (never hand-copied), so a drift in any policy id is caught
+by the manifest verifier. No dynamic discovery, no "all records in this directory": the aggregator
+(P5.4) will require exactly one qualification record for each of these twelve, of the declared type,
+binding the declared contract generation. Sets no promotion flag.
+
+Field provenance (all read live from the frozen contract):
+  canonicalization_policy_id / _generation, rtk_test_dialect_policy_id, semantic_oracle_policy_id,
+  command_family / _subfamily, toolchain_identity_ref  -> per-case execution contract entry.
+  contract_generation                                  -> 3 for the coreutils overlay (its
+                                                          rtk_dialect_binding_generation.generation),
+                                                          1 (implicit original) for every base case.
+  required_rtk_binary_identity_ref                     -> the single pinned corpus RTK binary.
+"""
+from __future__ import annotations
+
+import sys
+from pathlib import Path
+
+HERE = Path(__file__).resolve().parent
+N2E_DIR = HERE.parent
+sys.path.insert(0, str(HERE))
+import n2e_common as c  # noqa: E402
+import n2e_resolved_loader as L  # noqa: E402
+
+OUT = N2E_DIR / "n2e-resolved-twelve-manifest-v1.json"
+MANIFEST_GENERATION = 1
+
+# the one case that is already frozen-qualified (P4) carries its concrete record type; every other
+# case declares the uniform per-case qualification type its P5.3 acceptance run must emit.
+COREUTILS_QUAL_TYPE = "n2e-coreutils-qualification"
+PENDING_QUAL_TYPE = "n2e-resolved-case-qualification"
+
+
+def _contract_generation(entry: dict) -> int:
+    g = entry.get("rtk_dialect_binding_generation")
+    if isinstance(g, dict) and isinstance(g.get("generation"), int):
+        return g["generation"]
+    return 1  # base cases: implicit original generation
+
+
+def _canon_generation(entry: dict):
+    g = entry.get("canonicalization_policy_generation")
+    if isinstance(g, dict):
+        return g.get("generation")
+    return None
+
+
+def build_manifest() -> dict:
+    rm = c.load_record(L.RESOLVED_MEMBERSHIP)
+    membership = rm["resolved_membership"]
+    base = c.load_record(L.CONTRACT)
+    by_base = {x["case_id"]: x for x in base["contracts"]}
+    ov = c.load_record(L.OV_CONTRACT)["overlay_contracts"][0]
+
+    if len(membership) != 12:
+        raise SystemExit(f"resolved membership is not twelve ({len(membership)})")
+
+    pinned_rtk = {"sha256": L.DIALECT_RTK_SHA, "bytes": L.DIALECT_RTK_BYTES,
+                  "note": "single pinned corpus RTK binary (all twelve cases execute under it)"}
+
+    cases = []
+    for m in membership:  # frozen order preserved -> reordering is detectable
+        cid = m["case_id"]
+        is_coreutils = cid == L.REPLACEMENT_CASE_ID
+        x = ov if is_coreutils else by_base.get(cid)
+        if x is None:
+            raise SystemExit(f"no execution contract for manifest case {cid}")
+        cases.append({
+            "case_id": cid,
+            "family": x.get("command_family"),
+            "subfamily": x.get("command_subfamily"),
+            "canary_slot": m.get("canary_slot"),
+            "canonicalization_policy_id": x.get("canonicalization_policy_id"),
+            "canonicalization_policy_generation": _canon_generation(x),
+            "rtk_test_dialect_policy_id": x.get("rtk_test_dialect_policy_id"),
+            "semantic_oracle_policy_id": x.get("semantic_oracle_policy_id"),
+            "contract_generation": _contract_generation(x),
+            "required_toolchain_identity_ref": x.get("toolchain_identity_ref"),
+            "required_rtk_binary_identity_ref": pinned_rtk,
+            "expected_qualification_record_type":
+                COREUTILS_QUAL_TYPE if is_coreutils else PENDING_QUAL_TYPE,
+            # descriptive: which cases are already frozen-qualified vs pending an acceptance run.
+            # NOT a promotion input -- the aggregator derives PASS/absence from the actual records.
+            "qualification_status": "frozen" if is_coreutils else "pending",
+        })
+
+    case_ids = [x["case_id"] for x in cases]
+    if len(set(case_ids)) != 12:
+        raise SystemExit("duplicate case ids in manifest")
+
+    return c.envelope(
+        record_type="n2e-resolved-twelve-manifest",
+        generated_by="evals/interop/v2/n2/e-rtk-native-corpus/tools/build_n2e_resolved_twelve_manifest.py",
+        record_version="v1",
+        purpose="Immutable roster of the exact twelve cases constituting the resolved_canary_pass "
+                "claim. Per-case policy derived from the frozen contract. Sets no promotion flag; "
+                "resolved_canary_pass stays false until the P5.4 aggregator independently derives "
+                "twelve PASSes.",
+        manifest_generation=MANIFEST_GENERATION,
+        cardinality=12,
+        resolved_membership_sha256=c.sha256_json_file(L.RESOLVED_MEMBERSHIP),
+        base_execution_contract_sha256=c.sha256_json_file(L.CONTRACT),
+        resolved_execution_contract_sha256=c.sha256_json_file(L.OV_CONTRACT),
+        toolchain_lock_sha256=c.sha256_json_file(L.LOCK),
+        pinned_rtk_binary_identity=pinned_rtk,
+        case_ids=case_ids,
+        cases=cases,
+        # held-flag reminder carried in the record itself
+        resolved_canary_pass=False,
+        promotion_state="held (twelve-case aggregation not yet closed)",
+    )
+
+
+def main() -> int:
+    c.write_record(OUT, build_manifest())
+    print(f"wrote {OUT.name} (12 cases, generation {MANIFEST_GENERATION})")
+    return 0
+
+
+if __name__ == "__main__":
+    raise SystemExit(main())
