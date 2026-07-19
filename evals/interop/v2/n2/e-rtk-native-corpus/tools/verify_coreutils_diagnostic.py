@@ -8,7 +8,8 @@ Re-derives EVERY gate from primitive evidence -- never trusts a producer boolean
     *CONTRACT_RAW_ARGV] (full argv; a dropped `cargo`, injected `+1.81.0`, extra/reordered
     flags all fail) (corr 1);
   * binds the canonicalizer policy from the resolved contract (record==contract==
-    cargo-test-v2) and re-derives each rep's canonical + removed-line diagnostics (corr 4);
+    cargo-test-v2) and re-derives each rep's canonical + removed-line diagnostics (corr 4; the coreutils
+    contract migrated to cargo-test-v3 = cargo-test-v2 + RTK compact-summary duration normalization);
   * re-derives the effective environment == contract and RAW/RTK semantic-env parity (corr 5);
   * requires a mechanically-resolved dispatch->filter->parser->formatter chain (corr 6);
   * requires exact relative manifest paths + external-manifest cross-agreement (corr 7);
@@ -42,7 +43,7 @@ RTK_SOURCE_COMMIT = "5d32d0736f686b69d1e8b9dc45c007d4eb77a0a2"
 CONTRACT_RAW_ARGV = ["cargo", "test", "backslash", "--no-fail-fast"]
 CONTRACT_ENV = {"RUSTUP_TOOLCHAIN": "1.81.0", "CARGO_NET_OFFLINE": "true",
                 "RUST_TEST_THREADS": "1", "CARGO_BUILD_JOBS": "1"}
-EXPECTED_POLICY = "cargo-test-v2"
+EXPECTED_POLICY = "cargo-test-v3"
 EVIDENCE_ROOT = "out/evidence/coreutils-6731"
 TARGET_IDS = ["test_tr::test_trailing_backslash"]
 CHAIN_ORDER = ["cli_dispatch_cargo_test", "cargo_filter", "cargo_parser", "summary_formatter"]
@@ -729,7 +730,7 @@ def verify(rec_path: Path, evidence: Path) -> tuple[bool, list, dict]:
         facts["normative_evidence_eligible"] = False
         return (not fail), fail, facts
 
-    # policy binding (corr 4): record == contract == cargo-test-v2
+    # policy binding (corr 4): record == contract == EXPECTED_POLICY (cargo-test-v3)
     try:
         bundle = loader.load_case_bundle("uutils__coreutils-6731::rust_cargo::test::fixed", "resolved")
         contract_policy = bundle["execution_contract"]["canonicalization_policy_id"]

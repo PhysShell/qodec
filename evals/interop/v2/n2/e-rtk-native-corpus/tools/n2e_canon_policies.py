@@ -242,6 +242,32 @@ def cargo_test_v2_removed_diag(data: bytes) -> dict:
 _POLICIES["cargo-test-v2"] = _cargo_test_v2_canon
 
 
+# --------------------------------------------------------------------------
+# cargo-test-v3: cargo-test-v2 UNCHANGED, plus EXACTLY ONE additional rule. cargo-test-v2 is
+# left byte-for-byte intact (a separate immutable callable) so every existing v2 record keeps
+# its exact meaning -- v3 is a NEW policy id, never an in-place mutation of v2.
+#
+# The one added rule normalizes the wall-clock duration inside RTK's cargo-test COMPACT ALL-PASS
+# summary, whose exact source grammar (rust RTK @5d32d07 AggregatedTestResult::format_compact) is:
+#     cargo test: {N} passed[, {I} ignored][, {F} filtered out} (<K> suite(s), <D.DD>s)
+# The rule is anchored to that COMPLETE line (counts + suite clause + trailing "<D.DD>s)$"); it
+# rewrites ONLY the duration to <dur>. It is NOT a generic "\d+\.\d+s" replacement: an out-of-grammar
+# duration, a failure/build/no-summary line, a trailing tail after ")", or the no-duration compact
+# form "(K suites)" are all left byte-identical. Suite count and every test count are preserved.
+_V3_RTK_COMPACT_ALLPASS_DUR = re.compile(
+    rb"^(cargo test: \d+ passed(?:, \d+ ignored)?(?:, \d+ filtered out)? "
+    rb"\(\d+ suites?, )\d+\.\d+s(\))$", re.MULTILINE)
+
+
+def _cargo_test_v3_canon(data: bytes) -> bytes:
+    """cargo-test-v2 canon, then normalize ONLY the RTK compact all-pass summary duration."""
+    data = _cargo_test_v2_canon(data)
+    return _V3_RTK_COMPACT_ALLPASS_DUR.sub(rb"\1<dur>\2", data)
+
+
+_POLICIES["cargo-test-v3"] = _cargo_test_v3_canon
+
+
 # deterministic resolution from the frozen scenario
 _FAMILY_SUB_POLICY = {
     ("rust_cargo", "test"): "cargo-test-v1",

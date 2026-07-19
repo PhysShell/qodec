@@ -191,9 +191,17 @@ def build_execution_contract_overlay() -> dict:
         "scheduler_env": {"CARGO_BUILD_JOBS": "1", "CARGO_NET_OFFLINE": "true",
                           "RUST_TEST_THREADS": "1", "RUSTUP_TOOLCHAIN": "1.81.0"},
         "scheduler_flags": None,
-        # resolved coreutils uses the BOUNDED build-progress-stripping variant; historical
-        # tokio evidence stays bound to cargo-test-v1 (its meaning never broadens).
-        "canonicalization_policy_id": "cargo-test-v2",
+        # resolved coreutils uses the BOUNDED build-progress-stripping variant. Generation 2 of
+        # this contract migrates cargo-test-v2 -> cargo-test-v3: v3 is cargo-test-v2 PLUS exactly
+        # one added rule (normalize the RTK cargo-test compact all-pass summary duration), so the
+        # RTK canonical stream is byte-reproducible across determinant-neutral runs. cargo-test-v2
+        # is left byte-for-byte intact (no versioning fraud); the SOLE contract delta is this
+        # policy id. Historical tokio evidence stays bound to cargo-test-v1.
+        "canonicalization_policy_id": "cargo-test-v3",
+        "canonicalization_policy_generation": {
+            "generation": 2, "previous_policy_id": "cargo-test-v2",
+            "delta": "added one rule normalizing the RTK cargo-test compact all-pass summary "
+                     "duration (rust RTK @5d32d07 format_compact); cargo-test-v2 unchanged"},
         "semantic_oracle_policy_id": recipe["oracle_policy_id"],
         # rust RTK dialect is not yet proven -> None (fail-closed) until step 9 binds it
         "rtk_test_dialect_policy_id": ora.rtk_dialect_for("rust_cargo"),

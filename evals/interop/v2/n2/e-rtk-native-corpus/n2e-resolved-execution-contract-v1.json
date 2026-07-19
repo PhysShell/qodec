@@ -7,7 +7,12 @@
   "overlay_contracts": [
     {
       "argv_resolver_policy_id": "n2e-argv-resolver-v1",
-      "canonicalization_policy_id": "cargo-test-v2",
+      "canonicalization_policy_generation": {
+        "delta": "added one rule normalizing the RTK cargo-test compact all-pass summary duration (rust RTK @5d32d07 format_compact); cargo-test-v2 unchanged",
+        "generation": 2,
+        "previous_policy_id": "cargo-test-v2"
+      },
+      "canonicalization_policy_id": "cargo-test-v3",
       "case_id": "uutils__coreutils-6731::rust_cargo::test::fixed",
       "command_family": "rust_cargo",
       "command_subfamily": "test",
@@ -83,7 +88,7 @@
     }
   ],
   "purpose": "Resolved-scope overlay for the coreutils-6731 replacement; frozen base is never modified. Effective contract = frozen base + verified replacement overlay.",
-  "record_sha256": "sha256:9ae23b1acef659c6912c18f7921af9c89a99fc6590f0e805d243b26c38293374",
+  "record_sha256": "sha256:ed418e6bdb94aee0d3c30bdda02c2c0f18310fe480396cd92cd62a5f838a47c3",
   "record_type": "n2e-resolved-execution-contract-overlay",
   "record_version": "v1",
   "replaces": "tokio-rs__tokio-4384::rust_cargo::test::fixed",

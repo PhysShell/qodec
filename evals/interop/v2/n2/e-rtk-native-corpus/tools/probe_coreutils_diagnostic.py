@@ -52,7 +52,7 @@ CHANNEL = "1.81.0"
 HOST = "x86_64-unknown-linux-gnu"
 ROW = N2E_DIR / "evidence" / "coreutils-6731" / "uutils__coreutils-6731.row.json"
 RTK_SOURCE_COMMIT = "5d32d0736f686b69d1e8b9dc45c007d4eb77a0a2"
-CANON_POLICY = "cargo-test-v2"
+CANON_POLICY = "cargo-test-v3"
 REPS = 3
 # exact committed argv/env (correction 2)
 CONTRACT_RAW_ARGV = ["cargo", "test", "backslash", "--no-fail-fast"]
