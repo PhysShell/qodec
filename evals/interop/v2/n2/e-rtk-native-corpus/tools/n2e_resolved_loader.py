@@ -48,6 +48,9 @@ BINID_DIR = N2E_DIR / "evidence" / "coreutils-6731" / "toolchain-binary-identity
 # P3: case-scoped Rust cargo-test RTK dialect record + its committed frozen streams
 DIALECT = N2E_DIR / "n2e-resolved-rtk-rust-cargo-dialect-v1.json"
 DIALECT_DIR = N2E_DIR / "evidence" / "coreutils-6731" / "rtk-rust-cargo-dialect"
+# P4: Coreutils qualification record + its committed frozen canonical streams (predicate carrier)
+QUALIFICATION = N2E_DIR / "n2e-coreutils-qualification-v1.json"
+QUALIFICATION_DIR = N2E_DIR / "evidence" / "coreutils-6731" / "qualification"
 
 REPLACEMENT_CASE_ID = "uutils__coreutils-6731::rust_cargo::test::fixed"
 REPLACED_CASE_ID = "tokio-rs__tokio-4384::rust_cargo::test::fixed"
@@ -91,6 +94,10 @@ DIALECT_SOURCE_TREE = "8ef9e912286858c2caf5b066c1121327a072be79"
 DIALECT_RTK_SHA = "41f316adf7b30a568208a0a4f824bffb266ecb6d01bd9de81bed58e1d469dfcf"
 DIALECT_RTK_BYTES = 9200104
 DIALECT_RUN = "29667956749"
+
+# P4 qualification expected semantics (the single proven Coreutils case).
+QUAL_EXPECTED = {"passed": 10, "filtered_out": 3205, "suites": 3}
+QUAL_WORKFLOW = "qodec-n2e-coreutils-qualification"
 
 # overlay file -> (record key holding the base whole-file hash, the base file it must match)
 _OVERLAYS = {
@@ -425,6 +432,107 @@ def validate_rtk_rust_cargo_dialect(rec: dict, bound_dialect_id, rm_sha: str, ba
     return rec
 
 
+def _load_qualification(path: Path) -> dict:
+    if not Path(path).is_file():
+        raise ResolvedScopeError("required Coreutils qualification record missing (predicate active)")
+    return _load_ok(path)
+
+
+def validate_coreutils_qualification(rec: dict, rm_sha: str, resolved_contract_sha: str, p2_sha: str,
+                                     p3_sha: str, evidence_dir: Path) -> bool:
+    """Fail-closed validation of the Coreutils qualification record + INDEPENDENT recomputation of
+    the verdict. Pure over its inputs. Re-parses the committed frozen canonical streams through the
+    frozen P3 dialect, recomputes the equivalence + required semantics, and requires the record's
+    claimed coreutils_qualification_pass to MATCH the recomputed verdict (a record claiming PASS
+    while the recomputation yields FAIL is rejected). Ties the record to contract generation 3, the
+    seven overlays, and the P2/P3 identity records; bars diagnostic runs. Returns the verdict."""
+    import n2e_rtk_rust_cargo_dialect as rcd
+
+    if rec.get("record_type") != "n2e-coreutils-qualification":
+        raise ResolvedScopeError("qualification record wrong record_type")
+    if rec.get("record_version") != "v1":
+        raise ResolvedScopeError("qualification record wrong record_version")
+    # EXACTLY ONE qualification, for the replacement case (duplicate / wrong-case -> reject)
+    quals = rec.get("qualifications") or []
+    if [q.get("case_id") for q in quals] != [REPLACEMENT_CASE_ID]:
+        raise ResolvedScopeError(f"qualification record must contain exactly one qualification for "
+                                 f"[{REPLACEMENT_CASE_ID}]")
+    q = quals[0]
+
+    # ---- bindings: gen-3 contract + membership + P2/P3 identity records ----
+    if rec.get("resolved_membership_sha256") != rm_sha:
+        raise ResolvedScopeError("qualification resolved_membership_sha256 mismatch")
+    if rec.get("contract_generation3_sha256") != resolved_contract_sha:
+        raise ResolvedScopeError("qualification contract_generation3_sha256 != current resolved contract")
+    if rec.get("p2_binary_identity_ref", {}).get("sha256") != p2_sha:
+        raise ResolvedScopeError("qualification p2_binary_identity_ref sha != current P2 record")
+    if rec.get("p3_dialect_ref", {}).get("sha256") != p3_sha:
+        raise ResolvedScopeError("qualification p3_dialect_ref sha != current P3 dialect record")
+    # the qualification is bound to the SAME proven dialect + versioned canon policy as the contract
+    if rec.get("bound_dialect_policy_id") != DIALECT_ID:
+        raise ResolvedScopeError("qualification bound_dialect_policy_id != proven dialect")
+    if rec.get("canonicalization_policy_id") != "cargo-test-v3":
+        raise ResolvedScopeError("qualification canonicalization_policy_id != cargo-test-v3")
+
+    # ---- acceptance-run identity (a diagnostic run cannot be substituted) ----
+    run = rec.get("acceptance_run") or {}
+    if run.get("workflow") != QUAL_WORKFLOW:
+        raise ResolvedScopeError("qualification acceptance_run.workflow != the qualification workflow "
+                                 "(diagnostic run substituted?)")
+    for k in ("run_id", "run_attempt", "impl_commit", "artifact_sha256", "artifact_bytes"):
+        if run.get(k) in (None, ""):
+            raise ResolvedScopeError(f"qualification acceptance_run.{k} missing")
+    if run.get("run_id") in BARRED_DIAGNOSTIC_RUNS or run.get("impl_commit") in BARRED_DIAGNOSTIC_IMPLS:
+        raise ResolvedScopeError("qualification acceptance_run names a barred diagnostic-only run/impl")
+
+    # ---- exact identities (Rust, Cargo, RTK) ----
+    ident = rec.get("identities") or {}
+    if ident.get("cargo_sha256") != PROVEN_BINARY_IDENTITY["cargo"]["sha256"]:
+        raise ResolvedScopeError("qualification cargo identity != proven")
+    if ident.get("rustc_sha256") != PROVEN_BINARY_IDENTITY["rust"]["sha256"]:
+        raise ResolvedScopeError("qualification rustc identity != proven")
+    if ident.get("rtk_sha256") != DIALECT_RTK_SHA or ident.get("rtk_bytes") != DIALECT_RTK_BYTES:
+        raise ResolvedScopeError("qualification RTK identity != proven (41f316.../9200104)")
+
+    # ---- captured-bytes layer: re-hash the committed frozen canonical streams ----
+    dig = rec.get("captured_stream_digests") or {}
+    if not dig:
+        raise ResolvedScopeError("qualification has no captured_stream_digests (metadata-only)")
+    for role in ("raw", "rtk"):
+        p = Path(evidence_dir) / f"{role}.canonical.bin"
+        if not p.is_file():
+            raise ResolvedScopeError(f"qualification frozen canonical stream missing: {role}")
+        raw = p.read_bytes()
+        meta = dig.get(f"{role}.canonical") or {}
+        if c.sha256_bytes(raw) != meta.get("sha256") or len(raw) != meta.get("bytes"):
+            raise ResolvedScopeError(f"qualification frozen {role}.canonical sha256/bytes != recorded")
+
+    # ---- INDEPENDENT verdict recomputation from the frozen streams ----
+    rp = rcd.parse_raw((Path(evidence_dir) / "raw.canonical.bin").read_bytes())
+    kp = rcd.parse_rtk((Path(evidence_dir) / "rtk.canonical.bin").read_bytes())
+    eq = rcd.equivalence(rp, kp)
+    recomputed = (rp["outcome"] == "success" and eq["equivalent"]
+                  and (rp["passed"], rp["filtered_out"], rp["suites"]) == (
+                      QUAL_EXPECTED["passed"], QUAL_EXPECTED["filtered_out"], QUAL_EXPECTED["suites"])
+                  and (kp["passed"], kp["filtered_out"], kp["suites"]) == (
+                      QUAL_EXPECTED["passed"], QUAL_EXPECTED["filtered_out"], QUAL_EXPECTED["suites"])
+                  and not rp["failing_ids"] and not kp["failing_ids"]
+                  and rp["terminal_summary_present"] and kp["terminal_summary_present"])
+    # the record's re-derived projection must agree with the loader's independent parse
+    sp = rec.get("re_derived_semantic_projection") or {}
+    if sp.get("raw_projection") != rp or sp.get("rtk_projection") != kp:
+        raise ResolvedScopeError("qualification recorded projection != loader re-derivation from frozen streams")
+    # the record's claimed verdict MUST equal the loader recomputation
+    claimed = rec.get("coreutils_qualification_pass")
+    if claimed is not True:
+        raise ResolvedScopeError("qualification record does not claim PASS")
+    if claimed != recomputed:
+        raise ResolvedScopeError(f"qualification verdict {claimed} != loader recomputation {recomputed}")
+    if not recomputed:
+        raise ResolvedScopeError("qualification loader recomputation is FAIL")
+    return True
+
+
 def validate_resolved_closure() -> dict:
     """Validate the whole resolved closure fail-closed; return the effective-record hash
     map + parsed overlays. Raises ResolvedScopeError on any violation."""
@@ -519,6 +627,23 @@ def validate_resolved_closure() -> dict:
         overlays["rtk_rust_cargo_dialect"] = drec
         hashes["rtk_rust_cargo_dialect_sha256"] = c.sha256_json_file(DIALECT)
 
+    # ---- P4: Coreutils qualification predicate (standalone record; OPTIONAL until produced) ----
+    # This predicate lives ONLY in the standalone qualification record -- never in resolved
+    # membership. Until the acceptance run + independent verifier produce the frozen record, the
+    # predicate is HELD (coreutils_qualification_pass=False) and the closure stays green. Once the
+    # record is present it is validated fail-closed and its verdict is INDEPENDENTLY recomputed
+    # from the frozen canonical streams; a passing record flips the predicate to True. This flag is
+    # NOT resolved_canary_pass -- promotion stays held until the resolved-twelve reach 12/12.
+    coreutils_qualification_pass = False
+    if QUALIFICATION.is_file():
+        qrec = _load_qualification(QUALIFICATION)
+        coreutils_qualification_pass = validate_coreutils_qualification(
+            qrec, rm_sha, c.sha256_json_file(OV_CONTRACT), c.sha256_json_file(BINID),
+            c.sha256_json_file(DIALECT), QUALIFICATION_DIR)
+        overlays["coreutils_qualification"] = qrec
+        hashes["coreutils_qualification_sha256"] = c.sha256_json_file(QUALIFICATION)
+    hashes["coreutils_qualification_pass"] = coreutils_qualification_pass
+
     hashes.update({
         "resolved_membership_sha256": rm_sha,
         "base_publisher_registry_sha256": c.sha256_json_file(REGISTRY),
@@ -528,7 +653,8 @@ def validate_resolved_closure() -> dict:
         "base_membership_sha256": c.sha256_json_file(MEMBERSHIP),
     })
     return {"resolved_membership": rm, "overlays": overlays,
-            "effective_ids": eff_ids, "effective_record_hash_map": hashes}
+            "effective_ids": eff_ids, "effective_record_hash_map": hashes,
+            "coreutils_qualification_pass": coreutils_qualification_pass}
 
 
 def load_case_bundle(case_id: str, scope: str = "base") -> dict:
