@@ -90,11 +90,14 @@ class TestAggregate(unittest.TestCase):
         self.assertEqual(r["unique_acceptance_runs"], 12)
         self.assertTrue(r["resolved_canary_pass"])
 
-    # ---------- the real disk aggregator stays held at 1/12 ----------
-    def test_real_disk_holds_at_one_of_twelve(self):
+    # ---------- the real disk aggregator holds below 12/12 (coreutils + caddy = 2/12) ----------
+    def test_real_disk_holds_below_twelve(self):
         r = A.aggregate_from_disk()
-        self.assertEqual(r["derived_pass_count"], 1)
-        self.assertFalse(r["resolved_canary_pass"])
+        # every present case is independently derived over a unique acceptance run
+        self.assertEqual(r["derived_pass_count"], r["unique_acceptance_runs"])
+        self.assertGreaterEqual(r["derived_pass_count"], 2)  # coreutils + caddy qualified
+        self.assertLess(r["derived_pass_count"], 12)
+        self.assertFalse(r["resolved_canary_pass"])           # held until a unique 12/12
 
     # ---------- 11/12 and missing ----------
     def test_red_eleven_of_twelve_recompute(self):

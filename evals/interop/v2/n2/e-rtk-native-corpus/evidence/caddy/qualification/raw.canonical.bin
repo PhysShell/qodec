@@ -1,0 +1,6 @@
+=== RUN   TestUnsyncedConfigAccess
+    admin_test.go:117: Test 4: Expected error return value, but got: <nil>
+--- FAIL: TestUnsyncedConfigAccess (<dur>)
+FAIL
+FAIL	github.com/caddyserver/caddy/v2	<dur>
+FAIL

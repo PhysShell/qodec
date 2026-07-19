@@ -232,9 +232,17 @@ def aggregate_from_disk() -> dict:
     man = c.load_record(man_path)
     roster = _roster_from_manifest(man, man_path)
     records = {}
-    # only materialized records are loaded; the eleven pending cases are legitimately absent
+    # only materialized records are loaded; still-pending cases are legitimately absent.
+    # coreutils: the frozen P4 record.
     if L.QUALIFICATION.is_file():
         records[L.REPLACEMENT_CASE_ID] = c.load_record(L.QUALIFICATION)
+    # forward per-case qualification records (n2e-resolved-case-qualification-<name>-v1.json)
+    for p in sorted(N2E_DIR.glob("n2e-resolved-case-qualification-*.json")):
+        rec = c.load_record(p)
+        cid = rec.get("case_id")
+        if cid in records:
+            raise AggregateError(f"duplicate qualification record for {cid} ({p.name})")
+        records[cid] = rec
     return aggregate(roster, records, PRODUCTION_RECOMPUTE, PRODUCTION_BIND)
 
 

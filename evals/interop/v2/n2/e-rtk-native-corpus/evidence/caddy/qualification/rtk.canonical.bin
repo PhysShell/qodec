@@ -1,0 +1,6 @@
+Go test: 0 passed, 1 failed in 1 packages
+
+v2 (0 passed, 1 failed)
+  [FAIL] TestUnsyncedConfigAccess
+     admin_test.go:117: Test 4: Expected error return value, but got: <nil>
+[full output: ~/.local/share/rtk/tee/<ts>_go_test.log]
