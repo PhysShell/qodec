@@ -97,9 +97,24 @@ def _bind_case_generation(rec: dict, entry: dict) -> None:
     _check_kind_dispatch(entry["case_id"], rec, entry)
 
 
+def _recompute_resolved_case(rec: dict, entry: dict) -> bool:
+    """Materialized recompute for a forward per-case qualification record. Dispatches by
+    qualification_kind: rtk_test_dialect re-parses the frozen streams through the proven dialect
+    (P5.2A); rtk_command_oracle lands with P5.2B. The frozen evidence dir is pinned in the record."""
+    import n2e_resolved_case_qualification as cq
+    if entry.get("qualification_kind") == "rtk_test_dialect":
+        ev = Path((rec.get("evidence") or {}).get("dir") or "")
+        if not ev.is_absolute():
+            ev = N2E_DIR / ev
+        return cq.recompute_test_dialect_verdict(rec, entry, ev)
+    raise AggregateError(f"{entry['case_id']}: no materialized recompute for kind "
+                         f"{entry.get('qualification_kind')!r} (rtk_command_oracle lands in P5.2B)")
+
+
 # production registries keyed by expected_qualification_record_type. ONLY materialized paths appear;
-# the eleven pending cases have no entry until their P5.2 dialect + P5.3 acceptance land.
-PRODUCTION_RECOMPUTE = {"n2e-coreutils-qualification": _recompute_coreutils}
+# a case counts only when its recompute path exists (test dialects via P5.2A; command oracles P5.2B).
+PRODUCTION_RECOMPUTE = {"n2e-coreutils-qualification": _recompute_coreutils,
+                        "n2e-resolved-case-qualification": _recompute_resolved_case}
 PRODUCTION_BIND = {"n2e-coreutils-qualification": _bind_coreutils,
                    "n2e-resolved-case-qualification": _bind_case_generation}
 
