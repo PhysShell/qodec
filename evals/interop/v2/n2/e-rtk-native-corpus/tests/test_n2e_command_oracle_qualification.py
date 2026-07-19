@@ -21,6 +21,7 @@ import n2e_rtk_go_vet_oracle as gv  # noqa: E402
 import n2e_resolved_case_qualification as cq  # noqa: E402
 import aggregate_n2e_resolved_twelve as A  # noqa: E402
 import verify_case_qualification as V  # noqa: E402
+import verify_case_qualification as vq  # noqa: E402
 
 GIN = "gin-gonic__gin-2755::go::vet"
 RAW_CLEAN = b""                       # clean gin: no vet issues
@@ -123,6 +124,55 @@ class TestCommandOracleQual(unittest.TestCase):
         r = A.aggregate(roster, {GIN: rec}, recompute, bind)
         self.assertEqual(r["derived_pass_count"], 1)
         self.assertFalse(r["resolved_canary_pass"])
+
+
+class TestGinFullVerifier(unittest.TestCase):
+    """Exercises the FULL verify_case_qualification.verify() for a command-oracle case (the gap that
+    let a test-dialect-only step-6 lookup crash the gin gate). GREEN + producer-declared-verdict RED."""
+
+    def setUp(self):
+        self.ev = Path(tempfile.mkdtemp()); self.addCleanup(shutil.rmtree, self.ev, ignore_errors=True)
+        self.recdir = Path(tempfile.mkdtemp()); self.addCleanup(shutil.rmtree, self.recdir, ignore_errors=True)
+        (self.ev / "raw.canonical.bin").write_bytes(RAW_CLEAN)
+        (self.ev / "rtk.canonical.bin").write_bytes(RTK_CLEAN)
+        contract, scenario = _frozen()
+        self.det = adapters.adapter_for(GIN).bind(contract, scenario)
+        self.body = {
+            "case_id": GIN, "record_kind": "resolved_case_qualification_acceptance",
+            "qualification_pass": None, "acceptance_pass": False,
+            "outcome": "RESOLVED_CASE_OBSERVED", "adapter_binding": self.det,
+            "raw_argv_equals_adapter": True, "rtk_argv_equals_adapter": True,
+            "rtk_binary_sha256": L.DIALECT_RTK_SHA, "rtk_binary_bytes": L.DIALECT_RTK_BYTES,
+            "raw_arm": {"deterministic": True}, "rtk_arm": {"deterministic": True},
+            "captured_stream_digests": {
+                "raw.canonical": {"sha256": c.sha256_bytes(RAW_CLEAN), "bytes": len(RAW_CLEAN)},
+                "rtk.canonical": {"sha256": c.sha256_bytes(RTK_CLEAN), "bytes": len(RTK_CLEAN)}}}
+
+    def _write(self, body):
+        p = self.recdir / "obs.json"
+        c.write_record(p, c.envelope(record_type="n2e-resolved-case-observation",
+                                     generated_by="test", **body))
+        return p
+
+    def test_green_full_verify_command_oracle(self):
+        ok, fail, facts = vq.verify(self._write(self.body), self.ev)
+        self.assertTrue(ok, fail)
+        self.assertTrue(facts["case_qualification_pass"])
+        self.assertEqual(facts["raw_projection"]["outcome"], "clean")
+
+    def test_red_producer_declares_pass(self):
+        b = copy.deepcopy(self.body); b["qualification_pass"] = True
+        ok, _, _ = vq.verify(self._write(b), self.ev)
+        self.assertFalse(ok)
+
+    def test_red_rtk_hides_issue(self):
+        raw_issue = b"# pkg\n./x.go:1:1: unreachable code\n"
+        (self.ev / "raw.canonical.bin").write_bytes(raw_issue)
+        b = copy.deepcopy(self.body)
+        b["captured_stream_digests"]["raw.canonical"] = {
+            "sha256": c.sha256_bytes(raw_issue), "bytes": len(raw_issue)}
+        ok, fail, _ = vq.verify(self._write(b), self.ev)
+        self.assertFalse(ok)  # RAW has an issue, RTK says clean -> not equivalent
 
 
 if __name__ == "__main__":

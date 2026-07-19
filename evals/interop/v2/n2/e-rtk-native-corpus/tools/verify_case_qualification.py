@@ -98,19 +98,24 @@ def verify(rec_path: Path, evidence: Path) -> tuple[bool, list, dict]:
             fail.append(f"{role}.canonical sha256/bytes != recorded")
         streams[role] = b
 
-    # ---- 6. INDEPENDENT RAW<->RTK equivalence verdict through the proven dialect ----
-    mod = cq.TEST_DIALECTS[entry["rtk_test_dialect_policy_id"]]
+    # ---- 6. INDEPENDENT RAW<->RTK equivalence verdict through the kind-dispatched policy (`mod`
+    #         was resolved in step 3: the test dialect OR the command oracle) ----
     rp, kp = mod.parse_raw(streams["raw"]), mod.parse_rtk(streams["rtk"])
     eq = mod.equivalence(rp, kp)
     facts["raw_projection"], facts["rtk_projection"], facts["equivalence"] = rp, kp, eq
-    verdict = (not fail and eq["equivalent"]
-               and rp.get("outcome") not in (None, "indeterminate", "passthrough")
-               and rp.get("terminal_summary_present") is True
-               and kp.get("terminal_summary_present") is True)
     if not eq["equivalent"]:
         fail.append(f"RAW<->RTK not equivalent: {eq['mismatches']}")
     if rp.get("outcome") in (None, "indeterminate", "passthrough"):
         fail.append(f"RAW outcome not derivable ({rp.get('outcome')})")
+    if kind == "rtk_test_dialect":
+        # test dialects must carry a terminal summary on BOTH sides
+        summary_ok = rp.get("terminal_summary_present") is True and kp.get("terminal_summary_present") is True
+        if not summary_ok:
+            fail.append("test-dialect projection lacks a terminal summary on RAW or RTK")
+    else:  # rtk_command_oracle: no test-summary concept; the RTK outcome must be derivable too
+        if kp.get("outcome") in (None, "indeterminate", "passthrough"):
+            fail.append(f"RTK outcome not derivable ({kp.get('outcome')})")
+    verdict = not fail
     facts["case_qualification_pass"] = bool(verdict)
     return bool(verdict), fail, facts
 
