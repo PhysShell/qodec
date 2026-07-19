@@ -1,0 +1,56 @@
+{
+  "canonicalization_policy_id": "cargo-test-v3",
+  "case_id": "uutils__coreutils-6731::rust_cargo::test::fixed",
+  "producer_implementation": "65b8714",
+  "run_id": "29667956749",
+  "streams": {
+    "raw.canonical.rep0.bin": {
+      "bytes": 1229,
+      "sha256": "487716489520d8fcad19910120a06a8d41f9cd81dc6f58a4927c6dcbaac039d3"
+    },
+    "raw.canonical.rep1.bin": {
+      "bytes": 1229,
+      "sha256": "487716489520d8fcad19910120a06a8d41f9cd81dc6f58a4927c6dcbaac039d3"
+    },
+    "raw.canonical.rep2.bin": {
+      "bytes": 1229,
+      "sha256": "487716489520d8fcad19910120a06a8d41f9cd81dc6f58a4927c6dcbaac039d3"
+    },
+    "raw.raw.rep0.bin": {
+      "bytes": 14291,
+      "sha256": "1c3827c0ce0559714f107dd6bd1d60855e1bb507620f7b652d9cbc4090a49e8d"
+    },
+    "raw.raw.rep1.bin": {
+      "bytes": 14291,
+      "sha256": "5f5e3d33d47a14e4266254c41054a5613ef7aaa3fb89bc67728df1a4f50728de"
+    },
+    "raw.raw.rep2.bin": {
+      "bytes": 14291,
+      "sha256": "31214a9bf1e95d3bdaffbc0be79de573d23c61430ff6611209e8aa4901663a40"
+    },
+    "rtk.canonical.rep0.bin": {
+      "bytes": 59,
+      "sha256": "e52359641fe0fa7e314ff31488cbcb2549c28651705b7c3e70c465fc58bd2da0"
+    },
+    "rtk.canonical.rep1.bin": {
+      "bytes": 59,
+      "sha256": "e52359641fe0fa7e314ff31488cbcb2549c28651705b7c3e70c465fc58bd2da0"
+    },
+    "rtk.canonical.rep2.bin": {
+      "bytes": 59,
+      "sha256": "e52359641fe0fa7e314ff31488cbcb2549c28651705b7c3e70c465fc58bd2da0"
+    },
+    "rtk.raw.rep0.bin": {
+      "bytes": 59,
+      "sha256": "521ba3fefd99df563daf992a5ac314661631a39ff61c8911bc296cadb8b92d7b"
+    },
+    "rtk.raw.rep1.bin": {
+      "bytes": 59,
+      "sha256": "521ba3fefd99df563daf992a5ac314661631a39ff61c8911bc296cadb8b92d7b"
+    },
+    "rtk.raw.rep2.bin": {
+      "bytes": 59,
+      "sha256": "521ba3fefd99df563daf992a5ac314661631a39ff61c8911bc296cadb8b92d7b"
+    }
+  }
+}

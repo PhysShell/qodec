@@ -1,0 +1,28 @@
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in <dur>
+
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 78 filtered out; finished in <dur>
+
+
+running 10 tests
+test test_echo::test_escape_backslash ... ok
+test test_env::tests_split_iterator::split_trailing_backslash ... ok
+test test_hashsum::test_check_no_backslash_no_space ... ok
+test test_paste::test_delimiter_list_ending_with_escaped_backslash ... ok
+test test_paste::test_delimiter_list_ending_with_unescaped_backslash ... ok
+test test_tr::test_interpret_backslash_at_eol_literally ... ok
+test test_tr::test_interpret_backslash_escapes ... ok
+test test_tr::test_interpret_unrecognized_backslash_escape_as_character ... ok
+test test_tr::test_trailing_backslash ... ok
+test test_tr::test_unescaped_backslash_warning_false_positive ... ok
+
+test result: ok. 10 passed; 0 failed; 0 ignored; 0 measured; 3127 filtered out; finished in <dur>
+
+     Running unittests src/bin/coreutils.rs (target/debug/deps/coreutils-d4097ac90cb9cbd5)
+     Running tests/test_util_name.rs (target/debug/deps/test_util_name-a9c6f48e4a525f99)
+     Running tests/tests.rs (target/debug/deps/tests-4ca65ddf13215667)
