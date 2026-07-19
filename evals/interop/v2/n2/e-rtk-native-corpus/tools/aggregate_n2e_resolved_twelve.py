@@ -35,7 +35,30 @@ class AggregateError(Exception):
 
 # roster entry keys the aggregator binds each record to
 _BIND_KEYS = ("expected_qualification_record_type", "canonicalization_policy_id",
-              "rtk_test_dialect_policy_id", "contract_generation")
+              "rtk_test_dialect_policy_id", "command_semantic_oracle_policy_id",
+              "qualification_kind", "contract_generation")
+
+
+def _check_kind_dispatch(cid: str, rec: dict, entry: dict) -> None:
+    """The record must declare the manifest's qualification_kind and carry the SAME single active
+    policy id. A test-dialect record presented for a command-oracle case (or vice versa), or one
+    naming a different dialect/oracle than the manifest, is a wrong dispatch -> reject."""
+    kind = entry["qualification_kind"]
+    if rec.get("qualification_kind") != kind:
+        raise AggregateError(f"{cid}: record qualification_kind {rec.get('qualification_kind')!r} "
+                             f"!= manifest {kind!r} (wrong dispatch)")
+    if kind == "rtk_test_dialect":
+        if rec.get("rtk_test_dialect_policy_id") != entry["rtk_test_dialect_policy_id"]:
+            raise AggregateError(f"{cid}: bound dialect != manifest")
+        if rec.get("command_semantic_oracle_policy_id") is not None:
+            raise AggregateError(f"{cid}: test-dialect record must not carry a command oracle")
+    elif kind == "rtk_command_oracle":
+        if rec.get("command_semantic_oracle_policy_id") != entry["command_semantic_oracle_policy_id"]:
+            raise AggregateError(f"{cid}: bound command oracle != manifest")
+        if rec.get("rtk_test_dialect_policy_id") is not None:
+            raise AggregateError(f"{cid}: command-oracle record must not carry a test dialect")
+    else:
+        raise AggregateError(f"{cid}: unknown manifest qualification_kind {kind!r}")
 
 
 def _recompute_coreutils(rec: dict, entry: dict) -> bool:
@@ -47,24 +70,31 @@ def _recompute_coreutils(rec: dict, entry: dict) -> bool:
 
 
 def _bind_coreutils(rec: dict, entry: dict) -> None:
-    """The frozen P4 record predates the manifest; it binds transitively through the gen-3 contract
-    + resolved-membership hashes the manifest itself pins."""
+    """The frozen P4 record predates the two-mode manifest; it binds transitively through the gen-3
+    contract + resolved-membership hashes the manifest pins, and its (implicit) rtk_test_dialect kind
+    is cross-checked against the manifest classification via the record's bound_dialect_policy_id."""
     b = entry["manifest_binding"]
     if rec.get("contract_generation3_sha256") != b["resolved_execution_contract_sha256"]:
         raise AggregateError(f"{entry['case_id']}: contract_generation3_sha256 != manifest's gen-3 contract")
     if rec.get("resolved_membership_sha256") != b["resolved_membership_sha256"]:
         raise AggregateError(f"{entry['case_id']}: resolved_membership_sha256 != manifest's membership")
+    if entry["qualification_kind"] != "rtk_test_dialect":
+        raise AggregateError(f"{entry['case_id']}: manifest kind != rtk_test_dialect for coreutils")
+    if rec.get("bound_dialect_policy_id") != entry["rtk_test_dialect_policy_id"]:
+        raise AggregateError(f"{entry['case_id']}: bound_dialect_policy_id != manifest dialect")
 
 
 def _bind_case_generation(rec: dict, entry: dict) -> None:
     """The eleven forward records are built AFTER the manifest and bind it directly by generation +
-    self-hash (a record from an earlier manifest generation is rejected)."""
+    self-hash (a record from an earlier manifest generation is rejected), and must dispatch to the
+    manifest's qualification_kind with the matching single active policy id."""
     b = entry["manifest_binding"]
     if rec.get("manifest_generation") != b["manifest_generation"]:
         raise AggregateError(f"{entry['case_id']}: manifest_generation {rec.get('manifest_generation')} "
                              f"!= roster {b['manifest_generation']}")
     if rec.get("manifest_sha256") != b["manifest_sha256"]:
         raise AggregateError(f"{entry['case_id']}: manifest_sha256 != frozen manifest")
+    _check_kind_dispatch(entry["case_id"], rec, entry)
 
 
 # production registries keyed by expected_qualification_record_type. ONLY materialized paths appear;

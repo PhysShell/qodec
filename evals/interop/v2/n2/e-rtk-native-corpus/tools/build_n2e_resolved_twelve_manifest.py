@@ -28,12 +28,51 @@ import n2e_common as c  # noqa: E402
 import n2e_resolved_loader as L  # noqa: E402
 
 OUT = N2E_DIR / "n2e-resolved-twelve-manifest-v1.json"
-MANIFEST_GENERATION = 1
+MANIFEST_GENERATION = 2  # gen 2: added the explicit two-mode qualification_kind discriminator
 
 # the one case that is already frozen-qualified (P4) carries its concrete record type; every other
 # case declares the uniform per-case qualification type its P5.3 acceptance run must emit.
 COREUTILS_QUAL_TYPE = "n2e-coreutils-qualification"
 PENDING_QUAL_TYPE = "n2e-resolved-case-qualification"
+
+# The two proof modes are an EXPLICIT classification, not inferred from rtk_test_dialect_policy_id
+# being null (lucene/vue/scrapy currently bind no dialect in the frozen contract but WILL, once
+# their P5.2A dialect is proven -- so the kind cannot be read off the current contract). Each entry:
+#   case_id -> (qualification_kind, rtk_test_dialect_policy_id, command_semantic_oracle_policy_id)
+# Invariant enforced by build + verifier: exactly one policy id set, matching the kind. The listed
+# policy ids are the EXPECTED (forward) ids each P5.2 proof must materialize; coreutils' rust dialect
+# and caddy's go dialect already exist and must be PROVEN (source identity + scope), not re-authored.
+# Command shapes that are identical share one oracle id (preact & lombok are both files_search::read).
+RTK_TEST_DIALECT = "rtk_test_dialect"
+RTK_COMMAND_ORACLE = "rtk_command_oracle"
+QUALIFICATION_MODEL = {
+    "uutils__coreutils-6731::rust_cargo::test::fixed": (RTK_TEST_DIALECT, "rtk-rust-cargo-test-summary-v1", None),
+    "apache__lucene-13704::jvm::test::buggy":           (RTK_TEST_DIALECT, "rtk-jvm-test-summary-v1", None),
+    "vuejs__core-11589::js_ts::test::buggy":            (RTK_TEST_DIALECT, "rtk-js-vitest-summary-v1", None),
+    "bugsinpy::scrapy-9::python::pytest::fixed":        (RTK_TEST_DIALECT, "rtk-python-pytest-summary-v1", None),
+    "caddyserver__caddy-5870::go::test::buggy":         (RTK_TEST_DIALECT, "rtk-go-test-summary-v1", None),
+    "container::redis::docker::images":                 (RTK_COMMAND_ORACLE, None, "rtk-docker-images-oracle-v1"),
+    "gin-gonic__gin-2755::go::vet":                     (RTK_COMMAND_ORACLE, None, "rtk-go-vet-oracle-v1"),
+    "loghub::HDFS::log":                                (RTK_COMMAND_ORACLE, None, "rtk-log-hdfs-oracle-v1"),
+    "php-cs-fixer__php-cs-fixer-8075::git::commit":     (RTK_COMMAND_ORACLE, None, "rtk-git-commit-oracle-v1"),
+    "preactjs__preact-3345::files_search::read":        (RTK_COMMAND_ORACLE, None, "rtk-files-read-oracle-v1"),
+    "projectlombok__lombok-3312::files_search::read":   (RTK_COMMAND_ORACLE, None, "rtk-files-read-oracle-v1"),
+    "rubocop__rubocop-13687::git::show":                (RTK_COMMAND_ORACLE, None, "rtk-git-show-oracle-v1"),
+}
+
+
+def _qualification_mode(case_id: str) -> tuple:
+    if case_id not in QUALIFICATION_MODEL:
+        raise SystemExit(f"case {case_id} has no qualification-mode classification")
+    kind, dialect, oracle = QUALIFICATION_MODEL[case_id]
+    # exactly-one-of invariant, enforced at build time
+    if kind == RTK_TEST_DIALECT and (dialect is None or oracle is not None):
+        raise SystemExit(f"{case_id}: rtk_test_dialect requires dialect set + oracle null")
+    if kind == RTK_COMMAND_ORACLE and (oracle is None or dialect is not None):
+        raise SystemExit(f"{case_id}: rtk_command_oracle requires oracle set + dialect null")
+    if kind not in (RTK_TEST_DIALECT, RTK_COMMAND_ORACLE):
+        raise SystemExit(f"{case_id}: unknown qualification_kind {kind!r}")
+    return kind, dialect, oracle
 
 
 def _contract_generation(entry: dict) -> int:
@@ -70,15 +109,20 @@ def build_manifest() -> dict:
         x = ov if is_coreutils else by_base.get(cid)
         if x is None:
             raise SystemExit(f"no execution contract for manifest case {cid}")
+        kind, dialect, oracle = _qualification_mode(cid)
         cases.append({
             "case_id": cid,
             "family": x.get("command_family"),
             "subfamily": x.get("command_subfamily"),
             "canary_slot": m.get("canary_slot"),
+            # ---- byte-normalization axis (kept SEPARATE from the semantic proof) ----
             "canonicalization_policy_id": x.get("canonicalization_policy_id"),
             "canonicalization_policy_generation": _canon_generation(x),
-            "rtk_test_dialect_policy_id": x.get("rtk_test_dialect_policy_id"),
-            "semantic_oracle_policy_id": x.get("semantic_oracle_policy_id"),
+            # ---- semantic-proof axis: the two-mode discriminator + exactly one active policy ----
+            "qualification_kind": kind,
+            "rtk_test_dialect_policy_id": dialect,             # set iff rtk_test_dialect
+            "command_semantic_oracle_policy_id": oracle,       # set iff rtk_command_oracle
+            "base_semantic_oracle_policy_id": x.get("semantic_oracle_policy_id"),  # descriptive
             "contract_generation": _contract_generation(x),
             "required_toolchain_identity_ref": x.get("toolchain_identity_ref"),
             "required_rtk_binary_identity_ref": pinned_rtk,

@@ -17,13 +17,16 @@
   ],
   "cases": [
     {
+      "base_semantic_oracle_policy_id": "n2e-oracle-test-v1",
       "canary_slot": "test_generic",
       "canonicalization_policy_generation": null,
       "canonicalization_policy_id": "RUNTIME:gradle-test-v1|maven-test-v1",
       "case_id": "apache__lucene-13704::jvm::test::buggy",
+      "command_semantic_oracle_policy_id": null,
       "contract_generation": 1,
       "expected_qualification_record_type": "n2e-resolved-case-qualification",
       "family": "jvm",
+      "qualification_kind": "rtk_test_dialect",
       "qualification_status": "pending",
       "required_rtk_binary_identity_ref": {
         "bytes": 9200104,
@@ -37,18 +40,20 @@
         ],
         "where": "per-case record: acquisition.environment_identity.toolchain"
       },
-      "rtk_test_dialect_policy_id": null,
-      "semantic_oracle_policy_id": "n2e-oracle-test-v1",
+      "rtk_test_dialect_policy_id": "rtk-jvm-test-summary-v1",
       "subfamily": "test"
     },
     {
+      "base_semantic_oracle_policy_id": "n2e-oracle-test-v1",
       "canary_slot": "python",
       "canonicalization_policy_generation": null,
       "canonicalization_policy_id": "pytest-v1",
       "case_id": "bugsinpy::scrapy-9::python::pytest::fixed",
+      "command_semantic_oracle_policy_id": null,
       "contract_generation": 1,
       "expected_qualification_record_type": "n2e-resolved-case-qualification",
       "family": "python",
+      "qualification_kind": "rtk_test_dialect",
       "qualification_status": "pending",
       "required_rtk_binary_identity_ref": {
         "bytes": 9200104,
@@ -62,18 +67,20 @@
         ],
         "where": "per-case record: acquisition.environment_identity.toolchain"
       },
-      "rtk_test_dialect_policy_id": null,
-      "semantic_oracle_policy_id": "n2e-oracle-test-v1",
+      "rtk_test_dialect_policy_id": "rtk-python-pytest-summary-v1",
       "subfamily": "pytest"
     },
     {
+      "base_semantic_oracle_policy_id": "n2e-oracle-test-v1",
       "canary_slot": "test_generic",
       "canonicalization_policy_generation": null,
       "canonicalization_policy_id": "caddy-go-test-v1",
       "case_id": "caddyserver__caddy-5870::go::test::buggy",
+      "command_semantic_oracle_policy_id": null,
       "contract_generation": 1,
       "expected_qualification_record_type": "n2e-resolved-case-qualification",
       "family": "go",
+      "qualification_kind": "rtk_test_dialect",
       "qualification_status": "pending",
       "required_rtk_binary_identity_ref": {
         "bytes": 9200104,
@@ -87,17 +94,19 @@
         "where": "per-case record: acquisition.environment_identity.toolchain"
       },
       "rtk_test_dialect_policy_id": "rtk-go-test-summary-v1",
-      "semantic_oracle_policy_id": "n2e-oracle-test-v1",
       "subfamily": "test"
     },
     {
+      "base_semantic_oracle_policy_id": "n2e-oracle-docker-v1",
       "canary_slot": "docker",
       "canonicalization_policy_generation": null,
       "canonicalization_policy_id": "docker-v1",
       "case_id": "container::redis::docker::images",
+      "command_semantic_oracle_policy_id": "rtk-docker-images-oracle-v1",
       "contract_generation": 1,
       "expected_qualification_record_type": "n2e-resolved-case-qualification",
       "family": "containers",
+      "qualification_kind": "rtk_command_oracle",
       "qualification_status": "pending",
       "required_rtk_binary_identity_ref": {
         "bytes": 9200104,
@@ -109,17 +118,19 @@
         "where": "per-case record: acquisition.environment_identity.toolchain"
       },
       "rtk_test_dialect_policy_id": null,
-      "semantic_oracle_policy_id": "n2e-oracle-docker-v1",
       "subfamily": "images"
     },
     {
+      "base_semantic_oracle_policy_id": "n2e-oracle-diagnostics-v1",
       "canary_slot": "build_lint",
       "canonicalization_policy_generation": null,
       "canonicalization_policy_id": "go-vet-v1",
       "case_id": "gin-gonic__gin-2755::go::vet",
+      "command_semantic_oracle_policy_id": "rtk-go-vet-oracle-v1",
       "contract_generation": 1,
       "expected_qualification_record_type": "n2e-resolved-case-qualification",
       "family": "go",
+      "qualification_kind": "rtk_command_oracle",
       "qualification_status": "pending",
       "required_rtk_binary_identity_ref": {
         "bytes": 9200104,
@@ -133,17 +144,19 @@
         "where": "per-case record: acquisition.environment_identity.toolchain"
       },
       "rtk_test_dialect_policy_id": null,
-      "semantic_oracle_policy_id": "n2e-oracle-diagnostics-v1",
       "subfamily": "vet"
     },
     {
+      "base_semantic_oracle_policy_id": "n2e-oracle-log-v1",
       "canary_slot": "log",
       "canonicalization_policy_generation": null,
       "canonicalization_policy_id": "log-v1",
       "case_id": "loghub::HDFS::log",
+      "command_semantic_oracle_policy_id": "rtk-log-hdfs-oracle-v1",
       "contract_generation": 1,
       "expected_qualification_record_type": "n2e-resolved-case-qualification",
       "family": "logs",
+      "qualification_kind": "rtk_command_oracle",
       "qualification_status": "pending",
       "required_rtk_binary_identity_ref": {
         "bytes": 9200104,
@@ -155,17 +168,19 @@
         "where": "per-case record: acquisition.environment_identity.toolchain"
       },
       "rtk_test_dialect_policy_id": null,
-      "semantic_oracle_policy_id": "n2e-oracle-log-v1",
       "subfamily": "log"
     },
     {
+      "base_semantic_oracle_policy_id": "n2e-oracle-git-state-v1",
       "canary_slot": "git_1",
       "canonicalization_policy_generation": null,
       "canonicalization_policy_id": "git-v1",
       "case_id": "php-cs-fixer__php-cs-fixer-8075::git::commit",
+      "command_semantic_oracle_policy_id": "rtk-git-commit-oracle-v1",
       "contract_generation": 1,
       "expected_qualification_record_type": "n2e-resolved-case-qualification",
       "family": "git",
+      "qualification_kind": "rtk_command_oracle",
       "qualification_status": "pending",
       "required_rtk_binary_identity_ref": {
         "bytes": 9200104,
@@ -177,17 +192,19 @@
         "where": "per-case record: acquisition.environment_identity.toolchain"
       },
       "rtk_test_dialect_policy_id": null,
-      "semantic_oracle_policy_id": "n2e-oracle-git-state-v1",
       "subfamily": "commit"
     },
     {
+      "base_semantic_oracle_policy_id": "n2e-oracle-file-read-v1",
       "canary_slot": "files_search_1",
       "canonicalization_policy_generation": null,
       "canonicalization_policy_id": "files-v1",
       "case_id": "preactjs__preact-3345::files_search::read",
+      "command_semantic_oracle_policy_id": "rtk-files-read-oracle-v1",
       "contract_generation": 1,
       "expected_qualification_record_type": "n2e-resolved-case-qualification",
       "family": "files_search",
+      "qualification_kind": "rtk_command_oracle",
       "qualification_status": "pending",
       "required_rtk_binary_identity_ref": {
         "bytes": 9200104,
@@ -199,17 +216,19 @@
         "where": "per-case record: acquisition.environment_identity.toolchain"
       },
       "rtk_test_dialect_policy_id": null,
-      "semantic_oracle_policy_id": "n2e-oracle-file-read-v1",
       "subfamily": "read"
     },
     {
+      "base_semantic_oracle_policy_id": "n2e-oracle-file-read-v1",
       "canary_slot": "files_search_1",
       "canonicalization_policy_generation": null,
       "canonicalization_policy_id": "files-v1",
       "case_id": "projectlombok__lombok-3312::files_search::read",
+      "command_semantic_oracle_policy_id": "rtk-files-read-oracle-v1",
       "contract_generation": 1,
       "expected_qualification_record_type": "n2e-resolved-case-qualification",
       "family": "files_search",
+      "qualification_kind": "rtk_command_oracle",
       "qualification_status": "pending",
       "required_rtk_binary_identity_ref": {
         "bytes": 9200104,
@@ -221,17 +240,19 @@
         "where": "per-case record: acquisition.environment_identity.toolchain"
       },
       "rtk_test_dialect_policy_id": null,
-      "semantic_oracle_policy_id": "n2e-oracle-file-read-v1",
       "subfamily": "read"
     },
     {
+      "base_semantic_oracle_policy_id": "n2e-oracle-git-diff-v1",
       "canary_slot": "git_1",
       "canonicalization_policy_generation": null,
       "canonicalization_policy_id": "git-v1",
       "case_id": "rubocop__rubocop-13687::git::show",
+      "command_semantic_oracle_policy_id": "rtk-git-show-oracle-v1",
       "contract_generation": 1,
       "expected_qualification_record_type": "n2e-resolved-case-qualification",
       "family": "git",
+      "qualification_kind": "rtk_command_oracle",
       "qualification_status": "pending",
       "required_rtk_binary_identity_ref": {
         "bytes": 9200104,
@@ -243,17 +264,19 @@
         "where": "per-case record: acquisition.environment_identity.toolchain"
       },
       "rtk_test_dialect_policy_id": null,
-      "semantic_oracle_policy_id": "n2e-oracle-git-diff-v1",
       "subfamily": "show"
     },
     {
+      "base_semantic_oracle_policy_id": "n2e-oracle-test-v1",
       "canary_slot": "rust",
       "canonicalization_policy_generation": 2,
       "canonicalization_policy_id": "cargo-test-v3",
       "case_id": "uutils__coreutils-6731::rust_cargo::test::fixed",
+      "command_semantic_oracle_policy_id": null,
       "contract_generation": 3,
       "expected_qualification_record_type": "n2e-coreutils-qualification",
       "family": "rust_cargo",
+      "qualification_kind": "rtk_test_dialect",
       "qualification_status": "frozen",
       "required_rtk_binary_identity_ref": {
         "bytes": 9200104,
@@ -279,17 +302,19 @@
         "where": "focused coreutils diagnostic: acquisition.environment_identity.toolchain"
       },
       "rtk_test_dialect_policy_id": "rtk-rust-cargo-test-summary-v1",
-      "semantic_oracle_policy_id": "n2e-oracle-test-v1",
       "subfamily": "test"
     },
     {
+      "base_semantic_oracle_policy_id": "n2e-oracle-test-v1",
       "canary_slot": "js_ts",
       "canonicalization_policy_generation": null,
       "canonicalization_policy_id": "vitest-v1",
       "case_id": "vuejs__core-11589::js_ts::test::buggy",
+      "command_semantic_oracle_policy_id": null,
       "contract_generation": 1,
       "expected_qualification_record_type": "n2e-resolved-case-qualification",
       "family": "js_ts",
+      "qualification_kind": "rtk_test_dialect",
       "qualification_status": "pending",
       "required_rtk_binary_identity_ref": {
         "bytes": 9200104,
@@ -304,13 +329,12 @@
         ],
         "where": "per-case record: acquisition.environment_identity.toolchain"
       },
-      "rtk_test_dialect_policy_id": null,
-      "semantic_oracle_policy_id": "n2e-oracle-test-v1",
+      "rtk_test_dialect_policy_id": "rtk-js-vitest-summary-v1",
       "subfamily": "test"
     }
   ],
   "generated_by": "evals/interop/v2/n2/e-rtk-native-corpus/tools/build_n2e_resolved_twelve_manifest.py",
-  "manifest_generation": 1,
+  "manifest_generation": 2,
   "mission": "N2-E",
   "mission_title": "external RTK-native claim-aligned command corpus",
   "pinned_rtk_binary_identity": {
@@ -320,7 +344,7 @@
   },
   "promotion_state": "held (twelve-case aggregation not yet closed)",
   "purpose": "Immutable roster of the exact twelve cases constituting the resolved_canary_pass claim. Per-case policy derived from the frozen contract. Sets no promotion flag; resolved_canary_pass stays false until the P5.4 aggregator independently derives twelve PASSes.",
-  "record_sha256": "sha256:438cd2503d0fcb89dd0bed4e1c742b02492b6a676db104fb4380535d388e5ca9",
+  "record_sha256": "sha256:613bdaa6886d8669d1e9b16d46e38b67b96c9e0dead25808640a9914fac437bf",
   "record_type": "n2e-resolved-twelve-manifest",
   "record_version": "v1",
   "resolved_canary_pass": false,

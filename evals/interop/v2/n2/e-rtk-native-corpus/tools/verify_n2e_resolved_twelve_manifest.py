@@ -24,11 +24,32 @@ class ManifestError(Exception):
     pass
 
 
-# every policy field the manifest pins must be re-derivable from the frozen contract
+# every policy field the manifest pins must equal the builder's derivation
 _POLICY_KEYS = ("family", "subfamily", "canary_slot", "canonicalization_policy_id",
-                "canonicalization_policy_generation", "rtk_test_dialect_policy_id",
-                "semantic_oracle_policy_id", "contract_generation",
+                "canonicalization_policy_generation", "qualification_kind",
+                "rtk_test_dialect_policy_id", "command_semantic_oracle_policy_id",
+                "base_semantic_oracle_policy_id", "contract_generation",
                 "required_toolchain_identity_ref", "expected_qualification_record_type")
+
+_KINDS = ("rtk_test_dialect", "rtk_command_oracle")
+
+
+def _check_two_mode_invariant(cid: str, entry: dict) -> None:
+    """Exactly one proof mode active: rtk_test_dialect => dialect set + oracle null;
+    rtk_command_oracle => oracle set + dialect null. Both/neither/unknown => reject. Independent of
+    the builder so a hand-tampered committed manifest is caught."""
+    kind = entry.get("qualification_kind")
+    dialect = entry.get("rtk_test_dialect_policy_id")
+    oracle = entry.get("command_semantic_oracle_policy_id")
+    if kind not in _KINDS:
+        raise ManifestError(f"{cid}: unknown qualification_kind {kind!r}")
+    if (dialect is None) == (oracle is None):
+        raise ManifestError(f"{cid}: exactly one of dialect/oracle must be set "
+                            f"(dialect={dialect!r} oracle={oracle!r})")
+    if kind == "rtk_test_dialect" and (dialect is None or oracle is not None):
+        raise ManifestError(f"{cid}: rtk_test_dialect requires dialect set + oracle null")
+    if kind == "rtk_command_oracle" and (oracle is None or dialect is not None):
+        raise ManifestError(f"{cid}: rtk_command_oracle requires oracle set + dialect null")
 
 
 def verify_manifest(rec: dict, expected_generation: int = B.MANIFEST_GENERATION) -> dict:
@@ -77,6 +98,8 @@ def verify_manifest(rec: dict, expected_generation: int = B.MANIFEST_GENERATION)
             if entry.get(k) != ref.get(k):
                 raise ManifestError(f"case {cid}: field {k} {entry.get(k)!r} "
                                     f"!= frozen-derived {ref.get(k)!r}")
+        # the two-mode invariant, checked structurally (independent of the builder)
+        _check_two_mode_invariant(cid, entry)
         # the single pinned corpus RTK binary
         if entry.get("required_rtk_binary_identity_ref", {}).get("sha256") != L.DIALECT_RTK_SHA:
             raise ManifestError(f"case {cid}: required RTK binary identity != pinned corpus RTK")

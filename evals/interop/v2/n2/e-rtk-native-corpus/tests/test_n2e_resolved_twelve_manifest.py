@@ -91,14 +91,49 @@ class TestTwelveManifest(unittest.TestCase):
 
     # ---------- generation ----------
     def test_red_wrong_manifest_generation_field(self):
-        rec = copy.deepcopy(self.rec); rec["manifest_generation"] = 2
+        rec = copy.deepcopy(self.rec); rec["manifest_generation"] = 99
         with self.assertRaises(V.ManifestError):
             self._v(_refinalize(rec))
 
     def test_red_verifier_expects_different_generation(self):
-        # a manifest from generation 1 presented where generation 2 is expected -> reject
+        # the committed manifest is generation 2; presented where generation 3 is expected -> reject
         with self.assertRaises(V.ManifestError):
-            self._v(expected_generation=2)
+            self._v(expected_generation=3)
+
+    # ---------- two-mode qualification_kind invariant ----------
+    def test_red_both_dialect_and_oracle_set(self):
+        rec = copy.deepcopy(self.rec)
+        rec["cases"][0]["command_semantic_oracle_policy_id"] = "rtk-x-oracle-v1"  # already has dialect
+        with self.assertRaises(V.ManifestError):
+            self._v(_refinalize(rec))
+
+    def test_red_neither_dialect_nor_oracle_set(self):
+        rec = copy.deepcopy(self.rec)
+        idx = next(i for i, x in enumerate(rec["cases"]) if x["qualification_kind"] == "rtk_test_dialect")
+        rec["cases"][idx]["rtk_test_dialect_policy_id"] = None
+        with self.assertRaises(V.ManifestError):
+            self._v(_refinalize(rec))
+
+    def test_red_unknown_qualification_kind(self):
+        rec = copy.deepcopy(self.rec)
+        rec["cases"][0]["qualification_kind"] = "rtk_vibes"
+        with self.assertRaises(V.ManifestError):
+            self._v(_refinalize(rec))
+
+    def test_red_kind_mismatch_test_dialect_with_oracle(self):
+        rec = copy.deepcopy(self.rec)
+        idx = next(i for i, x in enumerate(rec["cases"]) if x["qualification_kind"] == "rtk_command_oracle")
+        # flip kind to test_dialect while it still carries an oracle + null dialect
+        rec["cases"][idx]["qualification_kind"] = "rtk_test_dialect"
+        with self.assertRaises(V.ManifestError):
+            self._v(_refinalize(rec))
+
+    def test_red_command_oracle_id_drift(self):
+        rec = copy.deepcopy(self.rec)
+        idx = next(i for i, x in enumerate(rec["cases"]) if x["qualification_kind"] == "rtk_command_oracle")
+        rec["cases"][idx]["command_semantic_oracle_policy_id"] = "rtk-made-up-oracle-v1"
+        with self.assertRaises(V.ManifestError):
+            self._v(_refinalize(rec))
 
     # ---------- policy drift ----------
     def test_red_canon_policy_drift(self):

@@ -30,10 +30,17 @@ BINDING = {"manifest_generation": GEN, "manifest_sha256": MAN_SHA,
 
 
 def _roster():
+    # a mix of both proof modes: even indices rtk_command_oracle, odd rtk_test_dialect
     r = []
     for i in range(12):
+        if i % 2 == 0:
+            kind, dialect, oracle = "rtk_command_oracle", None, f"rtk-oracle-{i}-v1"
+        else:
+            kind, dialect, oracle = "rtk_test_dialect", f"rtk-dialect-{i}-v1", None
         r.append({"case_id": f"case-{i:02d}::fam::test", "expected_qualification_record_type": CTYPE,
-                  "canonicalization_policy_id": f"canon-{i}-v1", "rtk_test_dialect_policy_id": None,
+                  "canonicalization_policy_id": f"canon-{i}-v1",
+                  "qualification_kind": kind, "rtk_test_dialect_policy_id": dialect,
+                  "command_semantic_oracle_policy_id": oracle,
                   "contract_generation": 1, "manifest_generation": GEN, "manifest_binding": BINDING})
     return r
 
@@ -43,7 +50,9 @@ def _rec(entry, i, ok=True):
         "record_type": CTYPE, "case_id": entry["case_id"],
         "manifest_generation": GEN, "manifest_sha256": MAN_SHA,
         "canonicalization_policy_id": entry["canonicalization_policy_id"],
+        "qualification_kind": entry["qualification_kind"],
         "rtk_test_dialect_policy_id": entry["rtk_test_dialect_policy_id"],
+        "command_semantic_oracle_policy_id": entry["command_semantic_oracle_policy_id"],
         "contract_generation": 1,
         "acceptance_run": {"workflow": "qodec-n2e-case-qualification",
                            "run_id": f"300000000{i:02d}", "run_attempt": "1",
@@ -229,6 +238,35 @@ class TestAggregate(unittest.TestCase):
         roster = copy.deepcopy(self.roster); roster[1]["case_id"] = roster[0]["case_id"]
         with self.assertRaises(A.AggregateError):
             self._agg(roster=roster)
+
+    # ---------- two-mode wrong dispatch ----------
+    def test_red_record_wrong_qualification_kind(self):
+        recs = copy.deepcopy(self.records)
+        cid = self.roster[0]["case_id"]  # manifest kind rtk_command_oracle
+        recs[cid]["qualification_kind"] = "rtk_test_dialect"
+        with self.assertRaises(A.AggregateError):
+            self._agg(records=recs)
+
+    def test_red_command_oracle_record_carries_dialect(self):
+        recs = copy.deepcopy(self.records)
+        cid = self.roster[0]["case_id"]  # rtk_command_oracle
+        recs[cid]["rtk_test_dialect_policy_id"] = "rtk-jvm-test-summary-v1"
+        with self.assertRaises(A.AggregateError):
+            self._agg(records=recs)
+
+    def test_red_test_dialect_record_carries_oracle(self):
+        recs = copy.deepcopy(self.records)
+        cid = self.roster[1]["case_id"]  # rtk_test_dialect
+        recs[cid]["command_semantic_oracle_policy_id"] = "rtk-git-show-oracle-v1"
+        with self.assertRaises(A.AggregateError):
+            self._agg(records=recs)
+
+    def test_red_command_oracle_id_mismatch(self):
+        recs = copy.deepcopy(self.records)
+        cid = self.roster[0]["case_id"]
+        recs[cid]["command_semantic_oracle_policy_id"] = "rtk-wrong-oracle-v1"
+        with self.assertRaises(A.AggregateError):
+            self._agg(records=recs)
 
     # ---------- aggregate claim vs recomputation ----------
     def test_red_aggregate_claims_twelve_recompute_gives_eleven(self):
