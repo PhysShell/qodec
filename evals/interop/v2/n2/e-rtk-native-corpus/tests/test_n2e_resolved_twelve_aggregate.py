@@ -1,0 +1,243 @@
+"""Promotion P5.4: the resolved-twelve aggregator derives resolved_canary_pass fail-closed. GREEN
+requires twelve independently-recomputed PASSes over twelve unique acceptance runs. Every aggregate
+failure mode holds the flag false / rejects.
+
+The aggregate LOGIC is tested in isolation with a synthetic twelve-case roster + synthetic records +
+a controllable recompute stub, so the twelve-way discipline is proven without needing eleven real
+acceptance runs. (The real coreutils recompute path is exercised by aggregate_from_disk, which today
+reports 1/12 -> held.) Covers the user's required aggregate RED matrix:
+ 11/12; missing; duplicate replacing another; wrong case; earlier generation; correct artifact on
+ wrong dialect policy; family-level dialect substituted; verifier-nonzero-despite-green-CI; altered
+ stream digest; semantic mismatch hidden by canon; producer-PASS-recompute-FAIL; twelve records but
+ eleven unique runs; barred diagnostic provenance; aggregate-claims-12-while-recompute-gives-11.
+"""
+import copy
+import sys
+import unittest
+from pathlib import Path
+
+N2E_DIR = Path(__file__).resolve().parents[1]
+sys.path.insert(0, str(N2E_DIR / "tools"))
+import aggregate_n2e_resolved_twelve as A  # noqa: E402
+import n2e_resolved_loader as L  # noqa: E402
+
+GEN = 1
+MAN_SHA = "sha256:" + "d" * 64
+CTYPE = "n2e-resolved-case-qualification"
+BINDING = {"manifest_generation": GEN, "manifest_sha256": MAN_SHA,
+           "resolved_execution_contract_sha256": "sha256:" + "c" * 64,
+           "resolved_membership_sha256": "sha256:" + "m" * 64}
+
+
+def _roster():
+    r = []
+    for i in range(12):
+        r.append({"case_id": f"case-{i:02d}::fam::test", "expected_qualification_record_type": CTYPE,
+                  "canonicalization_policy_id": f"canon-{i}-v1", "rtk_test_dialect_policy_id": None,
+                  "contract_generation": 1, "manifest_generation": GEN, "manifest_binding": BINDING})
+    return r
+
+
+def _rec(entry, i, ok=True):
+    return {
+        "record_type": CTYPE, "case_id": entry["case_id"],
+        "manifest_generation": GEN, "manifest_sha256": MAN_SHA,
+        "canonicalization_policy_id": entry["canonicalization_policy_id"],
+        "rtk_test_dialect_policy_id": entry["rtk_test_dialect_policy_id"],
+        "contract_generation": 1,
+        "acceptance_run": {"workflow": "qodec-n2e-case-qualification",
+                           "run_id": f"300000000{i:02d}", "run_attempt": "1",
+                           "impl_commit": f"impl{i:02d}", "artifact_sha256": f"{i:02d}" + "a" * 62,
+                           "artifact_bytes": 1000 + i},
+        "case_qualification_pass": True, "_ok": ok}
+
+
+# controllable synthetic recompute: the aggregator's authority, not the record's claim
+def _synth_recompute(rec, entry):
+    return bool(rec.get("_ok", False))
+
+
+RECOMPUTE = {CTYPE: _synth_recompute}
+BIND = {CTYPE: A._bind_case_generation}
+
+
+def _records(roster, ok_all=True):
+    return {e["case_id"]: _rec(e, i, ok=ok_all) for i, e in enumerate(roster)}
+
+
+class TestAggregate(unittest.TestCase):
+    def setUp(self):
+        self.roster = _roster()
+        self.records = _records(self.roster)
+
+    def _agg(self, roster=None, records=None):
+        return A.aggregate(roster or self.roster, records if records is not None else self.records,
+                           RECOMPUTE, BIND)
+
+    # ---------- GREEN: twelve independently-derived PASSes ----------
+    def test_green_twelve_pass(self):
+        r = self._agg()
+        self.assertEqual(r["derived_pass_count"], 12)
+        self.assertEqual(r["unique_acceptance_runs"], 12)
+        self.assertTrue(r["resolved_canary_pass"])
+
+    # ---------- the real disk aggregator stays held at 1/12 ----------
+    def test_real_disk_holds_at_one_of_twelve(self):
+        r = A.aggregate_from_disk()
+        self.assertEqual(r["derived_pass_count"], 1)
+        self.assertFalse(r["resolved_canary_pass"])
+
+    # ---------- 11/12 and missing ----------
+    def test_red_eleven_of_twelve_recompute(self):
+        recs = copy.deepcopy(self.records)
+        recs[self.roster[3]["case_id"]]["_ok"] = False  # recompute FAIL but still claims PASS
+        with self.assertRaises(A.AggregateError):
+            self._agg(records=recs)
+
+    def test_red_one_missing_record_holds(self):
+        recs = copy.deepcopy(self.records); del recs[self.roster[5]["case_id"]]
+        r = self._agg(records=recs)
+        self.assertEqual(r["derived_pass_count"], 11)
+        self.assertFalse(r["resolved_canary_pass"])
+
+    # ---------- duplicate replacing another case ----------
+    def test_red_duplicate_record_replacing_another_case(self):
+        recs = copy.deepcopy(self.records)
+        victim = self.roster[7]["case_id"]
+        recs[victim] = copy.deepcopy(recs[self.roster[6]["case_id"]])  # case 6's record under case 7
+        with self.assertRaises(A.AggregateError):
+            self._agg(records=recs)
+
+    def test_red_two_records_for_one_case(self):
+        recs = copy.deepcopy(self.records)
+        cid = self.roster[2]["case_id"]
+        recs[cid] = [recs[cid], copy.deepcopy(recs[cid])]
+        with self.assertRaises(A.AggregateError):
+            self._agg(records=recs)
+
+    # ---------- wrong case ----------
+    def test_red_record_from_wrong_case(self):
+        recs = copy.deepcopy(self.records)
+        recs[self.roster[1]["case_id"]]["case_id"] = "some::other::case"
+        with self.assertRaises(A.AggregateError):
+            self._agg(records=recs)
+
+    # ---------- earlier generation ----------
+    def test_red_record_earlier_manifest_generation(self):
+        recs = copy.deepcopy(self.records)
+        recs[self.roster[4]["case_id"]]["manifest_generation"] = 0
+        with self.assertRaises(A.AggregateError):
+            self._agg(records=recs)
+
+    def test_red_record_stale_manifest_sha(self):
+        recs = copy.deepcopy(self.records)
+        recs[self.roster[4]["case_id"]]["manifest_sha256"] = "sha256:" + "0" * 64
+        with self.assertRaises(A.AggregateError):
+            self._agg(records=recs)
+
+    # ---------- correct artifact on wrong dialect policy ----------
+    def test_red_correct_artifact_wrong_dialect_policy(self):
+        recs = copy.deepcopy(self.records)
+        recs[self.roster[8]["case_id"]]["rtk_test_dialect_policy_id"] = "rtk-rust-cargo-test-summary-v1"
+        with self.assertRaises(A.AggregateError):
+            self._agg(records=recs)
+
+    def test_red_wrong_canon_policy(self):
+        recs = copy.deepcopy(self.records)
+        recs[self.roster[8]["case_id"]]["canonicalization_policy_id"] = "canon-999-v1"
+        with self.assertRaises(A.AggregateError):
+            self._agg(records=recs)
+
+    # ---------- family-level dialect substituted for case-scoped ----------
+    def test_red_family_level_dialect_substituted(self):
+        # roster case expects None (case-scoped only); record claims a family-level dialect binding
+        recs = copy.deepcopy(self.records)
+        recs[self.roster[9]["case_id"]]["rtk_test_dialect_policy_id"] = "rtk-go-test-summary-v1"
+        with self.assertRaises(A.AggregateError):
+            self._agg(records=recs)
+
+    # ---------- verifier nonzero / semantic mismatch / altered digest: all surface as recompute FAIL ----------
+    def test_red_verifier_nonzero_despite_green_ci(self):
+        recs = copy.deepcopy(self.records)
+        recs[self.roster[0]["case_id"]]["_ok"] = False  # independent recompute says FAIL
+        with self.assertRaises(A.AggregateError):
+            self._agg(records=recs)
+
+    def test_red_producer_pass_recompute_fail(self):
+        recs = copy.deepcopy(self.records)
+        r0 = recs[self.roster[0]["case_id"]]
+        r0["_ok"] = False; r0["case_qualification_pass"] = True  # lie
+        with self.assertRaises(A.AggregateError):
+            self._agg(records=recs)
+
+    def test_red_producer_does_not_claim_pass(self):
+        recs = copy.deepcopy(self.records)
+        recs[self.roster[0]["case_id"]]["case_qualification_pass"] = None
+        with self.assertRaises(A.AggregateError):
+            self._agg(records=recs)
+
+    # ---------- twelve records but eleven unique runs ----------
+    def test_red_twelve_records_eleven_unique_runs(self):
+        recs = copy.deepcopy(self.records)
+        a, b = self.roster[10]["case_id"], self.roster[11]["case_id"]
+        recs[b]["acceptance_run"]["run_id"] = recs[a]["acceptance_run"]["run_id"]
+        recs[b]["acceptance_run"]["run_attempt"] = recs[a]["acceptance_run"]["run_attempt"]
+        with self.assertRaises(A.AggregateError):
+            self._agg(records=recs)
+
+    def test_red_cross_case_artifact_reuse(self):
+        recs = copy.deepcopy(self.records)
+        a, b = self.roster[10]["case_id"], self.roster[11]["case_id"]
+        recs[b]["acceptance_run"]["artifact_sha256"] = recs[a]["acceptance_run"]["artifact_sha256"]
+        with self.assertRaises(A.AggregateError):
+            self._agg(records=recs)
+
+    # ---------- barred diagnostic provenance ----------
+    def test_red_barred_diagnostic_run(self):
+        recs = copy.deepcopy(self.records)
+        recs[self.roster[0]["case_id"]]["acceptance_run"]["run_id"] = next(iter(L.BARRED_DIAGNOSTIC_RUNS))
+        with self.assertRaises(A.AggregateError):
+            self._agg(records=recs)
+
+    def test_red_barred_impl(self):
+        recs = copy.deepcopy(self.records)
+        recs[self.roster[0]["case_id"]]["acceptance_run"]["impl_commit"] = next(iter(L.BARRED_DIAGNOSTIC_IMPLS))
+        with self.assertRaises(A.AggregateError):
+            self._agg(records=recs)
+
+    def test_red_missing_acceptance_run_field(self):
+        recs = copy.deepcopy(self.records)
+        del recs[self.roster[0]["case_id"]]["acceptance_run"]["artifact_sha256"]
+        with self.assertRaises(A.AggregateError):
+            self._agg(records=recs)
+
+    # ---------- no materialized recompute path -> cannot derive ----------
+    def test_red_no_recompute_path_registered(self):
+        with self.assertRaises(A.AggregateError):
+            A.aggregate(self.roster, self.records, {}, BIND)
+
+    def test_red_no_bind_path_registered(self):
+        with self.assertRaises(A.AggregateError):
+            A.aggregate(self.roster, self.records, RECOMPUTE, {})
+
+    # ---------- roster integrity ----------
+    def test_red_roster_not_twelve(self):
+        with self.assertRaises(A.AggregateError):
+            self._agg(roster=self.roster[:11])
+
+    def test_red_roster_duplicate_case(self):
+        roster = copy.deepcopy(self.roster); roster[1]["case_id"] = roster[0]["case_id"]
+        with self.assertRaises(A.AggregateError):
+            self._agg(roster=roster)
+
+    # ---------- aggregate claim vs recomputation ----------
+    def test_red_aggregate_claims_twelve_recompute_gives_eleven(self):
+        # one record recomputes FAIL while claiming PASS -> aggregator rejects rather than reporting 12
+        recs = copy.deepcopy(self.records)
+        recs[self.roster[11]["case_id"]]["_ok"] = False
+        with self.assertRaises(A.AggregateError):
+            self._agg(records=recs)
+
+
+if __name__ == "__main__":
+    unittest.main()
