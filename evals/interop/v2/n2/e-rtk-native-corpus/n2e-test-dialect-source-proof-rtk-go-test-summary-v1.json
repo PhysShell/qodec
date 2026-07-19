@@ -17,7 +17,7 @@
     "caddyserver__caddy-5870::go::test::buggy"
   ],
   "purpose": "Source-identity + case-scope proof for rtk-go-test-summary-v1. Pins the exact pinned RTK source it was grounded in, the semantics-module identity, the pinned corpus RTK binary, and the case-scoped manifest binding. Sets no promotion flag.",
-  "record_sha256": "sha256:823461f08a422ba0b16448b33ed76c09009b79444daf1f57e2502d041c66b636",
+  "record_sha256": "sha256:a4886c79dd322ab778fe7a06608757f6e2a5fc2e8a9419c75a090c48ba1f11d7",
   "record_type": "n2e-test-dialect-source-proof",
   "record_version": "v1",
   "rtk_source_identity": {
@@ -29,9 +29,9 @@
   },
   "schema_version": "n2e-record-1",
   "semantics_module": {
-    "bytes": 6462,
+    "bytes": 8684,
     "declared_dialect_id": "rtk-go-test-summary-v1",
     "path": "tools/n2e_rtk_go_test_dialect.py",
-    "sha256": "5a4c282ea2f603f1d42ad94432788e0e23a8f629eece8c2683dbe42f94aeb170"
+    "sha256": "238963ff1b410c7f2444338f10517ffa1ec9b05400b010902de8bd941fce6c5b"
   }
 }
