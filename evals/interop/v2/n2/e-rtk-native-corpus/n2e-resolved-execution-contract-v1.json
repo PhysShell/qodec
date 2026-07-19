@@ -54,7 +54,12 @@
         "Cargo.toml"
       ],
       "resolution_rule": "publisher_recipe",
-      "rtk_test_dialect_policy_id": null,
+      "rtk_dialect_binding_generation": {
+        "delta": "bound the case-scoped rust cargo-test dialect rtk-rust-cargo-test-summary-v1 (proven for coreutils-6731 only); frozen base contract unchanged (tokio stays null)",
+        "generation": 3,
+        "previous": "rtk_test_dialect_policy_id=null"
+      },
+      "rtk_test_dialect_policy_id": "rtk-rust-cargo-test-summary-v1",
       "runtime_resolved": false,
       "scheduler_env": {
         "CARGO_BUILD_JOBS": "1",
@@ -88,7 +93,7 @@
     }
   ],
   "purpose": "Resolved-scope overlay for the coreutils-6731 replacement; frozen base is never modified. Effective contract = frozen base + verified replacement overlay.",
-  "record_sha256": "sha256:ed418e6bdb94aee0d3c30bdda02c2c0f18310fe480396cd92cd62a5f838a47c3",
+  "record_sha256": "sha256:3962fbbe1497cacca423f65c16c8cedcf273eaa67c819eec94e2ce9aa5fe2853",
   "record_type": "n2e-resolved-execution-contract-overlay",
   "record_version": "v1",
   "replaces": "tokio-rs__tokio-4384::rust_cargo::test::fixed",

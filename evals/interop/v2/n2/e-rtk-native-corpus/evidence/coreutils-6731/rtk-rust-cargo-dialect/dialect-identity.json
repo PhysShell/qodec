@@ -1,0 +1,19 @@
+{
+  "artifact_sha256": "ff5152b2da9fc4104eb424b50d21ce54bcd3616bed06b24aee4452b6de49a05d",
+  "case_id": "uutils__coreutils-6731::rust_cargo::test::fixed",
+  "producer_implementation": "65b8714",
+  "rtk_executable_identity": {
+    "build_provenance": "nix store path (encodes the pinned rtk-pinned derivation)",
+    "bytes": 9200104,
+    "path": "/nix/store/5ldj578ia4kjqb1m1db1zhmwgfk9x8rb-rtk-pinned-0.42.4/bin/rtk",
+    "sha256": "41f316adf7b30a568208a0a4f824bffb266ecb6d01bd9de81bed58e1d469dfcf"
+  },
+  "rtk_source_identity": {
+    "binding": "bound to the exact commit + tree; NO floating branch/tag/HEAD/PATH/package-version",
+    "commit": "5d32d0736f686b69d1e8b9dc45c007d4eb77a0a2",
+    "repository": "rtk-ai/rtk",
+    "source_file": "src/cmds/rust/cargo_cmd.rs",
+    "source_tree": "8ef9e912286858c2caf5b066c1121327a072be79"
+  },
+  "run_id": "29667956749"
+}

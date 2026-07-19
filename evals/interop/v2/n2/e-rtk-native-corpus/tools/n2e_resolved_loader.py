@@ -45,6 +45,9 @@ DEPSNAP_DIR = N2E_DIR / "evidence" / "coreutils-6731" / "resolved-dependency-sna
 # P2: executed-binary identity record + its committed frozen installed-identity evidence
 BINID = N2E_DIR / "n2e-resolved-toolchain-binary-identity-v1.json"
 BINID_DIR = N2E_DIR / "evidence" / "coreutils-6731" / "toolchain-binary-identity"
+# P3: case-scoped Rust cargo-test RTK dialect record + its committed frozen streams
+DIALECT = N2E_DIR / "n2e-resolved-rtk-rust-cargo-dialect-v1.json"
+DIALECT_DIR = N2E_DIR / "evidence" / "coreutils-6731" / "rtk-rust-cargo-dialect"
 
 REPLACEMENT_CASE_ID = "uutils__coreutils-6731::rust_cargo::test::fixed"
 REPLACED_CASE_ID = "tokio-rs__tokio-4384::rust_cargo::test::fixed"
@@ -80,6 +83,14 @@ PROVEN_WRAPPER = {"name": "rustup",
                   "bytes": 20838840}
 BINID_CHANNEL = "1.81.0"
 BINID_HOST = "x86_64-unknown-linux-gnu"
+
+# P3 proven Rust cargo-test dialect identity anchors (case-scoped: coreutils-6731 only).
+DIALECT_ID = "rtk-rust-cargo-test-summary-v1"
+DIALECT_SOURCE_COMMIT = "5d32d0736f686b69d1e8b9dc45c007d4eb77a0a2"
+DIALECT_SOURCE_TREE = "8ef9e912286858c2caf5b066c1121327a072be79"
+DIALECT_RTK_SHA = "41f316adf7b30a568208a0a4f824bffb266ecb6d01bd9de81bed58e1d469dfcf"
+DIALECT_RTK_BYTES = 9200104
+DIALECT_RUN = "29667956749"
 
 # overlay file -> (record key holding the base whole-file hash, the base file it must match)
 _OVERLAYS = {
@@ -322,6 +333,98 @@ def validate_toolchain_binary_identity(rec: dict, ref, rm_sha: str, base_lock_sh
     return rec
 
 
+def _load_dialect(path: Path) -> dict:
+    if not Path(path).is_file():
+        raise ResolvedScopeError("required RTK dialect record missing (contract binds a dialect)")
+    return _load_ok(path)
+
+
+def validate_rtk_rust_cargo_dialect(rec: dict, bound_dialect_id, rm_sha: str, base_contract_sha: str,
+                                    resolved_contract_sha: str, p2_sha: str, evidence_dir: Path) -> dict:
+    """Fail-closed validation of the case-scoped Rust cargo-test RTK dialect record. Pure over its
+    inputs. Ties the dialect to the exact pinned RTK source + executable identity + the P2
+    binary-identity record; re-derives the semantic projection + equivalence from the frozen
+    streams; enforces the CASE-scoped binding (proven for coreutils-6731 only -- a family-level
+    binding, a different/tokio case, a missing/changed case_id, or a duplicate binding all reject).
+    No floating branch/tag/HEAD/PATH; provenance descriptive; diagnostic-only runs barred."""
+    import n2e_oracles as ora
+    import n2e_rtk_rust_cargo_dialect as rcd
+
+    if rec.get("record_type") != "n2e-resolved-rtk-rust-cargo-dialect":
+        raise ResolvedScopeError("dialect record wrong record_type")
+    if rec.get("record_version") != "v1":
+        raise ResolvedScopeError("dialect record wrong record_version")
+    if rec.get("dialect_policy_id") != DIALECT_ID:
+        raise ResolvedScopeError("dialect record dialect_policy_id != pinned")
+    if rec.get("dialect_scope") != "case_scoped":
+        raise ResolvedScopeError("dialect record is not case_scoped")
+    if rec.get("materializes_rtk_test_dialect_policy_id") != bound_dialect_id:
+        raise ResolvedScopeError("dialect record does not materialize the contract's rtk_test_dialect_policy_id")
+    if rec.get("resolved_case_id") != REPLACEMENT_CASE_ID:
+        raise ResolvedScopeError("dialect resolved_case_id != replacement case")
+    if rec.get("resolved_membership_sha256") != rm_sha:
+        raise ResolvedScopeError("dialect resolved_membership_sha256 mismatch")
+    if rec.get("base_execution_contract_sha256") != base_contract_sha:
+        raise ResolvedScopeError("dialect base_execution_contract_sha256 mismatch")
+    if rec.get("resolved_execution_contract_sha256") != resolved_contract_sha:
+        raise ResolvedScopeError("dialect resolved_execution_contract_sha256 mismatch")
+
+    # CASE-scoped binding correctness: the case must resolve to THIS dialect case-scoped, and the
+    # FAMILY must stay unproven (a family-level binding / duplicate binding is rejected).
+    if ora.rtk_dialect_for_case("rust_cargo", REPLACEMENT_CASE_ID) != DIALECT_ID:
+        raise ResolvedScopeError("dialect is not the proven case-scoped binding for the replacement case")
+    if ora.rtk_dialect_for("rust_cargo") is not None:
+        raise ResolvedScopeError("rust_cargo has a FAMILY-level dialect binding (only case-scoped proven) "
+                                 "-- duplicate/over-broad binding rejected")
+    # a different (e.g. tokio) case must NOT resolve to this dialect
+    if ora.rtk_dialect_for_case("rust_cargo", REPLACED_CASE_ID) is not None:
+        raise ResolvedScopeError("dialect leaks to a non-proven case (e.g. tokio)")
+
+    # ---- identity chain (no floating ref) ----
+    src = rec.get("rtk_source_identity") or {}
+    if src.get("commit") != DIALECT_SOURCE_COMMIT or src.get("source_tree") != DIALECT_SOURCE_TREE:
+        raise ResolvedScopeError("dialect RTK source commit/tree != pinned 5d32d07")
+    exe = rec.get("rtk_executable_identity") or {}
+    if exe.get("sha256") != DIALECT_RTK_SHA or exe.get("bytes") != DIALECT_RTK_BYTES:
+        raise ResolvedScopeError("dialect built RTK executable sha256/bytes != proven")
+    if rec.get("p2_binary_identity_ref", {}).get("sha256") != p2_sha:
+        raise ResolvedScopeError("dialect p2_binary_identity_ref sha != current P2 record")
+
+    # ---- layer 1: captured bytes -- re-hash every frozen stream ----
+    cap = rec.get("captured_bytes") or {}
+    streams = cap.get("streams") or {}
+    if not streams:
+        raise ResolvedScopeError("dialect captured_bytes has no streams (metadata-only)")
+    if cap.get("streams_manifest_sha256") != c.sha256_json_file(evidence_dir / "streams-manifest.json"):
+        raise ResolvedScopeError("dialect streams_manifest_sha256 mismatch")
+    for name, meta in streams.items():
+        p = evidence_dir / "streams" / name
+        if not p.is_file():
+            raise ResolvedScopeError(f"dialect frozen stream missing: {name}")
+        raw = p.read_bytes()
+        if c.sha256_bytes(raw) != meta.get("sha256") or len(raw) != meta.get("bytes"):
+            raise ResolvedScopeError(f"dialect frozen stream {name}: sha256/bytes != recorded")
+
+    # ---- layer 3: semantic projection -- re-derive from the frozen v3-canonical streams ----
+    raw_can = (evidence_dir / "streams" / "raw.canonical.rep0.bin").read_bytes()
+    rtk_can = (evidence_dir / "streams" / "rtk.canonical.rep0.bin").read_bytes()
+    rp, kp = rcd.parse_raw(raw_can), rcd.parse_rtk(rtk_can)
+    sp = rec.get("semantic_projection") or {}
+    if sp.get("raw_projection") != rp or sp.get("rtk_projection") != kp:
+        raise ResolvedScopeError("dialect recorded projection != re-derived from frozen streams")
+    eq = rcd.equivalence(rp, kp)
+    if not eq["equivalent"] or sp.get("equivalence", {}).get("equivalent") is not True:
+        raise ResolvedScopeError("dialect RAW<->RTK equivalence does not hold on the frozen streams")
+
+    # provenance descriptive; bar diagnostic-only runs/impls
+    prov = rec.get("provenance") or {}
+    if prov.get("run_id") in BARRED_DIAGNOSTIC_RUNS or prov.get("producer_implementation") in BARRED_DIAGNOSTIC_IMPLS:
+        raise ResolvedScopeError("dialect provenance names a barred diagnostic-only run/impl")
+    if prov.get("run_id") != DIALECT_RUN:
+        raise ResolvedScopeError("dialect provenance run_id != the capture run")
+    return rec
+
+
 def validate_resolved_closure() -> dict:
     """Validate the whole resolved closure fail-closed; return the effective-record hash
     map + parsed overlays. Raises ResolvedScopeError on any violation."""
@@ -403,6 +506,18 @@ def validate_resolved_closure() -> dict:
             c.sha256_json_file(OV_TOOLCHAIN), BINID_DIR)
         overlays["toolchain_binary_identity"] = rec
         hashes["toolchain_binary_identity_sha256"] = c.sha256_json_file(BINID)
+
+    # ---- P3: case-scoped Rust cargo-test RTK dialect ----
+    # REQUIRED whenever the resolved execution contract BINDS a test dialect, so the contract can
+    # never reference a dialect whose identity/streams/equivalence are unmaterialized.
+    bound_dialect = contract.get("rtk_test_dialect_policy_id")
+    if bound_dialect is not None:
+        drec = _load_dialect(DIALECT)
+        validate_rtk_rust_cargo_dialect(
+            drec, bound_dialect, rm_sha, c.sha256_json_file(CONTRACT),
+            c.sha256_json_file(OV_CONTRACT), c.sha256_json_file(BINID), DIALECT_DIR)
+        overlays["rtk_rust_cargo_dialect"] = drec
+        hashes["rtk_rust_cargo_dialect_sha256"] = c.sha256_json_file(DIALECT)
 
     hashes.update({
         "resolved_membership_sha256": rm_sha,

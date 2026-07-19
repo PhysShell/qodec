@@ -203,8 +203,15 @@ def build_execution_contract_overlay() -> dict:
             "delta": "added one rule normalizing the RTK cargo-test compact all-pass summary "
                      "duration (rust RTK @5d32d07 format_compact); cargo-test-v2 unchanged"},
         "semantic_oracle_policy_id": recipe["oracle_policy_id"],
-        # rust RTK dialect is not yet proven -> None (fail-closed) until step 9 binds it
-        "rtk_test_dialect_policy_id": ora.rtk_dialect_for("rust_cargo"),
+        # Generation 3: bind the CASE-scoped rust cargo-test RTK dialect. Proven for the
+        # coreutils-6731 case ONLY (P3, from run 29667956749) -> resolved via rtk_dialect_for_case
+        # (NOT the family default, which stays None so the frozen tokio base contract is unchanged
+        # and other unproven Rust cases stay fail-closed).
+        "rtk_test_dialect_policy_id": ora.rtk_dialect_for_case("rust_cargo", CASE_ID),
+        "rtk_dialect_binding_generation": {
+            "generation": 3, "previous": "rtk_test_dialect_policy_id=null",
+            "delta": "bound the case-scoped rust cargo-test dialect rtk-rust-cargo-test-summary-v1 "
+                     "(proven for coreutils-6731 only); frozen base contract unchanged (tokio stays null)"},
         "toolchain_identity_ref": {
             "where": "focused coreutils diagnostic: acquisition.environment_identity.toolchain",
             "required_keys": [

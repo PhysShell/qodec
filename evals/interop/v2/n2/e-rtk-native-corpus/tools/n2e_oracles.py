@@ -134,17 +134,39 @@ RTK_GO_DIALECT = "rtk-go-test-summary-v1"  # bounded `[FAIL] <id>` record (RTK s
 # NO proven dialect must FAIL CLOSED in rtk_agrees -- it must NEVER silently reuse the Go
 # parser. A common cross-ecosystem policy may only be added here after it is proven from
 # the pinned RTK source (commit 5d32d07) with a real fixture for every affected ecosystem.
+RTK_RUST_CARGO_DIALECT = "rtk-rust-cargo-test-summary-v1"  # proven for the coreutils-6731 CASE only
 RTK_DIALECTS = {
     "go": RTK_GO_DIALECT,   # proven: caddy diagnostic RAW/RTK primary streams
-    # "rust_cargo": <proven RTK cargo dialect>,   # not yet proven
+    # rust_cargo is NOT proven at FAMILY level: P3 proved the dialect from the coreutils-6731
+    # streams only, so it is bound CASE-scoped (see RTK_CASE_DIALECTS). A family-level binding
+    # would silently extend the coreutils proof to the disqualified tokio case and other unproven
+    # Rust cases -- proof-scope creep. Family binding awaits an independent multi-case
+    # qualification (incl. tokio) in a later policy generation.
     # "js_ts":      <proven RTK vitest dialect>,   # not yet proven
     # "jvm":        <proven RTK gradle dialect>,   # not yet proven
     # "python":     <proven RTK pytest dialect>,   # not yet proven
 }
+# CASE-scoped RTK dialect bindings: an EXACT case_id references a dialect proven for THAT case,
+# never selected from family alone. Keyed on the immutable frozen case_id; the (expected) family
+# is pinned so a mismatched-family lookup fails closed.
+RTK_CASE_DIALECTS = {
+    "uutils__coreutils-6731::rust_cargo::test::fixed": ("rust_cargo", RTK_RUST_CARGO_DIALECT),
+}
 
 
 def rtk_dialect_for(family: str) -> str | None:
+    """FAMILY-level proven dialect (never case-scoped). rust_cargo stays None (proof is case-scoped)."""
     return RTK_DIALECTS.get(family)
+
+
+def rtk_dialect_for_case(family: str, case_id: str | None) -> str | None:
+    """CASE-scoped proven dialect: returns the dialect ONLY when case_id has an exact proven
+    binding AND its pinned family matches. Explicit and separate from rtk_dialect_for -- it never
+    extends the family default. Any other case (incl. tokio) resolves to None (fail-closed)."""
+    binding = RTK_CASE_DIALECTS.get(case_id)
+    if binding and binding[0] == family:
+        return binding[1]
+    return None
 
 # rtk-go-test-summary-v1: bounded, anchored records derived from the pinned RTK source
 # (commit 5d32d07). A per-test failure is the whole `[FAIL]` token at the START of the
@@ -191,6 +213,11 @@ def _test_summary(raw: bytes, dialect: str = "native") -> dict:
     streams; any OTHER dialect id fails closed (unknown -> incomplete evidence)."""
     if dialect == RTK_GO_DIALECT:
         return _rtk_go_summary(raw)
+    if dialect == RTK_RUST_CARGO_DIALECT:
+        import n2e_rtk_rust_cargo_dialect as rcd
+        p = rcd.parse_rtk(raw)
+        return {"passed": p["passed"], "failed": p["failed"], "failing_ids": p["failing_ids"],
+                "dialect": RTK_RUST_CARGO_DIALECT, "projection": p}
     if dialect != "native":
         return {"passed": None, "failed": None, "failing_ids": [], "dialect": dialect,
                 "unknown_dialect": True}
@@ -369,13 +396,27 @@ def rtk_agrees(scenario: dict, raw: bytes, rtk: bytes) -> dict:
         # with the PROVEN dialect for this family, then compare NORMALIZED semantic events
         # (failed_count + failing_ids) -- never byte-format equality. A family with no
         # proven RTK dialect FAILS CLOSED (never reuse the Go parser).
-        r = _test_summary(raw, dialect="native")
-        rtk_dialect = rtk_dialect_for(fam)
+        # CASE-scoped dialect takes precedence; fall back to the FAMILY dialect. A case/family
+        # with no proven dialect FAILS CLOSED (never reuse another ecosystem's parser).
+        case_id = scenario.get("case_id")
+        rtk_dialect = rtk_dialect_for_case(fam, case_id) or rtk_dialect_for(fam)
         if rtk_dialect is None:
             return {"oracle": "test_agreement", "verdict": False,
-                    "evidence": {"error": f"no proven RTK dialect for family {fam!r} -- "
-                                          f"fail-closed (do not reuse the Go parser)",
-                                 "raw": r, "rtk_dialect": None, "unproven_family": fam}}
+                    "evidence": {"error": f"no proven RTK dialect for family {fam!r} / case {case_id!r} -- "
+                                          f"fail-closed (do not reuse another ecosystem's parser)",
+                                 "raw": _test_summary(raw, dialect="native"), "rtk_dialect": None,
+                                 "unproven_family": fam}}
+        if rtk_dialect == RTK_RUST_CARGO_DIALECT:
+            # the Rust cargo-test dialect compares FULL semantic projections via its own
+            # source-grounded equivalence predicate (preserves outcome, all counts, failing ids,
+            # terminal-summary presence, truncation; duration is presentation metadata).
+            import n2e_rtk_rust_cargo_dialect as rcd
+            rp, kp = rcd.parse_raw(raw), rcd.parse_rtk(rtk)
+            eq = rcd.equivalence(rp, kp)
+            return {"oracle": "test_agreement", "verdict": bool(eq["equivalent"]),
+                    "evidence": {"raw": rp, "rtk": kp, "rtk_dialect": rtk_dialect,
+                                 "mismatches": eq["mismatches"], "compared": "dialect_semantic_projection"}}
+        r = _test_summary(raw, dialect="native")
         k = _test_summary(rtk, dialect=rtk_dialect)
         raw_fail = set(_leaf_ids(r["failing_ids"]))
         rtk_fail = set(_leaf_ids(k["failing_ids"]))
