@@ -12,9 +12,13 @@ N2E_DIR = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(N2E_DIR / "tools"))
 import n2e_rtk_go_vet_oracle as gv  # noqa: E402
 
-# a clean gin run: no vet issues -> RAW empty, RTK synthesizes "No issues found"
-RAW_CLEAN = b""
-RTK_CLEAN = b"Go vet: No issues found"
+# a clean gin run (REAL committed streams from run 29682560680): go vet emits nothing (exit 0), and
+# RTK's run_filtered token guard suppresses the synthetic marker back to empty (1-byte newline).
+STREAMS = N2E_DIR / "evidence" / "gin-clean-run-29682560680" / "streams"
+RAW_CLEAN = (STREAMS / "raw.canonical.bin").read_bytes()   # b"" (0 bytes)
+RTK_CLEAN = (STREAMS / "rtk.canonical.bin").read_bytes()   # b"\n" (1 byte)
+# the synthetic marker form is also accepted as clean (when RAW had enough tokens to survive the guard)
+RTK_SYNTH_CLEAN = b"Go vet: No issues found"
 
 # one diagnostic
 RAW_ONE = b"# github.com/gin-gonic/gin\n./context.go:42:3: unreachable code\n"
@@ -41,8 +45,14 @@ class TestGoVetOracle(unittest.TestCase):
         kp = gv.parse_rtk(RTK_CLEAN)
         self.assertEqual((kp["outcome"], kp["issue_count"], kp["synthetic_no_issues"]), ("clean", 0, True))
 
-    def test_clean_equivalence(self):
+    def test_clean_equivalence_real_streams(self):
+        # empty RAW <-> newline RTK (token-guard-suppressed) -> both clean, equivalent
         self.assertTrue(gv.equivalence(gv.parse_raw(RAW_CLEAN), gv.parse_rtk(RTK_CLEAN))["equivalent"])
+
+    def test_synthetic_marker_also_clean(self):
+        kp = gv.parse_rtk(RTK_SYNTH_CLEAN)
+        self.assertEqual((kp["outcome"], kp["issue_count"]), ("clean", 0))
+        self.assertTrue(gv.equivalence(gv.parse_raw(RAW_CLEAN), kp)["equivalent"])
 
     # ---------- one / multiple diagnostics ----------
     def test_one_diagnostic_equivalence(self):

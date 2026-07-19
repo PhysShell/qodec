@@ -37,7 +37,13 @@ def build(case_id: str, observation: Path, evidence: Path, name: str, run: dict)
 
     man = c.load_record(MANIFEST)
     entry = next(x for x in man["cases"] if x["case_id"] == case_id)
-    mod = cq.TEST_DIALECTS[entry["rtk_test_dialect_policy_id"]]
+    # projection module dispatched by qualification_kind (test dialect OR command oracle)
+    if entry["qualification_kind"] == "rtk_test_dialect":
+        mod = cq.TEST_DIALECTS[entry["rtk_test_dialect_policy_id"]]
+    elif entry["qualification_kind"] == "rtk_command_oracle":
+        mod = cq.COMMAND_ORACLES[entry["command_semantic_oracle_policy_id"]]
+    else:
+        raise SystemExit(f"unknown qualification_kind {entry['qualification_kind']!r}")
 
     # freeze the accepted canonical RAW/RTK streams as committed immutable evidence
     qdir = N2E_DIR / "evidence" / name / "qualification"
@@ -82,7 +88,7 @@ def build(case_id: str, observation: Path, evidence: Path, name: str, run: dict)
 
     # HARD GATE 2: the freshly built record + frozen evidence must recompute True in the aggregator
     rec = c.load_record(out)
-    verdict = cq.recompute_test_dialect_verdict(rec, {**entry, "case_id": case_id}, qdir)
+    verdict = cq.recompute_case_verdict(rec, {**entry, "case_id": case_id}, qdir)
     if verdict is not True:
         raise SystemExit("REFUSING: freshly built record does not recompute True in the aggregator")
     print(f"wrote {out.name}; aggregator recomputed case_qualification_pass=True")

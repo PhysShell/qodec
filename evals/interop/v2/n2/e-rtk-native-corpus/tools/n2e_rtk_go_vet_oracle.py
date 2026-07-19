@@ -15,6 +15,13 @@ Source-grounded semantics -- EXACTLY what filter_go_vet preserves / drops / synt
     `.go:` line is projected as clean -- this oracle FAITHFULLY represents that (it does NOT invent an
     exit/severity/category/error-count field the filter drops). Qualification is RAW<->RTK fidelity,
     not a judgement of whether the filter is complete.
+  * EMPTY output = CLEAN. A clean `go vet` emits NOTHING (exit 0, no issues). RTK's run_filtered
+    token guard (core/runner.rs: "never emit more tokens than the command") then SUPPRESSES the
+    synthetic `Go vet: No issues found` back to empty, so the real RTK clean stream is empty
+    (observed: RAW 0 bytes <-> RTK 1 byte newline for gin, exit 0, deterministic across 3 reps).
+    Whitespace-only output on BOTH sides therefore projects to clean/0-issues. If instead RTK is
+    empty while RAW carries a `.go:` issue, the projections disagree (issues vs clean) and the
+    mismatch is caught -- the token guard only empties RTK when RAW was already empty.
 
 Three structurally distinct layers (never conflated): captured bytes -> execution binding ->
 semantic projection. This module is the SEMANTIC PROJECTION + the RAW<->RTK equivalence predicate.
@@ -56,7 +63,8 @@ def _is_issue_line(line: str) -> bool:
 
 
 def parse_raw(data: bytes) -> dict:
-    """Project the RAW `go vet` output through the filter_go_vet issue-line rule."""
+    """Project the RAW `go vet` output through the filter_go_vet issue-line rule. Empty (a clean
+    vet emits nothing) -> clean/0-issues."""
     text = _strip_presentation(data).decode("utf-8", "replace")
     truncated = "output truncated" in text.lower() or "✂" in text
     issues = [ln.strip() for ln in text.splitlines() if _is_issue_line(ln)]
@@ -65,9 +73,12 @@ def parse_raw(data: bytes) -> dict:
 
 
 def parse_rtk(data: bytes) -> dict:
-    """Project the RTK compact `Go vet: ...` form."""
+    """Project the RTK compact `Go vet: ...` form; EMPTY (token-guard-suppressed clean) -> clean."""
     text = _strip_presentation(data).decode("utf-8", "replace")
     truncated = "output truncated" in text.lower() or "✂" in text
+    if not text.strip():
+        # clean vet: the token guard suppressed the synthetic marker back to empty
+        return _proj("clean", issue_count=0, issues=[], synthetic_no_issues=True, truncated=truncated)
     if _RTK_NO_ISSUES in text:
         return _proj("clean", issue_count=0, issues=[], synthetic_no_issues=True, truncated=truncated)
     m = _RTK_HEADER.search(text)

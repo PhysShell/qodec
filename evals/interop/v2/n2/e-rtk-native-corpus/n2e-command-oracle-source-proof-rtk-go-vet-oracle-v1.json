@@ -17,7 +17,7 @@
     "gin-gonic__gin-2755::go::vet"
   ],
   "purpose": "Source-identity + case-scope proof for rtk-go-vet-oracle-v1. Pins the exact pinned RTK source function it was grounded in, the semantics-module identity, the pinned corpus RTK binary, and the case-scoped manifest binding. Sets no promotion flag.",
-  "record_sha256": "sha256:1bb4309096c315c00a8139827f6ce317d4d4792a44c02fabd8a3059dfe645ada",
+  "record_sha256": "sha256:b9aeb455e46f7ecec2caf23030f53ae166a3789b6a0fec3c74109213f6a02b27",
   "record_type": "n2e-command-oracle-source-proof",
   "record_version": "v1",
   "rtk_source_identity": {
@@ -30,9 +30,9 @@
   },
   "schema_version": "n2e-record-1",
   "semantics_module": {
-    "bytes": 5231,
+    "bytes": 6208,
     "declared_oracle_id": "rtk-go-vet-oracle-v1",
     "path": "tools/n2e_rtk_go_vet_oracle.py",
-    "sha256": "10f9faf8d5bea485f94023266cffd5d69c73273b84f2e599f97262cadddd5f72"
+    "sha256": "53e0e8b394a8b7cb134039961fb4a5977eeeb2f64b0f2510ede2ef937aae22c0"
   }
 }
