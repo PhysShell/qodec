@@ -39,10 +39,30 @@ class TestCaseAdapters(unittest.TestCase):
         self.assertTrue(d["execution_isolation"]["fresh_gocache_per_arm"])
         self.assertTrue(d["execution_isolation"]["no_p52_fixture_reuse"])
 
-    # ---------- unregistered case -> no adapter ----------
+    # ---------- unregistered case -> no adapter (lucene not yet registered) ----------
     def test_red_unregistered_case(self):
         with self.assertRaises(A.AdapterBindingError):
-            A.adapter_for("gin-gonic__gin-2755::go::vet")
+            A.adapter_for("apache__lucene-13704::jvm::test::buggy")
+
+    # ---------- gin (command-oracle) binds; the second qualification_kind ----------
+    def test_green_gin_bind(self):
+        GIN = "gin-gonic__gin-2755::go::vet"
+        contract = next(e for e in c.load_record(L.CONTRACT)["contracts"] if e["case_id"] == GIN)
+        scenario = next(s for s in c.load_record(L.SCEN)["scenarios"] if s["case_id"] == GIN)
+        d = A.adapter_for(GIN).bind(contract, scenario)
+        self.assertEqual(d["qualification_kind"], "rtk_command_oracle")
+        self.assertEqual(d["raw_argv"], ["go", "vet", "./..."])
+        self.assertEqual(d["rtk_argv"][1:], d["raw_argv"])          # same target, rtk-wrapped
+        self.assertEqual(d["command_semantic_oracle_policy_id"], "rtk-go-vet-oracle-v1")
+        self.assertIsNone(d["rtk_test_dialect_policy_id"])          # exactly one policy active
+
+    def test_red_gin_contract_argv_override(self):
+        GIN = "gin-gonic__gin-2755::go::vet"
+        contract = next(e for e in c.load_record(L.CONTRACT)["contracts"] if e["case_id"] == GIN)
+        scenario = next(s for s in c.load_record(L.SCEN)["scenarios"] if s["case_id"] == GIN)
+        bad = copy.deepcopy(contract); bad["effective_raw_argv"] = ["go", "vet", "-x", "./..."]
+        with self.assertRaises(A.AdapterBindingError):
+            A.adapter_for(GIN).bind(bad, scenario)
 
     # ---------- double-lock: a contract supplying different determinants is rejected ----------
     def test_red_contract_argv_override(self):

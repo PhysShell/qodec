@@ -60,15 +60,22 @@ def verify(rec_path: Path, evidence: Path) -> tuple[bool, list, dict]:
     if rec.get("raw_argv_equals_adapter") is not True or rec.get("rtk_argv_equals_adapter") is not True:
         fail.append("actual argv != adapter determinants")
 
-    # ---- 3. manifest classification for this case (kind + dialect policy) ----
+    # ---- 3. manifest classification for this case (kind + semantic policy) ----
     man = c.load_record(MANIFEST)
     entry = next((x for x in man["cases"] if x["case_id"] == case_id), None)
     if entry is None:
         return False, fail + [f"{case_id} not in frozen manifest"], facts
-    if entry["qualification_kind"] != "rtk_test_dialect":
-        return False, fail + ["case is not rtk_test_dialect (command-oracle verifier lands in P5.2B)"], facts
-    if det["rtk_test_dialect_policy_id"] != entry["rtk_test_dialect_policy_id"]:
-        fail.append("adapter dialect != manifest dialect")
+    kind = entry["qualification_kind"]
+    if kind == "rtk_test_dialect":
+        if det["rtk_test_dialect_policy_id"] != entry["rtk_test_dialect_policy_id"]:
+            fail.append("adapter dialect != manifest dialect")
+        mod = cq.TEST_DIALECTS[entry["rtk_test_dialect_policy_id"]]
+    elif kind == "rtk_command_oracle":
+        if det.get("command_semantic_oracle_policy_id") != entry["command_semantic_oracle_policy_id"]:
+            fail.append("adapter oracle != manifest oracle")
+        mod = cq.COMMAND_ORACLES[entry["command_semantic_oracle_policy_id"]]
+    else:
+        return False, fail + [f"unknown qualification_kind {kind!r}"], facts
 
     # ---- 4. identities + determinism ----
     if rec.get("rtk_binary_sha256") != L.DIALECT_RTK_SHA or rec.get("rtk_binary_bytes") != L.DIALECT_RTK_BYTES:

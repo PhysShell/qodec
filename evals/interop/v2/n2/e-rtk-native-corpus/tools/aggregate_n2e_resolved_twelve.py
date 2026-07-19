@@ -99,16 +99,16 @@ def _bind_case_generation(rec: dict, entry: dict) -> None:
 
 def _recompute_resolved_case(rec: dict, entry: dict) -> bool:
     """Materialized recompute for a forward per-case qualification record. Dispatches by
-    qualification_kind: rtk_test_dialect re-parses the frozen streams through the proven dialect
-    (P5.2A); rtk_command_oracle lands with P5.2B. The frozen evidence dir is pinned in the record."""
+    qualification_kind: rtk_test_dialect re-parses through the proven dialect (P5.2A);
+    rtk_command_oracle through the proven command oracle (P5.2B). Evidence dir pinned in the record."""
     import n2e_resolved_case_qualification as cq
-    if entry.get("qualification_kind") == "rtk_test_dialect":
-        ev = Path((rec.get("evidence") or {}).get("dir") or "")
-        if not ev.is_absolute():
-            ev = N2E_DIR / ev
-        return cq.recompute_test_dialect_verdict(rec, entry, ev)
-    raise AggregateError(f"{entry['case_id']}: no materialized recompute for kind "
-                         f"{entry.get('qualification_kind')!r} (rtk_command_oracle lands in P5.2B)")
+    kind = entry.get("qualification_kind")
+    if kind not in ("rtk_test_dialect", "rtk_command_oracle"):
+        raise AggregateError(f"{entry['case_id']}: no materialized recompute for kind {kind!r}")
+    ev = Path((rec.get("evidence") or {}).get("dir") or "")
+    if not ev.is_absolute():
+        ev = N2E_DIR / ev
+    return cq.recompute_case_verdict(rec, entry, ev)
 
 
 # production registries keyed by expected_qualification_record_type. ONLY materialized paths appear;
