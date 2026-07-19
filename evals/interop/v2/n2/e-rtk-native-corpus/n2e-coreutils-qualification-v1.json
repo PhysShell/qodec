@@ -1,0 +1,92 @@
+{
+  "acceptance_run": {
+    "artifact_bytes": 29045,
+    "artifact_sha256": "eecb4510182799e0aa89866a6be92dceecb6653ab12b272ea43f6530ab7406df",
+    "impl_commit": "6eb6fb2",
+    "run_attempt": "1",
+    "run_id": "29670334800",
+    "workflow": "qodec-n2e-coreutils-qualification"
+  },
+  "bound_dialect_policy_id": "rtk-rust-cargo-test-summary-v1",
+  "canonicalization_policy_id": "cargo-test-v3",
+  "captured_stream_digests": {
+    "raw.canonical": {
+      "bytes": 1229,
+      "path": "evidence/coreutils-6731/qualification/raw.canonical.bin",
+      "sha256": "487716489520d8fcad19910120a06a8d41f9cd81dc6f58a4927c6dcbaac039d3"
+    },
+    "rtk.canonical": {
+      "bytes": 59,
+      "path": "evidence/coreutils-6731/qualification/rtk.canonical.bin",
+      "sha256": "e52359641fe0fa7e314ff31488cbcb2549c28651705b7c3e70c465fc58bd2da0"
+    }
+  },
+  "contract_generation3_sha256": "sha256:156c110528eb37b5d550df78f31468aa8e02bc542993794f73fe9b14b631d744",
+  "coreutils_qualification_pass": true,
+  "generated_by": "evals/interop/v2/n2/e-rtk-native-corpus/tools/build_n2e_coreutils_qualification.py",
+  "identities": {
+    "cargo_sha256": "0e654dccd3501e5feb68aa570e5f780d5f7921c820e558ac5d3ef60016b5c0a7",
+    "rtk_bytes": 9200104,
+    "rtk_sha256": "41f316adf7b30a568208a0a4f824bffb266ecb6d01bd9de81bed58e1d469dfcf",
+    "rustc_sha256": "91f9ba0819d622cbb0f4f3298580d939173eb3258d95f7755b301a394eeb2ae0"
+  },
+  "mission": "N2-E",
+  "mission_title": "external RTK-native claim-aligned command corpus",
+  "p2_binary_identity_ref": {
+    "record": "n2e-resolved-toolchain-binary-identity-v1.json",
+    "sha256": "sha256:a7bf6f169786ecaffa31748c2b19b125e191e9ff1155e25c15e72053591d4594"
+  },
+  "p3_dialect_ref": {
+    "record": "n2e-resolved-rtk-rust-cargo-dialect-v1.json",
+    "sha256": "sha256:41199b83bff2151d901078aed7a78ec303fed15cda2133dbe5c9ae20aa5ccabc"
+  },
+  "promotion_state": "held (resolved-twelve not yet 12/12)",
+  "purpose": "Standalone Coreutils-6731 qualification predicate carrier. Built from a real acceptance run, gated by the independent verifier, verdict INDEPENDENTLY recomputed by the loader from the frozen canonical streams. Sets no resolved_canary_pass -- promotion stays held until the resolved-twelve reach 12/12.",
+  "qualifications": [
+    {
+      "case_id": "uutils__coreutils-6731::rust_cargo::test::fixed",
+      "filtered_out": 3205,
+      "passed": 10,
+      "suites": 3
+    }
+  ],
+  "re_derived_semantic_projection": {
+    "equivalence": {
+      "equivalent": true,
+      "mismatches": []
+    },
+    "raw_projection": {
+      "compile_failure": false,
+      "failed": 0,
+      "failing_ids": [],
+      "filtered_out": 3205,
+      "ignored": 0,
+      "measured": 0,
+      "outcome": "success",
+      "passed": 10,
+      "suites": 3,
+      "terminal_summary_present": true,
+      "truncated": false
+    },
+    "rtk_projection": {
+      "compile_failure": false,
+      "failed": 0,
+      "failing_ids": [],
+      "filtered_out": 3205,
+      "ignored": 0,
+      "measured": null,
+      "outcome": "success",
+      "passed": 10,
+      "suites": 3,
+      "terminal_summary_present": true,
+      "truncated": false
+    }
+  },
+  "record_sha256": "sha256:95b236e736b0c600bb28e5a8bdb537e553937b2c587c9da017d723ca8c89d7bb",
+  "record_type": "n2e-coreutils-qualification",
+  "record_version": "v1",
+  "resolved_canary_pass": false,
+  "resolved_membership_sha256": "sha256:d3bdb6637d391c0eabba008abd6b03385267486e6c0ccea99fd574f190fcf69f",
+  "schema_version": "n2e-record-1",
+  "verdict_authority": "independent qualification verifier + loader recomputation (producer records observations only)"
+}
