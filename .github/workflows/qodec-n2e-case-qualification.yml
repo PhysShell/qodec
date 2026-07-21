@@ -119,6 +119,17 @@ jobs:
         with:
           ref: ${{ needs.resolve.outputs.impl }}
           persist-credentials: false
+      # case-pinned CPython 3.8 (BugsInPy scrapy: inspect.getargspec removed in 3.11) -- provisioned
+      # FIRST so the harness 3.11 below wins as the default python3, and exposed to the probe via
+      # N2E_PY_INTERPRETERS so acquire_bugsinpy builds the case venv on the pinned interpreter.
+      - uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065 # v5.6.0
+        if: contains(env.CASE, '::python::')
+        id: py_case
+        with:
+          python-version: "3.8"
+      - name: Expose case-pinned interpreter to the probe (python cases only)
+        if: contains(env.CASE, '::python::')
+        run: printf 'N2E_PY_INTERPRETERS={"3.8":"%s"}\n' "${{ steps.py_case.outputs.python-path }}" >> "$GITHUB_ENV"
       - uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065 # v5.6.0
         with:
           python-version: "3.11"

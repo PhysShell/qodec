@@ -305,15 +305,81 @@ class VueVitestAdapter(CaseAdapter):
         }
 
 
+class ScrapyPytestAdapter(CaseAdapter):
+    """scrapy `pytest tests/test_mail.py` (fixed) test-dialect on the python family. Third proven test
+    dialect (rtk-python-pytest-summary-v1), manifest-authoritative (contract dialect is None). The RTK
+    arm wraps the identical pytest target (`rtk pytest ...`).
+
+    Python is version-pinned: scrapy needs CPython 3.8 (inspect.getargspec, removed in 3.11), which the
+    workflow provisions and exposes via N2E_PY_INTERPRETERS; the acquisition warm builds a 3.8 venv,
+    installs the repo + pytest online, and the offline measurement resolves `pytest` to that venv (venv
+    bin prepended to PATH via the acquisition offline_env). Determinism is enforced by the frozen
+    scheduler env (PYTHONHASHSEED=0, PYTHONDONTWRITEBYTECODE=1) and decided empirically by the probe +
+    verifier gate (sentinel) -- this is also the case flagged RESOURCE_LIMIT, so the sentinel settles
+    whether the scoped single-file pytest qualifies rather than a prior broad-suite classification."""
+
+    case_id = "bugsinpy::scrapy-9::python::pytest::fixed"
+    adapter_id = "scrapy-pytest"
+    qualification_kind = "rtk_test_dialect"
+
+    RAW_ARGV = ["pytest", "tests/test_mail.py"]
+    RTK_ARGV = ["rtk", "pytest", "tests/test_mail.py"]
+    CANON_POLICY = "pytest-v1"
+    DIALECT_POLICY = "rtk-python-pytest-summary-v1"   # manifest-authoritative (contract dialect None)
+    TARGET_IDS = ["python -m unittest -q tests.test_mail.MailSenderTest.test_send_single_values_to_and_cc"]
+    SEMANTIC_ENV = {"PYTHONDONTWRITEBYTECODE": "1", "PYTHONHASHSEED": "0"}
+    PROTECTED_FILES = ["requirements.txt", "setup.py", "setup.cfg", "pyproject.toml", "poetry.lock"]
+    REPS = 3
+    STREAM_ROLES = ("raw", "rtk")
+    PLATFORM_REQUIREMENTS = {"toolchain": ["python"], "network": "denied"}
+    EXECUTION_ISOLATION = {
+        "fresh_gocache_per_arm": False,
+        "single_checkout": True,
+        "same_cwd": ".",
+        "no_p52_fixture_reuse": True,
+        "case_pinned_interpreter": "3.8",   # venv on the pinned CPython; frozen pytest resolves offline
+    }
+
+    def bind(self, contract: dict, scenario: dict) -> dict:
+        _require(contract.get("effective_raw_argv") == self.RAW_ARGV, "scrapy RAW argv != frozen contract")
+        _require(contract.get("effective_rtk_argv") == self.RTK_ARGV, "scrapy RTK argv != frozen contract")
+        _require(contract.get("canonicalization_policy_id") == self.CANON_POLICY,
+                 "scrapy canon policy != frozen contract")
+        _require(contract.get("scheduler_env") == self.SEMANTIC_ENV, "scrapy semantic env != frozen contract")
+        _require(list(contract.get("protected_files") or []) == self.PROTECTED_FILES,
+                 "scrapy protected files != frozen contract")
+        _require(list(scenario.get("target_test_ids") or []) == self.TARGET_IDS,
+                 "scrapy target ids != frozen scenario")
+        _require(contract.get("command_family") == "python" and contract.get("command_subfamily") == "pytest",
+                 "scrapy command family/subfamily != frozen contract")
+        _require(self.RTK_ARGV[0] == "rtk" and self.RTK_ARGV[1:] == self.RAW_ARGV,
+                 "scrapy RTK arm is not the identical pytest target wrapped by rtk")
+        return {
+            "case_id": self.case_id, "adapter_id": self.adapter_id,
+            "qualification_kind": self.qualification_kind,
+            "raw_argv": list(self.RAW_ARGV), "rtk_argv": list(self.RTK_ARGV),
+            "semantic_env": dict(self.SEMANTIC_ENV), "cwd": self.EXECUTION_ISOLATION["same_cwd"],
+            "reps": self.REPS, "stream_roles": list(self.STREAM_ROLES),
+            "canonicalization_policy_id": self.CANON_POLICY,
+            "rtk_test_dialect_policy_id": self.DIALECT_POLICY,
+            "command_semantic_oracle_policy_id": None,
+            "target_test_ids": list(self.TARGET_IDS),
+            "protected_files": list(self.PROTECTED_FILES),
+            "platform_requirements": dict(self.PLATFORM_REQUIREMENTS),
+            "execution_isolation": dict(self.EXECUTION_ISOLATION),
+        }
+
+
 # tiny registry: Caddy (test-dialect) + Gin (command-oracle) prove both dispatch paths; the two
 # files-read adapters are the FIRST replication -- one shared oracle policy, two INDEPENDENT bindings;
-# Vue is the second proven test dialect (js_ts), manifest-authoritative like the command oracles.
+# Vue (js_ts) + Scrapy (python) are the second and third proven test dialects, manifest-authoritative.
 CASE_ADAPTERS = {
     CaddyGoTestAdapter.case_id: CaddyGoTestAdapter(),
     GinGoVetAdapter.case_id: GinGoVetAdapter(),
     PreactReadAdapter.case_id: PreactReadAdapter(),
     LombokReadAdapter.case_id: LombokReadAdapter(),
     VueVitestAdapter.case_id: VueVitestAdapter(),
+    ScrapyPytestAdapter.case_id: ScrapyPytestAdapter(),
 }
 
 
