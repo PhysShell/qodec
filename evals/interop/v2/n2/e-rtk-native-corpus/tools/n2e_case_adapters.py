@@ -235,13 +235,85 @@ class LombokReadAdapter(FilesReadAdapter):
     case_id = "projectlombok__lombok-3312::files_search::read"
 
 
+class VueVitestAdapter(CaseAdapter):
+    """vue `pnpm run test <spec> --no-watch --reporter=verbose` (buggy) test-dialect. Second proven
+    test dialect after caddy (go), on the js_ts family. The RTK arm wraps the identical pnpm command
+    (`rtk pnpm run test ...`), exactly as caddy wraps `go test`.
+
+    Dialect authority: the frozen execution contract carries rtk_test_dialect_policy_id=None (only the
+    first test-dialect vertical, caddy, had it populated), so -- exactly as the command oracles do --
+    the MANIFEST is authoritative for the RTK-projection dialect. The adapter declares the proven
+    dialect (rtk-js-vitest-summary-v1) and the independent verifier cross-checks it against the frozen
+    manifest classification; it is NOT cross-checked against the contract (which is None).
+
+    Determinism: vitest is scoped to a SINGLE spec file + `--no-watch`, and run_arm reuses a FIXED work
+    path so vitest's "RUN vX <abs-path>" line is not a source of per-rep variance. Whether RAW is
+    deterministic is decided empirically by the probe + verifier gate (the sentinel), never asserted."""
+
+    case_id = "vuejs__core-11589::js_ts::test::buggy"
+    adapter_id = "vue-vitest"
+    qualification_kind = "rtk_test_dialect"
+
+    RAW_ARGV = ["pnpm", "run", "test", "packages/runtime-core/__tests__/apiWatch.spec.ts",
+                "--no-watch", "--reporter=verbose"]
+    RTK_ARGV = ["rtk", "pnpm", "run", "test", "packages/runtime-core/__tests__/apiWatch.spec.ts",
+                "--no-watch", "--reporter=verbose"]
+    CANON_POLICY = "vitest-v1"
+    DIALECT_POLICY = "rtk-js-vitest-summary-v1"   # manifest-authoritative (contract dialect is None)
+    TARGET_IDS = ["packages/runtime-core/__tests__/apiWatch.spec.ts > api: watch > should be executed correctly"]
+    SEMANTIC_ENV = {}
+    PROTECTED_FILES = ["package.json", "pnpm-lock.yaml", "package-lock.json", "yarn.lock"]
+    REPS = 3
+    STREAM_ROLES = ("raw", "rtk")
+    PLATFORM_REQUIREMENTS = {"toolchain": ["node", "pnpm"], "network": "denied"}
+    EXECUTION_ISOLATION = {
+        "fresh_gocache_per_arm": False,   # not a go build/test cache case
+        "single_checkout": True,          # one checkout shared by both arms (same source bytes)
+        "same_cwd": ".",                  # both arms run in the repo root
+        "no_p52_fixture_reuse": True,     # acceptance streams captured fresh
+        "fixed_work_path": True,          # run_arm's constant work path removes vitest abs-path variance
+    }
+
+    def bind(self, contract: dict, scenario: dict) -> dict:
+        _require(contract.get("effective_raw_argv") == self.RAW_ARGV, "vue RAW argv != frozen contract")
+        _require(contract.get("effective_rtk_argv") == self.RTK_ARGV, "vue RTK argv != frozen contract")
+        _require(contract.get("canonicalization_policy_id") == self.CANON_POLICY,
+                 "vue canon policy != frozen contract")
+        _require(contract.get("scheduler_env") == self.SEMANTIC_ENV, "vue semantic env != frozen contract")
+        _require(list(contract.get("protected_files") or []) == self.PROTECTED_FILES,
+                 "vue protected files != frozen contract")
+        _require(list(scenario.get("target_test_ids") or []) == self.TARGET_IDS,
+                 "vue target ids != frozen scenario")
+        _require(contract.get("command_family") == "js_ts" and contract.get("command_subfamily") == "test",
+                 "vue command family/subfamily != frozen contract")
+        # RTK arm must wrap the identical pnpm test target
+        _require(self.RTK_ARGV[0] == "rtk" and self.RTK_ARGV[1:] == self.RAW_ARGV,
+                 "vue RTK arm is not the identical pnpm target wrapped by rtk")
+        return {
+            "case_id": self.case_id, "adapter_id": self.adapter_id,
+            "qualification_kind": self.qualification_kind,
+            "raw_argv": list(self.RAW_ARGV), "rtk_argv": list(self.RTK_ARGV),
+            "semantic_env": dict(self.SEMANTIC_ENV), "cwd": self.EXECUTION_ISOLATION["same_cwd"],
+            "reps": self.REPS, "stream_roles": list(self.STREAM_ROLES),
+            "canonicalization_policy_id": self.CANON_POLICY,
+            "rtk_test_dialect_policy_id": self.DIALECT_POLICY,
+            "command_semantic_oracle_policy_id": None,
+            "target_test_ids": list(self.TARGET_IDS),
+            "protected_files": list(self.PROTECTED_FILES),
+            "platform_requirements": dict(self.PLATFORM_REQUIREMENTS),
+            "execution_isolation": dict(self.EXECUTION_ISOLATION),
+        }
+
+
 # tiny registry: Caddy (test-dialect) + Gin (command-oracle) prove both dispatch paths; the two
-# files-read adapters are the FIRST replication -- one shared oracle policy, two INDEPENDENT bindings.
+# files-read adapters are the FIRST replication -- one shared oracle policy, two INDEPENDENT bindings;
+# Vue is the second proven test dialect (js_ts), manifest-authoritative like the command oracles.
 CASE_ADAPTERS = {
     CaddyGoTestAdapter.case_id: CaddyGoTestAdapter(),
     GinGoVetAdapter.case_id: GinGoVetAdapter(),
     PreactReadAdapter.case_id: PreactReadAdapter(),
     LombokReadAdapter.case_id: LombokReadAdapter(),
+    VueVitestAdapter.case_id: VueVitestAdapter(),
 }
 
 

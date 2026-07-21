@@ -150,6 +150,26 @@ jobs:
           sudo rm -rf /usr/local/go && sudo tar -C /usr/local -xzf /tmp/go.tgz
           echo "/usr/local/go/bin" >> "$GITHUB_PATH"
           /usr/local/go/bin/go version | grep -q "$(getf "['go']['expected_version_contains']")"
+      - name: Install pinned Node + enable corepack/pnpm (js_ts cases only)
+        if: contains(env.CASE, '::js_ts::')
+        run: |
+          cd "$N2E"
+          LOCK=n2e-toolchain-lock-v1.json
+          getf() { python3 -c "import json;print(json.load(open('$LOCK'))['toolchains']$1)"; }
+          NODE_URL="$(getf "['node']['artifact']['url']")"; NODE_SHA="$(getf "['node']['artifact']['sha256']")"
+          curl -fsSL "$NODE_URL" -o /tmp/node.tar.xz
+          echo "$NODE_SHA  /tmp/node.tar.xz" | sha256sum -c -
+          sudo rm -rf /usr/local/node && sudo mkdir -p /usr/local/node
+          sudo tar -C /usr/local/node --strip-components=1 -xJf /tmp/node.tar.xz
+          echo "/usr/local/node/bin" >> "$GITHUB_PATH"
+          export PATH=/usr/local/node/bin:$PATH
+          node --version
+          # corepack (bundled with node) provisions the repo-pinned pnpm (packageManager field) on
+          # first use during the network-enabled acquisition warm; enable installs the pnpm shim onto
+          # PATH so the offline measurement arms resolve `pnpm` to that exact version.
+          corepack enable
+          corepack --version
+          pnpm --version || echo "pnpm shim installed (version resolves at first repo use)"
       # producer records OBSERVATIONS ONLY -> external manifest -> UPLOAD (always) -> verifier GATE
       - name: Run the case acceptance probe (observations only; no verdict)
         run: |
