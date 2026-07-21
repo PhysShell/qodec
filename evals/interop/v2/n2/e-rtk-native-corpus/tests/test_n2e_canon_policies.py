@@ -104,6 +104,22 @@ class TestCanonPolicies(unittest.TestCase):
         c2 = canon.canonicalize(b"  \xe2\x9c\x93 parse.spec.ts  (149 tests) 110ms", "vitest-v1")
         self.assertNotEqual(c1, c2)
 
+    def test_vitest_total_duration_integer_ms_normalized(self):
+        # regression (run 29865050045): the vitest TOTAL "Duration  828ms" is emitted as INTEGER ms
+        # (no decimal) and was the SOLE per-rep nondeterminism for vue; it must canonicalize away, like
+        # the decimal form and the per-phase breakdown already do.
+        a = canon.canonicalize(b"   Duration  828ms (transform 5ms, setup 6ms, tests 12ms)", "vitest-v1")
+        b = canon.canonicalize(b"   Duration  744ms (transform 5ms, setup 6ms, tests 12ms)", "vitest-v1")
+        self.assertEqual(a, b)
+        self.assertIn(b"Duration <dur>", a)
+        # the decimal-seconds form still normalizes too
+        self.assertEqual(canon.canonicalize(b"Duration  1.23s", "vitest-v1"),
+                         canon.canonicalize(b"Duration  4.56s", "vitest-v1"))
+        # a changed PASS/FAIL summary is never masked by the duration rule
+        self.assertNotEqual(
+            canon.canonicalize(b"Tests  1 failed | 78 passed (79)\n Duration  828ms", "vitest-v1"),
+            canon.canonicalize(b"Tests  2 failed | 77 passed (79)\n Duration  744ms", "vitest-v1"))
+
     # ---- semantic changes MUST survive every policy ----
     SEMANTIC_PAIRS = [
         (b"test result: ok. 5 passed; 0 failed; finished in 0.1s",

@@ -140,7 +140,13 @@ _POLICIES: dict[str, object] = {
     # vitest/jest: "Duration  1.23s" ; "Time: 1.234 s" ; per-file/test trailing
     # elapsed such as "(150 tests) 110ms" and "... 1.2s" (all pure duration grammar).
     "vitest-v1": [
-        (re.compile(rb"Duration\s+\d+\.\d+m?s"), b"Duration <dur>"),
+        # Bugfix (completeness): the vitest TOTAL "Duration  828ms" is emitted as INTEGER ms with no
+        # decimal, but the original pattern required "\d+\.\d+" and so left the total un-normalized --
+        # the sole per-rep nondeterminism observed for vue (run 29865050045: 1 line of 112 differed,
+        # only the total Duration). The optional-decimal class here matches the intent stated in the
+        # comment above ("Duration 1.23s") and the per-phase breakdown below, which already used it.
+        # No qualification artifact was ever derived under vitest-v1, so nothing derived is invalidated.
+        (re.compile(rb"Duration\s+\d+(?:\.\d+)?m?s"), b"Duration <dur>"),
         (re.compile(rb"Time:\s+\d+\.\d+\s*s"), b"Time: <dur>"),
         (re.compile(rb"\bin \d+ms\b"), b"in <dur>"),
         # trailing per-file/per-suite elapsed after a "(N tests[...]) 110ms" or " 1.2s"
