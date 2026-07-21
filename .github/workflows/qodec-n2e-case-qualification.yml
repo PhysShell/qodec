@@ -29,7 +29,7 @@ env:
   TZ: UTC
   N2E: evals/interop/v2/n2/e-rtk-native-corpus
   RTK_SHA: "41f316adf7b30a568208a0a4f824bffb266ecb6d01bd9de81bed58e1d469dfcf"
-  CASE: ${{ github.event.inputs.case || 'caddyserver__caddy-5870::go::test::buggy' }}
+  CASE: ${{ github.event.inputs.case || 'projectlombok__lombok-3312::files_search::read' }}
 
 jobs:
   resolve:
