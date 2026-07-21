@@ -1,0 +1,83 @@
+{
+  "acceptance_run": {
+    "artifact_bytes": 7930,
+    "artifact_sha256": "9c085a5872d28e81fdc800a33b08d0ffe43080f279cba1107ff829b39bfa0381",
+    "impl_commit": "32da520",
+    "run_attempt": "1",
+    "run_id": "29869131089",
+    "workflow": "qodec-n2e-case-qualification"
+  },
+  "canonicalization_policy_id": "pytest-v1",
+  "captured_stream_digests": {
+    "raw.canonical": {
+      "bytes": 2001,
+      "sha256": "e85cb1921d49c434131604ab1fa66e5613c76f19a06942fb4461ef880bfe1656"
+    },
+    "rtk.canonical": {
+      "bytes": 17,
+      "sha256": "8be4d1929f65ff74921c87ee607f1586974a531f49a7ae70e4dd079ea94442cd"
+    }
+  },
+  "case_id": "bugsinpy::scrapy-9::python::pytest::fixed",
+  "case_qualification_pass": true,
+  "command_semantic_oracle_policy_id": null,
+  "contract_generation": 1,
+  "evidence": {
+    "dir": "evidence/scrapy-pytest/qualification"
+  },
+  "generated_by": "evals/interop/v2/n2/e-rtk-native-corpus/tools/build_n2e_resolved_case_qualification.py",
+  "identities": {
+    "rtk_bytes": 9200104,
+    "rtk_sha256": "41f316adf7b30a568208a0a4f824bffb266ecb6d01bd9de81bed58e1d469dfcf"
+  },
+  "manifest_generation": 2,
+  "manifest_sha256": "sha256:2e05cb53ae79231d6dccffb9e677c05ddeadf57e9b6ae9adf45cef71a907c51c",
+  "mission": "N2-E",
+  "mission_title": "external RTK-native claim-aligned command corpus",
+  "promotion_state": "held (resolved-twelve not yet 12/12)",
+  "purpose": "Immutable per-case qualification for bugsinpy::scrapy-9::python::pytest::fixed. Built from a real acceptance run, gated by the independent verifier + aggregator recomputation. Sets no promotion flag.",
+  "qualification_kind": "rtk_test_dialect",
+  "raw_arm": {
+    "deterministic": true
+  },
+  "re_derived_semantic_projection": {
+    "equivalence": {
+      "equivalent": true,
+      "mismatches": []
+    },
+    "raw_projection": {
+      "errors": 0,
+      "failed": 0,
+      "failing_ids": [],
+      "outcome": "success",
+      "passed": 6,
+      "skipped": 0,
+      "terminal_summary_present": true,
+      "truncated": false,
+      "xfailed": 0,
+      "xpassed": 0
+    },
+    "rtk_projection": {
+      "errors": 0,
+      "failed": 0,
+      "failing_ids": [],
+      "outcome": "success",
+      "passed": 6,
+      "skipped": 0,
+      "terminal_summary_present": true,
+      "truncated": false,
+      "xfailed": 0,
+      "xpassed": 0
+    }
+  },
+  "record_sha256": "sha256:47e77685201a32e35e22fe1f7755311785caa7a2087d9256b21eaf67944ea423",
+  "record_type": "n2e-resolved-case-qualification",
+  "record_version": "v1",
+  "resolved_canary_pass": false,
+  "rtk_arm": {
+    "deterministic": true
+  },
+  "rtk_test_dialect_policy_id": "rtk-python-pytest-summary-v1",
+  "schema_version": "n2e-record-1",
+  "verdict_authority": "independent case verifier + aggregator recomputation (producer records observations)"
+}
