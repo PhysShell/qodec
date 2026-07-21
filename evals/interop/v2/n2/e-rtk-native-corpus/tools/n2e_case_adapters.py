@@ -161,11 +161,87 @@ class GinGoVetAdapter(CaseAdapter):
         }
 
 
-# tiny registry: Caddy (test-dialect) + Gin (command-oracle) prove both dispatch paths before
-# any further replication.
+class FilesReadAdapter(CaseAdapter):
+    """`rtk read README.md` file-read command oracle. RAW is `cat README.md`; RTK is `rtk read
+    README.md` -- a DIFFERENT command RTK reimplements (NOT rtk-wrapping cat), so the "rtk wraps the
+    identical target" invariant does NOT apply; instead both argv are double-locked verbatim against
+    the frozen contract. The frozen argv carries no --level (default `none` -> NoFilter identity), so
+    RTK reproduces the file content byte-for-byte; the oracle asserts content fidelity.
+
+    ONE policy (rtk-files-read-oracle-v1) is shared by preact AND lombok as TWO INDEPENDENT case
+    bindings: each is a distinct subclass with its own frozen case_id, each double-locked against its
+    OWN contract, each qualified by its own run/artifact/evidence -- never a family-level
+    files_search::read scope. No toolchain, no daemon, no wall-clock: the command is a read-only
+    `cat`/`rtk read` on a pinned checkout, so no GOCACHE/toolchain isolation is needed."""
+
+    adapter_id = "files-read"
+    qualification_kind = "rtk_command_oracle"
+
+    RAW_ARGV = ["cat", "README.md"]
+    RTK_ARGV = ["rtk", "read", "README.md"]
+    CANON_POLICY = "files-v1"
+    ORACLE_POLICY = "rtk-files-read-oracle-v1"
+    SEMANTIC_ENV = {}
+    PROTECTED_FILES = []
+    REPS = 3
+    STREAM_ROLES = ("raw", "rtk")
+    PLATFORM_REQUIREMENTS = {"toolchain": [], "network": "denied"}
+    EXECUTION_ISOLATION = {
+        "fresh_gocache_per_arm": False,  # read-only command; no build/test cache involved
+        "single_checkout": True,         # one pinned checkout shared by both arms (same source bytes)
+        "same_cwd": ".",                 # both arms run in the repo root
+        "no_p52_fixture_reuse": True,    # acceptance streams are captured fresh
+        "read_only_command": True,       # neither arm mutates the checkout
+    }
+
+    def bind(self, contract: dict, scenario: dict) -> dict:
+        _require(contract.get("effective_raw_argv") == self.RAW_ARGV,
+                 f"{self.adapter_id} RAW argv != frozen contract")
+        _require(contract.get("effective_rtk_argv") == self.RTK_ARGV,
+                 f"{self.adapter_id} RTK argv != frozen contract")
+        _require(contract.get("canonicalization_policy_id") == self.CANON_POLICY,
+                 f"{self.adapter_id} canon policy != frozen contract")
+        _require(contract.get("scheduler_env") == self.SEMANTIC_ENV,
+                 f"{self.adapter_id} semantic env != frozen contract")
+        _require(list(contract.get("protected_files") or []) == self.PROTECTED_FILES,
+                 f"{self.adapter_id} protected files != frozen contract")
+        _require(contract.get("command_family") == "files_search"
+                 and contract.get("command_subfamily") == "read",
+                 f"{self.adapter_id} command family/subfamily != frozen contract")
+        # RTK is a distinct reimplementation of cat, not `rtk <cat-argv>`: assert the exact frozen shape
+        _require(self.RTK_ARGV[0] == "rtk" and self.RTK_ARGV[1] == "read",
+                 f"{self.adapter_id} RTK arm is not `rtk read`")
+        return {
+            "case_id": self.case_id, "adapter_id": self.adapter_id,
+            "qualification_kind": self.qualification_kind,
+            "raw_argv": list(self.RAW_ARGV), "rtk_argv": list(self.RTK_ARGV),
+            "semantic_env": dict(self.SEMANTIC_ENV), "cwd": self.EXECUTION_ISOLATION["same_cwd"],
+            "reps": self.REPS, "stream_roles": list(self.STREAM_ROLES),
+            "canonicalization_policy_id": self.CANON_POLICY,
+            "rtk_test_dialect_policy_id": None,
+            "command_semantic_oracle_policy_id": self.ORACLE_POLICY,
+            "target_test_ids": [],
+            "protected_files": list(self.PROTECTED_FILES),
+            "platform_requirements": dict(self.PLATFORM_REQUIREMENTS),
+            "execution_isolation": dict(self.EXECUTION_ISOLATION),
+        }
+
+
+class PreactReadAdapter(FilesReadAdapter):
+    case_id = "preactjs__preact-3345::files_search::read"
+
+
+class LombokReadAdapter(FilesReadAdapter):
+    case_id = "projectlombok__lombok-3312::files_search::read"
+
+
+# tiny registry: Caddy (test-dialect) + Gin (command-oracle) prove both dispatch paths; the two
+# files-read adapters are the FIRST replication -- one shared oracle policy, two INDEPENDENT bindings.
 CASE_ADAPTERS = {
     CaddyGoTestAdapter.case_id: CaddyGoTestAdapter(),
     GinGoVetAdapter.case_id: GinGoVetAdapter(),
+    PreactReadAdapter.case_id: PreactReadAdapter(),
+    LombokReadAdapter.case_id: LombokReadAdapter(),
 }
 
 

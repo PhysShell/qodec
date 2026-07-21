@@ -66,6 +66,22 @@ def verify_proof(rec: dict) -> dict:
             or mod.RTK_SOURCE_FUNCTION != si.get("source_function")):
         raise OracleProofError("semantics module source commit/file/function != recorded")
 
+    # additional pinned source refs (multi-file grounding): each must re-hash to the recorded
+    # content + git blob sha, and the set must equal the module's declared RTK_SOURCE_REFS.
+    refs = rec.get("additional_source_identities") or []
+    declared = getattr(mod, "RTK_SOURCE_REFS", [])
+    if {(r["source_file"], r["source_function"]) for r in refs} != {
+            (d["source_file"], d["source_function"]) for d in declared}:
+        raise OracleProofError("additional_source_identities != module RTK_SOURCE_REFS")
+    for r in refs:
+        rp = SRC_DIR / Path(r["source_file"]).name
+        if not rp.is_file():
+            raise OracleProofError(f"pinned RTK source ref not committed: {rp}")
+        rb2 = rp.read_bytes()
+        if (c.sha256_bytes(rb2) != r.get("content_sha256") or len(rb2) != r.get("bytes")
+                or _git_blob_sha1(rb2) != r.get("git_blob_sha1")):
+            raise OracleProofError(f"frozen source ref {r['source_file']} sha/blob/bytes != recorded")
+
     rb = rec.get("pinned_rtk_binary_identity") or {}
     if rb.get("sha256") != L.DIALECT_RTK_SHA or rb.get("bytes") != L.DIALECT_RTK_BYTES:
         raise OracleProofError("pinned RTK binary identity != corpus RTK")

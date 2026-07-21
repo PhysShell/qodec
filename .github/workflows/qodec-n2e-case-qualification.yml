@@ -138,7 +138,8 @@ jobs:
           "$RTK" --version >/dev/null
           echo "RTK_BIN=$RTK" >> "$GITHUB_ENV"
           echo "QODEC_BIN=$QODEC" >> "$GITHUB_ENV"
-      - name: Install the exact locked Go toolchain (caddy)
+      - name: Install the exact locked Go toolchain (go-family cases only)
+        if: contains(env.CASE, '::go::')
         run: |
           cd "$N2E"
           LOCK=n2e-toolchain-lock-v1.json

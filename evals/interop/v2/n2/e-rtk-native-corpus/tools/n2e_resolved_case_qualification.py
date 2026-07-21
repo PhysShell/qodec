@@ -26,6 +26,7 @@ import n2e_rtk_js_vitest_dialect as js  # noqa: E402
 import n2e_rtk_python_pytest_dialect as py  # noqa: E402
 import n2e_rtk_go_test_dialect as go  # noqa: E402
 import n2e_rtk_go_vet_oracle as go_vet  # noqa: E402
+import n2e_rtk_files_read_oracle as files_read  # noqa: E402
 
 
 class CaseQualificationError(Exception):
@@ -44,6 +45,7 @@ TEST_DIALECTS = {
 # frozen command-oracle modules, keyed by the proven oracle policy id
 COMMAND_ORACLES = {
     "rtk-go-vet-oracle-v1": go_vet,
+    "rtk-files-read-oracle-v1": files_read,
 }
 
 

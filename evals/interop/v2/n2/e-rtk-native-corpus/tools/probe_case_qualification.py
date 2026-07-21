@@ -125,17 +125,22 @@ def main() -> int:
         body["raw_argv_equals_adapter"] = (raw_argv == det["raw_argv"])
         body["rtk_argv_equals_adapter"] = (rtk_argv == det["rtk_argv"])
 
-        # STEP 5: env -- toolchain selectors + contract offline env + FRESH per-rep GOCACHE
-        gocache = rcc._FIXEDWORK / ".n2e-gocache"
-        env_extra = {"HOME": str(workroot / ".home"),
-                     "GOPATH": str(workroot / ".home" / "go"),
-                     "GOCACHE": str(gocache)}
+        # STEP 5: env -- FAMILY-AWARE. HOME is always redirected into the work copy (so e.g. rtk's
+        # history DB write lands there, never the host HOME). The Go build/test cache + GOPATH are set
+        # ONLY for the go family (fresh per-rep GOCACHE so both arms really execute, never `(cached)`);
+        # a read-only files_search command needs no toolchain env at all.
+        toolchains = (det.get("platform_requirements") or {}).get("toolchain") or []
+        env_extra = {"HOME": str(workroot / ".home")}
+        if "go" in toolchains:
+            gocache = rcc._FIXEDWORK / ".n2e-gocache"
+            env_extra["GOPATH"] = str(workroot / ".home" / "go")
+            env_extra["GOCACHE"] = str(gocache)
+            # empty gocache seed inside the frozen dir -> each fresh per-rep copy starts cold
+            (frozen / ".n2e-gocache").mkdir(exist_ok=True)
         for k in ("JAVA_HOME",):
             if os.environ.get(k):
                 env_extra[k] = os.environ[k]
-        env_extra.update(acq.get("offline_env") or {})   # contract GOFLAGS/GOPROXY etc.
-        # empty gocache seed inside the frozen dir -> each fresh per-rep copy starts cold
-        (frozen / ".n2e-gocache").mkdir(exist_ok=True)
+        env_extra.update(acq.get("offline_env") or {})   # contract GOFLAGS/GOPROXY etc. (if any)
         body["measurement_env"] = {k: v for k, v in env_extra.items() if k not in ("HOME", "GOPATH")}
         body["execution_isolation"] = det["execution_isolation"]
 

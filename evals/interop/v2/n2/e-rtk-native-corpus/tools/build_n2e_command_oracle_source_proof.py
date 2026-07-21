@@ -28,12 +28,25 @@ SRC_DIR = N2E_DIR / "evidence" / "rtk-source"
 # oracle policy id -> (semantics module basename, manifest case ids it is proven for -- case-scoped)
 ORACLE_PROOFS = {
     "rtk-go-vet-oracle-v1": ("n2e_rtk_go_vet_oracle.py", ["gin-gonic__gin-2755::go::vet"]),
+    "rtk-files-read-oracle-v1": ("n2e_rtk_files_read_oracle.py",
+                                 ["preactjs__preact-3345::files_search::read",
+                                  "projectlombok__lombok-3312::files_search::read"]),
 }
 
 
 def _git_blob_sha1(data: bytes) -> str:
     h = hashlib.sha1(); h.update(b"blob %d\0" % len(data)); h.update(data)
     return h.hexdigest()
+
+
+def _freeze_source_ref(ref: dict) -> dict:
+    """Freeze one pinned RTK source location (content sha256 + git blob sha + bytes)."""
+    p = SRC_DIR / Path(ref["source_file"]).name
+    if not p.is_file():
+        raise SystemExit(f"pinned RTK source not committed: {p}")
+    b = p.read_bytes()
+    return {"source_file": ref["source_file"], "source_function": ref["source_function"],
+            "content_sha256": c.sha256_bytes(b), "git_blob_sha1": _git_blob_sha1(b), "bytes": len(b)}
 
 
 def build_proof(policy_id: str) -> dict:
@@ -69,6 +82,7 @@ def build_proof(policy_id: str) -> dict:
             "source_function": mod.RTK_SOURCE_FUNCTION,
             "content_sha256": c.sha256_bytes(src_bytes), "git_blob_sha1": _git_blob_sha1(src_bytes),
             "bytes": len(src_bytes)},
+        additional_source_identities=[_freeze_source_ref(r) for r in getattr(mod, "RTK_SOURCE_REFS", [])],
         semantics_module={
             "path": f"tools/{module_name}", "sha256": c.sha256_bytes(module_bytes),
             "bytes": len(module_bytes), "declared_oracle_id": mod.ORACLE_ID},

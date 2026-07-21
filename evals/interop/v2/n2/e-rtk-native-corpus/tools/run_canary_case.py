@@ -603,14 +603,18 @@ def acquire_git(scen, workroot):
     repo_dir = workroot / "repo"
     depth = 2
     _git_fetch_checkout(f"https://github.com/{repo}.git", commit, repo_dir, home, depth=depth)
+    fam = scen["command_family"]
     sub = scen["command_subfamily"]
     applied = _construct_git_state(scen, repo_dir, home)
     git_ev = _git_acquisition_evidence(repo_dir, home, commit, sub, depth,
                                        scen.get("original_argv") or ["git", sub])
+    # canonicalization policy is family-aware: git cases -> git-v1; files_search (read/grep/ls/tree)
+    # sharing this git checkout acquisition -> files-v1 (etc). A hardcoded "git" policy would trip the
+    # probe's acq-vs-adapter policy double-lock for the non-git families that reuse this adapter.
     return {"identity_verified": True, "repository": repo, "commit": commit,
             "git_state": applied, "workdir": "repo", "home_local": True,
             "git_acquisition_evidence": git_ev,
-            "policy": canon.policy_for("git", sub, git=True)}
+            "policy": canon.policy_for(fam, sub, git=(fam == "git"))}
 
 
 def _construct_git_state(scen, repo_dir: Path, home: Path) -> dict:
