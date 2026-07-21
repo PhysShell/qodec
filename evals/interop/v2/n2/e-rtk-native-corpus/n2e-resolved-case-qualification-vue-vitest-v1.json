@@ -1,0 +1,84 @@
+{
+  "acceptance_run": {
+    "artifact_bytes": 19158,
+    "artifact_sha256": "558bb4d856d0be651c2e1f4a49c026d1496cabc195bcee793719366ba022bb21",
+    "impl_commit": "006ee65",
+    "run_attempt": "1",
+    "run_id": "29867162781",
+    "workflow": "qodec-n2e-case-qualification"
+  },
+  "canonicalization_policy_id": "vitest-v1",
+  "captured_stream_digests": {
+    "raw.canonical": {
+      "bytes": 9789,
+      "sha256": "5e4b47936b20134d8488af698fb47aa6f08637cb9b62c259c12fee125996022c"
+    },
+    "rtk.canonical": {
+      "bytes": 9789,
+      "sha256": "5e4b47936b20134d8488af698fb47aa6f08637cb9b62c259c12fee125996022c"
+    }
+  },
+  "case_id": "vuejs__core-11589::js_ts::test::buggy",
+  "case_qualification_pass": true,
+  "command_semantic_oracle_policy_id": null,
+  "contract_generation": 1,
+  "evidence": {
+    "dir": "evidence/vue-vitest/qualification"
+  },
+  "generated_by": "evals/interop/v2/n2/e-rtk-native-corpus/tools/build_n2e_resolved_case_qualification.py",
+  "identities": {
+    "rtk_bytes": 9200104,
+    "rtk_sha256": "41f316adf7b30a568208a0a4f824bffb266ecb6d01bd9de81bed58e1d469dfcf"
+  },
+  "manifest_generation": 2,
+  "manifest_sha256": "sha256:2e05cb53ae79231d6dccffb9e677c05ddeadf57e9b6ae9adf45cef71a907c51c",
+  "mission": "N2-E",
+  "mission_title": "external RTK-native claim-aligned command corpus",
+  "promotion_state": "held (resolved-twelve not yet 12/12)",
+  "purpose": "Immutable per-case qualification for vuejs__core-11589::js_ts::test::buggy. Built from a real acceptance run, gated by the independent verifier + aggregator recomputation. Sets no promotion flag.",
+  "qualification_kind": "rtk_test_dialect",
+  "raw_arm": {
+    "deterministic": true
+  },
+  "re_derived_semantic_projection": {
+    "equivalence": {
+      "equivalent": true,
+      "mismatches": [],
+      "same_tier": true
+    },
+    "raw_projection": {
+      "failed": 1,
+      "failing_ids": [
+        "FAIL  packages/runtime-core/__tests__/apiWatch.spec.ts > api: watch > should be executed correctly"
+      ],
+      "outcome": "failure",
+      "passed": 78,
+      "terminal_summary_present": true,
+      "tier": 2,
+      "total": 79,
+      "truncated": false
+    },
+    "rtk_projection": {
+      "failed": 1,
+      "failing_ids": [
+        "FAIL  packages/runtime-core/__tests__/apiWatch.spec.ts > api: watch > should be executed correctly"
+      ],
+      "outcome": "failure",
+      "passed": 78,
+      "terminal_summary_present": true,
+      "tier": 2,
+      "total": 79,
+      "truncated": false
+    }
+  },
+  "record_sha256": "sha256:5495f75c22e3e9440f36918c157b0e053c9d39e0923fb92541b337c146687e31",
+  "record_type": "n2e-resolved-case-qualification",
+  "record_version": "v1",
+  "resolved_canary_pass": false,
+  "rtk_arm": {
+    "deterministic": true
+  },
+  "rtk_test_dialect_policy_id": "rtk-js-vitest-summary-v1",
+  "schema_version": "n2e-record-1",
+  "verdict_authority": "independent case verifier + aggregator recomputation (producer records observations)"
+}
