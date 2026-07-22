@@ -724,6 +724,80 @@ class PhpCsFixerGitCommitAdapter(CaseAdapter):
         }
 
 
+class RedisDockerImagesAdapter(CaseAdapter):
+    """redis `rtk docker images` command oracle. RAW is `docker images`; RTK is `rtk docker images`,
+    which re-runs `docker images --format "{{.Repository}}:{{.Tag}}\\t{{.Size}}"` and compacts it -- so
+    RTK preserves ONLY repository:tag + size (no image ID / digest / CREATED).
+
+    The risk here is the DAEMON, not the parser. RAW and RTK do NOT query the runner's host Docker as
+    authority; each queries its OWN isolated pinned Docker-in-Docker daemon (empty data-root, pinned
+    storage driver, no host socket, no preloaded images), provisioned identically to EXACTLY the pinned
+    image (library/redis@<index-digest> -> linux/amd64 child). Image IDENTITY is proven from
+    `docker image inspect` under redis-docker-images-execution-v1, not claimed by the oracle. The oracle
+    (rtk-docker-images-oracle-v1) is manifest-authoritative."""
+
+    case_id = "container::redis::docker::images"
+    adapter_id = "redis-docker-images"
+    qualification_kind = "rtk_command_oracle"
+
+    RAW_ARGV = ["docker", "images"]
+    RTK_ARGV = ["rtk", "docker", "images"]
+    CANON_POLICY = "docker-v1"
+    ORACLE_POLICY = "rtk-docker-images-oracle-v1"           # manifest-authoritative
+    EXECUTION_POLICY_ID = "redis-docker-images-execution-v1"
+    CASE_TAG = "redis:n2e"                                   # exact repo:tag assigned after pull-by-digest
+    SEMANTIC_ENV = {}
+    PROTECTED_FILES = []
+    REPS = 3
+    STREAM_ROLES = ("raw", "rtk")
+    PLATFORM_REQUIREMENTS = {"toolchain": ["docker"], "network": "denied (measurement)"}
+    EXECUTION_ISOLATION = {
+        "isolated_pinned_daemon_per_arm": True,             # two independent DinD daemons
+        "host_docker_is_authority": False,                  # host docker is a LAUNCHER only
+        "empty_data_root": True, "pinned_storage_driver": "vfs",
+        "no_host_docker_socket": True, "no_preloaded_images": True,
+        "read_only_command": True,                          # docker images does not mutate the daemon
+        "execution_policy_id": EXECUTION_POLICY_ID,
+    }
+
+    def bind(self, contract: dict, scenario: dict) -> dict:
+        _require(contract.get("effective_raw_argv") == self.RAW_ARGV, "redis RAW argv != frozen contract")
+        _require(contract.get("effective_rtk_argv") == self.RTK_ARGV, "redis RTK argv != frozen contract")
+        _require(contract.get("canonicalization_policy_id") == self.CANON_POLICY,
+                 "redis canon policy != frozen contract")
+        _require(contract.get("scheduler_env") == self.SEMANTIC_ENV, "redis semantic env != frozen contract")
+        _require(contract.get("command_family") == "containers" and contract.get("command_subfamily") == "images",
+                 "redis command family/subfamily != frozen contract")
+        _require(self.RTK_ARGV[:2] == ["rtk", "docker"], "redis RTK arm is not `rtk docker ...`")
+        img = scenario.get("source_image_identity") or {}
+        idx = img.get("index_digest"); child = img.get("child_digest")
+        repo = img.get("repository"); platform = img.get("platform")
+        for name, val in (("index_digest", idx), ("child_digest", child)):
+            _require(isinstance(val, str) and val.startswith("sha256:") and len(val) == 71,
+                     f"redis scenario {name} is not a sha256:<64hex> digest")
+        _require(repo == "library/redis", "redis scenario repository != library/redis")
+        _require(platform == "linux/amd64", "redis scenario platform != linux/amd64")
+        return {
+            "case_id": self.case_id, "adapter_id": self.adapter_id,
+            "qualification_kind": self.qualification_kind,
+            "raw_argv": list(self.RAW_ARGV), "rtk_argv": list(self.RTK_ARGV),
+            "semantic_env": dict(self.SEMANTIC_ENV), "reps": self.REPS,
+            "stream_roles": list(self.STREAM_ROLES),
+            "canonicalization_policy_id": self.CANON_POLICY,
+            "rtk_test_dialect_policy_id": None,
+            "command_semantic_oracle_policy_id": self.ORACLE_POLICY,
+            "execution_policy_id": self.EXECUTION_POLICY_ID,
+            # immutable image acquisition: pull by INDEX digest -> linux/amd64 child, then tag
+            "image_ref": f"{repo}@{idx}",
+            "index_digest": idx, "child_digest": child, "repository": repo, "platform": platform,
+            "case_tag": self.CASE_TAG,
+            "target_test_ids": [],
+            "protected_files": list(self.PROTECTED_FILES),
+            "platform_requirements": dict(self.PLATFORM_REQUIREMENTS),
+            "execution_isolation": dict(self.EXECUTION_ISOLATION),
+        }
+
+
 # tiny registry: Caddy (test-dialect) + Gin (command-oracle) prove both dispatch paths; the two
 # files-read adapters are the FIRST replication -- one shared oracle policy, two INDEPENDENT bindings;
 # Vue (js_ts) + Scrapy (python) are the second and third proven test dialects, manifest-authoritative.
@@ -738,6 +812,7 @@ CASE_ADAPTERS = {
     LoghubHdfsAdapter.case_id: LoghubHdfsAdapter(),
     RubocopGitShowAdapter.case_id: RubocopGitShowAdapter(),
     PhpCsFixerGitCommitAdapter.case_id: PhpCsFixerGitCommitAdapter(),
+    RedisDockerImagesAdapter.case_id: RedisDockerImagesAdapter(),
 }
 
 
