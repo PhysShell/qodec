@@ -579,7 +579,9 @@ class RubocopGitShowAdapter(CaseAdapter):
     RAW_ARGV = ["git", "show"]
     RTK_ARGV = ["rtk", "git", "show"]
     CANON_POLICY = "git-v1"
-    ORACLE_POLICY = "rtk-git-show-oracle-v1"          # manifest-authoritative (contract oracle is base)
+    # merge-aware, case-scoped oracle (the diagnostic proved f0ec1b58 is a merge; bare `git show` shows
+    # no diff, so authority is split: RAW=identity+topology, plumbing=first-parent delta, RTK=compact).
+    ORACLE_POLICY = "rtk-git-show-merge-first-parent-oracle-v1"   # manifest-authoritative
     SEMANTIC_ENV = {}
     PROTECTED_FILES = []
     REPS = 3

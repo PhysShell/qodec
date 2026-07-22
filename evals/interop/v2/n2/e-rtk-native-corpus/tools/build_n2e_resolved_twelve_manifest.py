@@ -67,7 +67,7 @@ QUALIFICATION_MODEL = {
     "php-cs-fixer__php-cs-fixer-8075::git::commit":     (RTK_COMMAND_ORACLE, None, "rtk-git-commit-oracle-v1"),
     "preactjs__preact-3345::files_search::read":        (RTK_COMMAND_ORACLE, None, "rtk-files-read-oracle-v1"),
     "projectlombok__lombok-3312::files_search::read":   (RTK_COMMAND_ORACLE, None, "rtk-files-read-oracle-v1"),
-    "rubocop__rubocop-13687::git::show":                (RTK_COMMAND_ORACLE, None, "rtk-git-show-oracle-v1"),
+    "rubocop__rubocop-13687::git::show":                (RTK_COMMAND_ORACLE, None, "rtk-git-show-merge-first-parent-oracle-v1"),
 }
 
 

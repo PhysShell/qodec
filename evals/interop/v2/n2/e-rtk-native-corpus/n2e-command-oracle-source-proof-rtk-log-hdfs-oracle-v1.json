@@ -3,7 +3,7 @@
   "generated_by": "evals/interop/v2/n2/e-rtk-native-corpus/tools/build_n2e_command_oracle_source_proof.py",
   "manifest_binding": {
     "manifest_generation": 3,
-    "manifest_sha256": "sha256:564d0da85ee71e31964b52f941f23b16baa7a3949b33425b5611fc78ee31ca78"
+    "manifest_sha256": "sha256:b243e1659e6a71a7134651ed5fc44fff1eb0cf5990066a88553f9fdfa4f25196"
   },
   "mission": "N2-E",
   "mission_title": "external RTK-native claim-aligned command corpus",
@@ -18,7 +18,7 @@
     "loghub::HDFS::log"
   ],
   "purpose": "Source-identity + case-scope proof for rtk-log-hdfs-oracle-v1. Pins the exact pinned RTK source function it was grounded in, the semantics-module identity, the pinned corpus RTK binary, and the case-scoped manifest binding. Sets no promotion flag.",
-  "record_sha256": "sha256:31260b1422f7815612a6321c151ec476df1624c20ebb49545abbbb811001b904",
+  "record_sha256": "sha256:4cb7dabe698918a0a09fb50ac753ed77bac4f5320d0c03e54e308b22c387d260",
   "record_type": "n2e-command-oracle-source-proof",
   "record_version": "v1",
   "rtk_source_identity": {

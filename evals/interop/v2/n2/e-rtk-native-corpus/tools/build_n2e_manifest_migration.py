@@ -30,6 +30,7 @@ N2E_DIR = HERE.parent
 sys.path.insert(0, str(HERE))
 import n2e_common as c  # noqa: E402
 import n2e_manifest_binding as mb  # noqa: E402
+import n2e_resolved_loader as L  # noqa: E402
 
 GEN2_MANIFEST = N2E_DIR / "n2e-resolved-twelve-manifest-gen2-frozen-v1.json"
 GEN2_CONTRACT = N2E_DIR / "n2e-canary-execution-contract-gen2-frozen-v1.json"
@@ -38,7 +39,16 @@ GEN3_CONTRACT = N2E_DIR / "n2e-canary-execution-contract-v1.json"
 OVERLAY = N2E_DIR / "n2e-resolved-execution-contract-v1.json"      # unchanged across the migration
 OUT = N2E_DIR / "n2e-manifest-gen2-to-gen3-binding-migration-v1.json"
 
-DECLARED_CHANGED_CASE = "apache__lucene-13704::jvm::test::buggy"
+# Cases whose gen-3 determinants DIFFER from the frozen gen-2 baseline (a factual drift statement, not
+# a licence to change anything): Lucene (gen-3 execution-policy v2) and Rubocop (gen-3 merge-aware
+# oracle rtk-git-show-merge-first-parent-oracle-v1, replacing the general git-show oracle). BOTH are
+# gen-3-native / pending cases with NO legacy bridge-bound record, so their drift cannot break a frozen
+# record's binding -- the builder + verifier assert exactly that (a declared case may carry no legacy
+# record). The seven cases with frozen legacy records must all stay carried_forward.
+DECLARED_CHANGED_CASES = sorted([
+    "apache__lucene-13704::jvm::test::buggy",
+    "rubocop__rubocop-13687::git::show",
+])
 
 
 def _proj_sha(man_entry: dict, contract: dict, overlay: dict) -> str:
@@ -46,6 +56,23 @@ def _proj_sha(man_entry: dict, contract: dict, overlay: dict) -> str:
     ce = mb.contract_entry_for(cid, contract)
     oe = mb.overlay_entry_for(cid, overlay)
     return mb._sha(mb.case_entry_projection(man_entry, ce, oe))
+
+
+def _legacy_record_case_ids() -> set:
+    """Case ids that have a committed LEGACY qualification record (binds via THIS bridge -- i.e. a
+    record WITHOUT a gen-3 case_entry_sha256). These MUST carry forward; a declared change to one is
+    refused. Native gen-3 records (with case_entry_sha256) bind directly and are not bridge-protected."""
+    legacy = set()
+    if L.QUALIFICATION.is_file():
+        rec = c.load_record(L.QUALIFICATION)
+        if rec.get("case_entry_sha256") is None:
+            # the frozen P4 coreutils record predates the case_id field; it binds L.REPLACEMENT_CASE_ID
+            legacy.add(rec.get("case_id") or L.REPLACEMENT_CASE_ID)
+    for p in N2E_DIR.glob("n2e-resolved-case-qualification-*.json"):
+        rec = c.load_record(p)
+        if rec.get("case_entry_sha256") is None:
+            legacy.add(rec.get("case_id"))
+    return legacy
 
 
 def build() -> dict:
@@ -73,18 +100,26 @@ def build() -> dict:
                       "gen3_case_entry_sha256": gen3_entry,
                       "carried_forward": gen2_proj == gen3_entry})
 
-    not_carried = [x["case_id"] for x in carry if not x["carried_forward"]]
-    if not_carried != [DECLARED_CHANGED_CASE]:
-        raise SystemExit(f"REFUSING: exactly one declared change ({DECLARED_CHANGED_CASE}) allowed; "
-                         f"non-carried set is {not_carried}")
+    not_carried = sorted(x["case_id"] for x in carry if not x["carried_forward"])
+    if not_carried != DECLARED_CHANGED_CASES:
+        raise SystemExit(f"REFUSING: declared changed set {DECLARED_CHANGED_CASES} != non-carried "
+                         f"{not_carried}")
+    # SAFETY: a declared change may never be a case that has a LEGACY bridge-bound record -- that would
+    # silently break a frozen record's binding. Declared cases must be gen-3-native / pending only.
+    legacy = _legacy_record_case_ids()
+    bad = sorted(set(DECLARED_CHANGED_CASES) & legacy)
+    if bad:
+        raise SystemExit(f"REFUSING: declared changed case(s) {bad} have a LEGACY bridge-bound record")
 
     return c.envelope(
         record_type="n2e-manifest-gen2-to-gen3-binding-migration",
         generated_by="evals/interop/v2/n2/e-rtk-native-corpus/tools/build_n2e_manifest_migration.py",
         record_version="v1",
-        purpose="One-directional gen-2 -> gen-3 binding bridge: authorizes the seven frozen (byte-"
-                "identical) legacy PASS records under the gen-3 per-case-binding root by proving each "
-                "case's determinant projection carried forward. Not a permanent compatibility layer.",
+        purpose="One-directional gen-2 -> gen-3 binding bridge: authorizes the frozen (byte-identical) "
+                "legacy PASS records under the gen-3 per-case-binding root by proving each case's "
+                "determinant projection carried forward. Cases whose gen-3 determinants intentionally "
+                "differ from the gen-2 baseline are DECLARED (and may carry no legacy record). Not a "
+                "permanent compatibility layer.",
         direction="gen2->gen3 (a gen-3 record is never reinterpreted as gen-2)",
         gen2={"manifest_sha256": c.sha256_json_file(GEN2_MANIFEST),
               "base_execution_contract_sha256": c.sha256_json_file(GEN2_CONTRACT),
@@ -92,18 +127,19 @@ def build() -> dict:
         gen3={"manifest_sha256": c.sha256_json_file(GEN3_MANIFEST),
               "base_execution_contract_sha256": c.sha256_json_file(GEN3_CONTRACT),
               "manifest_generation": 3},
-        declared_changed_case=DECLARED_CHANGED_CASE,
+        declared_changed_cases=DECLARED_CHANGED_CASES,
         overlay_execution_contract_sha256=c.sha256_json_file(OVERLAY),
         case_carry_forward=carry,
         carried_forward_case_ids=[x["case_id"] for x in carry if x["carried_forward"]],
-        invariant="exactly one declared changed case; all eleven others carried_forward; any other "
-                  "diff is fail-closed",
+        invariant="non-carried set == declared_changed_cases; every case with a LEGACY bridge-bound "
+                  "record carries forward; a declared case may hold no legacy record; any other diff "
+                  "is fail-closed",
     )
 
 
 def main() -> int:
     c.write_record(OUT, build())
-    print(f"wrote {OUT.name}: 11 carried_forward + 1 declared change ({DECLARED_CHANGED_CASE})")
+    print(f"wrote {OUT.name}: declared changes {DECLARED_CHANGED_CASES}")
     return 0
 
 

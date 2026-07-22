@@ -25,12 +25,12 @@
   "generated_by": "evals/interop/v2/n2/e-rtk-native-corpus/tools/build_n2e_command_oracle_source_proof.py",
   "manifest_binding": {
     "manifest_generation": 3,
-    "manifest_sha256": "sha256:564d0da85ee71e31964b52f941f23b16baa7a3949b33425b5611fc78ee31ca78"
+    "manifest_sha256": "sha256:b243e1659e6a71a7134651ed5fc44fff1eb0cf5990066a88553f9fdfa4f25196"
   },
   "mission": "N2-E",
   "mission_title": "external RTK-native claim-aligned command corpus",
   "no_family_level": "this oracle is proven for the listed case ids ONLY; one case does not establish family-level go::vet scope",
-  "oracle_policy_id": "rtk-git-show-oracle-v1",
+  "oracle_policy_id": "rtk-git-show-merge-first-parent-oracle-v1",
   "oracle_scope": "case_scoped",
   "pinned_rtk_binary_identity": {
     "bytes": 9200104,
@@ -39,8 +39,8 @@
   "proven_case_ids": [
     "rubocop__rubocop-13687::git::show"
   ],
-  "purpose": "Source-identity + case-scope proof for rtk-git-show-oracle-v1. Pins the exact pinned RTK source function it was grounded in, the semantics-module identity, the pinned corpus RTK binary, and the case-scoped manifest binding. Sets no promotion flag.",
-  "record_sha256": "sha256:ab4b385cad7a5c070100529df55d01379e5a804d5e8f533578360d9293627563",
+  "purpose": "Source-identity + case-scope proof for rtk-git-show-merge-first-parent-oracle-v1. Pins the exact pinned RTK source function it was grounded in, the semantics-module identity, the pinned corpus RTK binary, and the case-scoped manifest binding. Sets no promotion flag.",
+  "record_sha256": "sha256:794eb820444f654d74def8e9fa8c302361d683c72ee8c213241c2f6ec60e7428",
   "record_type": "n2e-command-oracle-source-proof",
   "record_version": "v1",
   "rtk_source_identity": {
@@ -53,9 +53,9 @@
   },
   "schema_version": "n2e-record-1",
   "semantics_module": {
-    "bytes": 19636,
-    "declared_oracle_id": "rtk-git-show-oracle-v1",
-    "path": "tools/n2e_rtk_git_show_oracle.py",
-    "sha256": "21a34f2c33e29bed175a2a016996b9fa8a059108ea72ca971bdc4785753b6e73"
+    "bytes": 11487,
+    "declared_oracle_id": "rtk-git-show-merge-first-parent-oracle-v1",
+    "path": "tools/n2e_rtk_git_show_merge_oracle.py",
+    "sha256": "431d67fdaf779539dcf13f48176066f42d809a3f9a37ce6063a5c509e2a568f0"
   }
 }

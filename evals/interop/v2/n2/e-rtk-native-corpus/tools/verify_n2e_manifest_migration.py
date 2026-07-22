@@ -80,13 +80,21 @@ def verify(rec: dict) -> dict:
         if not carried_re:
             non_carried.append(cid)
 
-    if non_carried != [rec.get("declared_changed_case")]:
-        raise MigrationBridgeError(f"exactly one declared change required; non-carried={non_carried} "
-                                   f"declared={rec.get('declared_changed_case')}")
+    declared = rec.get("declared_changed_cases")
+    if not isinstance(declared, list):
+        raise MigrationBridgeError("bridge missing declared_changed_cases list")
+    if sorted(non_carried) != sorted(declared):
+        raise MigrationBridgeError(f"non-carried set {sorted(non_carried)} != declared "
+                                   f"{sorted(declared)}")
+    # SAFETY: a declared changed case may NOT have a LEGACY bridge-bound record (that would break a
+    # frozen record's binding). Re-derived independently from the committed records on disk.
+    bad = sorted(set(declared) & B._legacy_record_case_ids())
+    if bad:
+        raise MigrationBridgeError(f"declared changed case(s) {bad} hold a LEGACY bridge-bound record")
     expected_carried = sorted(cid for cid in g3m if cid not in non_carried)
     if sorted(rec.get("carried_forward_case_ids") or []) != expected_carried:
-        raise MigrationBridgeError("carried_forward_case_ids != the eleven carried cases")
-    return {"declared_changed_case": non_carried[0], "carried_forward": len(expected_carried)}
+        raise MigrationBridgeError("carried_forward_case_ids != the carried cases")
+    return {"declared_changed_cases": sorted(declared), "carried_forward": len(expected_carried)}
 
 
 def main() -> int:
@@ -96,7 +104,7 @@ def main() -> int:
     except MigrationBridgeError as e:
         print(f"migration-bridge: FAIL {e}")
         return 1
-    print(f"migration-bridge: OK {f['carried_forward']} carried; changed {f['declared_changed_case']}")
+    print(f"migration-bridge: OK {f['carried_forward']} carried; changed {f['declared_changed_cases']}")
     return 0
 
 

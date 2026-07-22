@@ -16,6 +16,14 @@ import aggregate_n2e_resolved_twelve as A  # noqa: E402
 
 BRIDGE = N2E_DIR / "n2e-manifest-gen2-to-gen3-binding-migration-v1.json"
 LUCENE = "apache__lucene-13704::jvm::test::buggy"
+RUBOCOP = "rubocop__rubocop-13687::git::show"
+# the seven cases with FROZEN legacy (bridge-bound) records -- these must always carry forward
+FROZEN_RECORD_CASES = {
+    "uutils__coreutils-6731::rust_cargo::test::fixed", "caddyserver__caddy-5870::go::test::buggy",
+    "gin-gonic__gin-2755::go::vet", "preactjs__preact-3345::files_search::read",
+    "projectlombok__lombok-3312::files_search::read", "vuejs__core-11589::js_ts::test::buggy",
+    "bugsinpy::scrapy-9::python::pytest::fixed",
+}
 
 
 def _rehash(rec):
@@ -32,8 +40,18 @@ class TestMigrationBridge(unittest.TestCase):
     # ---------- GREEN ----------
     def test_green_bridge_verifies(self):
         f = VB.verify(self.rec)
-        self.assertEqual(f["declared_changed_case"], LUCENE)
-        self.assertEqual(f["carried_forward"], 11)
+        self.assertEqual(f["declared_changed_cases"], sorted([LUCENE, RUBOCOP]))
+        self.assertEqual(f["carried_forward"], 10)
+
+    def test_green_declared_cases_hold_no_legacy_record(self):
+        import build_n2e_manifest_migration as B
+        legacy = B._legacy_record_case_ids()
+        # every frozen-record case is bridge-bound (legacy) and carries forward; neither declared
+        # change (lucene native / rubocop pending) may be a legacy record.
+        self.assertTrue(FROZEN_RECORD_CASES.issubset(legacy))
+        self.assertEqual(set(self.rec["declared_changed_cases"]) & legacy, set())
+        carried = set(self.rec["carried_forward_case_ids"])
+        self.assertTrue(FROZEN_RECORD_CASES.issubset(carried))
 
     def test_green_aggregate_carries_seven_via_bridge_plus_native_lucene(self):
         # the seven frozen PASS records (all legacy gen-2) are carried forward under gen-3 by the bridge
