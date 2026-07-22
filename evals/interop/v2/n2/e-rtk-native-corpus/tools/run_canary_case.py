@@ -553,29 +553,58 @@ def _nd_sample(streams: list[bytes]) -> str | None:
 
 # --------------------------- stratum adapters ---------------------------
 def acquire_loghub(scen, workroot):
+    """Full-stream capsule acquisition -- NO 1500-line slice. The pinned Zenodo archive is streamed to
+    disk (bounded memory) with a streaming checksum; the ONE pinned member (HDFS/HDFS_full.log, from
+    n2e-loghub-hdfs-reference-v1) is stream-extracted to the frozen work dir; its uncompressed byte
+    count + streaming sha256 + line count are the INPUT IDENTITY both arms share; and the line count
+    MUST equal the published occurrence total (11 167 740) -- a correct archive digest with a wrong
+    line count is a reject. The 300+ MB archive is deleted after extraction (never committed)."""
+    import n2e_log_evidence_capsule as lcap
     ident = scen["source_image_identity"]
-    system = ident["key"].removesuffix(".zip")
-    checksum, size = ident["checksum"], ident["size"]
-    recid = next(z["record_id"] for z in c.load_record(PINS)["zenodo_records"] if z["source_id"] == "loghub-2.0")
-    url = f"https://zenodo.org/api/records/{recid}/files/{system}.zip/content"
-    with urllib.request.urlopen(urllib.request.Request(url), context=c.ssl_context(), timeout=300) as r:
-        data = r.read()
+    key, checksum, size = ident["key"], ident["checksum"], ident["size"]
     algo, _, hexv = checksum.partition(":")
-    if len(data) != size or hashlib.new(algo, data).hexdigest() != hexv:
-        raise SystemExit(f"loghub {system}: checksum/size mismatch")
-    (workroot / f"{system}.zip").write_bytes(data)
-    z = zipfile.ZipFile(workroot / f"{system}.zip")
-    for n in z.namelist():
-        if n.startswith("/") or ".." in Path(n).parts:
-            raise SystemExit("unsafe archive path")
-    z.extractall(workroot / "x")
-    logf = next((workroot / "x").rglob("*.log"))
-    slice_bytes = b"".join(logf.read_bytes().splitlines(keepends=True)[:1500])
-    (workroot / f"{system}.log").write_bytes(slice_bytes)
-    shutil.rmtree(workroot / "x")
-    (workroot / f"{system}.zip").unlink()
+    recid = next(z["record_id"] for z in c.load_record(PINS)["zenodo_records"] if z["source_id"] == "loghub-2.0")
+    url = f"https://zenodo.org/api/records/{recid}/files/{key}/content"
+    zpath = workroot / key
+    hd = hashlib.new(algo)
+    total = 0
+    with urllib.request.urlopen(urllib.request.Request(url), context=c.ssl_context(), timeout=600) as r, \
+            open(zpath, "wb") as out:
+        while True:
+            b = r.read(1 << 20)
+            if not b:
+                break
+            out.write(b)
+            hd.update(b)
+            total += len(b)
+    if total != size or hd.hexdigest() != hexv:
+        raise SystemExit(f"loghub {key}: archive checksum/size mismatch")
+
+    ref = lcap.load_reference()
+    member = ref["record"]["raw_log_member"]["member"]
+    member_bytes = ref["record"]["raw_log_member"]["uncompressed_bytes"]
+    published_lines = sum(ref["published"].values())
+    frozen = workroot / "repo"
+    frozen.mkdir()
+    dest = frozen / "HDFS.log"
+    got = lcap.extract_member_streaming(zpath, member, dest, expected_bytes=member_bytes)
+    dig = lcap.stream_digest(dest)
+    zpath.unlink()  # bounded evidence: the archive is not retained (never committed)
+    if dig["line_count"] != published_lines:
+        raise SystemExit(f"loghub member line count {dig['line_count']} != published total {published_lines}")
+
+    env_identity = {
+        "source_id": "loghub-2.0", "zenodo_record_id": recid,
+        "archive": {"key": key, "checksum": checksum, "bytes": size},
+        "member": {"name": member, "uncompressed_bytes": got,
+                   "sha256": dig["sha256"], "line_count": dig["line_count"]},
+        "published_reference_sha256": ref["sha256"], "published_line_count": published_lines,
+        "evidence_model": "log-evidence-capsule-v1 (full stream; no slice)",
+    }
     return {"identity_verified": True, "checksum": checksum,
-            "slice_sha256": hashlib.sha256(slice_bytes).hexdigest(),
+            "input_sha256": dig["sha256"], "input_line_count": dig["line_count"],
+            "member_uncompressed_bytes": got, "environment_identity": env_identity,
+            "workdir": "repo", "home_local": True,
             "policy": canon.policy_for("logs", "log")}
 
 

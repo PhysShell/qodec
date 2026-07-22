@@ -242,6 +242,49 @@ def _iter_chunks(path: Path):
             yield chunk
 
 
+def stream_digest(path, chunk_bytes: int = CHUNK_BYTES) -> dict:
+    """Bounded streaming digest of a file: full sha256 + byte count + line count (a final
+    unterminated line counts, exactly as the collector frames lines). No semantic matching -- for
+    the acquisition-time INPUT IDENTITY both arms share."""
+    h = hashlib.sha256()
+    total = 0
+    lines = 0
+    tail_nl = True
+    with open(path, "rb") as f:
+        while True:
+            b = f.read(chunk_bytes)
+            if not b:
+                break
+            h.update(b)
+            total += len(b)
+            lines += b.count(b"\n")
+            tail_nl = b.endswith(b"\n")
+    if total > 0 and not tail_nl:
+        lines += 1
+    return {"sha256": h.hexdigest(), "bytes": total, "line_count": lines}
+
+
+def extract_member_streaming(zip_path, member: str, dest, expected_bytes: int | None = None,
+                             chunk_bytes: int = CHUNK_BYTES) -> int:
+    """Extract ONE zip member to `dest` in bounded memory (no whole-file read). Rejects an unsafe
+    member path and, when given, an uncompressed size that does not match the pinned expectation."""
+    import zipfile
+    mp = Path(member)
+    if member.startswith("/") or ".." in mp.parts:
+        raise LogCapsuleError(f"unsafe member path {member!r}")
+    n = 0
+    with zipfile.ZipFile(zip_path) as z, z.open(z.getinfo(member)) as src, open(dest, "wb") as out:
+        while True:
+            b = src.read(chunk_bytes)
+            if not b:
+                break
+            out.write(b)
+            n += len(b)
+    if expected_bytes is not None and n != expected_bytes:
+        raise LogCapsuleError(f"member {member} uncompressed bytes {n} != pinned {expected_bytes}")
+    return n
+
+
 def _excerpts_from(col: _Collector, reader) -> list[dict]:
     """Bounded second read: the first MAX_EXCERPTS observed EventIds (sorted), each anchored to its
     first-occurrence window (<= MAX_EXCERPT_BYTES) by byte range + chunk hash + Merkle proof."""
