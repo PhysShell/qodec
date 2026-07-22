@@ -1,0 +1,111 @@
+{
+  "acceptance_run": {
+    "artifact_bytes": 6744,
+    "artifact_sha256": "82bee6cc34bc516b7c2d3ef8cfff48de81a1f2c0d2351a8640781c14b2f501d2",
+    "impl_commit": "116af02",
+    "run_attempt": "1",
+    "run_id": "29922466514",
+    "workflow": "qodec-n2e-rubocop-git-show"
+  },
+  "canonicalization_policy_id": "git-v1",
+  "case_entry_sha256": "sha256:cf2b0d8f08d77cab8e3f30ca8dd77df508677fcb1a669fab4f3d1e624568bc4a",
+  "case_id": "rubocop__rubocop-13687::git::show",
+  "case_qualification_pass": true,
+  "command_semantic_oracle_policy_id": "rtk-git-show-merge-first-parent-oracle-v1",
+  "contract_generation": 1,
+  "dispatch_code_identity": {
+    "canonicalization_policy_id": "git-v1",
+    "dispatch_module_sha256": "1e773f53e3824d4091204117866746cfa2e11c201c5d26a563b5a4fc9d3d34eb",
+    "dispatch_policy_id": "n2e-qualification-dispatch-v3",
+    "oracle_module_sha256": "431d67fdaf779539dcf13f48176066f42d809a3f9a37ce6063a5c509e2a568f0",
+    "oracle_policy_id": "rtk-git-show-merge-first-parent-oracle-v1",
+    "parser_library_sha256": "21a34f2c33e29bed175a2a016996b9fa8a059108ea72ca971bdc4785753b6e73",
+    "registry_sha256": "b610b32b06a8f2522bd34fceb793089d4b002e3e40d49c993f4fc3f72483ed19",
+    "rtk_source_identity_sha256": "28afec6faa88abf611f4e4963a931cce5d91bc8428854c3d0144a7a959c41726"
+  },
+  "dispatch_policy_id": "n2e-qualification-dispatch-v3",
+  "evidence": {
+    "dir": "evidence/rubocop/qualification"
+  },
+  "generated_by": "evals/interop/v2/n2/e-rtk-native-corpus/tools/build_n2e_rubocop_git_show_qualification.py",
+  "identities": {
+    "rtk_sha256": "41f316adf7b30a568208a0a4f824bffb266ecb6d01bd9de81bed58e1d469dfcf"
+  },
+  "manifest_generation": 3,
+  "manifest_sha256": "sha256:1cc3dbd3e5b021aa397165912105f552a48021ff654a5044b22432091ece393c",
+  "merge_evidence": {
+    "abbrev_resolve": {
+      "bytes": 41,
+      "evidence_path": "evidence/rubocop/qualification/plumb.abbrev_resolve.bin",
+      "sha256": "86dfcb84b5d167b38d0e2c5f39e0bffe536443f693bbb6010a1886f0f0793abf"
+    },
+    "first_parent_numstat": {
+      "bytes": 64,
+      "evidence_path": "evidence/rubocop/qualification/plumb.first_parent_numstat.bin",
+      "sha256": "e1653476cf73bed42a474bcc34ad4fdba2da0fa7a1afc20efd98ae05a3a63d9f"
+    },
+    "first_parent_shortstat": {
+      "bytes": 49,
+      "evidence_path": "evidence/rubocop/qualification/plumb.first_parent_shortstat.bin",
+      "sha256": "ec7a6a2551c37624add07f32578274e2662a96e534f6915033b51b0a0030b002"
+    },
+    "raw_stdout": {
+      "bytes": 394,
+      "evidence_path": "evidence/rubocop/qualification/raw.stdout.bin",
+      "sha256": "3daedecfd130c0cc83bd3aca8fc10740cf67d1c59045e1237217744ff099341b"
+    },
+    "rev_list_parents": {
+      "bytes": 123,
+      "evidence_path": "evidence/rubocop/qualification/plumb.rev_list_parents.bin",
+      "sha256": "903fd9f1d131871e42bb494458ad44910c181eb2efb9508dad42fcb7fc89d18a"
+    },
+    "rtk_stdout": {
+      "bytes": 267,
+      "evidence_path": "evidence/rubocop/qualification/rtk.stdout.bin",
+      "sha256": "aaf4404a3d10fd0f091c8f8381832e73260a5f8e13ae40ae0039de0ee8696b8f"
+    }
+  },
+  "merge_topology": {
+    "first_parent_oid": "f852457b508013ae193de684e013bee7aaece84d",
+    "merge_oid": "f0ec1b58283bbf89625883b45d2aec5e515c95b3",
+    "parents": [
+      "f852457b508013ae193de684e013bee7aaece84d",
+      "0a4173569fe7eb182a220019aea99b93f3b3963b"
+    ]
+  },
+  "mission": "N2-E",
+  "mission_title": "external RTK-native claim-aligned command corpus",
+  "promotion_state": "held (resolved-twelve not yet 12/12)",
+  "purpose": "Immutable per-case qualification for rubocop__rubocop-13687::git::show via the dispatch-v3 registry-bound merge-aware path (NOT cq). Split authority: RAW=identity+topology, plumbing=first-parent delta, RTK=compact. Built from a fresh acceptance run; gated by the dispatch binding + recompute. Sets no promotion flag.",
+  "qualification_kind": "rtk_command_oracle",
+  "re_derived": {
+    "equivalence": {
+      "compared": [
+        "full_commit_oid",
+        "merge_topology",
+        "ordered_parents",
+        "first_parent_files_changed",
+        "first_parent_insertions",
+        "first_parent_deletions",
+        "affected_paths",
+        "abbreviated_oid_prefix",
+        "abbreviated_oid_unique_resolution",
+        "rtk_output_mode"
+      ],
+      "equivalent": true,
+      "first_parent_oid": "f852457b508013ae193de684e013bee7aaece84d",
+      "mismatches": [],
+      "note": "split authority: RAW=identity+topology, plumbing=first-parent stat, RTK=compact stat. %ar/patch/subject/author/second-parent/combined-diff excluded; raw_fallback rejected.",
+      "rtk_output_mode": "compact"
+    },
+    "normative_axis": "RAW=identity+topology, plumbing=first-parent stat, RTK=compact stat; %ar/patch/subject/author/second-parent excluded"
+  },
+  "record_kind": "rubocop_git_show_acceptance_qualification",
+  "record_sha256": "sha256:4931046fb86f3f3450184b7176aa36f710380a211ad227dad859b4dd53ddba0e",
+  "record_type": "n2e-resolved-case-qualification",
+  "record_version": "v1",
+  "resolved_canary_pass": false,
+  "rtk_test_dialect_policy_id": null,
+  "schema_version": "n2e-record-1",
+  "verdict_authority": "dispatch-v3 binding + recompute (producer records observations)"
+}

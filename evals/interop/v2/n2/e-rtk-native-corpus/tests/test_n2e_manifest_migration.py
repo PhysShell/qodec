@@ -55,14 +55,15 @@ class TestMigrationBridge(unittest.TestCase):
 
     def test_green_aggregate_carries_seven_via_bridge_plus_native_lucene(self):
         # the seven frozen PASS records (all legacy gen-2) are carried forward under gen-3 by the bridge
-        # with NONE of them edited; lucene is the bridge's DECLARED-CHANGED case and qualifies with a
-        # NATIVE gen-3 binding (case_entry_sha256) -- 7 carried + 1 native = 8 through the cq path. The
-        # ninth PASS (loghub) qualifies through the dispatch-v2 registry path, NOT the bridge/cq, so the
-        # disk aggregate is 9 total. Every present case is independently derived over a unique run.
+        # with NONE of them edited; lucene is a DECLARED-CHANGED case and qualifies with a NATIVE gen-3
+        # binding -- 7 carried + 1 native = 8 through the cq path. Loghub qualifies through dispatch-v2
+        # and rubocop (merge) through dispatch-v3, NOT the bridge/cq, so the disk aggregate is 10 total.
+        # Every present case is independently derived over a unique run.
         r = A.aggregate_from_disk()
-        self.assertEqual(r["derived_pass_count"], 9)
+        self.assertEqual(r["derived_pass_count"], 10)
         self.assertEqual(r["derived_pass_count"], r["unique_acceptance_runs"])
         self.assertTrue(r["per_case"]["loghub::HDFS::log"]["derived_pass"])
+        self.assertTrue(r["per_case"]["rubocop__rubocop-13687::git::show"]["derived_pass"])
         self.assertTrue(r["per_case"]["apache__lucene-13704::jvm::test::buggy"]["derived_pass"])
         self.assertFalse(r["resolved_canary_pass"])
 

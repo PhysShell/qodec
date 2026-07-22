@@ -1,0 +1,3 @@
+f0ec1b5 Merge pull request #13691 from dvandersluis/redundant-line-continuation-strings-test (1 year, 6 months ago) <Daniel Vandersluis>
+spec/rubocop/cop/style/redundant_line_continuation_spec.rb | 16 +++++++++++++++-
+ 1 file changed, 15 insertions(+), 1 deletion(-)
