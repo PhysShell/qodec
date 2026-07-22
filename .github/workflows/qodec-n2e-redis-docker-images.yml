@@ -56,14 +56,17 @@ jobs:
           else
             impl="${{ github.sha }}"
           fi
+          # acceptance pins the DinD daemon by DIGEST (reproducible); diagnostic may use the tag.
+          PINNED_DIND="docker@sha256:aa3df78ecf320f5fafdce71c659f1629e96e9de0968305fe1de670e0ca9176ce"
           if echo "${{ github.ref }}" | grep -q 'redis-images-accept-'; then
-            mode="acceptance"
+            mode="acceptance"; dind="$PINNED_DIND"
           elif echo "${{ github.ref }}" | grep -q 'redis-images-diag-'; then
-            mode="diagnostic"
+            mode="diagnostic"; dind="${{ github.event.inputs.dind_ref || 'docker:27-dind' }}"
           else
             mode="${{ github.event.inputs.mode || 'diagnostic' }}"
+            dind="${{ github.event.inputs.dind_ref || 'docker:27-dind' }}"
+            [ "$mode" = "acceptance" ] && dind="$PINNED_DIND"
           fi
-          dind="${{ github.event.inputs.dind_ref || 'docker:27-dind' }}"
           echo "impl=$impl" >> "$GITHUB_OUTPUT"
           echo "mode=$mode" >> "$GITHUB_OUTPUT"
           echo "dind_ref=$dind" >> "$GITHUB_OUTPUT"
