@@ -587,13 +587,21 @@ class RubocopGitShowAdapter(CaseAdapter):
     REPS = 3
     STREAM_ROLES = ("raw", "rtk")
     PLATFORM_REQUIREMENTS = {"toolchain": ["git"], "network": "denied"}
-    # git plumbing the probe/verifier runs on the SAME pinned checkout to cross-check the RAW projection.
-    # These are OBSERVATIONS (an independent authority for oid + paths + totals), never the RAW arm.
+    # f0ec1b58 is a MERGE commit: bare `git show` shows no diff, so the normative stat is the
+    # FIRST-PARENT delta, obtained from git plumbing on the SAME pinned checkout. These are verifier
+    # OBSERVATIONS (an independent authority), never the RAW arm. Some are DYNAMIC (they need the
+    # first-parent OID from rev-list, or RTK's abbreviated hash), so the probe substitutes {first_parent}
+    # / {merge} / {abbrev} at run time.
+    MERGE_FIRST_PARENT_AUTHORITY = True
     PLUMBING_OBSERVATIONS = {
         "rev_parse_head": ["git", "rev-parse", "HEAD"],
-        "numstat": ["git", "show", "--numstat", "--format="],
-        "name_status": ["git", "show", "--name-status", "--format="],
-        "shortstat": ["git", "show", "--shortstat", "--format="],
+        "rev_list_parents": ["git", "rev-list", "--parents", "-n", "1", "HEAD"],
+        "first_parent_numstat": ["git", "diff", "--numstat", "{first_parent}", "{merge}"],
+        "first_parent_shortstat": ["git", "diff", "--shortstat", "{first_parent}", "{merge}"],
+        "show_stat_crosscheck": ["git", "show", "--stat", "--pretty=format:", "{merge}"],
+        "abbrev_resolve": ["git", "rev-parse", "--verify", "{abbrev}^{commit}"],
+        # captured ONLY to demonstrate the merge trap (empty on a merge); NEVER a stat authority
+        "name_status_trap": ["git", "show", "--name-status", "--format=", "{merge}"],
     }
     EXECUTION_ISOLATION = {
         "fresh_gocache_per_arm": False,

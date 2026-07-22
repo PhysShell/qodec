@@ -33,7 +33,7 @@ import n2e_common as c  # noqa: E402
 import run_canary_case as rcc  # noqa: E402
 import n2e_measure as m  # noqa: E402
 import n2e_case_adapters as adapters  # noqa: E402
-import n2e_rtk_git_show_oracle as orc  # noqa: E402
+import n2e_rtk_git_show_merge_oracle as mo  # noqa: E402
 
 CONTRACT = N2E_DIR / "n2e-canary-execution-contract-v1.json"
 SCEN = N2E_DIR / "n2e-command-scenarios-v1.json"
@@ -132,65 +132,93 @@ def main() -> int:
         body["argv"] = {"raw": det["raw_argv"], "rtk": det["rtk_argv"]}
 
         tmo = contract["timeout_seconds"]
-        # ---- RAW arm: `git show` ----
+
+        def _plumb(name, argv):
+            pr = _run_split(argv, str(frozen), wrapper, env_extra, tmo)
+            (ev / f"plumb.{name}.bin").write_bytes(pr["stdout"])
+            return pr
+
+        # ---- RAW arm: `git show` -> IDENTITY + TOPOLOGY (a merge shows no diff; that is expected) ----
         raw_run = _run_split(det["raw_argv"], str(frozen), wrapper, env_extra, tmo)
         raw_stdout, raw_stderr = raw_run["stdout"], raw_run["stderr"]
-        raw_proj = orc.parse_raw(raw_stdout)
+        raw_id = mo.parse_raw_merge_identity(raw_stdout)
         (ev / "raw.stdout.bin").write_bytes(raw_stdout)
         (ev / "raw.stderr.bin").write_bytes(raw_stderr[:65536])
         body["raw_arm"] = {"argv": det["raw_argv"], "exit_code": raw_run["exit_code"],
                            "timed_out": raw_run["timed_out"], "stdout": _digest(raw_stdout),
-                           "stderr": _digest(raw_stderr), "projection": raw_proj}
+                           "stderr": _digest(raw_stderr), "identity": raw_id}
 
-        # ---- RTK arm: `rtk git show` (rtk wraps git internally) ----
+        # ---- RTK arm: `rtk git show` -> COMPACT projection (rtk wraps git internally) ----
         rtk_argv = [rtk_bin] + det["rtk_argv"][1:]
         rtk_run = _run_split(rtk_argv, str(frozen), wrapper, env_extra, tmo)
         rtk_stdout, rtk_stderr = rtk_run["stdout"], rtk_run["stderr"]
-        rtk_proj = orc.parse_rtk(rtk_stdout)
+        rtk_proj = mo.parse_rtk_compact(rtk_stdout)
+        abbrev = rtk_proj.get("abbreviated_oid") or ""
         (ev / "rtk.stdout.bin").write_bytes(rtk_stdout)
         (ev / "rtk.stderr.bin").write_bytes(rtk_stderr[:65536])
         body["rtk_arm"] = {"argv": det["rtk_argv"], "exit_code": rtk_run["exit_code"],
                            "timed_out": rtk_run["timed_out"], "stdout": _digest(rtk_stdout),
                            "stderr": _digest(rtk_stderr),
-                           "rtk_output_mode": rtk_proj.get("rtk_output_mode"),
-                           "projection": rtk_proj}
+                           "rtk_output_mode": rtk_proj.get("rtk_output_mode"), "projection": rtk_proj}
 
-        # ---- git plumbing OBSERVATIONS (independent authority; never the RAW arm) ----
-        plumb = {}
-        for name, pv in det["plumbing_observations"].items():
-            pr = _run_split(pv, str(frozen), wrapper, env_extra, tmo)
-            (ev / f"plumb.{name}.bin").write_bytes(pr["stdout"])
-            plumb[name] = {"argv": pv, "exit_code": pr["exit_code"],
+        # ---- plumbing OBSERVATIONS (first-parent authority). Two are DYNAMIC: they need the
+        # first-parent OID (from rev-list) and RTK's abbreviated hash. ----
+        rp = _plumb("rev_parse_head", det["plumbing_observations"]["rev_parse_head"])
+        merge_oid = rp["stdout"].decode().strip()
+        rl = _plumb("rev_list_parents", det["plumbing_observations"]["rev_list_parents"])
+        parents = mo.parse_rev_list_parents(rl["stdout"].decode("utf-8", "replace"))
+        first_parent = parents.get("first_parent_oid") or ""
+
+        def _sub(argv):
+            return [x.replace("{first_parent}", first_parent).replace("{merge}", merge_oid)
+                     .replace("{abbrev}", abbrev) for x in argv]
+
+        plumb = {"rev_parse_head": {"argv": det["plumbing_observations"]["rev_parse_head"],
+                                    "stdout": {**_digest(rp["stdout"]), "text": rp["stdout"].decode("utf-8", "replace")[:512]}},
+                 "rev_list_parents": {"argv": det["plumbing_observations"]["rev_list_parents"],
+                                      "stdout": {**_digest(rl["stdout"]), "text": rl["stdout"].decode("utf-8", "replace")[:512]}}}
+        for name in ("first_parent_numstat", "first_parent_shortstat", "show_stat_crosscheck",
+                     "abbrev_resolve", "name_status_trap"):
+            argv = _sub(det["plumbing_observations"][name])
+            pr = _plumb(name, argv)
+            plumb[name] = {"argv": argv, "exit_code": pr["exit_code"],
                            "stdout": {**_digest(pr["stdout"]),
                                       "text": pr["stdout"].decode("utf-8", "replace")[:4096]}}
         body["plumbing_observations"] = plumb
+        body["merge_first_parent"] = {"merge_oid": merge_oid, "parents": parents.get("parents"),
+                                      "first_parent_oid": first_parent}
 
-        # ---- cross-check the RAW projection against plumbing, on the same checkout ----
-        cross = orc.plumbing_crosscheck(
-            raw_proj, plumb["rev_parse_head"]["stdout"]["text"],
-            (ev / "plumb.numstat.bin").read_bytes(),
-            (ev / "plumb.name_status.bin").read_bytes(),
-            (ev / "plumb.shortstat.bin").read_bytes(), full_oid)
-        body["raw_plumbing_crosscheck"] = cross
+        # first-parent stat (numstat + shortstat must agree) + the RTK-shape cross-check
+        fp_stat = mo.parse_first_parent_stat((ev / "plumb.first_parent_numstat.bin").read_bytes(),
+                                             (ev / "plumb.first_parent_shortstat.bin").read_bytes())
+        show_stat = mo.parse_show_stat_crosscheck((ev / "plumb.show_stat_crosscheck.bin").read_bytes())
+        abbrev_resolved = (ev / "plumb.abbrev_resolve.bin").read_text(errors="replace").strip()
+        body["first_parent_stat"] = fp_stat
+        body["show_stat_crosscheck"] = show_stat
+        body["abbrev_resolved_oid"] = abbrev_resolved
+        body["show_stat_matches_first_parent"] = (
+            fp_stat.get("derivable") and show_stat.get("derivable")
+            and all(fp_stat.get(k) == show_stat.get(k) for k in ("files_changed", "insertions", "deletions"))
+            and sorted(fp_stat.get("affected_paths") or []) == sorted(show_stat.get("affected_paths") or []))
 
-        # ---- oracle observation (NOT a verdict): stat + identity equivalence ----
-        eq = orc.equivalence(raw_proj, rtk_proj, full_oid)
+        # ---- oracle observation (NOT a verdict): merge-aware split-authority equivalence ----
+        eq = mo.equivalence(raw_id, fp_stat, rtk_proj, parents, full_oid, abbrev_resolved)
         body["oracle_observation"] = {
-            "full_commit_oid": full_oid,
-            "rtk_abbreviated_oid": rtk_proj.get("abbreviated_oid"),
-            "abbrev_is_prefix_of_full": bool(rtk_proj.get("abbreviated_oid")
-                                             and full_oid.startswith((rtk_proj.get("abbreviated_oid") or "").lower())),
+            "full_commit_oid": full_oid, "rtk_abbreviated_oid": abbrev,
+            "abbrev_resolved_oid": abbrev_resolved,
+            "abbrev_uniquely_resolves": abbrev_resolved.lower() == full_oid.lower(),
             "equivalence": eq,
-            "authority_note": "stat + identity core only; %ar/author/subject/dates/full-patch excluded. "
-                              "RAW projection independently cross-checked against git plumbing.",
+            "authority_note": "RAW=identity+topology, plumbing=first-parent delta, RTK=compact stat. "
+                              "empty --name-status is NOT a stat authority; raw_fallback rejected.",
         }
         body["outcome"] = "RUBOCOP_GIT_SHOW_OBSERVED"
         emit()
-        print(f"rubocop git show [{a.mode}]: OBSERVED mode={rtk_proj.get('rtk_output_mode')} "
-              f"raw_derivable={raw_proj.get('derivable')} rtk_derivable={rtk_proj.get('derivable')} "
-              f"crosscheck={cross['consistent']} equivalent={eq.get('equivalent')} "
-              f"(files={raw_proj.get('files_changed')} +{raw_proj.get('insertions')} "
-              f"-{raw_proj.get('deletions')}) (verifier decides PASS)")
+        print(f"rubocop git show [{a.mode}]: OBSERVED rtk_mode={rtk_proj.get('rtk_output_mode')} "
+              f"is_merge={raw_id.get('is_merge')} first_parent={first_parent[:8]} "
+              f"fp_stat=(f{fp_stat.get('files_changed')} +{fp_stat.get('insertions')} -{fp_stat.get('deletions')}) "
+              f"show_stat_ok={body['show_stat_matches_first_parent']} "
+              f"abbrev_unique={body['oracle_observation']['abbrev_uniquely_resolves']} "
+              f"equivalent={eq.get('equivalent')} mismatches={eq.get('mismatches')} (verifier decides PASS)")
         return 0
     except Exception as e:  # noqa: BLE001
         import traceback
