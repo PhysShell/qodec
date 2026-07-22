@@ -29,16 +29,20 @@ import n2e_resolved_loader as L  # noqa: E402
 import n2e_manifest_binding as mb  # noqa: E402
 import n2e_qualification_dispatch as disp  # noqa: E402
 import n2e_qualification_dispatch_v3 as disp3  # noqa: E402
+import n2e_qualification_dispatch_v4 as disp4  # noqa: E402
 
 # dispatch-generation router: a case's dispatch_policy_id selects EXACTLY one immutable generation.
-# v2 froze after Loghub; v3 is case-scoped to the rubocop merge oracle; future oracles get v4+. Each
-# generation's module is BYTE-PINNED by its frozen records' dispatch_code_identity, so the router
-# references each module's exact functions (never mutates a module to add generic aliases).
+# v2 froze after Loghub; v3 is case-scoped to the rubocop merge oracle; v4 to the php-cs-fixer
+# commit-identity oracle; future oracles get v5+. Each generation's module is BYTE-PINNED by its
+# frozen records' dispatch_code_identity, so the router references each module's exact functions
+# (never mutates a module to add generic aliases).
 _DISPATCH_MODULES = {
     disp.DISPATCH_POLICY_ID: {"bind": disp.bind_dispatch_v2, "recompute": disp.recompute_dispatch_v2,
                               "err": disp.DispatchError},
     disp3.DISPATCH_POLICY_ID: {"bind": disp3.bind_dispatch_v3, "recompute": disp3.recompute_dispatch_v3,
                                "err": disp3.DispatchError},
+    disp4.DISPATCH_POLICY_ID: {"bind": disp4.bind_dispatch_v4, "recompute": disp4.recompute_dispatch_v4,
+                               "err": disp4.DispatchError},
 }
 import verify_n2e_resolved_twelve_manifest as VM  # noqa: E402
 

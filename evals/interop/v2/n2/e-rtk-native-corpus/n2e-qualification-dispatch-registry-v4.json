@@ -1,0 +1,24 @@
+{
+  "dispatch_policy_id": "n2e-qualification-dispatch-v4",
+  "entries": [
+    {
+      "allowed_case_ids": [
+        "php-cs-fixer__php-cs-fixer-8075::git::commit"
+      ],
+      "canonicalization_policy_id": "git-v1",
+      "dispatch_policy_id": "n2e-qualification-dispatch-v4",
+      "oracle_module_sha256": "e149f39a5013606612ba74d6a531c850d1f79a833bb1cf0c5fb2b21f3552183b",
+      "policy_id": "rtk-git-commit-oracle-v1",
+      "qualification_kind": "rtk_command_oracle",
+      "rtk_source_identity_sha256": "28afec6faa88abf611f4e4963a931cce5d91bc8428854c3d0144a7a959c41726"
+    }
+  ],
+  "generated_by": "tools/(inline) registry-v4 for php-cs-fixer commit-identity oracle",
+  "mission": "N2-E",
+  "mission_title": "external RTK-native claim-aligned command corpus",
+  "purpose": "Immutable, checksum-pinned, CASE-SCOPED registry for dispatch-v4. One entry: the php-cs-fixer commit-identity oracle bound to php-cs-fixer::git::commit ONLY (exact-one-match; no family-level binding). Future oracles (Redis) enter via NEW dispatch generations, never here.",
+  "record_sha256": "sha256:b6b5beb36f37e70a762552726ef4e80d4f207d614e31abfe7f40e89ee0a8c334",
+  "record_type": "n2e-qualification-dispatch-registry",
+  "record_version": "v1",
+  "schema_version": "n2e-record-1"
+}

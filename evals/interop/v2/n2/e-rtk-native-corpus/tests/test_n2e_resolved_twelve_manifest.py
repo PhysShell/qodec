@@ -137,12 +137,13 @@ class TestTwelveManifest(unittest.TestCase):
 
     # ---------- dispatch routing axis ----------
     def test_green_dispatch_routed_cases(self):
-        # exactly the two grounded command-oracle cases carry a dispatch_policy_id: loghub -> v2,
-        # rubocop (merge) -> v3. Every other case routes legacy (cq).
+        # exactly the grounded command-oracle cases carry a dispatch_policy_id: loghub -> v2,
+        # rubocop (merge) -> v3, php-cs-fixer (commit) -> v4. Every other case routes legacy (cq).
         routed = {x["case_id"]: x["dispatch_policy_id"]
                   for x in self.rec["cases"] if x.get("dispatch_policy_id") is not None}
         self.assertEqual(routed, {"loghub::HDFS::log": "n2e-qualification-dispatch-v2",
-                                  "rubocop__rubocop-13687::git::show": "n2e-qualification-dispatch-v3"})
+                                  "rubocop__rubocop-13687::git::show": "n2e-qualification-dispatch-v3",
+                                  "php-cs-fixer__php-cs-fixer-8075::git::commit": "n2e-qualification-dispatch-v4"})
         for cid in routed:
             e = next(x for x in self.rec["cases"] if x["case_id"] == cid)
             self.assertEqual(e["qualification_kind"], "rtk_command_oracle")

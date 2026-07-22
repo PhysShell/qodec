@@ -1,0 +1,110 @@
+{
+  "barred_from_qualification": true,
+  "base_commit": "f0a95a77782538eafca6c4d2f2f2792be3dbbfcf",
+  "case_id": "php-cs-fixer__php-cs-fixer-8075::git::commit",
+  "determinant_policy_id": "git-commit-determinant-v1",
+  "diagnostic_runs": [
+    {
+      "impl_commit": "c8d5c5e",
+      "note": "determinant-pinned diagnostic; RAW git commit OID == RTK rtk git commit OID (53baffeff89e113945b6026abac44ed27444d5db); OID reproduced, never normalized.",
+      "run_id": "29931508634",
+      "workflow": "qodec-n2e-php-cs-fixer-git-commit"
+    }
+  ],
+  "fixtures_dir": "evidence/php-cs-fixer-git-commit-diag",
+  "frozen_fixtures": {
+    "raw.plumb.head.bin": {
+      "bytes": 41,
+      "sha256": "c9d1a28758a57e421d978a730a16fc68282303e9d0862a826ed77a78acb4eb8c"
+    },
+    "raw.plumb.name_status.bin": {
+      "bytes": 16,
+      "sha256": "5a388d98b28eadd6bca2ee73ce648886be5eccd8bfde86d57ae31cfb9c7042ff"
+    },
+    "raw.plumb.parent.bin": {
+      "bytes": 41,
+      "sha256": "46ff9575543c1466edfc3913aa4bb8b046c2a2eab142dfbd4b8d03d266b95514"
+    },
+    "raw.stdout.bin": {
+      "bytes": 94,
+      "sha256": "04c68ef2f88a440c258ac2264cb29c4c08c14f84a38bc991f34e207fd5ff2b61"
+    },
+    "rtk.plumb.head.bin": {
+      "bytes": 41,
+      "sha256": "c9d1a28758a57e421d978a730a16fc68282303e9d0862a826ed77a78acb4eb8c"
+    },
+    "rtk.plumb.name_status.bin": {
+      "bytes": 16,
+      "sha256": "5a388d98b28eadd6bca2ee73ce648886be5eccd8bfde86d57ae31cfb9c7042ff"
+    },
+    "rtk.plumb.parent.bin": {
+      "bytes": 41,
+      "sha256": "46ff9575543c1466edfc3913aa4bb8b046c2a2eab142dfbd4b8d03d266b95514"
+    },
+    "rtk.stdout.bin": {
+      "bytes": 11,
+      "sha256": "80436b3903a346c2320ac86fc670589cd82bf260b02d8ab4381a21e3a0949ecd"
+    }
+  },
+  "generated_by": "tools/(inline) freeze php-cs-fixer git-commit determinant-pinned diagnostic",
+  "mission": "N2-E",
+  "mission_title": "external RTK-native claim-aligned command corpus",
+  "non_normative_note": "RTK reports ONLY outcome + the created commit's abbreviated OID (`ok 53baffe`); the subject, author/committer identity, parent and changed paths are NOT claimed by the oracle -- the resulting-ref identity (RAW OID == RTK OID, parent == base, abbrev is a prefix) is proven from git plumbing on each arm's own checkout.",
+  "observed": {
+    "equivalence": {
+      "compared": [
+        "outcome",
+        "commit_created",
+        "resulting_ref_oid_equal",
+        "parent_is_base",
+        "abbreviated_oid_prefix"
+      ],
+      "equivalent": true,
+      "mismatches": [],
+      "note": "resulting-ref identity: RAW commit OID == RTK commit OID (reproducible; never normalized), both parents == base, RTK abbrev is a prefix. Subject / author / committer / changed-paths are NOT claimed (RTK does not report them).",
+      "raw_commit_oid": "53baffeff89e113945b6026abac44ed27444d5db",
+      "rtk_abbreviated_oid": "53baffe",
+      "rtk_commit_oid": "53baffeff89e113945b6026abac44ed27444d5db"
+    },
+    "oid_reproduced": true,
+    "raw_git_state": {
+      "changed_paths": [
+        "N2E_DIRTY.txt"
+      ],
+      "created": true,
+      "derivable": true,
+      "exit_code": 0,
+      "full_commit_oid": "53baffeff89e113945b6026abac44ed27444d5db",
+      "outcome": "committed",
+      "parent_oid": "f0a95a77782538eafca6c4d2f2f2792be3dbbfcf"
+    },
+    "raw_stdout_text": "[detached HEAD 53baffe] n2e\n 1 file changed, 1 insertion(+)\n create mode 100644 N2E_DIRTY.txt\n",
+    "rtk_git_state": {
+      "changed_paths": [
+        "N2E_DIRTY.txt"
+      ],
+      "created": true,
+      "derivable": true,
+      "exit_code": 0,
+      "full_commit_oid": "53baffeff89e113945b6026abac44ed27444d5db",
+      "outcome": "committed",
+      "parent_oid": "f0a95a77782538eafca6c4d2f2f2792be3dbbfcf"
+    },
+    "rtk_parsed": {
+      "abbreviated_oid": "53baffe",
+      "created": true,
+      "derivable": true,
+      "outcome": "committed"
+    },
+    "rtk_stdout_text": "ok 53baffe"
+  },
+  "oracle_policy_id": "rtk-git-commit-oracle-v1",
+  "purpose": "Frozen barred provenance for the php-cs-fixer::git::commit determinant-pinned diagnostic. Validates rtk-git-commit-oracle-v1 end-to-end: under the pinned git-commit-determinant-v1 policy the RAW `git commit` and RTK `rtk git commit`, run on two byte-identical prepared checkouts, produce the SAME full commit OID (the hash is never normalized). BARRED: emits no gate; its run/impl are barred from acceptance.",
+  "record_kind": "php_cs_fixer_git_commit_diagnostic_capture",
+  "record_sha256": "sha256:3ee080b3c32911c6d9138f0cbe792cc7c6ce8dd31f1f322e684dd01ae928fe13",
+  "record_type": "n2e-php-cs-fixer-git-commit-diagnostic-provenance",
+  "record_version": "v1",
+  "reproduced_commit_oid": "53baffeff89e113945b6026abac44ed27444d5db",
+  "schema_version": "n2e-record-1",
+  "staged_tree_oid": "deca95998ea13f9738ca2050f2d4a1a92e910b0d"
+}
