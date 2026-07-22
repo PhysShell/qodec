@@ -129,3 +129,57 @@ class TestExcerptAnchoring(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+import copy  # noqa: E402
+import verify_n2e_log_evidence_capsule as vcap  # noqa: E402
+
+
+class TestVerifierReplay(unittest.TestCase):
+    def setUp(self):
+        self.src = HDFS * 20000            # multi-chunk so Merkle/excerpt anchoring is non-trivial
+        self.c = cap.build_capsule(self.src, "raw", ["cat", "HDFS.log"], 0)
+
+    def test_green_faithful_capsule_verifies(self):
+        f = vcap.verify(self.c, self.src)
+        self.assertEqual(f["bytes"], len(self.src))
+        self.assertEqual(f["outcome"], "parsed")
+
+    def test_red_byte_undercount_claiming_eof(self):
+        bad = copy.deepcopy(self.c)
+        bad["stream"]["bytes"] -= 100        # claims read_to_eof but under-counts
+        with self.assertRaises(vcap.LogCapsuleVerifyError):
+            vcap.verify(bad, self.src)
+
+    def test_red_tampered_full_hash(self):
+        bad = copy.deepcopy(self.c); bad["stream"]["sha256"] = "0" * 64
+        with self.assertRaises(vcap.LogCapsuleVerifyError):
+            vcap.verify(bad, self.src)
+
+    def test_red_tampered_merkle_root(self):
+        bad = copy.deepcopy(self.c); bad["stream"]["chunking"]["merkle_root"] = "0" * 64
+        with self.assertRaises(vcap.LogCapsuleVerifyError):
+            vcap.verify(bad, self.src)
+
+    def test_red_mutated_summary(self):
+        bad = copy.deepcopy(self.c); bad["summary"]["severity_counts"]["INFO"] += 1
+        with self.assertRaises(vcap.LogCapsuleVerifyError):
+            vcap.verify(bad, self.src)
+
+    def test_red_forged_excerpt_content(self):
+        bad = copy.deepcopy(self.c)
+        if not bad["excerpts"]:
+            self.skipTest("no excerpts")
+        bad["excerpts"][0]["content"] = "forged line not in the stream\n"
+        with self.assertRaises(vcap.LogCapsuleVerifyError):
+            vcap.verify(bad, self.src)
+
+    def test_red_canon_module_drift(self):
+        bad = copy.deepcopy(self.c); bad["canon"]["module_sha256"] = "f" * 64
+        with self.assertRaises(vcap.LogCapsuleVerifyError):
+            vcap.verify(bad, self.src)
+
+    def test_red_source_swapped_under_capsule(self):
+        # the capsule is faithful to self.src, but verifying it against a DIFFERENT stream fails
+        with self.assertRaises(vcap.LogCapsuleVerifyError):
+            vcap.verify(self.c, self.src + b"081109 203615 148 ERROR x: extra\n")
