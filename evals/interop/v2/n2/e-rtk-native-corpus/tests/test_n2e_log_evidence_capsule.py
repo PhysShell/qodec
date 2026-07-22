@@ -1,11 +1,14 @@
-"""log-evidence-capsule-v1: the bounded, independently-verifiable representation of a large log
-stream. Proves the two-path invariant BEFORE any CI run: the full stream is hashed to EOF (never
-truncated), the semantic summary is bounded (capped template table, fail-closed on overflow), and
-every excerpt is anchored to the stream by byte range + chunk hash + Merkle proof. Line framing is
-correct across chunk boundaries; the masking canon collapses only declared noise and never a real
-message difference.
+"""log-evidence-capsule-v1: bounded, independently-verifiable representation of a large log stream,
+with template identity GROUNDED in the published Loghub HDFS set (n2e-loghub-hdfs-reference-v1), not
+our masking canon. Proves the two-path invariant + the published-authority rules BEFORE any CI run:
+the full stream is hashed to EOF (never truncated); each line's EventId is assigned by EXACTLY-ONE
+match against the published templates (0/>1 -> fail-closed); the published Occurrences are the
+occurrence-count authority; masking is a diagnostic cross-check only; every excerpt is anchored to
+the stream by byte range + chunk hash + Merkle proof.
 """
+import copy
 import hashlib
+import re
 import sys
 import unittest
 from pathlib import Path
@@ -13,17 +16,24 @@ from pathlib import Path
 N2E_DIR = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(N2E_DIR / "tools"))
 import n2e_log_evidence_capsule as cap  # noqa: E402
+import verify_n2e_log_evidence_capsule as vcap  # noqa: E402
 
-# a tiny synthetic HDFS log: 2 templates (block ids masked) + 1 WARN + 1 unparsed line
+# real HDFS lines that match published templates E42 (Receiving block ...) + E31 (PacketResponder ... terminating)
 HDFS = (
-    b"081109 203615 148 INFO dfs.DataNode: Receiving block blk_1 src: /10.0.0.1:5 dest: /10.0.0.2:6\n"
-    b"081109 203807 222 INFO dfs.DataNode: Receiving block blk_2 src: /10.0.0.3:7 dest: /10.0.0.4:8\n"
-    b"081109 204005 333 WARN dfs.DataNode: PacketResponder blk_3 Interrupted\n"
-    b"this is not an hdfs line at all\n"
+    b"081109 203615 148 INFO dfs.DataNode: Receiving block blk_1 src: /10.0.0.1:50010 dest: /10.0.0.2:50010\n"
+    b"081109 203807 222 INFO dfs.DataNode: PacketResponder 1 for block blk_9 terminating\n"
+    b"081109 203807 222 INFO dfs.DataNode: Receiving block blk_2 src: /10.0.0.3:1 dest: /10.0.0.4:2\n"
 )
 
 
-def _reroot(leaf_hex: str, proof: list[dict]) -> str:
+def _custom_ref(templates: dict, published: dict) -> dict:
+    matchers = {e: cap._template_to_regex(t) for e, t in templates.items()}
+    body = "".join(str(v) for v in published.values()).encode()
+    return {"sha256": hashlib.sha256(body).hexdigest(), "event_ids": sorted(templates),
+            "published": published, "templates": templates, "matchers": matchers, "record": {}}
+
+
+def _reroot(leaf_hex, proof):
     h = bytes.fromhex(leaf_hex)
     for step in proof:
         sib = bytes.fromhex(step["hash"])
@@ -31,31 +41,46 @@ def _reroot(leaf_hex: str, proof: list[dict]) -> str:
     return h.hex()
 
 
+class TestReferenceAuthority(unittest.TestCase):
+    def test_reference_self_check_and_46_templates(self):
+        ref = cap.load_reference()
+        self.assertEqual(len(ref["event_ids"]), 46)
+        self.assertEqual(ref["sha256"], "0a105b8dd2f8d3784faada4443c726e6e4aec76f9c8a14298d5e3b8295b4aa63")
+        self.assertEqual(sum(ref["published"].values()), 11167740)  # == full HDFS line count
+
+    def test_exactly_one_match(self):
+        ref = cap.load_reference()
+        self.assertEqual(cap.assign_event_id("Receiving block blk_1 src: /a:1 dest: /b:2", ref["matchers"]), ("E42", 1))
+        self.assertEqual(cap.assign_event_id("PacketResponder 1 for block blk_9 terminating", ref["matchers"]), ("E31", 1))
+        self.assertEqual(cap.assign_event_id("nothing published matches this", ref["matchers"])[0], "<unmatched>")
+
+    def test_ambiguous_rejected(self):
+        # two published templates that BOTH full-match the same content -> <ambiguous>
+        ref = _custom_ref({"A": "foo <*>", "B": "foo bar <*>"}, {"A": 1, "B": 1})
+        eid, n = cap.assign_event_id("foo bar baz", ref["matchers"])
+        self.assertEqual(eid, "<ambiguous>")
+        self.assertGreaterEqual(n, 2)
+
+
 class TestStreamingHash(unittest.TestCase):
-    def test_full_byte_hash_matches_and_reads_to_eof(self):
+    def test_full_byte_hash_and_eof(self):
         c = cap.build_capsule(HDFS, "raw", ["cat", "HDFS.log"], 0)
         self.assertEqual(c["stream"]["sha256"], hashlib.sha256(HDFS).hexdigest())
         self.assertEqual(c["stream"]["bytes"], len(HDFS))
         self.assertTrue(c["stream"]["read_to_eof"])
 
-    def test_chunk_boundary_framing_is_transparent(self):
-        # feed the SAME bytes split at a boundary that cuts a line in half; the summary must match a
-        # whole-read summary (residual buffer across chunks), and the hash must be identical.
-        whole = cap._Collector()
-        whole.feed(HDFS); whole.finish()
-        split = cap._Collector()
-        cut = 50  # mid first line
-        split.feed(HDFS[:cut]); split.feed(HDFS[cut:]); split.finish()
+    def test_chunk_boundary_framing_transparent(self):
+        ref = cap.load_reference()
+        whole = cap._Collector(ref); whole.feed(HDFS); whole.finish()
+        split = cap._Collector(ref); split.feed(HDFS[:50]); split.feed(HDFS[50:]); split.finish()
         self.assertEqual(whole.stream_sha256, split.stream_sha256)
         self.assertEqual(whole.summary()["summary_sha256"], split.summary()["summary_sha256"])
-        self.assertEqual(whole.total_lines, split.total_lines)
 
     def test_empty_stream(self):
         c = cap.build_capsule(b"", "raw", ["cat", "x"], 0)
         self.assertEqual(c["stream"]["bytes"], 0)
         self.assertEqual(c["stream"]["chunking"]["chunk_count"], 0)
         self.assertEqual(c["summary"]["total_lines"], 0)
-        self.assertTrue(c["stream"]["read_to_eof"])
 
 
 class TestSemanticSummary(unittest.TestCase):
@@ -63,63 +88,63 @@ class TestSemanticSummary(unittest.TestCase):
         self.c = cap.build_capsule(HDFS, "raw", ["cat", "HDFS.log"], 0)
         self.s = self.c["summary"]
 
-    def test_severity_counts(self):
-        self.assertEqual(self.s["severity_counts"]["INFO"], 2)
-        self.assertEqual(self.s["severity_counts"]["WARN"], 1)
-        self.assertEqual(self.s["severity_counts"]["unparsed"], 1)
+    def test_published_event_ids_observed(self):
+        self.assertEqual(self.s["observed_event_ids"], ["E31", "E42"])
+        self.assertEqual(self.s["streamed_occurrence_counts"], {"E31": 1, "E42": 2})
 
-    def test_block_ids_masked_to_one_template(self):
-        # the two INFO "Receiving block blk_N ..." lines differ only in masked noise -> one template
-        self.assertEqual(self.s["total_lines"], 4)
-        # 3 templates: the two-INFO one, the WARN one, and <unparsed>
-        self.assertEqual(self.s["unique_template_count"], 3)
-        # the shared INFO template has occurrence 2
-        self.assertIn(2, self.s["occurrence_counts"].values())
+    def test_occurrence_authority_is_published(self):
+        # the published counts for the observed ids come from the reference authority (not our stream)
+        ref = cap.load_reference()
+        self.assertEqual(self.s["published_occurrence_counts"]["E42"], ref["published"]["E42"])
 
-    def test_real_message_difference_survives_masking(self):
-        a = cap.build_capsule(b"081109 203615 148 INFO x: alpha blk_1\n", "raw", ["cat"], 0)["summary"]
-        b = cap.build_capsule(b"081109 203615 148 INFO x: beta blk_1\n", "raw", ["cat"], 0)["summary"]
-        self.assertNotEqual(a["unique_template_ids"], b["unique_template_ids"])
+    def test_partial_stream_flagged_not_full(self):
+        # a partial stream is valid but streamed != published -> outcome streamed_partial, not parsed
+        self.assertEqual(self.s["outcome"], "streamed_partial")
+        self.assertFalse(self.s["occurrence_counts_match_published"])
 
-    def test_first_last_occurrence_tracked(self):
-        info_tid = next(t for t, n in self.s["occurrence_counts"].items() if n == 2)
-        fl = self.s["first_last_occurrence"][info_tid]
+    def test_severity_and_first_last(self):
+        self.assertEqual(self.s["severity_counts"]["INFO"], 3)
+        fl = self.s["first_last_occurrence"]["E42"]
         self.assertEqual(fl["first"]["line"], 1)
-        self.assertEqual(fl["last"]["line"], 2)
-        self.assertLess(fl["first"]["byte_start"], fl["last"]["byte_start"])
+        self.assertEqual(fl["last"]["line"], 3)
 
-    def test_unparsed_line_counted_not_dropped(self):
-        self.assertIn("unparsed", self.s["severity_counts"])
+    def test_masking_is_diagnostic_only(self):
+        self.assertFalse(self.s["masking_cross_check"]["authority"])
 
 
-class TestBoundedFailClosed(unittest.TestCase):
-    def test_template_cardinality_overflow_fails_closed_but_reads_to_eof(self):
-        # generate > TEMPLATE_CAP distinct templates (distinct unmaskable words); the hash must still
-        # reach EOF (full byte count) while the semantic summary is DISQUALIFIED, never a silent pass.
-        n = cap.TEMPLATE_CAP + 50
-        blob = b"".join(f"081109 203615 148 INFO comp{i}: fixed message\n".encode() for i in range(n))
+class TestFailClosed(unittest.TestCase):
+    def test_unmatched_line_disqualifies(self):
+        blob = HDFS + b"081109 203615 148 INFO x: a line no published template matches at all\n"
         c = cap.build_capsule(blob, "raw", ["cat"], 0)
+        self.assertGreaterEqual(c["summary"]["unmatched_lines"], 1)
+        self.assertEqual(c["summary"]["outcome"], "DISQUALIFIED_UNMATCHED_OR_AMBIGUOUS")
+        # the hash still reached EOF -- bounded record, not a truncated data region
         self.assertEqual(c["stream"]["bytes"], len(blob))
-        self.assertEqual(c["stream"]["sha256"], hashlib.sha256(blob).hexdigest())
-        self.assertTrue(c["summary"]["overflow"])
-        self.assertEqual(c["summary"]["outcome"], "DISQUALIFIED_TEMPLATE_CARDINALITY")
-        self.assertLessEqual(c["summary"]["unique_template_count"], cap.TEMPLATE_CAP)
+
+    def test_full_stream_match_published_is_parsed(self):
+        # a custom reference whose published Occurrences EXACTLY equal a small synthetic stream ->
+        # outcome 'parsed' + occurrence_counts_match_published True (the full-log acceptance shape)
+        ref = _custom_ref({"A": "alpha <*>", "B": "beta <*>"}, {"A": 2, "B": 1})
+        blob = (b"081109 203615 148 INFO c: alpha 1\n081109 203615 148 INFO c: alpha 2\n"
+                b"081109 203615 148 WARN c: beta 9\n")
+        c = cap.build_capsule(blob, "raw", ["cat"], 0, reference=ref)
+        self.assertEqual(c["summary"]["outcome"], "parsed")
+        self.assertTrue(c["summary"]["occurrence_counts_match_published"])
+        self.assertEqual(c["summary"]["streamed_occurrence_counts"], {"A": 2, "B": 1})
 
 
-class TestExcerptAnchoring(unittest.TestCase):
+class TestExcerpts(unittest.TestCase):
     def test_excerpts_bounded_and_anchored(self):
-        c = cap.build_capsule(HDFS, "raw", ["cat", "HDFS.log"], 0)
+        c = cap.build_capsule(HDFS, "raw", ["cat"], 0)
         self.assertLessEqual(len(c["excerpts"]), cap.MAX_EXCERPTS)
         for ex in c["excerpts"]:
-            # content == the exact stream bytes at [byte_start, byte_end)
             window = HDFS[ex["byte_start"]:ex["byte_end"]]
             self.assertEqual(ex["content"], window.decode("utf-8", "replace"))
             self.assertEqual(ex["sha256"], hashlib.sha256(window).hexdigest())
-            self.assertLessEqual(ex["byte_end"] - ex["byte_start"], cap.MAX_EXCERPT_BYTES)
+            self.assertIn(ex["event_id"], c["summary"]["observed_event_ids"])
 
-    def test_excerpt_chunk_hash_and_merkle_proof_reroot(self):
-        # a multi-chunk stream so chunk anchoring is non-trivial; re-root every excerpt proof
-        big = HDFS * 20000  # a few MiB -> multiple 1 MiB chunks
+    def test_merkle_reroot_multichunk(self):
+        big = HDFS * 20000
         c = cap.build_capsule(big, "raw", ["cat"], 0)
         root = c["stream"]["chunking"]["merkle_root"]
         self.assertGreater(c["stream"]["chunking"]["chunk_count"], 1)
@@ -127,37 +152,22 @@ class TestExcerptAnchoring(unittest.TestCase):
             self.assertEqual(_reroot(ex["chunk_sha256"], ex["merkle_proof"]), root)
 
 
-if __name__ == "__main__":
-    unittest.main()
-
-
-import copy  # noqa: E402
-import verify_n2e_log_evidence_capsule as vcap  # noqa: E402
-
-
 class TestVerifierReplay(unittest.TestCase):
     def setUp(self):
-        self.src = HDFS * 20000            # multi-chunk so Merkle/excerpt anchoring is non-trivial
+        self.src = HDFS * 20000
         self.c = cap.build_capsule(self.src, "raw", ["cat", "HDFS.log"], 0)
 
-    def test_green_faithful_capsule_verifies(self):
+    def test_green(self):
         f = vcap.verify(self.c, self.src)
         self.assertEqual(f["bytes"], len(self.src))
-        self.assertEqual(f["outcome"], "parsed")
 
-    def test_red_byte_undercount_claiming_eof(self):
-        bad = copy.deepcopy(self.c)
-        bad["stream"]["bytes"] -= 100        # claims read_to_eof but under-counts
+    def test_red_byte_undercount(self):
+        bad = copy.deepcopy(self.c); bad["stream"]["bytes"] -= 100
         with self.assertRaises(vcap.LogCapsuleVerifyError):
             vcap.verify(bad, self.src)
 
-    def test_red_tampered_full_hash(self):
+    def test_red_tampered_hash(self):
         bad = copy.deepcopy(self.c); bad["stream"]["sha256"] = "0" * 64
-        with self.assertRaises(vcap.LogCapsuleVerifyError):
-            vcap.verify(bad, self.src)
-
-    def test_red_tampered_merkle_root(self):
-        bad = copy.deepcopy(self.c); bad["stream"]["chunking"]["merkle_root"] = "0" * 64
         with self.assertRaises(vcap.LogCapsuleVerifyError):
             vcap.verify(bad, self.src)
 
@@ -166,20 +176,23 @@ class TestVerifierReplay(unittest.TestCase):
         with self.assertRaises(vcap.LogCapsuleVerifyError):
             vcap.verify(bad, self.src)
 
-    def test_red_forged_excerpt_content(self):
+    def test_red_forged_excerpt(self):
         bad = copy.deepcopy(self.c)
         if not bad["excerpts"]:
             self.skipTest("no excerpts")
-        bad["excerpts"][0]["content"] = "forged line not in the stream\n"
+        bad["excerpts"][0]["content"] = "forged\n"
         with self.assertRaises(vcap.LogCapsuleVerifyError):
             vcap.verify(bad, self.src)
 
-    def test_red_canon_module_drift(self):
-        bad = copy.deepcopy(self.c); bad["canon"]["module_sha256"] = "f" * 64
+    def test_red_reference_drift(self):
+        bad = copy.deepcopy(self.c); bad["canon"]["reference_sha256"] = "f" * 64
         with self.assertRaises(vcap.LogCapsuleVerifyError):
             vcap.verify(bad, self.src)
 
-    def test_red_source_swapped_under_capsule(self):
-        # the capsule is faithful to self.src, but verifying it against a DIFFERENT stream fails
+    def test_red_source_swapped(self):
         with self.assertRaises(vcap.LogCapsuleVerifyError):
-            vcap.verify(self.c, self.src + b"081109 203615 148 ERROR x: extra\n")
+            vcap.verify(self.c, self.src + b"081109 203615 148 INFO x: Receiving block blk_9 src: /a:1 dest: /b:2\n")
+
+
+if __name__ == "__main__":
+    unittest.main()

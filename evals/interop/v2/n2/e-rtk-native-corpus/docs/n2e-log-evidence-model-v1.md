@@ -34,31 +34,56 @@ reach EOF:
 Bounded memory guarantees: chunk hashing is O(1) rolling + a bounded root; the template table
 is capped; excerpts are capped in count and window size.
 
-## The `log-hdfs-v1` canon (declared, ordered)
+## Template identity: the published Loghub set is the authority
 
-- **Framing**: split on `\n`; the trailing partial line at a chunk boundary is carried in a
-  residual buffer; a final unterminated line is a real line. No truncation for hashing.
-- **Encoding**: bytes; decode per-line `utf-8` with `replace` ONLY for template derivation; the
-  hash is over raw bytes.
-- **Line grammar**: HDFS `YYMMDD HHMMSS PID LEVEL COMPONENT: MESSAGE`. `LEVEL ∈
-  {INFO,WARN,WARNING,ERROR,FATAL,DEBUG}` (others → `other`). A line that does not match is
-  `severity=unparsed`, `template=<unparsed>` (counted, never dropped).
-- **Template masking** (ordered, exact grammar only): `blk_-?\d+ → blk_<*>`; IPv4[:port] `→
-  <ip>`; `/`-rooted paths `→ <path>`; standalone integers `→ <num>`. `template_id =
-  sha256(component + "\x00" + masked_message)[:16]`. Masking touches only these forms; a real
-  message difference survives (mutation-tested).
+`unique_template_ids` is defined by the PUBLISHED Loghub-2.0 HDFS template set, NOT by our own
+masking. The pinned reference `n2e-loghub-hdfs-reference-v1` carries the committed
+`n2e-loghub-hdfs-templates.csv` (extracted from the checksum-pinned Zenodo `HDFS.zip` member
+`HDFS/HDFS_full.log_templates.csv`, sha256
+`0a105b8dd2f8d3784faada4443c726e6e4aec76f9c8a14298d5e3b8295b4aa63`, 4181 B, 46 templates) — each
+`EventId`, its `EventTemplate`, and its published `Occurrences`. The published Occurrences sum to
+11 167 740 == the exact full-log line count (the set covers every line).
+
+- **Line grammar**: HDFS `YYMMDD HHMMSS PID LEVEL COMPONENT: CONTENT`. `LEVEL ∈
+  {INFO,WARN,WARNING,ERROR,FATAL,DEBUG}` (others → `other`).
+- **EventId assignment**: each line's `CONTENT` is matched against the published `EventTemplate`s
+  (each `<*>` → `.*?`, anchored full-match) with the EXACTLY-ONE-MATCH rule — one match → that
+  published EventId; **zero → reject (`<unmatched>`); more than one → reject (`<ambiguous>`)**.
+  Any unmatched/ambiguous line makes the summary
+  `outcome=DISQUALIFIED_UNMATCHED_OR_AMBIGUOUS`, never a silent pass.
+- **Occurrence-count authority**: the published `Occurrences`. The single streamed pass counts
+  per-EventId occurrences and they MUST equal the published values for the full stream
+  (`occurrence_counts_match_published`); a partial/sub stream is `outcome=streamed_partial`
+  (valid, not the full published log); the full-log acceptance requires `outcome=parsed`.
+- **severity_counts / first_last_occurrence**: from the same streamed pass (Level field; first &
+  last line + byte offset per EventId).
+- **Masking is diagnostic ONLY**: an ordered masking cross-check (`blk_<*>`/`<ip>`/`<path>`/`<num>`)
+  records a distinct-masked count in `masking_cross_check` with `authority=false`. It may
+  summarize or validate; it never defines identity. (A full masked↔published bijection is separate
+  research and not required for qualification.)
+- **Framing**: split on `\n`; residual buffer across chunk boundaries; a final unterminated line is
+  a real line. No truncation for hashing; the hash is over raw bytes.
+
+The 1.7 GB per-line `HDFS_full.log_structured.csv` is pinned by identity for optional future per-line
+escalation; the base qualification does not stream it — the exactly-one-match rule + the published
+occurrence-count equality already bind our per-line assignment to the published labeling in
+aggregate.
 
 ## Capsule schema (`n2e-log-evidence-capsule`)
 
 ```
 stream:  { role, invoked_argv, exit_status, bytes, sha256, read_to_eof,
            chunking: { chunk_bytes, chunk_count, merkle_root } }
-canon:   { dialect: "log-hdfs-v1", module_sha256, framing, encoding, masking_rules,
-           template_cap, truncation_policy: "none-for-hashing" }
-summary: { outcome, total_lines, severity_counts, unique_template_count,
-           unique_template_ids[sorted], occurrence_counts, first_last_occurrence,
-           overflow, summary_sha256 }
-excerpts:[ { stream, template_id, byte_start, byte_end, chunk_index, chunk_sha256,
+canon:   { dialect: "log-hdfs-v1", module_sha256, identity_authority,
+           reference_sha256, framing, encoding, masking_cross_check,
+           truncation_policy: "none-for-hashing" }
+summary: { reference_sha256, reference_template_count, outcome, total_lines,
+           severity_counts, observed_event_ids[sorted], unique_template_count,
+           streamed_occurrence_counts, published_occurrence_counts,
+           occurrence_counts_match_published, first_last_occurrence,
+           unmatched_lines, ambiguous_lines,
+           masking_cross_check{ authority:false }, summary_sha256 }
+excerpts:[ { event_id, byte_start, byte_end, chunk_index, chunk_sha256,
              merkle_proof[], sha256, content } ]   # ≤ MAX_EXCERPTS, each ≤ MAX_EXCERPT_BYTES
 identities: { rtk_binary_sha256, source_revision, environment }
 ```

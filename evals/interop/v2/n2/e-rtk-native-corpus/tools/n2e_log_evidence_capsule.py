@@ -1,41 +1,53 @@
 #!/usr/bin/env python3
 """log-evidence-capsule-v1: a compact, deterministic, independently-verifiable representation of a
-large log stream (Loghub HDFS: `cat HDFS.log` is ~1.5 GB). The full stream is NEVER held in memory
-or committed; it is consumed ONCE in fixed chunks through two paths that BOTH reach EOF:
+large log stream (Loghub HDFS: `cat HDFS.log` is ~1.5 GB, 11 167 740 lines). The full stream is
+NEVER held in memory or committed; it is consumed ONCE in fixed chunks through two paths that BOTH
+reach EOF:
 
   1. full-byte hash: every byte -> sha256 + a running byte count + a per-chunk hash whose Merkle
      root is pinned (capsule size is independent of stream size);
   2. bounded semantic extractor: line-framed (newline; residual buffer across chunk boundaries),
-     each line parsed by the declared `log-hdfs-v1` canon into (severity, template_id); a severity
-     counter + a per-template {count, first, last} table CAPPED at TEMPLATE_CAP -- overflow fails
-     closed (DISQUALIFIED_TEMPLATE_CARDINALITY), never a silent pass.
+     each line's Content assigned an EventId from the PUBLISHED Loghub HDFS template set
+     (n2e-loghub-hdfs-reference-v1) by EXACTLY-ONE-MATCH -- zero matches or more than one is a
+     fail-closed reject, never a silent pass. Aggregates a severity counter + a per-EventId
+     {count, first, last} table (bounded by the 46 published templates).
 
-Bounded means the MEMORY and the RECORD are bounded, never the verified data region: the stream is
-always read to EOF and fully hashed. See docs/n2e-log-evidence-model-v1.md for the frozen contract.
+The published set DEFINES identity (unique_template_ids) and the ground-truth per-template
+occurrence_counts; the streamed counts must EQUAL the published Occurrences for the full stream (a
+mismatch is a reject). Our own masking is retained ONLY as a diagnostic cross-check, never as the
+authority. Bounded means MEMORY + RECORD, never a truncated data region: the stream is always read
+to EOF and fully hashed. See docs/n2e-log-evidence-model-v1.md.
 """
 from __future__ import annotations
 
+import csv
 import hashlib
+import io
+import json
 import re
 from pathlib import Path
 
 CAPSULE_DIALECT = "log-hdfs-v1"
 CHUNK_BYTES = 1 << 20          # 1 MiB fixed chunk for hashing + Merkle leaves
-TEMPLATE_CAP = 4096            # max distinct templates before fail-closed
 MAX_EXCERPTS = 16             # bounded excerpt count
 MAX_EXCERPT_BYTES = 4096      # bounded excerpt window
+
+_HERE = Path(__file__).resolve().parent
+_N2E = _HERE.parent
+REFERENCE_RECORD = _N2E / "n2e-loghub-hdfs-reference-v1.json"
+TEMPLATES_CSV = _N2E / "n2e-loghub-hdfs-templates.csv"
 
 
 class LogCapsuleError(Exception):
     pass
 
 
-# ---- declared, ordered HDFS masking canon (exact grammar only; a real message diff survives) ----
+# ---- diagnostic-only masking cross-check (NEVER the authority for identity) ----
 _MASKS: list[tuple[re.Pattern[bytes], bytes]] = [
-    (re.compile(rb"blk_-?\d+"), b"blk_<*>"),                       # HDFS block ids
-    (re.compile(rb"\b\d{1,3}(?:\.\d{1,3}){3}(?::\d+)?\b"), b"<ip>"),  # IPv4[:port]
-    (re.compile(rb"/[\w./:-]+"), b"<path>"),                      # rooted paths / uris
-    (re.compile(rb"\b\d+\b"), b"<num>"),                          # standalone integers
+    (re.compile(rb"blk_-?\d+"), b"blk_<*>"),
+    (re.compile(rb"\b\d{1,3}(?:\.\d{1,3}){3}(?::\d+)?\b"), b"<ip>"),
+    (re.compile(rb"/[\w./:-]+"), b"<path>"),
+    (re.compile(rb"\b\d+\b"), b"<num>"),
 ]
 _LEVELS = {b"INFO": "INFO", b"WARN": "WARN", b"WARNING": "WARN", b"ERROR": "ERROR",
            b"FATAL": "FATAL", b"DEBUG": "DEBUG"}
@@ -43,30 +55,44 @@ _LEVELS = {b"INFO": "INFO", b"WARN": "WARN", b"WARNING": "WARN", b"ERROR": "ERRO
 _HDFS = re.compile(rb"^\d{6} \d{6} \d+ ([A-Z]+) ([^:]+):[ ]?(.*)$", re.DOTALL)
 
 
-def masking_rules_declared() -> list[dict]:
-    return [{"pattern": p.pattern.decode(), "replacement": r.decode()} for p, r in _MASKS]
-
-
 def canon_module_sha256() -> str:
     return hashlib.sha256(Path(__file__).read_bytes()).hexdigest()
 
 
-def parse_line(line: bytes) -> tuple[str, str, str]:
-    """(severity, template_id, template_text). A line that does not match the HDFS grammar is
-    severity='unparsed', template='<unparsed>' -- counted, NEVER dropped."""
-    body = line[:-1] if line.endswith(b"\n") else line
-    m = _HDFS.match(body)
-    if not m:
-        tid = hashlib.sha256(b"<unparsed>").hexdigest()[:16]
-        return "unparsed", tid, "<unparsed>"
-    level_b, comp_b, msg_b = m.group(1), m.group(2).strip(), m.group(3)
-    severity = _LEVELS.get(level_b, "other")
-    masked = msg_b
-    for pat, repl in _MASKS:
-        masked = pat.sub(repl, masked)
-    template_text = comp_b + b"\x00" + masked
-    tid = hashlib.sha256(template_text).hexdigest()[:16]
-    return severity, tid, template_text.decode("utf-8", "replace")
+def _template_to_regex(template: str) -> re.Pattern[str]:
+    """Compile a published Loghub EventTemplate (with `<*>` wildcards) to an anchored full-match
+    regex. Literal text is escaped; each `<*>` becomes a non-greedy `.*?`."""
+    parts = template.split("<*>")
+    return re.compile("^" + "(?:.*?)".join(re.escape(p) for p in parts) + "$", re.DOTALL)
+
+
+def load_reference() -> dict:
+    """Load + self-check the pinned published HDFS reference. The committed CSV's sha256 MUST equal
+    the digest the reference record pins (fail-closed); returns compiled matchers + published counts."""
+    rec = json.loads(REFERENCE_RECORD.read_text())
+    if rec.get("record_type") != "n2e-loghub-hdfs-reference":
+        raise LogCapsuleError("reference record_type wrong")
+    csv_bytes = TEMPLATES_CSV.read_bytes()
+    ref_sha = hashlib.sha256(csv_bytes).hexdigest()
+    if ref_sha != rec["reference_file"]["sha256"] or len(csv_bytes) != rec["reference_file"]["bytes"]:
+        raise LogCapsuleError("published templates CSV sha256/bytes != pinned reference")
+    rows = list(csv.DictReader(io.StringIO(csv_bytes.decode())))
+    templates = {r["EventId"]: r["EventTemplate"] for r in rows}
+    published = {r["EventId"]: int(r["Occurrences"]) for r in rows}
+    matchers = {eid: _template_to_regex(t) for eid, t in templates.items()}
+    return {"sha256": ref_sha, "event_ids": sorted(templates), "published": published,
+            "templates": templates, "matchers": matchers, "record": rec}
+
+
+def assign_event_id(content: str, matchers: dict) -> tuple[str, int]:
+    """Exactly-one-match against the published templates. Returns (EventId, 1) for a unique match;
+    ('<unmatched>', 0) for zero; ('<ambiguous>', n) for >1 -- both are fail-closed rejects."""
+    hits = [eid for eid, rx in matchers.items() if rx.match(content)]
+    if len(hits) == 1:
+        return hits[0], 1
+    if not hits:
+        return "<unmatched>", 0
+    return "<ambiguous>", len(hits)
 
 
 def _merkle_root(leaves: list[bytes]) -> str:
@@ -74,39 +100,30 @@ def _merkle_root(leaves: list[bytes]) -> str:
         return hashlib.sha256(b"n2e-log-merkle-empty").hexdigest()
     level = list(leaves)
     while len(level) > 1:
-        nxt = []
-        for i in range(0, len(level), 2):
-            a = level[i]
-            b = level[i + 1] if i + 1 < len(level) else level[i]  # duplicate last if odd
-            nxt.append(hashlib.sha256(a + b).digest())
-        level = nxt
+        level = [hashlib.sha256(level[i] + (level[i + 1] if i + 1 < len(level) else level[i])).digest()
+                 for i in range(0, len(level), 2)]
     return level[0].hex()
 
 
 def _merkle_proof(leaves: list[bytes], index: int) -> list[dict]:
-    """Inclusion proof: the sibling hash at each level + its side, re-rooting to _merkle_root."""
     proof: list[dict] = []
     level = list(leaves)
     idx = index
     while len(level) > 1:
-        nxt = []
-        for i in range(0, len(level), 2):
-            a = level[i]
-            b = level[i + 1] if i + 1 < len(level) else level[i]
-            nxt.append(hashlib.sha256(a + b).digest())
         sib = idx ^ 1
         if sib >= len(level):
-            sib = idx  # odd tail duplicated
+            sib = idx
         proof.append({"side": "right" if idx % 2 == 0 else "left", "hash": level[sib].hex()})
+        level = [hashlib.sha256(level[i] + (level[i + 1] if i + 1 < len(level) else level[i])).digest()
+                 for i in range(0, len(level), 2)]
         idx //= 2
-        level = nxt
     return proof
 
 
 class _Collector:
     """Single-pass streaming collector. Feed fixed CHUNK_BYTES chunks; call finish() at EOF."""
 
-    def __init__(self) -> None:
+    def __init__(self, reference: dict) -> None:
         self._h = hashlib.sha256()
         self.total_bytes = 0
         self.chunk_hashes: list[bytes] = []
@@ -114,8 +131,11 @@ class _Collector:
         self._buf_offset = 0
         self.total_lines = 0
         self.severity: dict[str, int] = {}
-        self.templates: dict[str, dict] = {}
-        self.overflow = False
+        self.events: dict[str, dict] = {}     # EventId -> {count, first, last}
+        self.unmatched = 0
+        self.ambiguous = 0
+        self._masks: set[bytes] = set()       # diagnostic masking cross-check (distinct masked)
+        self._ref = reference
 
     def feed(self, chunk: bytes) -> None:
         self._h.update(chunk)
@@ -134,7 +154,7 @@ class _Collector:
             self._buf_offset += s
 
     def finish(self) -> None:
-        if self._buf:  # final unterminated line is a real line
+        if self._buf:
             self._emit(self._buf, self._buf_offset)
             self._buf_offset += len(self._buf)
             self._buf = b""
@@ -142,21 +162,36 @@ class _Collector:
     def _emit(self, line: bytes, byte_start: int) -> None:
         byte_end = byte_start + len(line)
         self.total_lines += 1
-        sev, tid, template = parse_line(line)
+        body = line[:-1] if line.endswith(b"\n") else line
+        m = _HDFS.match(body)
+        if not m:
+            self.severity["unparsed"] = self.severity.get("unparsed", 0) + 1
+            self.unmatched += 1
+            return
+        level_b, _comp, msg_b = m.group(1), m.group(2).strip(), m.group(3)
+        sev = _LEVELS.get(level_b, "other")
         self.severity[sev] = self.severity.get(sev, 0) + 1
-        ent = self.templates.get(tid)
+        # diagnostic masking cross-check (never authority)
+        masked = msg_b
+        for pat, repl in _MASKS:
+            masked = pat.sub(repl, masked)
+        self._masks.add(masked)
+        # AUTHORITY: published EventId by exactly-one-match
+        eid, n = assign_event_id(msg_b.decode("utf-8", "replace"), self._ref["matchers"])
+        if eid == "<unmatched>":
+            self.unmatched += 1
+            return
+        if eid == "<ambiguous>":
+            self.ambiguous += 1
+            return
         occ = {"line": self.total_lines, "byte_start": byte_start, "byte_end": byte_end}
+        ent = self.events.get(eid)
         if ent is None:
-            if len(self.templates) >= TEMPLATE_CAP:
-                self.overflow = True  # stop registering NEW templates; keep hashing to EOF
-                return
-            self.templates[tid] = {"template": template, "count": 1,
-                                   "first": dict(occ), "last": dict(occ)}
+            self.events[eid] = {"count": 1, "first": dict(occ), "last": dict(occ)}
         else:
             ent["count"] += 1
             ent["last"] = dict(occ)
 
-    # ---- derived ----
     @property
     def stream_sha256(self) -> str:
         return self._h.hexdigest()
@@ -165,29 +200,37 @@ class _Collector:
         return _merkle_root(self.chunk_hashes)
 
     def summary(self) -> dict:
-        tids = sorted(self.templates)
-        occ = {t: self.templates[t]["count"] for t in tids}
-        fl = {t: {"first": {k: self.templates[t]["first"][k] for k in ("line", "byte_start", "byte_end")},
-                  "last": {k: self.templates[t]["last"][k] for k in ("line", "byte_start", "byte_end")}}
-              for t in tids}
+        obs = sorted(self.events)
+        streamed = {e: self.events[e]["count"] for e in obs}
+        published = {e: self._ref["published"][e] for e in obs}
+        fl = {e: {"first": self.events[e]["first"], "last": self.events[e]["last"]} for e in obs}
+        match_pub = streamed == published
+        if self.unmatched or self.ambiguous:
+            outcome = "DISQUALIFIED_UNMATCHED_OR_AMBIGUOUS"
+        elif not match_pub:
+            outcome = "streamed_partial"   # a partial/sub stream: valid but not the full published log
+        else:
+            outcome = "parsed"
         body = {
-            "outcome": "DISQUALIFIED_TEMPLATE_CARDINALITY" if self.overflow else "parsed",
+            "reference_sha256": self._ref["sha256"],
+            "reference_template_count": len(self._ref["event_ids"]),
+            "outcome": outcome,
             "total_lines": self.total_lines,
             "severity_counts": {k: self.severity[k] for k in sorted(self.severity)},
-            "unique_template_count": len(tids),
-            "unique_template_ids": tids,
-            "occurrence_counts": occ,
+            "observed_event_ids": obs,
+            "unique_template_count": len(obs),
+            "streamed_occurrence_counts": streamed,
+            "published_occurrence_counts": published,
+            "occurrence_counts_match_published": match_pub,
             "first_last_occurrence": fl,
-            "overflow": self.overflow,
+            "unmatched_lines": self.unmatched,
+            "ambiguous_lines": self.ambiguous,
+            "masking_cross_check": {"canon": "log-hdfs-masking-diagnostic-v1",
+                                    "distinct_masked": len(self._masks), "authority": False},
         }
         body["summary_sha256"] = hashlib.sha256(
-            _canon_json(body).encode()).hexdigest()
+            json.dumps(body, sort_keys=True, separators=(",", ":")).encode()).hexdigest()
         return body
-
-
-def _canon_json(obj) -> str:
-    import json
-    return json.dumps(obj, sort_keys=True, separators=(",", ":"))
 
 
 def _iter_chunks(path: Path):
@@ -200,19 +243,17 @@ def _iter_chunks(path: Path):
 
 
 def _excerpts_from(col: _Collector, reader) -> list[dict]:
-    """Bounded second read: for the first MAX_EXCERPTS templates (sorted by id), read only that
-    template's first-occurrence window (<= MAX_EXCERPT_BYTES) via random access, and anchor it to
-    its chunk hash + Merkle inclusion proof. Total bytes re-read <= MAX_EXCERPTS*MAX_EXCERPT_BYTES."""
+    """Bounded second read: the first MAX_EXCERPTS observed EventIds (sorted), each anchored to its
+    first-occurrence window (<= MAX_EXCERPT_BYTES) by byte range + chunk hash + Merkle proof."""
     out: list[dict] = []
-    for tid in sorted(col.templates)[:MAX_EXCERPTS]:
-        first = col.templates[tid]["first"]
+    for eid in sorted(col.events)[:MAX_EXCERPTS]:
+        first = col.events[eid]["first"]
         bs = first["byte_start"]
         be = min(first["byte_end"], bs + MAX_EXCERPT_BYTES)
         content = reader(bs, be - bs)
         ci = bs // CHUNK_BYTES
         out.append({
-            "template_id": tid, "byte_start": bs, "byte_end": be,
-            "chunk_index": ci,
+            "event_id": eid, "byte_start": bs, "byte_end": be, "chunk_index": ci,
             "chunk_sha256": col.chunk_hashes[ci].hex() if ci < len(col.chunk_hashes) else None,
             "merkle_proof": _merkle_proof(col.chunk_hashes, ci) if col.chunk_hashes else [],
             "sha256": hashlib.sha256(content).hexdigest(),
@@ -222,10 +263,10 @@ def _excerpts_from(col: _Collector, reader) -> list[dict]:
 
 
 def build_capsule(source, role: str, invoked_argv: list[str], exit_status: int,
-                  identities: dict | None = None) -> dict:
-    """Build the capsule from `source` (a Path to a file, or a bytes object). Streaming for a Path
-    (bounded memory); bytes for the small RTK summary + tests."""
-    col = _Collector()
+                  identities: dict | None = None, reference: dict | None = None) -> dict:
+    """Build the capsule from `source` (a Path -> streamed, bounded memory; or bytes -> small/RTK/tests)."""
+    ref = reference or load_reference()
+    col = _Collector(ref)
     if isinstance(source, (str, Path)):
         path = Path(source)
         for chunk in _iter_chunks(path):
@@ -240,14 +281,13 @@ def build_capsule(source, role: str, invoked_argv: list[str], exit_status: int,
         data = bytes(source)
         for i in range(0, len(data), CHUNK_BYTES):
             col.feed(data[i:i + CHUNK_BYTES])
-        col.finish()  # empty data -> no chunks, empty Merkle root, bytes=0, read_to_eof True
+        col.finish()
 
         def reader(off, n):
             return data[off:off + n]
     else:
         raise LogCapsuleError(f"unsupported source type {type(source)!r}")
 
-    summary = col.summary()
     return {
         "record_type": "n2e-log-evidence-capsule",
         "capsule_version": "v1",
@@ -259,12 +299,14 @@ def build_capsule(source, role: str, invoked_argv: list[str], exit_status: int,
         },
         "canon": {
             "dialect": CAPSULE_DIALECT, "module_sha256": canon_module_sha256(),
+            "identity_authority": "n2e-loghub-hdfs-reference-v1 (published EventId set; exactly-one-match)",
+            "reference_sha256": ref["sha256"],
             "framing": "split on \\n; residual buffer across chunks; final unterminated line kept",
-            "encoding": "raw bytes hashed; per-line utf-8/replace for template derivation only",
-            "masking_rules": masking_rules_declared(),
-            "template_cap": TEMPLATE_CAP, "truncation_policy": "none-for-hashing",
+            "encoding": "raw bytes hashed; per-line utf-8/replace for template matching only",
+            "masking_cross_check": "log-hdfs-masking-diagnostic-v1 (diagnostic only; never authority)",
+            "truncation_policy": "none-for-hashing",
         },
-        "summary": summary,
+        "summary": col.summary(),
         "excerpts": _excerpts_from(col, reader),
         "identities": identities or {},
     }

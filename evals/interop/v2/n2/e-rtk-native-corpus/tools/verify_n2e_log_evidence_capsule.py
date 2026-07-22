@@ -49,12 +49,16 @@ def verify(capsule: dict, source) -> dict:
     # frozen-code drift: the pinned canon module MUST equal the current code
     if canon.get("module_sha256") != cap.canon_module_sha256():
         raise LogCapsuleVerifyError("canon module drift (log-hdfs-v1 changed since the capsule was frozen)")
+    # published-authority drift: the pinned reference MUST equal the current committed reference
+    reference = cap.load_reference()
+    if canon.get("reference_sha256") != reference["sha256"]:
+        raise LogCapsuleVerifyError("published HDFS reference drift (identity authority changed)")
 
     stream = capsule.get("stream") or {}
     chunk_bytes = ((stream.get("chunking") or {}).get("chunk_bytes")) or cap.CHUNK_BYTES
 
     # ---- re-stream the WHOLE source to EOF; re-derive hash, byte count, chunk leaves, semantics ----
-    col = cap._Collector()
+    col = cap._Collector(reference)
     if isinstance(source, (str, Path)):
         path = Path(source)
         for chunk in _iter_fixed(path, chunk_bytes):
