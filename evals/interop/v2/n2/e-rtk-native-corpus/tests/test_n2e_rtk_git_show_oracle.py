@@ -219,6 +219,56 @@ class TestEquivalence(unittest.TestCase):
         self.assertFalse(orc.equivalence(raw, orc._not_derivable("x"), OID)["equivalent"])
 
 
+class TestPlumbingAuthority(unittest.TestCase):
+    def test_numstat_totals_paths_binary(self):
+        ns = orc.parse_numstat(b"2\t1\tlib/a.rb\n1\t0\tlib/b.rb\n-\t-\timg.png\n")
+        self.assertEqual(ns["files_changed"], 3)
+        self.assertEqual((ns["insertions"], ns["deletions"]), (3, 1))
+        self.assertEqual(ns["affected_paths"], ["img.png", "lib/a.rb", "lib/b.rb"])
+        self.assertEqual(ns["binary_paths"], ["img.png"])
+
+    def test_numstat_rename_resulting_path(self):
+        ns = orc.parse_numstat(b"0\t0\tlib/{old => new}/f.rb\n")
+        self.assertEqual(ns["affected_paths"], ["lib/new/f.rb"])
+
+    def test_name_status_paths(self):
+        nsp = orc.parse_name_status(b"M\tlib/a.rb\nR100\told/x.rb\tnew/x.rb\nD\tgone.rb\n")
+        self.assertEqual(nsp, ["gone.rb", "lib/a.rb", "new/x.rb"])
+
+    def test_shortstat(self):
+        ss = orc.parse_shortstat(b" 2 files changed, 3 insertions(+), 1 deletion(-)\n")
+        self.assertEqual((ss["files_changed"], ss["insertions"], ss["deletions"]), (2, 3, 1))
+
+    def test_crosscheck_consistent(self):
+        raw = orc.parse_raw(raw_show(OID, DIFF_TWO))
+        cc = orc.plumbing_crosscheck(
+            raw, OID,
+            b"2\t1\tlib/a.rb\n1\t0\tlib/b.rb\n",
+            b"M\tlib/a.rb\nA\tlib/b.rb\n",
+            b" 2 files changed, 3 insertions(+), 1 deletion(-)\n", OID)
+        self.assertTrue(cc["consistent"], cc["mismatches"])
+
+    def test_crosscheck_detects_path_disagreement(self):
+        raw = orc.parse_raw(raw_show(OID, DIFF_TWO))
+        cc = orc.plumbing_crosscheck(
+            raw, OID,
+            b"2\t1\tlib/a.rb\n1\t0\tlib/OTHER.rb\n",
+            b"M\tlib/a.rb\nA\tlib/OTHER.rb\n",
+            b" 2 files changed, 3 insertions(+), 1 deletion(-)\n", OID)
+        self.assertFalse(cc["consistent"])
+        self.assertIn("numstat.affected_paths", cc["mismatches"])
+
+    def test_crosscheck_detects_head_mismatch(self):
+        raw = orc.parse_raw(raw_show(OID, DIFF_TWO))
+        cc = orc.plumbing_crosscheck(
+            raw, "0" * 40,
+            b"2\t1\tlib/a.rb\n1\t0\tlib/b.rb\n",
+            b"M\tlib/a.rb\nA\tlib/b.rb\n",
+            b" 2 files changed, 3 insertions(+), 1 deletion(-)\n", OID)
+        self.assertFalse(cc["consistent"])
+        self.assertIn("rev_parse_head != pinned_oid", cc["mismatches"])
+
+
 class TestSourceIdentity(unittest.TestCase):
     def test_pinned_sources_match_committed(self):
         expect = {

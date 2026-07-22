@@ -265,6 +265,104 @@ def parse_rtk(data: bytes) -> dict:
 
 
 # ---------------------------------------------------------------------------------------------------
+# git-plumbing authority (VERIFIER OBSERVATIONS): the RAW projection derived from the `git show` bytes
+# is INDEPENDENTLY cross-checked, on the same pinned checkout, against `git show --numstat` /
+# `--name-status` / `--shortstat` / `rev-parse HEAD`. These never replace the RAW arm -- they are a
+# second, plumbing-grade authority that must agree with the parsed RAW projection.
+# ---------------------------------------------------------------------------------------------------
+def _numstat_path(field: str) -> str:
+    """--numstat renders a rename/copy path as `old => new` or `pre{old => new}post`; canonicalise to
+    the resulting (new) path, matching the RAW b-side canonical form. Plain paths pass through."""
+    field = field.strip()
+    if "=>" in field:
+        return _expand_stat_rename(field)
+    return _dequote_path(field)
+
+
+def parse_numstat(data: bytes) -> dict:
+    """`git show --numstat --format=` -> per-file `<ins>\\t<del>\\t<path>` (binary files show `-`).
+    files_changed = number of entries; insertions/deletions sum the numeric fields; affected_paths is
+    the canonical set; binary_paths are the `-`/`-` entries."""
+    files, ins, dele, binary = [], 0, 0, []
+    for ln in data.decode("utf-8", "replace").split("\n"):
+        if not ln.strip():
+            continue
+        parts = ln.split("\t")
+        if len(parts) < 3:
+            continue
+        a, d, path = parts[0], parts[1], "\t".join(parts[2:])
+        cpath = _numstat_path(path)
+        files.append(cpath)
+        if a == "-" and d == "-":
+            binary.append(cpath)
+        else:
+            ins += int(a) if a.isdigit() else 0
+            dele += int(d) if d.isdigit() else 0
+    if not files:
+        return _not_derivable("numstat empty")
+    return {"outcome": "git_show", "derivable": True,
+            "files_changed": len(files), "insertions": ins, "deletions": dele,
+            "affected_paths": sorted(set(files)), "binary_paths": sorted(set(binary))}
+
+
+def parse_name_status(data: bytes) -> list[str]:
+    """`git show --name-status --format=` -> the authoritative affected-path SET (resulting/current
+    path per file; renames/copies use the new path; deletions use the deleted path)."""
+    paths = []
+    for ln in data.decode("utf-8", "replace").split("\n"):
+        if not ln.strip():
+            continue
+        parts = ln.split("\t")
+        status = parts[0]
+        if status[:1] in ("R", "C") and len(parts) >= 3:
+            paths.append(_dequote_path(parts[2]))          # new path
+        elif len(parts) >= 2:
+            paths.append(_dequote_path(parts[1]))          # delete uses its own path too
+    return sorted(set(paths))
+
+
+def parse_shortstat(data: bytes) -> dict:
+    """`git show --shortstat --format=` -> the `N files changed, I insertions(+), D deletions(-)`
+    summary line (git's own totals)."""
+    for ln in data.decode("utf-8", "replace").split("\n"):
+        sm = _STAT_SUMMARY.match(ln)
+        if sm:
+            return {"outcome": "git_show", "derivable": True,
+                    "files_changed": int(sm.group(1)),
+                    "insertions": int(sm.group(2) or 0), "deletions": int(sm.group(3) or 0)}
+    return _not_derivable("no shortstat summary line")
+
+
+def plumbing_crosscheck(raw_proj: dict, rev_parse_head: str, numstat: bytes,
+                        name_status: bytes, shortstat: bytes, full_commit_oid: str) -> dict:
+    """Independently confirm the parsed RAW projection against git plumbing on the same checkout.
+    Every mismatch is reported; `consistent` is true only when the RAW projection agrees with numstat
+    (totals + paths + files_changed), name-status (path set), shortstat (totals) AND the pinned OID."""
+    ns = parse_numstat(numstat)
+    ss = parse_shortstat(shortstat)
+    name_paths = parse_name_status(name_status)
+    head = (rev_parse_head or "").strip().lower()
+    oid = (full_commit_oid or "").lower()
+    m = []
+    if head != oid:
+        m.append("rev_parse_head != pinned_oid")
+    if raw_proj.get("full_commit_oid", "").lower() != oid:
+        m.append("raw_commit_oid != pinned_oid")
+    for k in _STAT_KEYS:
+        if ns.get(k) != raw_proj.get(k):
+            m.append(f"numstat.{k}")
+        if ss.get(k) != raw_proj.get(k):
+            m.append(f"shortstat.{k}")
+    if sorted(raw_proj.get("affected_paths") or []) != (ns.get("affected_paths") or []):
+        m.append("numstat.affected_paths")
+    if sorted(raw_proj.get("affected_paths") or []) != name_paths:
+        m.append("name_status.affected_paths")
+    return {"consistent": not m, "mismatches": m,
+            "numstat": ns, "shortstat": ss, "name_status_paths": name_paths,
+            "rev_parse_head": head}
+
+
+# ---------------------------------------------------------------------------------------------------
 # Equivalence over the normative stat/identity projection.
 # ---------------------------------------------------------------------------------------------------
 _STAT_KEYS = ("files_changed", "insertions", "deletions")

@@ -40,7 +40,7 @@
     "rubocop__rubocop-13687::git::show"
   ],
   "purpose": "Source-identity + case-scope proof for rtk-git-show-oracle-v1. Pins the exact pinned RTK source function it was grounded in, the semantics-module identity, the pinned corpus RTK binary, and the case-scoped manifest binding. Sets no promotion flag.",
-  "record_sha256": "sha256:e8a87749d2117ef498d6e7e87f588127446f5086c8e9bf4ef4bfb64b9ff33cc0",
+  "record_sha256": "sha256:ab4b385cad7a5c070100529df55d01379e5a804d5e8f533578360d9293627563",
   "record_type": "n2e-command-oracle-source-proof",
   "record_version": "v1",
   "rtk_source_identity": {
@@ -53,9 +53,9 @@
   },
   "schema_version": "n2e-record-1",
   "semantics_module": {
-    "bytes": 14845,
+    "bytes": 19636,
     "declared_oracle_id": "rtk-git-show-oracle-v1",
     "path": "tools/n2e_rtk_git_show_oracle.py",
-    "sha256": "de1775192d497006b55e4145f5f5230c862f387eb123b9a5c985b0e2c877ff2f"
+    "sha256": "21a34f2c33e29bed175a2a016996b9fa8a059108ea72ca971bdc4785753b6e73"
   }
 }
