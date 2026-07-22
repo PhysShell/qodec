@@ -27,6 +27,8 @@ import json
 import re
 from pathlib import Path
 
+import n2e_rtk_log_hdfs_oracle as _rtk_oracle
+
 CAPSULE_DIALECT = "log-hdfs-v1"
 CHUNK_BYTES = 1 << 20          # 1 MiB fixed chunk for hashing + Merkle leaves
 MAX_EXCERPTS = 16             # bounded excerpt count
@@ -136,6 +138,7 @@ class _Collector:
         self.ambiguous = 0
         self._masks: set[bytes] = set()       # diagnostic masking cross-check (distinct masked)
         self._ref = reference
+        self.rtk_sev = {"error": 0, "warn": 0, "info": 0, "other": 0}  # RTK-semantic severity totals
 
     def feed(self, chunk: bytes) -> None:
         self._h.update(chunk)
@@ -163,6 +166,9 @@ class _Collector:
         byte_end = byte_start + len(line)
         self.total_lines += 1
         body = line[:-1] if line.endswith(b"\n") else line
+        # RAW-side reference for the RTK oracle: RTK categorizes the WHOLE line by substring severity
+        # (source-grounded in n2e_rtk_log_hdfs_oracle). Computed for EVERY line, even unparsed ones.
+        self.rtk_sev[_rtk_oracle.rtk_categorize(body.decode("utf-8", "replace"))] += 1
         m = _HDFS.match(body)
         if not m:
             self.severity["unparsed"] = self.severity.get("unparsed", 0) + 1
@@ -227,6 +233,9 @@ class _Collector:
             "ambiguous_lines": self.ambiguous,
             "masking_cross_check": {"canon": "log-hdfs-masking-diagnostic-v1",
                                     "distinct_masked": len(self._masks), "authority": False},
+            # RAW-side reference for the RTK oracle: RTK's severity totals re-derived over the full
+            # stream (the only overlap `rtk log` actually reports). Bounded (4 counters).
+            "rtk_semantic_projection": dict(self.rtk_sev),
         }
         body["summary_sha256"] = hashlib.sha256(
             json.dumps(body, sort_keys=True, separators=(",", ":")).encode()).hexdigest()

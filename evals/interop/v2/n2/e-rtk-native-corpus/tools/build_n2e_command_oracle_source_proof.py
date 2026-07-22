@@ -31,6 +31,7 @@ ORACLE_PROOFS = {
     "rtk-files-read-oracle-v1": ("n2e_rtk_files_read_oracle.py",
                                  ["preactjs__preact-3345::files_search::read",
                                   "projectlombok__lombok-3312::files_search::read"]),
+    "rtk-log-hdfs-oracle-v1": ("n2e_rtk_log_hdfs_oracle.py", ["loghub::HDFS::log"]),
 }
 
 

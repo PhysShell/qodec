@@ -1,0 +1,39 @@
+{
+  "additional_source_identities": [],
+  "generated_by": "evals/interop/v2/n2/e-rtk-native-corpus/tools/build_n2e_command_oracle_source_proof.py",
+  "manifest_binding": {
+    "manifest_generation": 3,
+    "manifest_sha256": "sha256:d7deb941cb838b7b3a30cddecacc7bda663f583b737829225b3e2d662de57789"
+  },
+  "mission": "N2-E",
+  "mission_title": "external RTK-native claim-aligned command corpus",
+  "no_family_level": "this oracle is proven for the listed case ids ONLY; one case does not establish family-level go::vet scope",
+  "oracle_policy_id": "rtk-log-hdfs-oracle-v1",
+  "oracle_scope": "case_scoped",
+  "pinned_rtk_binary_identity": {
+    "bytes": 9200104,
+    "sha256": "41f316adf7b30a568208a0a4f824bffb266ecb6d01bd9de81bed58e1d469dfcf"
+  },
+  "proven_case_ids": [
+    "loghub::HDFS::log"
+  ],
+  "purpose": "Source-identity + case-scope proof for rtk-log-hdfs-oracle-v1. Pins the exact pinned RTK source function it was grounded in, the semantics-module identity, the pinned corpus RTK binary, and the case-scoped manifest binding. Sets no promotion flag.",
+  "record_sha256": "sha256:46a3bb3bd4b29934af121ba6cb2a57835340afb9aab268f4d18576657d3b9989",
+  "record_type": "n2e-command-oracle-source-proof",
+  "record_version": "v1",
+  "rtk_source_identity": {
+    "bytes": 9519,
+    "commit": "5d32d0736f686b69d1e8b9dc45c007d4eb77a0a2",
+    "content_sha256": "e72549e7a8a18f0601386e90dcf57033c660b4f5b2462542158c7c2346489236",
+    "git_blob_sha1": "3dca37452f4efb0e323ff3da378a57d800b438f6",
+    "source_file": "src/cmds/system/log_cmd.rs",
+    "source_function": "analyze_logs"
+  },
+  "schema_version": "n2e-record-1",
+  "semantics_module": {
+    "bytes": 5121,
+    "declared_oracle_id": "rtk-log-hdfs-oracle-v1",
+    "path": "tools/n2e_rtk_log_hdfs_oracle.py",
+    "sha256": "527db24ea782e2725392238de36dc3270576429a5f8e02dc0673b42f42587a72"
+  }
+}
