@@ -191,5 +191,63 @@ class TestLuceneGradleAdapter(unittest.TestCase):
             self.adapter.bind(bad, self.scenario)
 
 
+LOGHUB = "loghub::HDFS::log"
+
+
+def _loghub_frozen():
+    contract = next(e for e in c.load_record(L.CONTRACT)["contracts"] if e["case_id"] == LOGHUB)
+    scenario = next(s for s in c.load_record(L.SCEN)["scenarios"] if s["case_id"] == LOGHUB)
+    return contract, scenario
+
+
+class TestLoghubHdfsAdapter(unittest.TestCase):
+    """Command oracle where RTK is a distinct reimplementation (`rtk log`), both arms read the SAME
+    pinned member, and the RAW arm is measured through the full-stream capsule (never a 1500-line
+    slice). Identity authority is the published Loghub set."""
+
+    def setUp(self):
+        self.contract, self.scenario = _loghub_frozen()
+        self.adapter = A.adapter_for(LOGHUB)
+
+    def test_green_bind(self):
+        d = self.adapter.bind(self.contract, self.scenario)
+        self.assertEqual(d["qualification_kind"], "rtk_command_oracle")
+        self.assertEqual(d["raw_argv"], ["cat", "HDFS.log"])
+        self.assertEqual(d["rtk_argv"], ["rtk", "log", "HDFS.log"])
+        self.assertEqual(d["command_semantic_oracle_policy_id"], "rtk-log-hdfs-oracle-v1")
+        self.assertIsNone(d["rtk_test_dialect_policy_id"])
+        self.assertEqual(d["input_file"], "HDFS.log")
+        self.assertEqual(d["evidence_model"], "log-evidence-capsule-v1")
+        self.assertEqual(d["published_reference"], "n2e-loghub-hdfs-reference-v1")
+        self.assertEqual(d["execution_isolation"]["shared_input_file"], "HDFS.log")
+        self.assertTrue(d["execution_isolation"]["full_stream_no_slice"])
+
+    def test_red_raw_argv_override(self):
+        bad = copy.deepcopy(self.contract); bad["effective_raw_argv"] = ["head", "-c", "1000", "HDFS.log"]
+        with self.assertRaises(A.AdapterBindingError):
+            self.adapter.bind(bad, self.scenario)
+
+    def test_red_rtk_reads_different_file(self):
+        # a contract whose RTK arm reads a DIFFERENT input than RAW is rejected (same-input invariant)
+        bad = copy.deepcopy(self.contract); bad["effective_rtk_argv"] = ["rtk", "log", "OTHER.log"]
+        with self.assertRaises(A.AdapterBindingError):
+            self.adapter.bind(bad, self.scenario)
+
+    def test_red_rtk_not_rtk_log(self):
+        bad = copy.deepcopy(self.contract); bad["effective_rtk_argv"] = ["rtk", "read", "HDFS.log"]
+        with self.assertRaises(A.AdapterBindingError):
+            self.adapter.bind(bad, self.scenario)
+
+    def test_red_canon_override(self):
+        bad = copy.deepcopy(self.contract); bad["canonicalization_policy_id"] = "arbitrary-v9"
+        with self.assertRaises(A.AdapterBindingError):
+            self.adapter.bind(bad, self.scenario)
+
+    def test_red_family_override(self):
+        bad = copy.deepcopy(self.contract); bad["command_family"] = "files_search"
+        with self.assertRaises(A.AdapterBindingError):
+            self.adapter.bind(bad, self.scenario)
+
+
 if __name__ == "__main__":
     unittest.main()

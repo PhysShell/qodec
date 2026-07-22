@@ -482,6 +482,79 @@ class LuceneGradleAdapter(CaseAdapter):
         }
 
 
+class LoghubHdfsAdapter(CaseAdapter):
+    """loghub HDFS `rtk log HDFS.log` command oracle. RAW is `cat HDFS.log` (the full ~1.5 GB /
+    11 167 740-line stream); RTK is `rtk log HDFS.log`, a DIFFERENT command RTK reimplements (NOT
+    rtk-wrapping cat), so both argv are double-locked verbatim against the frozen contract.
+
+    Two invariants beyond the usual double-lock:
+      * BOTH arms read the SAME pinned input member (HDFS.log, one extraction shared by both arms) --
+        so RAW and RTK see identical input bytes (the acquisition's input_sha256);
+      * the RAW arm is measured through the log-evidence-capsule-v1 (full stream, bounded memory,
+        NO 1500-line slice); template identity is the PUBLISHED Loghub set (n2e-loghub-hdfs-
+        reference-v1), never our masking. The proven oracle (rtk-log-hdfs-oracle-v1) is
+        manifest-authoritative -- the base contract names the generic base oracle, so the oracle is
+        NOT cross-checked against the contract (exactly as gin / the files-read oracle)."""
+
+    case_id = "loghub::HDFS::log"
+    adapter_id = "loghub-hdfs-log"
+    qualification_kind = "rtk_command_oracle"
+
+    INPUT_FILE = "HDFS.log"
+    RAW_ARGV = ["cat", "HDFS.log"]
+    RTK_ARGV = ["rtk", "log", "HDFS.log"]
+    CANON_POLICY = "log-v1"
+    ORACLE_POLICY = "rtk-log-hdfs-oracle-v1"           # manifest-authoritative (contract oracle is base)
+    EVIDENCE_MODEL = "log-evidence-capsule-v1"
+    PUBLISHED_REFERENCE = "n2e-loghub-hdfs-reference-v1"
+    SEMANTIC_ENV = {}
+    PROTECTED_FILES = []
+    REPS = 3
+    STREAM_ROLES = ("raw", "rtk")
+    PLATFORM_REQUIREMENTS = {"toolchain": [], "network": "denied"}
+    EXECUTION_ISOLATION = {
+        "fresh_gocache_per_arm": False,
+        "single_checkout": True,          # one extracted member, shared by both arms (same input bytes)
+        "same_cwd": ".",
+        "no_p52_fixture_reuse": True,
+        "read_only_command": True,        # neither arm mutates the member
+        "shared_input_file": INPUT_FILE,  # RAW + RTK read the SAME pinned member
+        "full_stream_no_slice": True,     # bounded capsule over the full stream; NEVER a 1500-line slice
+    }
+
+    def bind(self, contract: dict, scenario: dict) -> dict:
+        _require(contract.get("effective_raw_argv") == self.RAW_ARGV, "loghub RAW argv != frozen contract")
+        _require(contract.get("effective_rtk_argv") == self.RTK_ARGV, "loghub RTK argv != frozen contract")
+        _require(contract.get("canonicalization_policy_id") == self.CANON_POLICY,
+                 "loghub canon policy != frozen contract")
+        _require(contract.get("scheduler_env") == self.SEMANTIC_ENV, "loghub semantic env != frozen contract")
+        _require(list(contract.get("protected_files") or []) == self.PROTECTED_FILES,
+                 "loghub protected files != frozen contract")
+        _require(contract.get("command_family") == "logs" and contract.get("command_subfamily") == "log",
+                 "loghub command family/subfamily != frozen contract")
+        # RTK is a DISTINCT reimplementation of the log summary, not `rtk <cat-argv>`
+        _require(self.RTK_ARGV[0] == "rtk" and self.RTK_ARGV[1] == "log", "loghub RTK arm is not `rtk log`")
+        # CRITICAL: both arms read the SAME input file -> identical input bytes
+        _require(self.RAW_ARGV[-1] == self.INPUT_FILE and self.RTK_ARGV[-1] == self.INPUT_FILE,
+                 "loghub RAW/RTK arms do not read the same input file")
+        return {
+            "case_id": self.case_id, "adapter_id": self.adapter_id,
+            "qualification_kind": self.qualification_kind,
+            "raw_argv": list(self.RAW_ARGV), "rtk_argv": list(self.RTK_ARGV),
+            "semantic_env": dict(self.SEMANTIC_ENV), "cwd": self.EXECUTION_ISOLATION["same_cwd"],
+            "reps": self.REPS, "stream_roles": list(self.STREAM_ROLES),
+            "canonicalization_policy_id": self.CANON_POLICY,
+            "rtk_test_dialect_policy_id": None,
+            "command_semantic_oracle_policy_id": self.ORACLE_POLICY,
+            "input_file": self.INPUT_FILE, "evidence_model": self.EVIDENCE_MODEL,
+            "published_reference": self.PUBLISHED_REFERENCE,
+            "target_test_ids": [],
+            "protected_files": list(self.PROTECTED_FILES),
+            "platform_requirements": dict(self.PLATFORM_REQUIREMENTS),
+            "execution_isolation": dict(self.EXECUTION_ISOLATION),
+        }
+
+
 # tiny registry: Caddy (test-dialect) + Gin (command-oracle) prove both dispatch paths; the two
 # files-read adapters are the FIRST replication -- one shared oracle policy, two INDEPENDENT bindings;
 # Vue (js_ts) + Scrapy (python) are the second and third proven test dialects, manifest-authoritative.
@@ -493,6 +566,7 @@ CASE_ADAPTERS = {
     VueVitestAdapter.case_id: VueVitestAdapter(),
     ScrapyPytestAdapter.case_id: ScrapyPytestAdapter(),
     LuceneGradleAdapter.case_id: LuceneGradleAdapter(),
+    LoghubHdfsAdapter.case_id: LoghubHdfsAdapter(),
 }
 
 
