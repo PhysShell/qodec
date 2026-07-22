@@ -22,8 +22,12 @@ import build_n2e_loghub_dispatch_qualification as BLD  # noqa: E402
 
 FIXTURE = N2E_DIR / "evidence" / "loghub-diag" / "rtk-log-summary.real.txt"
 REAL_TOTALS = {"error": 5545, "warn": 356273, "info": 10805922, "other": 0}
-OUT_RECORD = N2E_DIR / "n2e-resolved-case-qualification-loghub-v1.json"
-OUT_EVDIR = N2E_DIR / "evidence" / "loghub"
+# a THROWAWAY evidence subdir + name -- NEVER the real record path. The real loghub qualification
+# record (n2e-resolved-case-qualification-loghub-v1.json) and evidence/loghub/ must be untouched by
+# this test; the record is written to a tmp path outside the tree so the disk aggregator never globs
+# it and cleanup can only ever remove the throwaway artifacts.
+BUILD_NAME = "loghub-buildtest"
+OUT_EVDIR = N2E_DIR / "evidence" / BUILD_NAME
 
 
 def _observation(**over) -> dict:
@@ -47,10 +51,11 @@ def _observation(**over) -> dict:
 
 class TestBuilderGates(unittest.TestCase):
     def setUp(self):
-        # register cleanup FIRST so a crash mid-build cannot leak the synthetic record on disk
-        self.addCleanup(lambda: OUT_RECORD.exists() and OUT_RECORD.unlink())
-        self.addCleanup(lambda: OUT_EVDIR.exists() and shutil.rmtree(OUT_EVDIR, ignore_errors=True))
+        # register cleanup FIRST so a crash mid-build cannot leak the throwaway artifacts on disk.
+        # These paths are the THROWAWAY ones only -- the real loghub record is never named here.
         self.tmp = Path(tempfile.mkdtemp(prefix="n2e-loghub-buildtest-"))
+        self.out_record = self.tmp / "record.json"      # OUTSIDE the tree: aggregator never globs it
+        self.addCleanup(lambda: OUT_EVDIR.exists() and shutil.rmtree(OUT_EVDIR, ignore_errors=True))
         self.addCleanup(lambda: shutil.rmtree(self.tmp, ignore_errors=True))
         (self.tmp / "evidence").mkdir()
         (self.tmp / "evidence" / "raw.rtk.stdout.bin").write_bytes(FIXTURE.read_bytes())
@@ -64,7 +69,8 @@ class TestBuilderGates(unittest.TestCase):
 
     def _build(self, obs=None, run=None):
         return BLD.build("loghub::HDFS::log", self._obs_path(obs or _observation()),
-                         self.tmp / "evidence", "loghub", run or self.run)
+                         self.tmp / "evidence", BUILD_NAME, run or self.run,
+                         out_path=self.out_record)
 
     # ---------- GREEN ----------
     def test_green_builds_and_recomputes(self):

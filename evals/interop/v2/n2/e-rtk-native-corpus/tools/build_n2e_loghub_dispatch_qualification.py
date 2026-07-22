@@ -41,7 +41,11 @@ def _require(cond: bool, msg: str):
         raise SystemExit(f"REFUSING to build: {msg}")
 
 
-def build(case_id: str, observation: Path, evidence: Path, name: str, run: dict) -> Path:
+def build(case_id: str, observation: Path, evidence: Path, name: str, run: dict,
+          out_path: Path | None = None) -> Path:
+    # out_path lets a test write the record OUTSIDE the live tree (so the disk aggregator never globs
+    # it and a test cleanup can never clobber the real record). The evidence still lives under
+    # N2E_DIR/evidence/<name>/qualification so the dispatch recompute resolves rtk_output.evidence_path.
     obs = c.load_record(observation)
 
     # ---- GATE 1: the fresh acceptance observation must be clean ----
@@ -130,7 +134,7 @@ def build(case_id: str, observation: Path, evidence: Path, name: str, run: dict)
         resolved_canary_pass=False,
         promotion_state="held (resolved-twelve not yet 12/12)",
     )
-    out = N2E_DIR / f"n2e-resolved-case-qualification-{name}-v1.json"
+    out = out_path or (N2E_DIR / f"n2e-resolved-case-qualification-{name}-v1.json")
     c.write_record(out, body)
 
     # ---- GATE 2: the freshly built record must independently bind + recompute True via dispatch-v2 ----
