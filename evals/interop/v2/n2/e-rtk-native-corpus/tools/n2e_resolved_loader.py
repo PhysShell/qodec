@@ -61,9 +61,11 @@ REPLACED_CASE_ID = "tokio-rs__tokio-4384::rust_cargo::test::fixed"
 # provenance -- it comes only from the corrected normative verifier replay; these sets exist only
 # to REJECT mis-provenanced overlays.
 PROMOTABLE_RUN = "29654373144"
-BARRED_DIAGNOSTIC_RUNS = frozenset({"29651849616", "29652684349"})       # bcd4164, 3dbbf2b
+BARRED_DIAGNOSTIC_RUNS = frozenset({"29651849616", "29652684349",
+                                    "29900168290"})                     # ...; 2c1a523 loghub diag
 BARRED_DIAGNOSTIC_IMPLS = frozenset({"bcd4164", "3dbbf2b", "2ddd731", "8eefa97",
-                                     "4ceaa11", "ab416ce", "186ade9"})
+                                     "4ceaa11", "ab416ce", "186ade9",
+                                     "2c1a523"})                         # loghub diagnostic capture
 DEPSNAP_SCOPE = "full cross-platform resolution"
 DEPSNAP_PROVEN_COUNT = 346
 

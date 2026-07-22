@@ -1,0 +1,164 @@
+name: qodec-n2e-loghub-acceptance
+
+# FRESH two-arm ACCEPTANCE capture for loghub::HDFS::log through the dispatch-v2 registry-bound path.
+# Unlike the diagnostic workflow, this run is NOT barred: its observation is what the qualifying
+# dispatch-v2 record is built from. It still decides NO PASS in-CI -- the probe records OBSERVATIONS
+# only, and the dispatch-v2 recompute (aggregator / build gate) re-derives the RAW<->RTK severity
+# equivalence independently. The RAW arm (`cat HDFS.log`, ~1.5 GB) is STREAMED (stdout never buffered
+# whole); the RTK arm's small output is captured + frozen IN FULL. The acquisition RE-DOWNLOADS +
+# RE-STREAMS the pinned member (no reuse of any diagnostic capsule or the frozen rtk-log-summary
+# fixture). Manual-only; the disposable trigger branch (ci-trigger/n2e-loghub-acceptance-*) carries an
+# ADDITIVE push stanza and every job checks out the implementation commit I = HEAD~1.
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - 'ci-trigger/n2e-loghub-acceptance-*'
+
+permissions:
+  contents: read
+
+env:
+  LC_ALL: C.UTF-8
+  LANG: C.UTF-8
+  TZ: UTC
+  N2E: evals/interop/v2/n2/e-rtk-native-corpus
+  RTK_SHA: "41f316adf7b30a568208a0a4f824bffb266ecb6d01bd9de81bed58e1d469dfcf"
+  CASE: "loghub::HDFS::log"
+
+jobs:
+  resolve:
+    runs-on: ubuntu-24.04
+    outputs:
+      impl: ${{ steps.i.outputs.impl }}
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        with:
+          fetch-depth: 2
+          persist-credentials: false
+      - id: i
+        run: |
+          if [ "${{ github.event_name }}" = "push" ] && echo "${{ github.ref }}" | grep -q 'ci-trigger/'; then
+            impl="$(git rev-parse HEAD~1)"
+          else
+            impl="${{ github.sha }}"
+          fi
+          echo "impl=$impl" >> "$GITHUB_OUTPUT"
+          echo "implementation commit I = $impl"
+
+  substrate:
+    runs-on: ubuntu-24.04
+    needs: [resolve]
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        with:
+          ref: ${{ needs.resolve.outputs.impl }}
+          persist-credentials: false
+      - uses: cachix/install-nix-action@08dcb3a5e62fa31e2da3d490afc4176ef55ecd72 # v30
+        with:
+          extra_nix_config: |
+            experimental-features = nix-command flakes
+            sandbox = true
+      - name: Build + export pinned RTK/QODEC closures; assert RTK identity
+        run: |
+          nix build .#rtk-pinned .#qodec -L --no-update-lock-file
+          RTK="$(nix path-info .#rtk-pinned)"
+          QODEC="$(nix path-info .#qodec)"
+          SHA="$(sha256sum "$RTK/bin/rtk" | cut -d' ' -f1)"
+          echo "rtk sha256=$SHA"; test "$SHA" = "$RTK_SHA"
+          mkdir -p substrate
+          echo "$RTK"   > substrate/rtk.storepath
+          echo "$QODEC" > substrate/qodec.storepath
+          nix-store --query --requisites "$RTK" "$QODEC" > substrate/closure-paths.txt
+          nix-store --export $(cat substrate/closure-paths.txt) | zstd -T0 -19 > substrate/closure.nar.zst
+          sha256sum substrate/closure.nar.zst > substrate/closure.nar.zst.sha256
+      - uses: actions/upload-artifact@b4b15b8c7c6ac21ea08fcf65892d2ee8f75cf882 # v4.6.2
+        with:
+          name: loghub-accept-substrate
+          path: substrate
+          if-no-files-found: error
+          retention-days: 3
+
+  acceptance:
+    runs-on: ubuntu-24.04
+    needs: [resolve, substrate]
+    timeout-minutes: 120
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        with:
+          ref: ${{ needs.resolve.outputs.impl }}
+          persist-credentials: false
+      - uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065 # v5.6.0
+        with:
+          python-version: "3.11"
+      - uses: cachix/install-nix-action@08dcb3a5e62fa31e2da3d490afc4176ef55ecd72 # v30
+      - uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4.3.0
+        with:
+          name: loghub-accept-substrate
+          path: substrate
+      - name: Import + verify RTK/QODEC closure identity
+        run: |
+          sha="$(cut -d' ' -f1 substrate/closure.nar.zst.sha256)"
+          test "$sha" = "$(sha256sum substrate/closure.nar.zst | cut -d' ' -f1)"
+          zstd -d -c substrate/closure.nar.zst | nix-store --import
+          RTK="$(cat substrate/rtk.storepath)/bin/rtk"
+          QODEC="$(cat substrate/qodec.storepath)/bin/qodec"
+          test "$(sha256sum "$RTK" | cut -d' ' -f1)" = "$RTK_SHA"
+          "$RTK" --version >/dev/null
+          echo "RTK_BIN=$RTK" >> "$GITHUB_ENV"
+          echo "QODEC_BIN=$QODEC" >> "$GITHUB_ENV"
+      # ACCEPTANCE: acquisition has network (Zenodo re-download); the cat/rtk measurement arms are
+      # network-denied. The probe records observations only; no gate moves in-CI.
+      - name: Run the Loghub FRESH acceptance capture (dispatch-v2 path)
+        run: |
+          cd "$N2E"
+          mkdir -p out
+          python3 tools/probe_loghub_acceptance.py --case "$CASE" \
+            --out loghub-acceptance-v1.json \
+            --evidence out/evidence/loghub-accept
+          echo "=== acceptance summary ==="
+          python3 - <<'PY'
+          import json
+          d = json.load(open("loghub-acceptance-v1.json"))
+          print("outcome:", d.get("outcome"), "barred:", d.get("barred_from_qualification"))
+          ra = d.get("raw_arm") or {}
+          print("raw exit:", ra.get("exit_code"), "raw stdout bytes:", (ra.get("stdout") or {}).get("bytes"),
+                "lines:", (ra.get("stdout") or {}).get("line_count"))
+          cs = ra.get("capsule_summary") or {}
+          print("capsule outcome:", cs.get("outcome"),
+                "published_authority:", cs.get("occurrence_counts_match_published"),
+                "unmatched:", cs.get("unmatched_lines"), "ambiguous:", cs.get("ambiguous_lines"),
+                "rtk_semantic_projection:", cs.get("rtk_semantic_projection"))
+          rk = d.get("rtk_arm") or {}
+          print("rtk exit:", rk.get("exit_code"), "rtk stdout sha256:", (rk.get("stdout") or {}).get("sha256"),
+                "bytes:", (rk.get("stdout") or {}).get("bytes"))
+          print("rtk parsed projection:", rk.get("parsed_severity_projection"))
+          print("same-input proof:", d.get("same_input_proof"))
+          print("severity equivalence:", (d.get("oracle_observation") or {}).get("equivalence"))
+          PY
+      - name: Build EXTERNAL artifact manifest (path/bytes/sha256)
+        if: always()
+        run: |
+          cd "$N2E"
+          python3 - <<'PY'
+          import hashlib, json
+          from pathlib import Path
+          man = Path("out/external-artifact-manifest.json")
+          files = [Path("loghub-acceptance-v1.json")]
+          for f in sorted(Path("out").rglob("*")):
+              if f.is_file() and f != man:
+                  files.append(f)
+          entries = [{"file": str(f), "bytes": len(f.read_bytes()),
+                      "sha256": hashlib.sha256(f.read_bytes()).hexdigest()} for f in files]
+          man.write_text(json.dumps({"count": len(entries), "files": entries}, indent=1, sort_keys=True))
+          print("external manifest:", len(entries), "files")
+          PY
+      - uses: actions/upload-artifact@b4b15b8c7c6ac21ea08fcf65892d2ee8f75cf882 # v4.6.2
+        if: always()
+        with:
+          name: loghub-acceptance
+          path: |
+            ${{ env.N2E }}/loghub-acceptance-v1.json
+            ${{ env.N2E }}/out
+          if-no-files-found: error
+          retention-days: 30
