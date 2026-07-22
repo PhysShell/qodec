@@ -36,6 +36,8 @@ ORACLE_PROOFS = {
     # policy). n2e_rtk_git_show_oracle.py is retained only as a parsing library it imports.
     "rtk-git-show-merge-first-parent-oracle-v1":
         ("n2e_rtk_git_show_merge_oracle.py", ["rubocop__rubocop-13687::git::show"]),
+    "rtk-git-commit-oracle-v1":
+        ("n2e_rtk_git_commit_oracle.py", ["php-cs-fixer__php-cs-fixer-8075::git::commit"]),
 }
 
 

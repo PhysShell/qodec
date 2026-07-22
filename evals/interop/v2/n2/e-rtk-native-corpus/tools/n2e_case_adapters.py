@@ -646,6 +646,84 @@ class RubocopGitShowAdapter(CaseAdapter):
         }
 
 
+class PhpCsFixerGitCommitAdapter(CaseAdapter):
+    """php-cs-fixer `rtk git commit -m n2e` command oracle. RAW is `git commit -m n2e`; RTK is
+    `rtk git commit -m n2e`, which runs the identical `git commit` and prints `ok <7-hex>` (the created
+    commit's abbreviated OID). Both argv are double-locked verbatim against the frozen contract.
+
+    The risk here is the IDENTITY of the new commit object, not the parser. Both arms run on SEPARATE
+    identically-prepared checkouts, and the qualification claim is that they produce the SAME full
+    commit OID -- which holds ONLY because every determinant is pinned by the versioned
+    git-commit-determinant-v1 policy (author/committer name+email+date, timezone, message, parent,
+    the exact staged index/worktree state, signing disabled, hooks inactive). The hash is NEVER
+    normalized. The oracle (rtk-git-commit-oracle-v1) is manifest-authoritative."""
+
+    case_id = "php-cs-fixer__php-cs-fixer-8075::git::commit"
+    adapter_id = "php-cs-fixer-git-commit"
+    qualification_kind = "rtk_command_oracle"
+
+    RAW_ARGV = ["git", "commit", "-m", "n2e"]
+    RTK_ARGV = ["rtk", "git", "commit", "-m", "n2e"]
+    CANON_POLICY = "git-v1"
+    ORACLE_POLICY = "rtk-git-commit-oracle-v1"          # manifest-authoritative
+    DETERMINANT_POLICY_ID = "git-commit-determinant-v1"
+    SEMANTIC_ENV = {}
+    PROTECTED_FILES = []
+    REPS = 3
+    STREAM_ROLES = ("raw", "rtk")
+    PLATFORM_REQUIREMENTS = {"toolchain": ["git"], "network": "denied"}
+    # per-arm plumbing captured AFTER the commit on THAT arm's own checkout (a mutating command -> each
+    # arm has its own resulting state). {head}: the new HEAD substituted by the probe is not needed;
+    # these run in-place after the commit.
+    POST_COMMIT_OBSERVATIONS = {
+        "head": ["git", "rev-parse", "HEAD"],
+        "parent": ["git", "rev-parse", "HEAD^"],
+        "name_status": ["git", "show", "--name-status", "--format=", "HEAD"],
+    }
+    EXECUTION_ISOLATION = {
+        "fresh_gocache_per_arm": False,
+        "single_checkout": False,          # a MUTATING command: each arm gets its OWN prepared checkout
+        "identical_prepared_checkouts": True,
+        "same_cwd": ".",
+        "no_p52_fixture_reuse": True,
+        "read_only_command": False,        # git commit mutates HEAD -> separate checkouts required
+        "determinant_policy_id": DETERMINANT_POLICY_ID,
+    }
+
+    def bind(self, contract: dict, scenario: dict) -> dict:
+        _require(contract.get("effective_raw_argv") == self.RAW_ARGV, "php-cs-fixer RAW argv != frozen contract")
+        _require(contract.get("effective_rtk_argv") == self.RTK_ARGV, "php-cs-fixer RTK argv != frozen contract")
+        _require(contract.get("canonicalization_policy_id") == self.CANON_POLICY,
+                 "php-cs-fixer canon policy != frozen contract")
+        _require(contract.get("scheduler_env") == self.SEMANTIC_ENV, "php-cs-fixer semantic env != frozen contract")
+        _require(list(contract.get("protected_files") or []) == self.PROTECTED_FILES,
+                 "php-cs-fixer protected files != frozen contract")
+        _require(contract.get("command_family") == "git" and contract.get("command_subfamily") == "commit",
+                 "php-cs-fixer command family/subfamily != frozen contract")
+        _require(self.RTK_ARGV[:3] == ["rtk", "git", "commit"], "php-cs-fixer RTK arm is not `rtk git commit`")
+        base_commit = (((scenario.get("setup_recipe") or {}).get("identity") or {}).get("base_commit")
+                       or (scenario.get("source_image_identity") or {}).get("base_commit"))
+        _require(bool(base_commit) and len(base_commit) == 40 and all(ch in "0123456789abcdef" for ch in base_commit),
+                 "php-cs-fixer scenario has no valid 40-hex base_commit OID")
+        return {
+            "case_id": self.case_id, "adapter_id": self.adapter_id,
+            "qualification_kind": self.qualification_kind,
+            "raw_argv": list(self.RAW_ARGV), "rtk_argv": list(self.RTK_ARGV),
+            "semantic_env": dict(self.SEMANTIC_ENV), "cwd": self.EXECUTION_ISOLATION["same_cwd"],
+            "reps": self.REPS, "stream_roles": list(self.STREAM_ROLES),
+            "canonicalization_policy_id": self.CANON_POLICY,
+            "rtk_test_dialect_policy_id": None,
+            "command_semantic_oracle_policy_id": self.ORACLE_POLICY,
+            "determinant_policy_id": self.DETERMINANT_POLICY_ID,
+            "base_commit": base_commit,
+            "post_commit_observations": {k: list(v) for k, v in self.POST_COMMIT_OBSERVATIONS.items()},
+            "target_test_ids": [],
+            "protected_files": list(self.PROTECTED_FILES),
+            "platform_requirements": dict(self.PLATFORM_REQUIREMENTS),
+            "execution_isolation": dict(self.EXECUTION_ISOLATION),
+        }
+
+
 # tiny registry: Caddy (test-dialect) + Gin (command-oracle) prove both dispatch paths; the two
 # files-read adapters are the FIRST replication -- one shared oracle policy, two INDEPENDENT bindings;
 # Vue (js_ts) + Scrapy (python) are the second and third proven test dialects, manifest-authoritative.
@@ -659,6 +737,7 @@ CASE_ADAPTERS = {
     LuceneGradleAdapter.case_id: LuceneGradleAdapter(),
     LoghubHdfsAdapter.case_id: LoghubHdfsAdapter(),
     RubocopGitShowAdapter.case_id: RubocopGitShowAdapter(),
+    PhpCsFixerGitCommitAdapter.case_id: PhpCsFixerGitCommitAdapter(),
 }
 
 

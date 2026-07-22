@@ -1,0 +1,54 @@
+{
+  "additional_source_identities": [
+    {
+      "bytes": 113289,
+      "content_sha256": "28afec6faa88abf611f4e4963a931cce5d91bc8428854c3d0144a7a959c41726",
+      "git_blob_sha1": "9936a061d886d6eeba0be5faef22efddf8694f32",
+      "source_file": "src/cmds/git/git_cmd.rs",
+      "source_function": "parse_commit_output"
+    },
+    {
+      "bytes": 113289,
+      "content_sha256": "28afec6faa88abf611f4e4963a931cce5d91bc8428854c3d0144a7a959c41726",
+      "git_blob_sha1": "9936a061d886d6eeba0be5faef22efddf8694f32",
+      "source_file": "src/cmds/git/git_cmd.rs",
+      "source_function": "classify_commit_outcome"
+    }
+  ],
+  "generated_by": "evals/interop/v2/n2/e-rtk-native-corpus/tools/build_n2e_command_oracle_source_proof.py",
+  "manifest_binding": {
+    "manifest_generation": 3,
+    "manifest_sha256": "sha256:1cc3dbd3e5b021aa397165912105f552a48021ff654a5044b22432091ece393c"
+  },
+  "mission": "N2-E",
+  "mission_title": "external RTK-native claim-aligned command corpus",
+  "no_family_level": "this oracle is proven for the listed case ids ONLY; one case does not establish family-level go::vet scope",
+  "oracle_policy_id": "rtk-git-commit-oracle-v1",
+  "oracle_scope": "case_scoped",
+  "pinned_rtk_binary_identity": {
+    "bytes": 9200104,
+    "sha256": "41f316adf7b30a568208a0a4f824bffb266ecb6d01bd9de81bed58e1d469dfcf"
+  },
+  "proven_case_ids": [
+    "php-cs-fixer__php-cs-fixer-8075::git::commit"
+  ],
+  "purpose": "Source-identity + case-scope proof for rtk-git-commit-oracle-v1. Pins the exact pinned RTK source function it was grounded in, the semantics-module identity, the pinned corpus RTK binary, and the case-scoped manifest binding. Sets no promotion flag.",
+  "record_sha256": "sha256:9a673b50caa33257d447ebb0df477de4ffba4ff1b3995d3fd208f20a35ec4a43",
+  "record_type": "n2e-command-oracle-source-proof",
+  "record_version": "v1",
+  "rtk_source_identity": {
+    "bytes": 113289,
+    "commit": "5d32d0736f686b69d1e8b9dc45c007d4eb77a0a2",
+    "content_sha256": "28afec6faa88abf611f4e4963a931cce5d91bc8428854c3d0144a7a959c41726",
+    "git_blob_sha1": "9936a061d886d6eeba0be5faef22efddf8694f32",
+    "source_file": "src/cmds/git/git_cmd.rs",
+    "source_function": "run_commit"
+  },
+  "schema_version": "n2e-record-1",
+  "semantics_module": {
+    "bytes": 7532,
+    "declared_oracle_id": "rtk-git-commit-oracle-v1",
+    "path": "tools/n2e_rtk_git_commit_oracle.py",
+    "sha256": "e149f39a5013606612ba74d6a531c850d1f79a833bb1cf0c5fb2b21f3552183b"
+  }
+}
