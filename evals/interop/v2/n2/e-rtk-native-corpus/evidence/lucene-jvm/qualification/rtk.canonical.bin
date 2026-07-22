@@ -1,0 +1,472 @@
+
+Welcome to Gradle 8.10!
+
+Here are the highlights of this release:
+ - Support for Java 23
+ - Faster configuration cache
+ - Better configuration cache reports
+
+For more details see https://docs.gradle.org/8.10/release-notes.html
+
+To honour the JVM settings for this build a single-use Daemon process will be forked. For more on this, please refer to https://docs.gradle.org/8.10/userguide/gradle_daemon.html#sec:disabling_the_daemon in the Gradle documentation.
+Daemon will be stopped at the end of the build 
+
+> Task :build-infra:compileJava
+
+> Task :build-infra:pluginDescriptors
+> Task :build-infra:processResources
+> Task :build-infra:classes
+> Task :build-infra:jar
+
+> Task :randomizationInfo
+Running tests with randomization seed: tests.seed=965304069726D5D6
+
+> Task :errorProneSkipped
+WARNING: errorprone disabled (skipped on builds not running inside CI environments, pass -Pvalidation.errorprone=true to enable)
+
+> Task :gitStatus
+
+> Task :lucene:core:compileJava
+
+> Task :lucene:core:processResources
+> Task :lucene:core:classes
+> Task :lucene:core:compileMain21Java
+> Task :lucene:core:processMain21Resources NO-SOURCE
+> Task :lucene:core:main21Classes
+> Task :lucene:core:jar
+> Task :lucene:codecs:compileJava
+> Task :lucene:codecs:processResources
+> Task :lucene:codecs:classes
+> Task :lucene:codecs:jar
+
+> Task :lucene:test-framework:compileJava
+
+> Task :lucene:test-framework:processResources
+> Task :lucene:test-framework:classes
+> Task :lucene:test-framework:jar
+
+> Task :lucene:analysis:common:compileJava
+
+> Task :lucene:analysis:common:processResources
+> Task :lucene:analysis:common:classes
+> Task :lucene:analysis:common:jar
+> Task :lucene:analysis:icu:compileJava
+> Task :lucene:analysis:icu:processResources
+> Task :lucene:analysis:icu:classes
+> Task :lucene:analysis:icu:jar
+> Task :lucene:analysis:kuromoji:compileJava
+> Task :lucene:analysis:kuromoji:processResources
+> Task :lucene:analysis:kuromoji:classes
+> Task :lucene:analysis:kuromoji:jar
+> Task :lucene:analysis:morfologik:compileJava
+> Task :lucene:analysis:morfologik:processResources
+> Task :lucene:analysis:morfologik:classes
+> Task :lucene:analysis:morfologik:jar
+> Task :lucene:analysis:nori:compileJava
+> Task :lucene:analysis:nori:processResources
+> Task :lucene:analysis:nori:classes
+> Task :lucene:analysis:nori:jar
+> Task :lucene:analysis:opennlp:compileJava
+> Task :lucene:analysis:opennlp:processResources
+> Task :lucene:analysis:opennlp:classes
+> Task :lucene:analysis:opennlp:jar
+> Task :lucene:analysis:phonetic:compileJava
+> Task :lucene:analysis:phonetic:processResources
+> Task :lucene:analysis:phonetic:classes
+> Task :lucene:analysis:phonetic:jar
+> Task :lucene:analysis:smartcn:compileJava
+> Task :lucene:analysis:smartcn:processResources
+> Task :lucene:analysis:smartcn:classes
+> Task :lucene:analysis:smartcn:jar
+> Task :lucene:analysis:stempel:compileJava
+> Task :lucene:analysis:stempel:processResources
+> Task :lucene:analysis:stempel:classes
+> Task :lucene:analysis:stempel:jar
+> Task :lucene:analysis.tests:compileTestJava
+> Task :lucene:analysis.tests:processTestResources
+> Task :lucene:analysis.tests:testClasses
+> Task :lucene:analysis.tests:testJar
+
+> Task :lucene:analysis.tests:test
+
+---------------------------------------------------------------
+|  Results: SUCCESS (0 tests, 0 passed, 0 failed, 0 skipped)  |
+---------------------------------------------------------------
+
+> Task :lucene:analysis.tests:wipeTaskTemp
+> Task :lucene:backward-codecs:compileJava
+> Task :lucene:backward-codecs:processResources
+> Task :lucene:backward-codecs:classes
+> Task :lucene:backward-codecs:jar
+
+> Task :lucene:backward-codecs:compileTestJava
+
+> Task :lucene:backward-codecs:processTestResources
+> Task :lucene:backward-codecs:testClasses
+
+> Task :lucene:backward-codecs:test
+
+---------------------------------------------------------------
+|  Results: SUCCESS (0 tests, 0 passed, 0 failed, 0 skipped)  |
+---------------------------------------------------------------
+
+> Task :lucene:backward-codecs:wipeTaskTemp
+
+> Task :lucene:facet:compileJava
+
+> Task :lucene:facet:processResources NO-SOURCE
+> Task :lucene:facet:classes
+> Task :lucene:facet:jar
+> Task :lucene:memory:compileJava
+> Task :lucene:memory:processResources NO-SOURCE
+> Task :lucene:memory:classes
+> Task :lucene:memory:jar
+
+> Task :lucene:queries:compileJava
+
+> Task :lucene:queries:processResources NO-SOURCE
+> Task :lucene:queries:classes
+> Task :lucene:queries:jar
+> Task :lucene:highlighter:compileJava
+> Task :lucene:highlighter:processResources NO-SOURCE
+> Task :lucene:highlighter:classes
+> Task :lucene:highlighter:jar
+
+> Task :lucene:sandbox:compileJava
+
+> Task :lucene:sandbox:processResources
+> Task :lucene:sandbox:classes
+> Task :lucene:sandbox:jar
+> Task :lucene:queryparser:compileJava
+> Task :lucene:queryparser:processResources
+> Task :lucene:queryparser:classes
+> Task :lucene:queryparser:jar
+> Task :lucene:spatial3d:compileJava
+> Task :lucene:spatial3d:processResources NO-SOURCE
+> Task :lucene:spatial3d:classes
+> Task :lucene:spatial3d:jar
+> Task :lucene:spatial-extras:compileJava
+> Task :lucene:spatial-extras:processResources NO-SOURCE
+> Task :lucene:spatial-extras:classes
+> Task :lucene:spatial-extras:jar
+> Task :lucene:benchmark:compileJava
+> Task :lucene:benchmark:processResources NO-SOURCE
+> Task :lucene:benchmark:classes
+> Task :lucene:benchmark:jar
+> Task :lucene:benchmark:compileTestJava
+> Task :lucene:benchmark:processTestResources
+> Task :lucene:benchmark:testClasses
+
+> Task :lucene:benchmark:test
+
+---------------------------------------------------------------
+|  Results: SUCCESS (0 tests, 0 passed, 0 failed, 0 skipped)  |
+---------------------------------------------------------------
+
+> Task :lucene:benchmark:wipeTaskTemp
+
+> Task :lucene:expressions:compileJava
+
+> Task :lucene:expressions:processResources
+> Task :lucene:expressions:classes
+> Task :lucene:expressions:jar
+
+> Task :lucene:benchmark-jmh:compileJava
+
+> Task :lucene:benchmark-jmh:processResources NO-SOURCE
+> Task :lucene:benchmark-jmh:classes
+> Task :lucene:benchmark-jmh:jar
+> Task :lucene:benchmark-jmh:compileTestJava NO-SOURCE
+> Task :lucene:benchmark-jmh:processTestResources NO-SOURCE
+> Task :lucene:benchmark-jmh:testClasses UP-TO-DATE
+> Task :lucene:benchmark-jmh:test NO-SOURCE
+> Task :lucene:benchmark-jmh:wipeTaskTemp
+
+> Task :lucene:grouping:compileJava
+
+> Task :lucene:grouping:processResources NO-SOURCE
+> Task :lucene:grouping:classes
+> Task :lucene:grouping:jar
+> Task :lucene:classification:compileJava
+> Task :lucene:classification:processResources NO-SOURCE
+> Task :lucene:classification:classes
+> Task :lucene:classification:jar
+> Task :lucene:classification:compileTestJava
+> Task :lucene:classification:processTestResources
+> Task :lucene:classification:testClasses
+
+> Task :lucene:classification:test
+
+---------------------------------------------------------------
+|  Results: SUCCESS (0 tests, 0 passed, 0 failed, 0 skipped)  |
+---------------------------------------------------------------
+
+> Task :lucene:classification:wipeTaskTemp
+> Task :lucene:codecs:compileTestJava
+> Task :lucene:codecs:processTestResources
+> Task :lucene:codecs:testClasses
+
+> Task :lucene:codecs:test
+
+---------------------------------------------------------------
+|  Results: SUCCESS (0 tests, 0 passed, 0 failed, 0 skipped)  |
+---------------------------------------------------------------
+
+> Task :lucene:codecs:wipeTaskTemp
+
+> Task :lucene:core:compileTestJava
+
+> Task :lucene:core:processTestResources
+> Task :lucene:core:testClasses
+
+> Task :lucene:core:test
+
+TestLatLonDocValuesQueries STANDARD_ERROR
+    <jul-ts> org.apache.lucene.internal.vectorization.VectorizationProvider lookup
+    WARNING: C2 compiler is disabled; Java vector incubator API can't be enabled
+
+TestLatLonDocValuesQueries > testSmallSetTinyDistance PASSED
+
+TestLatLonDocValuesQueries > testBoxNull PASSED
+
+TestLatLonDocValuesQueries > testRandomDistance PASSED
+
+TestLatLonDocValuesQueries > testRandomDistanceHuge SKIPPED
+
+TestLatLonDocValuesQueries > testBoxInvalidCoordinates PASSED
+
+TestLatLonDocValuesQueries > testDistanceBasics PASSED
+
+TestLatLonDocValuesQueries > testRandomBig SKIPPED
+
+TestLatLonDocValuesQueries > testDistanceIllegal PASSED
+
+TestLatLonDocValuesQueries > testRandomTiny PASSED
+
+TestLatLonDocValuesQueries > testSmallSetPolyWholeMap PASSED
+
+TestLatLonDocValuesQueries > testPolygonHole PASSED
+
+TestLatLonDocValuesQueries > testIndexInfValues PASSED
+
+TestLatLonDocValuesQueries > testSmallSetMultiValued PASSED
+
+TestLatLonDocValuesQueries > testAllLatEqual PASSED
+
+TestLatLonDocValuesQueries > testDistanceNaN PASSED
+
+TestLatLonDocValuesQueries > testIndexOutOfRangeValues PASSED
+
+TestLatLonDocValuesQueries > testLowCardinality PASSED
+
+TestLatLonDocValuesQueries > testSmallSetDistanceNotEmpty PASSED
+
+TestLatLonDocValuesQueries > testMultiValued PASSED
+
+TestLatLonDocValuesQueries > testIndexExtremeValues PASSED
+
+TestLatLonDocValuesQueries > testSmallSetDistanceDateline PASSED
+
+TestLatLonDocValuesQueries > testRectBoundariesAreInclusive PASSED
+
+TestLatLonDocValuesQueries > testSmallSetPoly PASSED
+
+TestLatLonDocValuesQueries > testNarrowPolygonCloseToNorthPole FAILED
+    java.lang.AssertionError: expected:<1> but was:<0>
+        at __randomizedtesting.SeedInfo.seed([965304069726D5D6:349A1E17D48F1E1]:0)
+        at org.junit.Assert.fail(Assert.java:89)
+        at org.junit.Assert.failNotEquals(Assert.java:835)
+        at org.junit.Assert.assertEquals(Assert.java:647)
+        at org.junit.Assert.assertEquals(Assert.java:633)
+        at org.apache.lucene.tests.geo.BaseGeoPointTestCase.testNarrowPolygonCloseToNorthPole(BaseGeoPointTestCase.java:1789)
+        at java.base/jdk.internal.reflect.DirectMethodHandleAccessor.invoke(DirectMethodHandleAccessor.java:103)
+        at java.base/java.lang.reflect.Method.invoke(Method.java:580)
+        at com.carrotsearch.randomizedtesting.RandomizedRunner.invoke(RandomizedRunner.java:1758)
+        at com.carrotsearch.randomizedtesting.RandomizedRunner$8.evaluate(RandomizedRunner.java:946)
+        at com.carrotsearch.randomizedtesting.RandomizedRunner$9.evaluate(RandomizedRunner.java:982)
+        at com.carrotsearch.randomizedtesting.RandomizedRunner$10.evaluate(RandomizedRunner.java:996)
+        at org.apache.lucene.tests.util.TestRuleSetupTeardownChained$1.evaluate(TestRuleSetupTeardownChained.java:48)
+        at org.apache.lucene.tests.util.AbstractBeforeAfterRule$1.evaluate(AbstractBeforeAfterRule.java:43)
+        at org.apache.lucene.tests.util.TestRuleThreadAndTestName$1.evaluate(TestRuleThreadAndTestName.java:45)
+        at org.apache.lucene.tests.util.TestRuleIgnoreAfterMaxFailures$1.evaluate(TestRuleIgnoreAfterMaxFailures.java:60)
+        at org.apache.lucene.tests.util.TestRuleMarkFailure$1.evaluate(TestRuleMarkFailure.java:44)
+        at org.junit.rules.RunRules.evaluate(RunRules.java:20)
+        at com.carrotsearch.randomizedtesting.rules.StatementAdapter.evaluate(StatementAdapter.java:36)
+        at com.carrotsearch.randomizedtesting.ThreadLeakControl$StatementRunner.run(ThreadLeakControl.java:390)
+        at com.carrotsearch.randomizedtesting.ThreadLeakControl.forkTimeoutingTask(ThreadLeakControl.java:843)
+        at com.carrotsearch.randomizedtesting.ThreadLeakControl$3.evaluate(ThreadLeakControl.java:490)
+        at com.carrotsearch.randomizedtesting.RandomizedRunner.runSingleTest(RandomizedRunner.java:955)
+        at com.carrotsearch.randomizedtesting.RandomizedRunner$5.evaluate(RandomizedRunner.java:840)
+        at com.carrotsearch.randomizedtesting.RandomizedRunner$6.evaluate(RandomizedRunner.java:891)
+        at com.carrotsearch.randomizedtesting.RandomizedRunner$7.evaluate(RandomizedRunner.java:902)
+        at org.apache.lucene.tests.util.AbstractBeforeAfterRule$1.evaluate(AbstractBeforeAfterRule.java:43)
+        at com.carrotsearch.randomizedtesting.rules.StatementAdapter.evaluate(StatementAdapter.java:36)
+        at org.apache.lucene.tests.util.TestRuleStoreClassName$1.evaluate(TestRuleStoreClassName.java:38)
+        at com.carrotsearch.randomizedtesting.rules.NoShadowingOrOverridesOnMethodsRule$1.evaluate(NoShadowingOrOverridesOnMethodsRule.java:40)
+        at com.carrotsearch.randomizedtesting.rules.NoShadowingOrOverridesOnMethodsRule$1.evaluate(NoShadowingOrOverridesOnMethodsRule.java:40)
+        at com.carrotsearch.randomizedtesting.rules.StatementAdapter.evaluate(StatementAdapter.java:36)
+        at com.carrotsearch.randomizedtesting.rules.StatementAdapter.evaluate(StatementAdapter.java:36)
+        at org.apache.lucene.tests.util.TestRuleAssertionsRequired$1.evaluate(TestRuleAssertionsRequired.java:53)
+        at org.apache.lucene.tests.util.AbstractBeforeAfterRule$1.evaluate(AbstractBeforeAfterRule.java:43)
+        at org.apache.lucene.tests.util.TestRuleMarkFailure$1.evaluate(TestRuleMarkFailure.java:44)
+        at org.apache.lucene.tests.util.TestRuleIgnoreAfterMaxFailures$1.evaluate(TestRuleIgnoreAfterMaxFailures.java:60)
+        at org.apache.lucene.tests.util.TestRuleIgnoreTestSuites$1.evaluate(TestRuleIgnoreTestSuites.java:47)
+        at org.junit.rules.RunRules.evaluate(RunRules.java:20)
+        at com.carrotsearch.randomizedtesting.rules.StatementAdapter.evaluate(StatementAdapter.java:36)
+        at com.carrotsearch.randomizedtesting.ThreadLeakControl$StatementRunner.run(ThreadLeakControl.java:390)
+        at com.carrotsearch.randomizedtesting.ThreadLeakControl.lambda$forkTimeoutingTask$0(ThreadLeakControl.java:850)
+        at java.base/java.lang.Thread.run(Thread.java:1583)
+
+TestLatLonDocValuesQueries STANDARD_ERROR
+    NOTE: reproduce with: gradlew test --tests TestLatLonDocValuesQueries.testNarrowPolygonCloseToNorthPole -Dtests.seed=965304069726D5D6 -Dtests.locale=zh-Hant-HK -Dtests.timezone=Europe/Samara -Dtests.asserts=true -Dtests.file.encoding=UTF-8
+
+TestLatLonDocValuesQueries > testSamePointManyTimes PASSED
+
+TestLatLonDocValuesQueries > testRandomMedium PASSED
+
+TestLatLonDocValuesQueries > testPolygonBasics PASSED
+
+TestLatLonDocValuesQueries > testDistanceNegative PASSED
+
+TestLatLonDocValuesQueries > testSmallSetWholeMap PASSED
+
+TestLatLonDocValuesQueries > testBoxBasics PASSED
+
+TestLatLonDocValuesQueries > testSmallSetHugeDistance PASSED
+
+TestLatLonDocValuesQueries > testDistanceInf PASSED
+
+TestLatLonDocValuesQueries > testPolygonNullField PASSED
+
+TestLatLonDocValuesQueries > testDistanceNull PASSED
+
+TestLatLonDocValuesQueries > testIndexNaNValues PASSED
+
+TestLatLonDocValuesQueries > testEquals PASSED
+
+TestLatLonDocValuesQueries > testAllLonEqual PASSED
+
+TestLatLonDocValuesQueries > testSmallSetDateline PASSED
+
+TestLatLonDocValuesQueries > testSmallSetDistance PASSED
+
+TestLatLonDocValuesQueries > testSmallSetRect PASSED
+
+TestLatLonDocValuesQueries > testPolygonHoleExcludes PASSED
+
+TestLatLonDocValuesQueries > testMultiPolygonBasics PASSED
+
+TestLatLonDocValuesQueries STANDARD_ERROR
+    NOTE: leaving temporary files on disk at: /home/runner/work/_temp/n2e-fixedwork/lucene/core/build/tmp/tests-tmp/lucene.search.TestLatLonDocValuesQueries_965304069726D5D6-002
+    NOTE: test params are: codec=Lucene912, sim=Asserting(RandomSimilarity(queryNorm=true): {}), locale=zh-Hant-HK, timezone=Europe/Samara
+    NOTE: Linux 6.17.0-1020-azure amd64/Eclipse Adoptium 21.0.11 (64-bit)/cpus=1,threads=1,free=<mem>,total=<mem>
+    NOTE: All tests run in this JVM: [TestLatLonDocValuesQueries]
+
+org.apache.lucene.search.TestLatLonDocValuesQueries > test suite's output saved to /home/runner/work/_temp/n2e-fixedwork/lucene/core/build/test-results/test/outputs/OUTPUT-org.apache.lucene.search.TestLatLonDocValuesQueries.txt, copied below:
+  2> <jul-ts> org.apache.lucene.internal.vectorization.VectorizationProvider lookup
+  2> WARNING: C2 compiler is disabled; Java vector incubator API can't be enabled
+   >     java.lang.AssertionError: expected:<1> but was:<0>
+   >         at __randomizedtesting.SeedInfo.seed([965304069726D5D6:349A1E17D48F1E1]:0)
+   >         at org.junit.Assert.fail(Assert.java:89)
+   >         at org.junit.Assert.failNotEquals(Assert.java:835)
+   >         at org.junit.Assert.assertEquals(Assert.java:647)
+   >         at org.junit.Assert.assertEquals(Assert.java:633)
+   >         at org.apache.lucene.tests.geo.BaseGeoPointTestCase.testNarrowPolygonCloseToNorthPole(BaseGeoPointTestCase.java:1789)
+   >         at java.base/jdk.internal.reflect.DirectMethodHandleAccessor.invoke(DirectMethodHandleAccessor.java:103)
+   >         at java.base/java.lang.reflect.Method.invoke(Method.java:580)
+   >         at com.carrotsearch.randomizedtesting.RandomizedRunner.invoke(RandomizedRunner.java:1758)
+   >         at com.carrotsearch.randomizedtesting.RandomizedRunner$8.evaluate(RandomizedRunner.java:946)
+   >         at com.carrotsearch.randomizedtesting.RandomizedRunner$9.evaluate(RandomizedRunner.java:982)
+   >         at com.carrotsearch.randomizedtesting.RandomizedRunner$10.evaluate(RandomizedRunner.java:996)
+   >         at org.apache.lucene.tests.util.TestRuleSetupTeardownChained$1.evaluate(TestRuleSetupTeardownChained.java:48)
+   >         at org.apache.lucene.tests.util.AbstractBeforeAfterRule$1.evaluate(AbstractBeforeAfterRule.java:43)
+   >         at org.apache.lucene.tests.util.TestRuleThreadAndTestName$1.evaluate(TestRuleThreadAndTestName.java:45)
+   >         at org.apache.lucene.tests.util.TestRuleIgnoreAfterMaxFailures$1.evaluate(TestRuleIgnoreAfterMaxFailures.java:60)
+   >         at org.apache.lucene.tests.util.TestRuleMarkFailure$1.evaluate(TestRuleMarkFailure.java:44)
+   >         at org.junit.rules.RunRules.evaluate(RunRules.java:20)
+   >         at com.carrotsearch.randomizedtesting.rules.StatementAdapter.evaluate(StatementAdapter.java:36)
+   >         at com.carrotsearch.randomizedtesting.ThreadLeakControl$StatementRunner.run(ThreadLeakControl.java:390)
+   >         at com.carrotsearch.randomizedtesting.ThreadLeakControl.forkTimeoutingTask(ThreadLeakControl.java:843)
+   >         at com.carrotsearch.randomizedtesting.ThreadLeakControl$3.evaluate(ThreadLeakControl.java:490)
+   >         at com.carrotsearch.randomizedtesting.RandomizedRunner.runSingleTest(RandomizedRunner.java:955)
+   >         at com.carrotsearch.randomizedtesting.RandomizedRunner$5.evaluate(RandomizedRunner.java:840)
+   >         at com.carrotsearch.randomizedtesting.RandomizedRunner$6.evaluate(RandomizedRunner.java:891)
+   >         at com.carrotsearch.randomizedtesting.RandomizedRunner$7.evaluate(RandomizedRunner.java:902)
+   >         at org.apache.lucene.tests.util.AbstractBeforeAfterRule$1.evaluate(AbstractBeforeAfterRule.java:43)
+   >         at com.carrotsearch.randomizedtesting.rules.StatementAdapter.evaluate(StatementAdapter.java:36)
+   >         at org.apache.lucene.tests.util.TestRuleStoreClassName$1.evaluate(TestRuleStoreClassName.java:38)
+   >         at com.carrotsearch.randomizedtesting.rules.NoShadowingOrOverridesOnMethodsRule$1.evaluate(NoShadowingOrOverridesOnMethodsRule.java:40)
+   >         at com.carrotsearch.randomizedtesting.rules.NoShadowingOrOverridesOnMethodsRule$1.evaluate(NoShadowingOrOverridesOnMethodsRule.java:40)
+   >         at com.carrotsearch.randomizedtesting.rules.StatementAdapter.evaluate(StatementAdapter.java:36)
+   >         at com.carrotsearch.randomizedtesting.rules.StatementAdapter.evaluate(StatementAdapter.java:36)
+   >         at org.apache.lucene.tests.util.TestRuleAssertionsRequired$1.evaluate(TestRuleAssertionsRequired.java:53)
+   >         at org.apache.lucene.tests.util.AbstractBeforeAfterRule$1.evaluate(AbstractBeforeAfterRule.java:43)
+   >         at org.apache.lucene.tests.util.TestRuleMarkFailure$1.evaluate(TestRuleMarkFailure.java:44)
+   >         at org.apache.lucene.tests.util.TestRuleIgnoreAfterMaxFailures$1.evaluate(TestRuleIgnoreAfterMaxFailures.java:60)
+   >         at org.apache.lucene.tests.util.TestRuleIgnoreTestSuites$1.evaluate(TestRuleIgnoreTestSuites.java:47)
+   >         at org.junit.rules.RunRules.evaluate(RunRules.java:20)
+   >         at com.carrotsearch.randomizedtesting.rules.StatementAdapter.evaluate(StatementAdapter.java:36)
+   >         at com.carrotsearch.randomizedtesting.ThreadLeakControl$StatementRunner.run(ThreadLeakControl.java:390)
+   >         at com.carrotsearch.randomizedtesting.ThreadLeakControl.lambda$forkTimeoutingTask$0(ThreadLeakControl.java:850)
+   >         at java.base/java.lang.Thread.run(Thread.java:1583)
+  2> NOTE: reproduce with: gradlew test --tests TestLatLonDocValuesQueries.testNarrowPolygonCloseToNorthPole -Dtests.seed=965304069726D5D6 -Dtests.locale=zh-Hant-HK -Dtests.timezone=Europe/Samara -Dtests.asserts=true -Dtests.file.encoding=UTF-8
+  2> NOTE: leaving temporary files on disk at: /home/runner/work/_temp/n2e-fixedwork/lucene/core/build/tmp/tests-tmp/lucene.search.TestLatLonDocValuesQueries_965304069726D5D6-002
+  2> NOTE: test params are: codec=Lucene912, sim=Asserting(RandomSimilarity(queryNorm=true): {}), locale=zh-Hant-HK, timezone=Europe/Samara
+  2> NOTE: Linux 6.17.0-1020-azure amd64/Eclipse Adoptium 21.0.11 (64-bit)/cpus=1,threads=1,free=<mem>,total=<mem>
+  2> NOTE: All tests run in this JVM: [TestLatLonDocValuesQueries]
+
+:lucene:core:test (FAILURE): 42 test(s), 1 failure(s), 2 skipped
+
+-----------------------------------------------------------------
+|  Results: FAILURE (42 tests, 39 passed, 1 failed, 2 skipped)  |
+-----------------------------------------------------------------
+
+> Task :lucene:core:test FAILED
+> Task :lucene:core:wipeTaskTemp
+102 actionable tasks: 102 executed
+The build is running offline. A build scan will not be published at this time, but it can be published if you run the 'buildScanPublishPrevious' task in the next build.
+Note: /home/runner/work/_temp/n2e-fixedwork/build-tools/build-infra/src/main/java/org/apache/lucene/gradle/Checksum.java uses or overrides a deprecated API.
+Note: Recompile with -Xlint:deprecation for details.
+Note: Some input files use or override a deprecated API.
+Note: Recompile with -Xlint:deprecation for details.
+Note: Some input files use or override a deprecated API.
+Note: Recompile with -Xlint:deprecation for details.
+Note: Some input files use or override a deprecated API.
+Note: Recompile with -Xlint:deprecation for details.
+Note: Some input files use or override a deprecated API.
+Note: Recompile with -Xlint:deprecation for details.
+Note: Some input files use or override a deprecated API.
+Note: Recompile with -Xlint:deprecation for details.
+Note: /home/runner/work/_temp/n2e-fixedwork/lucene/queries/src/java/org/apache/lucene/queries/payloads/PayloadMatcherFactory.java uses or overrides a deprecated API.
+Note: Recompile with -Xlint:deprecation for details.
+Note: Some input files use or override a deprecated API.
+Note: Recompile with -Xlint:deprecation for details.
+Note: /home/runner/work/_temp/n2e-fixedwork/lucene/expressions/src/java/org/apache/lucene/expressions/js/JavascriptCompiler.java uses or overrides a deprecated API.
+Note: Recompile with -Xlint:deprecation for details.
+/home/runner/work/_temp/n2e-fixedwork/lucene/benchmark-jmh/src/java/module-info.java:20: warning: requires directive for an automatic module
+  requires jmh.core;
+              ^
+1 warning
+Note: /home/runner/work/_temp/n2e-fixedwork/lucene/grouping/src/java/org/apache/lucene/search/grouping/GroupingSearch.java uses or overrides a deprecated API.
+Note: Recompile with -Xlint:deprecation for details.
+Note: Some input files use or override a deprecated API.
+Note: Recompile with -Xlint:deprecation for details.
+WARNING: Using incubator modules: jdk.incubator.vector
+WARNING: A command line option has enabled the Security Manager
+WARNING: The Security Manager is deprecated and will be removed in a future release
+
+42 tests completed, 1 failed, 2 skipped
+
+ERROR: The following test(s) have failed:
+  - org.apache.lucene.search.TestLatLonDocValuesQueries.testNarrowPolygonCloseToNorthPole (:lucene:core)
+    Test output: /home/runner/work/_temp/n2e-fixedwork/lucene/core/build/test-results/test/outputs/OUTPUT-org.apache.lucene.search.TestLatLonDocValuesQueries.txt
+    Reproduce with: gradlew :lucene:core:test --tests "org.apache.lucene.search.TestLatLonDocValuesQueries.testNarrowPolygonCloseToNorthPole" -Ptests.jvms=1 "-Ptests.jvmargs=-XX:TieredStopAtLevel=1 -XX:+UseParallelGC -XX:ActiveProcessorCount=1" -Ptests.seed=965304069726D5D6 -Ptests.gui=false -Ptests.file.encoding=US-ASCII -Ptests.vectorsize=default -Ptests.forceintegervectors=false
+
+
+FAILURE: Build failed with an exception.
+
+* What went wrong:
+Execution failed for task ':lucene:core:test'.
+> There were failing tests. See the results at: file:///home/runner/work/_temp/n2e-fixedwork/lucene/core/build/test-results/test/
+
+BUILD FAILED in <dur>

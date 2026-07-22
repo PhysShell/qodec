@@ -35,11 +35,12 @@ class TestMigrationBridge(unittest.TestCase):
         self.assertEqual(f["declared_changed_case"], LUCENE)
         self.assertEqual(f["carried_forward"], 11)
 
-    def test_green_aggregate_reaches_seven_via_bridge(self):
-        # the seven frozen PASS records (all legacy gen-2 for the six forward + coreutils' own binding)
-        # are carried forward under gen-3 by the bridge, with NONE of them edited
+    def test_green_aggregate_carries_seven_via_bridge_plus_native_lucene(self):
+        # the seven frozen PASS records (all legacy gen-2) are carried forward under gen-3 by the bridge
+        # with NONE of them edited; lucene is the bridge's DECLARED-CHANGED case and qualifies with a
+        # NATIVE gen-3 binding (case_entry_sha256), so the aggregate is 8 total -- 7 carried + 1 native.
         r = A.aggregate_from_disk()
-        self.assertEqual(r["derived_pass_count"], 7)
+        self.assertEqual(r["derived_pass_count"], 8)
         self.assertFalse(r["resolved_canary_pass"])
 
     # ---------- RED: bridge tampering (fail-closed) ----------
