@@ -91,5 +91,46 @@ class TestSourceIdentity(unittest.TestCase):
         self.assertEqual(f["cases"], ["loghub::HDFS::log"])
 
 
+class TestRealOutputRegression(unittest.TestCase):
+    """Freeze the oracle against the REAL rtk log output on the full HDFS stream (diagnostic run
+    29900168290): parse_rtk must reproduce the observed totals exactly, and the source-grounded
+    rtk_categorize projection must equal RTK's reported totals (severity equivalence closed)."""
+
+    REAL = N2E_DIR / "evidence" / "loghub-diag" / "rtk-log-summary.real.txt"
+    PROV = N2E_DIR / "n2e-loghub-diagnostic-provenance-v1.json"
+
+    def test_fixture_identity(self):
+        self.assertEqual(hashlib.sha256(self.REAL.read_bytes()).hexdigest(),
+                         "02a1e023f3008c99b9f1cda07f075cc0a6034dc097b6f8f5d1728cf68a38c4d9")
+
+    def test_parse_rtk_reproduces_real_totals(self):
+        p = orc.parse_rtk(self.REAL.read_bytes())
+        self.assertTrue(p["derivable"])
+        self.assertEqual(p["total_errors"], 5545)
+        self.assertEqual(p["total_warnings"], 356273)
+        self.assertEqual(p["total_info"], 10805922)
+        self.assertEqual(p["error_unique"], 5010)
+        self.assertEqual(p["warn_unique"], 116839)
+
+    def test_severity_projection_closed_on_real_stream(self):
+        # the RAW-side rtk_semantic_projection (source-grounded categorization) == RTK's reported totals
+        prov = c.load_record(self.PROV)
+        proj = prov["raw_capsule"]["rtk_semantic_projection"]
+        rtk = orc.parse_rtk(self.REAL.read_bytes())
+        self.assertEqual(proj["error"], rtk["total_errors"])
+        self.assertEqual(proj["warn"], rtk["total_warnings"])
+        self.assertEqual(proj["info"], rtk["total_info"])
+        self.assertTrue(prov["severity_equivalence"]["equivalent"])
+
+    def test_provenance_is_barred(self):
+        prov = c.load_record(self.PROV)
+        self.assertTrue(prov["barred_from_qualification"])
+        self.assertEqual(prov["record_kind"], "loghub_diagnostic_capture")
+        # the RAW capsule validated the published authority on the real full log
+        self.assertTrue(prov["raw_capsule"]["occurrence_counts_match_published"])
+        self.assertEqual(prov["raw_capsule"]["unique_template_count"], 46)
+        self.assertEqual(prov["input_member"]["line_count"], 11167740)
+
+
 if __name__ == "__main__":
     unittest.main()
