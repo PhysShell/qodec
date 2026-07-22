@@ -726,6 +726,9 @@ def acquire_swebench(scen, workroot):
     acq = {"identity_verified": True, "repository": repo, "base_commit": base,
            "instance_id": instance_id, "applied_patches": applied, "warm": warm,
            "resolved_raw_argv": resolved.get("raw_argv"), "resolved_rtk_argv": resolved.get("rtk_argv"),
+           "semantic_raw_argv": resolved.get("semantic_raw_argv"),
+           "semantic_rtk_argv": resolved.get("semantic_rtk_argv"),
+           "execution_isolation_flags": resolved.get("execution_isolation_flags"),
            "jvm_proof_class": resolved.get("jvm_proof_class"),
            "offline_env": offline_env, "environment_identity": env_identity,
            "workdir": "repo", "home_local": True, "policy": policy}
@@ -1227,7 +1230,15 @@ def _publisher_warm(recipe: dict, fam: str, sub: str, scen, repo_dir: Path, home
 
     policy = canon.policy_for(fam, sub, jvm_build=("gradle" if fam == "jvm" else None),
                               case_id=scen["case_id"])
+    # SEMANTIC argv = the publisher command + execution-control determinants (what the frozen contract
+    # + adapter double-lock). The gradle-offline ISOLATION flags (gradle_extra, owned by
+    # gradle-offline-isolation-v1) are applied on top at runtime and recorded SEPARATELY -- they are
+    # not part of the semantic command, so the contract/adapter argv deliberately excludes them. For
+    # non-jvm families gradle_extra is empty, so the semantic and executed argv coincide.
+    semantic_argv = [*test_argv_base, *seed_extra]
     resolved = {"raw_argv": measured_argv, "rtk_argv": ["rtk", *measured_argv],
+                "semantic_raw_argv": semantic_argv, "semantic_rtk_argv": ["rtk", *semantic_argv],
+                "execution_isolation_flags": list(gradle_extra),
                 "jvm_proof_class": target_class}
     offline_env = {**offline_env, **test_env}  # publisher test env (e.g. RUSTFLAGS) on both arms
 

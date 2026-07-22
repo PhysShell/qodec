@@ -19,6 +19,8 @@ their vertical is designed -- no ritual copy of an unknown bug across eleven rep
 """
 from __future__ import annotations
 
+import n2e_execution_control as ec
+
 
 class AdapterBindingError(Exception):
     pass
@@ -370,6 +372,116 @@ class ScrapyPytestAdapter(CaseAdapter):
         }
 
 
+class LuceneGradleAdapter(CaseAdapter):
+    """lucene `./gradlew test --tests <class>` (buggy) test-dialect on the JVM family. Fourth proven
+    test dialect (rtk-jvm-test-summary-v1), manifest-authoritative (contract dialect is None). The RTK
+    arm wraps the identical gradlew invocation (`rtk ./gradlew ...`).
+
+    v2 execution-determinant double-lock: this case does NOT freeze a literal argv tail. Lucene's argv
+    is deterministic ONLY under the execution-control policy, so the adapter re-derives the exact
+    ordered tail from n2e_execution_control.policy_for_case(case_id) -- seed FIRST (the reproduce-line
+    token), then the Gradle-concurrency determinants (-Ptests.jvms=1, --max-workers=1,
+    -Dorg.gradle.parallel=false, --console=plain) -- and requires BOTH the frozen contract argv AND
+    the contract's execution_control block to equal that derivation. A mutated seed, a dropped
+    concurrency flag, or a reordered tail is a hard binding error on either side. The seed is never a
+    hardcoded magic string; it is recomputed from lucene-randomized-seed-v1 over the frozen selection
+    seed, so no post-hoc seed choice can slip in.
+
+    Canonicalization is runtime-resolved (RUNTIME:gradle-test-v1|maven-test-v1); Lucene builds with
+    Gradle (argv[0] == './gradlew'), so the gradle branch is the resolved policy and the adapter
+    asserts the gradle branch is the one selected. Daemon/offline isolation stays owned by
+    gradle-offline-isolation-v1 (applied at runtime with a fresh per-rep GRADLE_USER_HOME); v2 does not
+    restate those flags. Whether the fixed-seed, single-worker, no-parallel, plain-console execution is
+    byte-deterministic is decided empirically by the probe + verifier gate (the sentinel): if it is
+    still nondeterministic, that is genuine DISQUALIFIED_INTRINSIC_NONDETERMINISM, never a silent pass."""
+
+    case_id = "apache__lucene-13704::jvm::test::buggy"
+    adapter_id = "lucene-gradle-test"
+    qualification_kind = "rtk_test_dialect"
+
+    # base command WITHOUT the execution-control tail; the tail is re-derived, never frozen literally
+    BASE_ARGV = ["./gradlew", "test", "--tests", "org.apache.lucene.search.TestLatLonDocValuesQueries"]
+    CANON_POLICY = "RUNTIME:gradle-test-v1|maven-test-v1"
+    RESOLVED_CANON_BRANCH = "gradle-test-v1"   # argv[0] == ./gradlew -> the gradle disjunct is selected
+    DIALECT_POLICY = "rtk-jvm-test-summary-v1"   # manifest-authoritative (contract dialect is None)
+    EXECUTION_POLICY_ID = "lucene-gradle-test-execution-v2"
+    TARGET_IDS = ["TestLatLonDocValuesQueries > testNarrowPolygonCloseToNorthPole"]
+    SEMANTIC_ENV = {}
+    PROTECTED_FILES = ["build.gradle", "build.gradle.kts", "settings.gradle", "gradle.lockfile", "pom.xml"]
+    REPS = 3
+    STREAM_ROLES = ("raw", "rtk")
+    PLATFORM_REQUIREMENTS = {"toolchain": ["java", "gradlew_or_mvn"], "network": "denied"}
+    EXECUTION_ISOLATION = {
+        "fresh_gocache_per_arm": False,          # not a go case
+        "single_checkout": True,                 # one checkout shared by both arms (same source bytes)
+        "same_cwd": ".",                         # both arms run in the repo root
+        "no_p52_fixture_reuse": True,            # acceptance streams captured fresh
+        "gradle_user_home_isolation": True,      # per-rep fresh GRADLE_USER_HOME (offline policy)
+        "execution_control_policy_id": EXECUTION_POLICY_ID,
+    }
+
+    def _expected_argv(self):
+        pol = ec.policy_for_case(self.case_id)
+        _require(pol is not None, "lucene has no execution-control policy")
+        _require(pol["policy_id"] == self.EXECUTION_POLICY_ID,
+                 "lucene execution-control policy id != v2")
+        tail = list(pol["args"])
+        # ordered double-lock: seed FIRST, then the Gradle-concurrency determinants (exact order)
+        _require(tail and tail[0].startswith("-Ptests.seed="),
+                 "lucene execution-control tail is not seed-first")
+        _require(tail[1:] == ["-Ptests.jvms=1", "--max-workers=1",
+                              "-Dorg.gradle.parallel=false", "--console=plain"],
+                 "lucene execution-control determinants != frozen v2 ordered set")
+        raw = self.BASE_ARGV + tail
+        return raw, ["rtk"] + raw, tail
+
+    def bind(self, contract: dict, scenario: dict) -> dict:
+        raw_argv, rtk_argv, exec_tail = self._expected_argv()
+        # ---- DOUBLE-LOCK: adapter-derived argv must equal the frozen contract argv ----
+        _require(contract.get("effective_raw_argv") == raw_argv, "lucene RAW argv != frozen contract")
+        _require(contract.get("effective_rtk_argv") == rtk_argv, "lucene RTK argv != frozen contract")
+        # the contract's execution_control block must pin the SAME v2 policy + SAME ordered tail
+        exctl = contract.get("execution_control") or {}
+        _require(exctl.get("policy_id") == self.EXECUTION_POLICY_ID,
+                 "lucene contract execution_control policy id != v2")
+        _require(list(exctl.get("args") or []) == exec_tail,
+                 "lucene contract execution_control args != re-derived v2 ordered tail")
+        _require(contract.get("canonicalization_policy_id") == self.CANON_POLICY,
+                 "lucene canon policy != frozen contract")
+        # runtime-resolved canon: Gradle build -> the gradle disjunct is the selected branch
+        _require(raw_argv[0] == "./gradlew"
+                 and self.RESOLVED_CANON_BRANCH in self.CANON_POLICY.split("RUNTIME:")[1].split("|"),
+                 "lucene resolved canon branch is not the gradle disjunct")
+        _require(contract.get("rtk_test_dialect_policy_id") in (None, self.DIALECT_POLICY),
+                 "lucene contract dialect policy is neither None nor the proven jvm dialect")
+        _require(contract.get("scheduler_env") == self.SEMANTIC_ENV, "lucene semantic env != frozen contract")
+        _require(list(contract.get("protected_files") or []) == self.PROTECTED_FILES,
+                 "lucene protected files != frozen contract")
+        _require(list(scenario.get("target_test_ids") or []) == self.TARGET_IDS,
+                 "lucene target ids != frozen scenario")
+        _require(contract.get("command_family") == "jvm" and contract.get("command_subfamily") == "test",
+                 "lucene command family/subfamily != frozen contract")
+        # RTK arm must wrap the identical gradlew invocation
+        _require(rtk_argv[0] == "rtk" and rtk_argv[1:] == raw_argv,
+                 "lucene RTK arm is not the identical gradlew target wrapped by rtk")
+        return {
+            "case_id": self.case_id, "adapter_id": self.adapter_id,
+            "qualification_kind": self.qualification_kind,
+            "raw_argv": list(raw_argv), "rtk_argv": list(rtk_argv),
+            "semantic_env": dict(self.SEMANTIC_ENV), "cwd": self.EXECUTION_ISOLATION["same_cwd"],
+            "reps": self.REPS, "stream_roles": list(self.STREAM_ROLES),
+            "canonicalization_policy_id": self.CANON_POLICY,
+            "resolved_canonicalization_policy_id": self.RESOLVED_CANON_BRANCH,
+            "rtk_test_dialect_policy_id": self.DIALECT_POLICY,
+            "command_semantic_oracle_policy_id": None,
+            "execution_control_policy_id": self.EXECUTION_POLICY_ID,
+            "target_test_ids": list(self.TARGET_IDS),
+            "protected_files": list(self.PROTECTED_FILES),
+            "platform_requirements": dict(self.PLATFORM_REQUIREMENTS),
+            "execution_isolation": dict(self.EXECUTION_ISOLATION),
+        }
+
+
 # tiny registry: Caddy (test-dialect) + Gin (command-oracle) prove both dispatch paths; the two
 # files-read adapters are the FIRST replication -- one shared oracle policy, two INDEPENDENT bindings;
 # Vue (js_ts) + Scrapy (python) are the second and third proven test dialects, manifest-authoritative.
@@ -380,6 +492,7 @@ CASE_ADAPTERS = {
     LombokReadAdapter.case_id: LombokReadAdapter(),
     VueVitestAdapter.case_id: VueVitestAdapter(),
     ScrapyPytestAdapter.case_id: ScrapyPytestAdapter(),
+    LuceneGradleAdapter.case_id: LuceneGradleAdapter(),
 }
 
 

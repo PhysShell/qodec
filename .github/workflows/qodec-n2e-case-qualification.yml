@@ -181,6 +181,23 @@ jobs:
           corepack enable
           corepack --version
           pnpm --version || echo "pnpm shim installed (version resolves at first repo use)"
+      - name: Install the pinned JDK (jvm-family cases only; gradle via the repo wrapper)
+        if: contains(env.CASE, '::jvm::')
+        run: |
+          cd "$N2E"
+          LOCK=n2e-toolchain-lock-v1.json
+          getf() { python3 -c "import json;print(json.load(open('$LOCK'))['toolchains']$1)"; }
+          JDK_URL="$(getf "['java']['artifact']['url']")"; JDK_SHA="$(getf "['java']['artifact']['sha256']")"
+          curl -fsSL "$JDK_URL" -o /tmp/jdk.tar.gz
+          echo "$JDK_SHA  /tmp/jdk.tar.gz" | sha256sum -c -
+          sudo rm -rf /usr/local/jdk && sudo mkdir -p /usr/local/jdk
+          sudo tar -C /usr/local/jdk --strip-components=1 -xzf /tmp/jdk.tar.gz
+          echo "JAVA_HOME=/usr/local/jdk" >> "$GITHUB_ENV"
+          echo "/usr/local/jdk/bin" >> "$GITHUB_PATH"
+          /usr/local/jdk/bin/java -version 2>&1 | grep -q "$(getf "['java']['publisher_version']")"
+          # gradle itself is NOT installed here: Lucene builds through the committed ./gradlew wrapper
+          # (gradle 8.10, pinned by gradle-wrapper.properties); the acquisition warm primes the wrapper
+          # distribution + build dependencies online, then the offline arms reuse that frozen cache.
       # producer records OBSERVATIONS ONLY -> external manifest -> UPLOAD (always) -> verifier GATE
       - name: Run the case acceptance probe (observations only; no verdict)
         run: |

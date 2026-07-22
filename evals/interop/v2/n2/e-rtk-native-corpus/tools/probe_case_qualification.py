@@ -112,18 +112,30 @@ def main() -> int:
 
         policy = acq["policy"]
         frozen = workroot / acq.get("workdir", ".")
-        if policy != det["canonicalization_policy_id"]:
+        # the acquisition resolves the RUNTIME canon disjunction (e.g. RUNTIME:gradle-test-v1|
+        # maven-test-v1) to a concrete branch; compare against the adapter's RESOLVED policy when it
+        # declares one, else its literal (concrete) policy.
+        expected_policy = det.get("resolved_canonicalization_policy_id") or det["canonicalization_policy_id"]
+        if policy != expected_policy:
             body["outcome"] = "CASE_REJECTED_POLICY_MISMATCH"
-            body["detail"] = {"acq_policy": policy, "adapter_policy": det["canonicalization_policy_id"]}
+            body["detail"] = {"acq_policy": policy, "adapter_policy": expected_policy}
             _emit(out, body); print("case probe: canon policy mismatch"); return 0
 
-        # the argv the harness will run MUST equal the adapter's double-locked determinants
-        raw_argv = acq.get("resolved_raw_argv") or det["raw_argv"]
-        rtk_argv = acq.get("resolved_rtk_argv") or det["rtk_argv"]
-        body["actual_raw_argv"] = raw_argv
-        body["actual_rtk_argv"] = rtk_argv
-        body["raw_argv_equals_adapter"] = (raw_argv == det["raw_argv"])
-        body["rtk_argv_equals_adapter"] = (rtk_argv == det["rtk_argv"])
+        # SEMANTIC argv (contract/adapter double-lock) vs EXECUTED argv (semantic + runtime isolation
+        # flags, e.g. gradle-offline). For families with no isolation flags the two coincide. The
+        # adapter equality is on the SEMANTIC argv; the isolation flags are recorded separately.
+        exec_raw_argv = acq.get("resolved_raw_argv") or det["raw_argv"]
+        exec_rtk_argv = acq.get("resolved_rtk_argv") or det["rtk_argv"]
+        sem_raw_argv = acq.get("semantic_raw_argv") or exec_raw_argv
+        sem_rtk_argv = acq.get("semantic_rtk_argv") or exec_rtk_argv
+        iso_flags = acq.get("execution_isolation_flags") or []
+        body["actual_raw_argv"] = sem_raw_argv
+        body["actual_rtk_argv"] = sem_rtk_argv
+        body["executed_raw_argv"] = exec_raw_argv
+        body["executed_rtk_argv"] = exec_rtk_argv
+        body["execution_isolation_flags"] = list(iso_flags)
+        body["raw_argv_equals_adapter"] = (sem_raw_argv == det["raw_argv"])
+        body["rtk_argv_equals_adapter"] = (sem_rtk_argv == det["rtk_argv"])
 
         # STEP 5: env -- FAMILY-AWARE. HOME is always redirected into the work copy (so e.g. rtk's
         # history DB write lands there, never the host HOME). The Go build/test cache + GOPATH are set
@@ -144,17 +156,32 @@ def main() -> int:
         body["measurement_env"] = {k: v for k, v in env_extra.items() if k not in ("HOME", "GOPATH")}
         body["execution_isolation"] = det["execution_isolation"]
 
-        # STEP 6: fresh RAW then RTK arms (identical env; rtk wraps the same go target)
-        raw = rcc.run_arm(raw_argv, frozen, policy, contract["timeout_seconds"], wrapper, env_extra,
-                          evidence_dir=evidence, case_id=case_id)
-        rtk = rcc.run_arm([rtk_bin] + rtk_argv[1:], frozen, policy, contract["timeout_seconds"],
-                          wrapper, env_extra, is_rtk=True, rtk_target_ids=det["target_test_ids"],
+        # STEP 6: fresh RAW then RTK arms (identical env; rtk wraps the same target). The EXECUTED
+        # argv carries the runtime isolation flags; the semantic argv above is what the adapter locks.
+        jvm_proof = acq.get("jvm_proof_class")
+        raw = rcc.run_arm(exec_raw_argv, frozen, policy, contract["timeout_seconds"], wrapper, env_extra,
+                          jvm_proof_class=jvm_proof, evidence_dir=evidence, case_id=case_id)
+        rtk = rcc.run_arm([rtk_bin] + exec_rtk_argv[1:], frozen, policy, contract["timeout_seconds"],
+                          wrapper, env_extra, is_rtk=True, jvm_proof_class=jvm_proof,
+                          rtk_target_ids=det["target_test_ids"],
                           evidence_dir=evidence, case_id=case_id)
 
         body["raw_arm"] = rcc._arm_public(raw)
         body["rtk_arm"] = rcc._arm_public(rtk)
         body["raw_arm"]["deterministic"] = raw["canonical_deterministic"]
         body["rtk_arm"]["deterministic"] = rtk["canonical_deterministic"]
+
+        # STEP 6b: jvm (gradle) offline-execution structural precondition. Each RAW rep's full gradle
+        # output must PROVE the target test task actually executed offline (never UP-TO-DATE /
+        # FROM-CACHE / NO-SOURCE / SKIPPED or an infra failure). The per-rep fresh GRADLE_USER_HOME
+        # already makes a cache short-circuit structurally impossible; this is the belt-and-suspenders
+        # observation that surfaces it as DISQUALIFIED_OFFLINE_EXECUTION rather than a silent pass. It
+        # is a probe-side structural rejection (like the isolation/policy gates), NOT a semantic
+        # verdict -- the RAW<->RTK equivalence verdict remains the verifier's alone.
+        if fam == "jvm" and raw.get("target_execution_ok") is not True:
+            body["outcome"] = "CASE_REJECTED_OFFLINE_EXECUTION"
+            body["offline_execution_proof"] = raw.get("per_rep_execution_proof")
+            _emit(out, body); print("case probe: gradle offline-execution proof failed"); return 0
 
         # STEP 7: freeze the accepted canonical streams (only when deterministic)
         digests = {}
