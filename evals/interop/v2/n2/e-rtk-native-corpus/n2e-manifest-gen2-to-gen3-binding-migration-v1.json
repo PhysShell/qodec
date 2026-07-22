@@ -98,7 +98,7 @@
   "gen3": {
     "base_execution_contract_sha256": "sha256:dc540df409bcb7a320020dc6480fd2c782a172e2d55575995a7a380088848e77",
     "manifest_generation": 3,
-    "manifest_sha256": "sha256:4ac7e7b43942f5f62814f1b790eaa8b1e876044c2708d230de95012442e1349f"
+    "manifest_sha256": "sha256:80a6decdddf8a57917fc395d773bd552db4803933de90e99f9cfa42d6b1b893e"
   },
   "generated_by": "evals/interop/v2/n2/e-rtk-native-corpus/tools/build_n2e_manifest_migration.py",
   "invariant": "non-carried set == declared_changed_cases; every case with a LEGACY bridge-bound record carries forward; a declared case may hold no legacy record; any other diff is fail-closed",
@@ -106,7 +106,7 @@
   "mission_title": "external RTK-native claim-aligned command corpus",
   "overlay_execution_contract_sha256": "sha256:156c110528eb37b5d550df78f31468aa8e02bc542993794f73fe9b14b631d744",
   "purpose": "One-directional gen-2 -> gen-3 binding bridge: authorizes the frozen (byte-identical) legacy PASS records under the gen-3 per-case-binding root by proving each case's determinant projection carried forward. Cases whose gen-3 determinants intentionally differ from the gen-2 baseline are DECLARED (and may carry no legacy record). Not a permanent compatibility layer.",
-  "record_sha256": "sha256:b7287030aa2a0a9122b8ff5d6ec063c661c3a3db0b875ce16b8013b0db4fbdad",
+  "record_sha256": "sha256:aa3ccbef2f1b082cef481b9e8c82d4f8da7f57b0e1d262a24b30d1729612014c",
   "record_type": "n2e-manifest-gen2-to-gen3-binding-migration",
   "record_version": "v1",
   "schema_version": "n2e-record-1"

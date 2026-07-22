@@ -1,0 +1,106 @@
+{
+  "barred_from_qualification": true,
+  "case_id": "container::redis::docker::images",
+  "diagnostic_runs": [
+    {
+      "impl_commit": "5195928",
+      "note": "isolated-daemon diagnostic; RTK compact, equivalent; DinD digest docker@sha256:aa3df78e...; redis config Id 87b46000..., RepoDigest == pinned index c1e88455; both daemons vfs, empty data-root, 0 preloaded images; net-denied measurement.",
+      "run_id": "29940652282",
+      "workflow": "qodec-n2e-redis-docker-images"
+    }
+  ],
+  "execution_policy_id": "redis-docker-images-execution-v1",
+  "fixtures_dir": "evidence/redis-docker-images-diag",
+  "frozen_fixtures": {
+    "raw.format_rows.bin": {
+      "bytes": 17,
+      "sha256": "9530b8966dc1880a02b52681620271b6497fd991da77f226153b1e09344f4d91"
+    },
+    "raw.inspect.json": {
+      "bytes": 2678,
+      "sha256": "0e92231e7273a2b6038801f7cff66fcd65124be8234e1930c379c82954c03074"
+    },
+    "raw.stdout.bin": {
+      "bytes": 120,
+      "sha256": "476cd8d6b7b764acd4c81d79f0e4ee697d22e9deebc474febe2d25ef7311cfd8"
+    },
+    "rtk.inspect.json": {
+      "bytes": 2678,
+      "sha256": "673f21ed9c60f293894b941c6194afa215bbd0305313197f411a2fe3ca56142c"
+    },
+    "rtk.stdout.bin": {
+      "bytes": 46,
+      "sha256": "9da768a783fa4667994fac744c89f7444cffa81349c6010dcbbd6dab7bd06e86"
+    }
+  },
+  "generated_by": "tools/(inline) freeze redis docker-images isolated-daemon diagnostic",
+  "mission": "N2-E",
+  "mission_title": "external RTK-native claim-aligned command corpus",
+  "non_normative_note": "RTK emits ONLY repository:tag + human size; image ID / digest / CREATED are NOT in RTK output. Displayed size (46.7MB) is presentation; content identity is the config Id + RepoDigest from inspect, proven as an execution determinant.",
+  "observed": {
+    "equivalence": {
+      "compared": [
+        "outcome",
+        "output_mode",
+        "image_count",
+        "repository_tag_size_multiset",
+        "header_total_faithful"
+      ],
+      "equivalent": true,
+      "image_count": 1,
+      "listing_multiset": [
+        "redis:n2e\t46.7MB"
+      ],
+      "mismatches": [],
+      "note": "RTK preserves ONLY outcome + the (repository:tag, size) listing multiset + count; image ID / digest / CREATED are NOT emitted by RTK (identity is an execution determinant proven from docker image inspect, not an oracle claim).",
+      "output_mode": "compact"
+    },
+    "image_identity": {
+      "architecture": "amd64",
+      "config_id": "sha256:87b460005bd3a6621dabf2855ec42bf96b1b6d044b6109bd9736128ab178ddec",
+      "os": "linux",
+      "raw_rtk_identity_equal": true,
+      "repo_digests": [
+        "redis@sha256:c1e88455c85225310bbea54816e9c3f4b5295815e6dbf80c34d40afc6df28275"
+      ],
+      "size_bytes": 46719782
+    },
+    "output_mode": "compact",
+    "raw_format_parsed": {
+      "count": 1,
+      "derivable": true,
+      "outcome": "images",
+      "rows": [
+        [
+          "redis:n2e",
+          "46.7MB"
+        ]
+      ],
+      "total_display": "47MB"
+    },
+    "raw_stdout_text": "REPOSITORY   TAG       IMAGE ID       CREATED         SIZE\nredis        n2e       87b460005bd3   21 months ago   46.7MB\n",
+    "rtk_parsed": {
+      "derivable": true,
+      "header_count": 1,
+      "outcome": "images",
+      "output_mode": "compact",
+      "rows": [
+        [
+          "redis:n2e",
+          "46.7MB"
+        ]
+      ],
+      "total_display": "47MB",
+      "truncated": 0
+    },
+    "rtk_stdout_text": "[docker] 1 images (47MB)\n  redis:n2e [46.7MB]\n"
+  },
+  "oracle_policy_id": "rtk-docker-images-oracle-v1",
+  "purpose": "Frozen barred provenance for the redis::docker::images isolated-daemon diagnostic. Validates rtk-docker-images-oracle-v1 + redis-docker-images-execution-v1 end-to-end on two independent pinned DinD daemons: RTK COMPACTS (no never_worse passthrough) and its (repository:tag, size) multiset + count equal the RAW `--format` projection, while the image identity (config Id + RepoDigest == pinned index digest, platform amd64/linux) is proven from docker image inspect. BARRED: emits no gate; its run/impl are barred.",
+  "record_kind": "redis_docker_images_diagnostic_capture",
+  "record_sha256": "sha256:fca6feb0c8951203c7952babfc8eee44475fe13c67fefcd9eaa2f38ca0ac9e06",
+  "record_type": "n2e-redis-docker-images-diagnostic-provenance",
+  "record_version": "v1",
+  "resolved_dind_image_digest": "docker@sha256:aa3df78ecf320f5fafdce71c659f1629e96e9de0968305fe1de670e0ca9176ce",
+  "schema_version": "n2e-record-1"
+}

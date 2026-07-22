@@ -1,0 +1,74 @@
+[
+    {
+        "Id": "sha256:87b460005bd3a6621dabf2855ec42bf96b1b6d044b6109bd9736128ab178ddec",
+        "RepoTags": [
+            "redis:n2e"
+        ],
+        "RepoDigests": [
+            "redis@sha256:c1e88455c85225310bbea54816e9c3f4b5295815e6dbf80c34d40afc6df28275"
+        ],
+        "Parent": "",
+        "Comment": "buildkit.dockerfile.v0",
+        "Created": "2024-10-04T09:56:40Z",
+        "DockerVersion": "",
+        "Author": "",
+        "Config": {
+            "Hostname": "",
+            "Domainname": "",
+            "User": "",
+            "AttachStdin": false,
+            "AttachStdout": false,
+            "AttachStderr": false,
+            "ExposedPorts": {
+                "6379/tcp": {}
+            },
+            "Tty": false,
+            "OpenStdin": false,
+            "StdinOnce": false,
+            "Env": [
+                "PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin",
+                "GOSU_VERSION=1.17",
+                "REDIS_VERSION=7.4.1",
+                "REDIS_DOWNLOAD_URL=http://download.redis.io/releases/redis-7.4.1.tar.gz",
+                "REDIS_DOWNLOAD_SHA=bc34b878eb89421bbfca6fa78752343bf37af312a09eb0fae47c9575977dfaa2"
+            ],
+            "Cmd": [
+                "redis-server"
+            ],
+            "ArgsEscaped": true,
+            "Image": "",
+            "Volumes": {
+                "/data": {}
+            },
+            "WorkingDir": "/data",
+            "Entrypoint": [
+                "docker-entrypoint.sh"
+            ],
+            "OnBuild": null,
+            "Labels": null
+        },
+        "Architecture": "amd64",
+        "Os": "linux",
+        "Size": 46719782,
+        "GraphDriver": {
+            "Data": null,
+            "Name": "vfs"
+        },
+        "RootFS": {
+            "Type": "layers",
+            "Layers": [
+                "sha256:75654b8eeebd3beae97271a102f57cdeb794cc91e442648544963a7e951e9558",
+                "sha256:284c3fbca81ff7220aa9d599069d1d11a48b1fe5d2253d7ab4cb4235e693f0ba",
+                "sha256:351a864ea2ef09d554a750aa08cfe9d2ebc74a38aace30de819fb179bccbd3e0",
+                "sha256:637873223705158f9c0a8f5fa1ac2f7776a63fce993d9d207322bd0448cd148c",
+                "sha256:0c31549b2fc35bac9a710981cb3955c3870f9805bc880bdaa346ef12d76c4aac",
+                "sha256:15a2105948e7871edbca87e66d46dbb4b3ee5b894a73d84f6e928b41f2efc5da",
+                "sha256:5f70bf18a086007016e948b04aed3b82103a36bea41755b6cddfaf10ace3c6ef",
+                "sha256:0b64d41d9c62f3a3f96a571b4fb78a41e8b9d9b11a6ba6432c6c8774f638a835"
+            ]
+        },
+        "Metadata": {
+            "LastTagTime": "2026-07-22T17:16:17.672610367Z"
+        }
+    }
+]

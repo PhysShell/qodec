@@ -56,6 +56,7 @@ _DISPATCH_POLICY = {
     "loghub::HDFS::log": "n2e-qualification-dispatch-v2",
     "rubocop__rubocop-13687::git::show": "n2e-qualification-dispatch-v3",
     "php-cs-fixer__php-cs-fixer-8075::git::commit": "n2e-qualification-dispatch-v4",
+    "container::redis::docker::images": "n2e-qualification-dispatch-v5",
 }
 QUALIFICATION_MODEL = {
     "uutils__coreutils-6731::rust_cargo::test::fixed": (RTK_TEST_DIALECT, "rtk-rust-cargo-test-summary-v1", None),

@@ -1,0 +1,25 @@
+{
+  "dispatch_policy_id": "n2e-qualification-dispatch-v5",
+  "entries": [
+    {
+      "allowed_case_ids": [
+        "container::redis::docker::images"
+      ],
+      "canonicalization_policy_id": "docker-v1",
+      "dispatch_policy_id": "n2e-qualification-dispatch-v5",
+      "execution_policy_id": "redis-docker-images-execution-v1",
+      "oracle_module_sha256": "f6ded452cf38374d24e910f3a2b44c098789fe9ae68742430dbecd2aec6ad082",
+      "policy_id": "rtk-docker-images-oracle-v1",
+      "qualification_kind": "rtk_command_oracle",
+      "rtk_source_identity_sha256": "e79f773e1bfa6cb9c8ce7de797dca0a13d6cea07c385d28b0c210dbd75b61bfe"
+    }
+  ],
+  "generated_by": "tools/(inline) registry-v5 for redis docker-images oracle",
+  "mission": "N2-E",
+  "mission_title": "external RTK-native claim-aligned command corpus",
+  "purpose": "Immutable, checksum-pinned, CASE-SCOPED registry for dispatch-v5. One entry: the redis docker-images oracle bound to container::redis::docker::images ONLY (exact-one-match; no family-level docker::images binding). The final vertical.",
+  "record_sha256": "sha256:caf5917fb5d09723566b547fc139bc693d1c468bc0eb2751b24d940b70ada726",
+  "record_type": "n2e-qualification-dispatch-registry",
+  "record_version": "v1",
+  "schema_version": "n2e-record-1"
+}

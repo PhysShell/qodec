@@ -64,12 +64,14 @@ PROMOTABLE_RUN = "29654373144"
 BARRED_DIAGNOSTIC_RUNS = frozenset({"29651849616", "29652684349",
                                     "29900168290",                      # 2c1a523 loghub diag
                                     "29917094909", "29920222241",       # rubocop git-show diagnostics
-                                    "29931508634"})                     # c8d5c5e php-cs-fixer commit diag
+                                    "29931508634",                      # c8d5c5e php-cs-fixer commit diag
+                                    "29940652282"})                     # 5195928 redis docker-images diag
 BARRED_DIAGNOSTIC_IMPLS = frozenset({"bcd4164", "3dbbf2b", "2ddd731", "8eefa97",
                                      "4ceaa11", "ab416ce", "186ade9",
                                      "2c1a523",                         # loghub diagnostic capture
                                      "ace837b", "cfe7667",              # rubocop git-show diagnostics
-                                     "c8d5c5e"})                        # php-cs-fixer git-commit diagnostic
+                                     "c8d5c5e",                         # php-cs-fixer git-commit diagnostic
+                                     "5195928"})                        # redis docker-images diagnostic
 DEPSNAP_SCOPE = "full cross-platform resolution"
 DEPSNAP_PROVEN_COUNT = 346
 

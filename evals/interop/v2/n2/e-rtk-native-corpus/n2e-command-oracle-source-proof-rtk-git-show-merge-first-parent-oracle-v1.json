@@ -25,7 +25,7 @@
   "generated_by": "evals/interop/v2/n2/e-rtk-native-corpus/tools/build_n2e_command_oracle_source_proof.py",
   "manifest_binding": {
     "manifest_generation": 3,
-    "manifest_sha256": "sha256:4ac7e7b43942f5f62814f1b790eaa8b1e876044c2708d230de95012442e1349f"
+    "manifest_sha256": "sha256:80a6decdddf8a57917fc395d773bd552db4803933de90e99f9cfa42d6b1b893e"
   },
   "mission": "N2-E",
   "mission_title": "external RTK-native claim-aligned command corpus",
@@ -40,7 +40,7 @@
     "rubocop__rubocop-13687::git::show"
   ],
   "purpose": "Source-identity + case-scope proof for rtk-git-show-merge-first-parent-oracle-v1. Pins the exact pinned RTK source function it was grounded in, the semantics-module identity, the pinned corpus RTK binary, and the case-scoped manifest binding. Sets no promotion flag.",
-  "record_sha256": "sha256:7c8f12e751523285afbb084e7c3a48bb0bae4f84f023156efc49241c6be5582e",
+  "record_sha256": "sha256:c174b833d1dbdb51b08e225aeeea0ef9a7ec7a75eb16569a0b3d89daaeb43462",
   "record_type": "n2e-command-oracle-source-proof",
   "record_version": "v1",
   "rtk_source_identity": {
