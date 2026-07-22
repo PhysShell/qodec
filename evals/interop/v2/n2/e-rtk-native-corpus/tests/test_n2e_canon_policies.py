@@ -120,6 +120,32 @@ class TestCanonPolicies(unittest.TestCase):
             canon.canonicalize(b"Tests  1 failed | 78 passed (79)\n Duration  828ms", "vitest-v1"),
             canon.canonicalize(b"Tests  2 failed | 77 passed (79)\n Duration  744ms", "vitest-v1"))
 
+    def test_gradle_jvm_env_noise_normalized(self):
+        # regression (apache/lucene-13704 run 29886973970): under the FIXED seed + single JVM + single
+        # worker + no-parallel + plain-console policy, the ONLY per-rep byte differences were the JUL
+        # wall-clock timestamp and the RandomizedTesting "free=<n>,total=<n>" JVM heap snapshot. Both
+        # must canonicalize away, exactly like the vitest total-duration did for vue.
+        a = canon.canonicalize(
+            b"    Jul 22, 2026 3:11:36 AM org.apache.lucene...VectorizationProvider lookup\n"
+            b"    NOTE: Linux amd64/Adoptium 21 (64-bit)/cpus=1,threads=1,free=238563072,total=326107136",
+            "gradle-test-v1")
+        b = canon.canonicalize(
+            b"    Jul 22, 2026 3:14:07 AM org.apache.lucene...VectorizationProvider lookup\n"
+            b"    NOTE: Linux amd64/Adoptium 21 (64-bit)/cpus=1,threads=1,free=238687472,total=326107136",
+            "gradle-test-v1")
+        self.assertEqual(a, b)
+        self.assertIn(b"<jul-ts>", a)
+        self.assertIn(b"free=<mem>,total=<mem>", a)
+        # BUILD duration still normalizes
+        self.assertEqual(canon.canonicalize(b"BUILD FAILED in 1m 23s", "gradle-test-v1"),
+                         canon.canonicalize(b"BUILD FAILED in 5s", "gradle-test-v1"))
+        # a changed failing-test line / BUILD status is NEVER masked by the env-noise rules
+        self.assertNotEqual(
+            canon.canonicalize(b"TestFoo > testA FAILED\nfree=1,total=2", "gradle-test-v1"),
+            canon.canonicalize(b"TestFoo > testB FAILED\nfree=9,total=9", "gradle-test-v1"))
+        self.assertNotEqual(canon.canonicalize(b"BUILD FAILED in 1s", "gradle-test-v1"),
+                            canon.canonicalize(b"BUILD SUCCESSFUL in 1s", "gradle-test-v1"))
+
     # ---- semantic changes MUST survive every policy ----
     SEMANTIC_PAIRS = [
         (b"test result: ok. 5 passed; 0 failed; finished in 0.1s",

@@ -162,9 +162,21 @@ _POLICIES: dict[str, object] = {
         (re.compile(rb"\b(transform|setup|collect|tests|environment|prepare)\s+\d+(?:\.\d+)?\s?m?s\b"),
          rb"\1 <dur>"),
     ],
-    # gradle test: "BUILD SUCCESSFUL in 12s" ; "> Task :test"
+    # gradle test: "BUILD SUCCESSFUL in 12s" ; "> Task :test". Plus two JVM-level environmental noise
+    # sources the RandomizedTesting harness injects into stderr even under a FIXED seed + single JVM +
+    # single worker (proven against apache/lucene-13704 CI run 29886973970, where these were the ONLY
+    # per-rep byte differences across 3 RAW + 3 RTK reps):
+    #   * the java.util.logging SimpleFormatter wall-clock timestamp (e.g. "Jul 22, 2026 3:11:36 AM")
+    #     that prefixes the VectorizationProvider log line -- a wall-clock, exactly like every other
+    #     duration/epoch this file treats as non-semantic;
+    #   * the "NOTE: ... free=<n>,total=<n>" JVM heap snapshot (Runtime.freeMemory()/totalMemory())
+    #     printed by RandomizedTesting -- pure environmental heap jitter.
+    # Both match ONLY their exact grammar; neither touches test names, counts, failing ids, BUILD
+    # status, or any semantic value -- a real difference in those still survives (see the mutation tests).
     "gradle-test-v1": [
         (re.compile(rb"BUILD (SUCCESSFUL|FAILED) in \d+m? ?\d*s"), b"BUILD \\1 in <dur>"),
+        (re.compile(rb"\b[A-Z][a-z]{2} \d{1,2}, \d{4} \d{1,2}:\d{2}:\d{2} (?:AM|PM)\b"), b"<jul-ts>"),
+        (re.compile(rb"free=\d+,total=\d+"), b"free=<mem>,total=<mem>"),
     ],
     # maven test: "Total time:  01:23 min" ; "Tests run: 5, ... Time elapsed: 0.123 s"
     "maven-test-v1": [
