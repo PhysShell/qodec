@@ -57,17 +57,18 @@ class TestMigrationBridge(unittest.TestCase):
         # the seven frozen PASS records (all legacy gen-2) are carried forward under gen-3 by the bridge
         # with NONE of them edited; lucene is a DECLARED-CHANGED case and qualifies with a NATIVE gen-3
         # binding -- 7 carried + 1 native = 8 through the cq path. Loghub qualifies through dispatch-v2,
-        # rubocop (merge) through dispatch-v3, and php-cs-fixer (commit) through dispatch-v4, NOT the
-        # bridge/cq, so the disk aggregate is 11 total. Every present case is independently derived over
-        # a unique run; only redis::docker::images remains ABSENT/held.
+        # rubocop (merge) through dispatch-v3, php-cs-fixer (commit) through dispatch-v4, and redis
+        # (docker images) through dispatch-v5, NOT the bridge/cq, so the disk aggregate is a unique
+        # 12/12. Every present case is independently derived over a unique run.
         r = A.aggregate_from_disk()
-        self.assertEqual(r["derived_pass_count"], 11)
+        self.assertEqual(r["derived_pass_count"], 12)
         self.assertEqual(r["derived_pass_count"], r["unique_acceptance_runs"])
         self.assertTrue(r["per_case"]["loghub::HDFS::log"]["derived_pass"])
         self.assertTrue(r["per_case"]["rubocop__rubocop-13687::git::show"]["derived_pass"])
         self.assertTrue(r["per_case"]["apache__lucene-13704::jvm::test::buggy"]["derived_pass"])
         self.assertTrue(r["per_case"]["php-cs-fixer__php-cs-fixer-8075::git::commit"]["derived_pass"])
-        self.assertFalse(r["resolved_canary_pass"])
+        self.assertTrue(r["per_case"]["container::redis::docker::images"]["derived_pass"])
+        self.assertTrue(r["resolved_canary_pass"])
 
     # ---------- RED: bridge tampering (fail-closed) ----------
     def test_red_lucene_declared_unchanged(self):
