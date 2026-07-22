@@ -555,6 +555,87 @@ class LoghubHdfsAdapter(CaseAdapter):
         }
 
 
+class RubocopGitShowAdapter(CaseAdapter):
+    """rubocop `rtk git show` command oracle. RAW is `git show` (bare, HEAD = the pinned base commit);
+    RTK is `rtk git show`, a DIFFERENT command RTK reimplements (summary + --stat + compacted diff,
+    OR the raw passthrough when never_worse falls back) -- so both argv are double-locked verbatim
+    against the frozen contract, and the RTK arm is NOT `rtk <git-argv>`-wrapping the RAW arm.
+
+    The proven oracle (rtk-git-show-oracle-v1) is grounded in the pinned RTK source (run_show +
+    compact_diff + never_worse) and preserves ONLY the STAT + IDENTITY core (full_commit_oid via an
+    unambiguous abbreviated-hash prefix, affected_paths SET, files_changed / insertions / deletions).
+    %ar / author / subject / dates / the full patch are non-normative.
+
+    The RAW projection is derived from the RAW `git show` bytes and INDEPENDENTLY cross-checked, on the
+    same pinned checkout, against git plumbing (rev-parse HEAD + --numstat + --name-status + --shortstat)
+    -- these are recorded as VERIFIER OBSERVATIONS, never substituted for the RAW arm. The oracle is
+    manifest-authoritative (the base contract names the generic git-diff oracle), exactly as gin / the
+    files-read / loghub oracles."""
+
+    case_id = "rubocop__rubocop-13687::git::show"
+    adapter_id = "rubocop-git-show"
+    qualification_kind = "rtk_command_oracle"
+
+    RAW_ARGV = ["git", "show"]
+    RTK_ARGV = ["rtk", "git", "show"]
+    CANON_POLICY = "git-v1"
+    ORACLE_POLICY = "rtk-git-show-oracle-v1"          # manifest-authoritative (contract oracle is base)
+    SEMANTIC_ENV = {}
+    PROTECTED_FILES = []
+    REPS = 3
+    STREAM_ROLES = ("raw", "rtk")
+    PLATFORM_REQUIREMENTS = {"toolchain": ["git"], "network": "denied"}
+    # git plumbing the probe/verifier runs on the SAME pinned checkout to cross-check the RAW projection.
+    # These are OBSERVATIONS (an independent authority for oid + paths + totals), never the RAW arm.
+    PLUMBING_OBSERVATIONS = {
+        "rev_parse_head": ["git", "rev-parse", "HEAD"],
+        "numstat": ["git", "show", "--numstat", "--format="],
+        "name_status": ["git", "show", "--name-status", "--format="],
+        "shortstat": ["git", "show", "--shortstat", "--format="],
+    }
+    EXECUTION_ISOLATION = {
+        "fresh_gocache_per_arm": False,
+        "single_checkout": True,          # one pinned checkout shared by both arms + plumbing
+        "same_cwd": ".",
+        "no_p52_fixture_reuse": True,
+        "read_only_command": True,        # neither arm nor the plumbing mutates the checkout
+    }
+
+    def bind(self, contract: dict, scenario: dict) -> dict:
+        _require(contract.get("effective_raw_argv") == self.RAW_ARGV, "rubocop RAW argv != frozen contract")
+        _require(contract.get("effective_rtk_argv") == self.RTK_ARGV, "rubocop RTK argv != frozen contract")
+        _require(contract.get("canonicalization_policy_id") == self.CANON_POLICY,
+                 "rubocop canon policy != frozen contract")
+        _require(contract.get("scheduler_env") == self.SEMANTIC_ENV, "rubocop semantic env != frozen contract")
+        _require(list(contract.get("protected_files") or []) == self.PROTECTED_FILES,
+                 "rubocop protected files != frozen contract")
+        _require(contract.get("command_family") == "git" and contract.get("command_subfamily") == "show",
+                 "rubocop command family/subfamily != frozen contract")
+        _require(self.RTK_ARGV[0] == "rtk" and self.RTK_ARGV[1] == "git" and self.RTK_ARGV[2] == "show",
+                 "rubocop RTK arm is not `rtk git show`")
+        # full commit OID authority: the pinned base commit (from the scenario recipe identity)
+        base_commit = (((scenario.get("setup_recipe") or {}).get("identity") or {}).get("base_commit")
+                       or (scenario.get("source_image_identity") or {}).get("base_commit"))
+        _require(bool(base_commit) and len(base_commit) == 40 and all(ch in "0123456789abcdef" for ch in base_commit),
+                 "rubocop scenario has no valid 40-hex base_commit OID")
+        return {
+            "case_id": self.case_id, "adapter_id": self.adapter_id,
+            "qualification_kind": self.qualification_kind,
+            "raw_argv": list(self.RAW_ARGV), "rtk_argv": list(self.RTK_ARGV),
+            "semantic_env": dict(self.SEMANTIC_ENV), "cwd": self.EXECUTION_ISOLATION["same_cwd"],
+            "reps": self.REPS, "stream_roles": list(self.STREAM_ROLES),
+            "canonicalization_policy_id": self.CANON_POLICY,
+            "rtk_test_dialect_policy_id": None,
+            "command_semantic_oracle_policy_id": self.ORACLE_POLICY,
+            "full_commit_oid": base_commit,
+            "plumbing_observations": {k: list(v) for k, v in self.PLUMBING_OBSERVATIONS.items()},
+            "target_test_ids": [],
+            "protected_files": list(self.PROTECTED_FILES),
+            "platform_requirements": dict(self.PLATFORM_REQUIREMENTS),
+            "execution_isolation": dict(self.EXECUTION_ISOLATION),
+        }
+
+
 # tiny registry: Caddy (test-dialect) + Gin (command-oracle) prove both dispatch paths; the two
 # files-read adapters are the FIRST replication -- one shared oracle policy, two INDEPENDENT bindings;
 # Vue (js_ts) + Scrapy (python) are the second and third proven test dialects, manifest-authoritative.
@@ -567,6 +648,7 @@ CASE_ADAPTERS = {
     ScrapyPytestAdapter.case_id: ScrapyPytestAdapter(),
     LuceneGradleAdapter.case_id: LuceneGradleAdapter(),
     LoghubHdfsAdapter.case_id: LoghubHdfsAdapter(),
+    RubocopGitShowAdapter.case_id: RubocopGitShowAdapter(),
 }
 
 
