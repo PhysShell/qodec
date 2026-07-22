@@ -77,6 +77,7 @@ def build(case_id: str, observation: Path, evidence: Path, name: str, run: dict)
             "rtk.canonical": {"sha256": c.sha256_bytes(rtk), "bytes": len(rtk)}},
         re_derived_semantic_projection={"raw_projection": rp, "rtk_projection": kp,
                                         "equivalence": mod.equivalence(rp, kp)},
+        frozen_code_identity=cq.frozen_code_identity({**entry, "case_id": case_id}),
         evidence={"dir": f"evidence/{name}/qualification"},
         verdict_authority="independent case verifier + aggregator recomputation (producer records observations)",
         case_qualification_pass=True,

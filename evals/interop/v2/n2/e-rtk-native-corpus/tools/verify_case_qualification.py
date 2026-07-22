@@ -77,6 +77,12 @@ def verify(rec_path: Path, evidence: Path) -> tuple[bool, list, dict]:
     else:
         return False, fail + [f"unknown qualification_kind {kind!r}"], facts
 
+    # NOTE: the frozen_code_identity drift guard is NOT applied here -- this verifier gates the probe
+    # OBSERVATION (which carries no frozen_code_identity), and it runs at acceptance time with the
+    # current code. The record BUILDER pins frozen_code_identity into the immutable record from the
+    # current code, and the AGGREGATOR's recompute (cq.recompute_case_verdict) is where drift against a
+    # later parser/canon/verifier/recompute change is detected fail-closed.
+
     # ---- 4. identities + determinism ----
     if rec.get("rtk_binary_sha256") != L.DIALECT_RTK_SHA or rec.get("rtk_binary_bytes") != L.DIALECT_RTK_BYTES:
         fail.append("RTK binary identity != pinned corpus RTK")

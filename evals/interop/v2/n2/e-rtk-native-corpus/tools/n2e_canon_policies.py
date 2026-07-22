@@ -354,3 +354,30 @@ def rtk_envelope(data: bytes) -> bytes:
 
 def all_policy_ids() -> list[str]:
     return sorted(_POLICIES)
+
+
+def policy_definition_sha256(policy_id: str) -> str:
+    """Deterministic hash of a canonicalization policy's DEFINITION (its exact rule set), so a frozen
+    qualification record can pin the policy BYTES -- not just the id string -- and any later change to
+    that policy (even in place, keeping the same id) is DETECTED as drift rather than silently changing
+    the record's meaning. A callable policy is pinned by its qualified name; a rule list is pinned by
+    each (pattern-bytes, flags, replacement) triple in order (replacement callables by qualified name)."""
+    import hashlib
+    if policy_id not in _POLICIES:
+        raise KeyError(f"unknown canonicalization policy {policy_id!r}")
+    spec = _POLICIES[policy_id]
+    parts: list[bytes] = [policy_id.encode()]
+    if callable(spec):
+        parts.append(b"callable:" + f"{spec.__module__}.{spec.__qualname__}".encode())
+    else:
+        for pat, repl in spec:
+            parts.append(b"pat:" + pat.pattern if isinstance(pat.pattern, bytes)
+                         else b"pat:" + pat.pattern.encode())
+            parts.append(b"flags:" + str(int(pat.flags)).encode())
+            if isinstance(repl, bytes):
+                parts.append(b"repl:" + repl)
+            elif isinstance(repl, str):
+                parts.append(b"repl:" + repl.encode())
+            else:  # callable replacement
+                parts.append(b"repl-callable:" + f"{repl.__module__}.{repl.__qualname__}".encode())
+    return hashlib.sha256(b"\x00".join(parts)).hexdigest()

@@ -25,6 +25,16 @@
   "evidence": {
     "dir": "evidence/scrapy-pytest/qualification"
   },
+  "frozen_code_identity": {
+    "canonicalization_policy_definition_sha256": "b3437794be4adacf88caa8a329b1e89406005e3d88c1894b29df711594575e24",
+    "canonicalization_policy_id": "pytest-v1",
+    "recompute_module_sha256": "85ca574c940e7edf9997f9b7ca9bf7ff12b0bccd9309469bf6dd9ac62acd603b",
+    "semantics_module": {
+      "path": "tools/n2e_rtk_python_pytest_dialect.py",
+      "sha256": "1d9b83e8d8ff4661e037884c649e7862cd874436d6f09f4feb6b3a5a03d321f6"
+    },
+    "verifier_module_sha256": "9a82b1d9e18fa5930c7285c1390ef689fc83a372c86f1eb59a13d061de3a7e43"
+  },
   "generated_by": "evals/interop/v2/n2/e-rtk-native-corpus/tools/build_n2e_resolved_case_qualification.py",
   "identities": {
     "rtk_bytes": 9200104,
@@ -70,7 +80,7 @@
       "xpassed": 0
     }
   },
-  "record_sha256": "sha256:47e77685201a32e35e22fe1f7755311785caa7a2087d9256b21eaf67944ea423",
+  "record_sha256": "sha256:529380e3b1b17ffca0b2f7936b04eb495041379e4d60613cfa755ceecb2c1d41",
   "record_type": "n2e-resolved-case-qualification",
   "record_version": "v1",
   "resolved_canary_pass": false,

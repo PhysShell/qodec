@@ -25,6 +25,16 @@
   "evidence": {
     "dir": "evidence/vue-vitest/qualification"
   },
+  "frozen_code_identity": {
+    "canonicalization_policy_definition_sha256": "ee6865c843c0f7f25feb1f15e7dad0a98b555b0a4e7d54362f9c92b37551ecdc",
+    "canonicalization_policy_id": "vitest-v1",
+    "recompute_module_sha256": "85ca574c940e7edf9997f9b7ca9bf7ff12b0bccd9309469bf6dd9ac62acd603b",
+    "semantics_module": {
+      "path": "tools/n2e_rtk_js_vitest_dialect.py",
+      "sha256": "b9eea1f4cf35f5b1ce06ac0aa3f95e30146dc50da78c86f333c86bce425d69d0"
+    },
+    "verifier_module_sha256": "9a82b1d9e18fa5930c7285c1390ef689fc83a372c86f1eb59a13d061de3a7e43"
+  },
   "generated_by": "evals/interop/v2/n2/e-rtk-native-corpus/tools/build_n2e_resolved_case_qualification.py",
   "identities": {
     "rtk_bytes": 9200104,
@@ -71,7 +81,7 @@
       "truncated": false
     }
   },
-  "record_sha256": "sha256:5495f75c22e3e9440f36918c157b0e053c9d39e0923fb92541b337c146687e31",
+  "record_sha256": "sha256:f7defc8788b2798b8ca44a83b39f8db47819624f593601ea33c346d69eff7422",
   "record_type": "n2e-resolved-case-qualification",
   "record_version": "v1",
   "resolved_canary_pass": false,

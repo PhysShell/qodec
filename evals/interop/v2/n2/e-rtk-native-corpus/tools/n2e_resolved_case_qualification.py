@@ -14,12 +14,14 @@ trusts a producer-declared PASS. Command-oracle recompute (rtk_command_oracle) l
 """
 from __future__ import annotations
 
+import hashlib
 import sys
 from pathlib import Path
 
 HERE = Path(__file__).resolve().parent
 sys.path.insert(0, str(HERE))
 import n2e_common as c  # noqa: E402
+import n2e_canon_policies as canon  # noqa: E402
 import n2e_rtk_rust_cargo_dialect as rust  # noqa: E402
 import n2e_rtk_jvm_test_dialect as jvm  # noqa: E402
 import n2e_rtk_js_vitest_dialect as js  # noqa: E402
@@ -27,6 +29,10 @@ import n2e_rtk_python_pytest_dialect as py  # noqa: E402
 import n2e_rtk_go_test_dialect as go  # noqa: E402
 import n2e_rtk_go_vet_oracle as go_vet  # noqa: E402
 import n2e_rtk_files_read_oracle as files_read  # noqa: E402
+
+# the verifier module whose implementation identity every qualification record pins (read as bytes,
+# not imported, to avoid a circular import: verify_case_qualification imports THIS module)
+_VERIFIER_MODULE = HERE / "verify_case_qualification.py"
 
 
 class CaseQualificationError(Exception):
@@ -148,8 +154,49 @@ def recompute_command_oracle_verdict(rec: dict, entry: dict, evidence_dir: Path)
     return bool(verdict)
 
 
+def _sha_file(p: Path) -> str:
+    return hashlib.sha256(Path(p).read_bytes()).hexdigest()
+
+
+def frozen_code_identity(entry: dict) -> dict:
+    """The exact CODE that produces + checks this case's verdict, pinned by content hash so a frozen
+    record can DETECT (not silently absorb) any later change: the semantics module (test dialect OR
+    command oracle) that parses the frozen streams, the canonicalization policy DEFINITION that
+    produced those streams (bytes, not just the id string), this recompute authority, and the
+    independent verifier. A policy fixed 'in place' but keeping its id changes this digest -> drift."""
+    kind = entry.get("qualification_kind")
+    if kind == "rtk_test_dialect":
+        mod = _dialect_for(entry)
+    elif kind == "rtk_command_oracle":
+        mod = _oracle_for(entry)
+    else:
+        raise CaseQualificationError(f"unknown qualification_kind {kind!r}")
+    canon_id = entry["canonicalization_policy_id"]
+    return {
+        "canonicalization_policy_id": canon_id,
+        "canonicalization_policy_definition_sha256": canon.policy_definition_sha256(canon_id),
+        "semantics_module": {"path": f"tools/{Path(mod.__file__).name}", "sha256": _sha_file(mod.__file__)},
+        "recompute_module_sha256": _sha_file(__file__),
+        "verifier_module_sha256": _sha_file(_VERIFIER_MODULE),
+    }
+
+
+def verify_frozen_code_identity(rec: dict, entry: dict) -> None:
+    """Fail-closed drift guard: the record's pinned frozen_code_identity MUST equal the CURRENT code's
+    identity. A mismatch means the parser/canon/verifier/recompute changed since the record was frozen,
+    so the record must be re-versioned + re-run -- NOT silently recomputed under new semantics."""
+    want = frozen_code_identity(entry)
+    got = rec.get("frozen_code_identity")
+    if got != want:
+        raise CaseQualificationError(
+            "frozen_code_identity DRIFT (parser/canon/verifier/recompute changed since the record was "
+            f"frozen; re-version + re-run required):\n  record: {got}\n  current: {want}")
+
+
 def recompute_case_verdict(rec: dict, entry: dict, evidence_dir: Path) -> bool:
-    """Dispatch to the right recompute path by the manifest qualification_kind."""
+    """Dispatch to the right recompute path by the manifest qualification_kind, AFTER asserting the
+    record was frozen under the exact current parser/canon/verifier/recompute code (drift guard)."""
+    verify_frozen_code_identity(rec, entry)
     kind = entry.get("qualification_kind")
     if kind == "rtk_test_dialect":
         return recompute_test_dialect_verdict(rec, entry, evidence_dir)

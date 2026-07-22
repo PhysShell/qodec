@@ -25,6 +25,16 @@
   "evidence": {
     "dir": "evidence/lombok-read/qualification"
   },
+  "frozen_code_identity": {
+    "canonicalization_policy_definition_sha256": "d89bb3cd60c86796e9d17e9f29209e8f4c80196c89ce654d19e5b80ba4f37eb9",
+    "canonicalization_policy_id": "files-v1",
+    "recompute_module_sha256": "85ca574c940e7edf9997f9b7ca9bf7ff12b0bccd9309469bf6dd9ac62acd603b",
+    "semantics_module": {
+      "path": "tools/n2e_rtk_files_read_oracle.py",
+      "sha256": "1885ae366c523009b451af83c77a6be91d40e223f0fa994aebdcf6e9ef33b2c0"
+    },
+    "verifier_module_sha256": "9a82b1d9e18fa5930c7285c1390ef689fc83a372c86f1eb59a13d061de3a7e43"
+  },
   "generated_by": "evals/interop/v2/n2/e-rtk-native-corpus/tools/build_n2e_resolved_case_qualification.py",
   "identities": {
     "rtk_bytes": 9200104,
@@ -63,7 +73,7 @@
       "trailing_newline": true
     }
   },
-  "record_sha256": "sha256:029a2cdb468bdbc09285f03e6465374018b2c9c10ae967f3dc930444946d56bd",
+  "record_sha256": "sha256:58f25bc9a76ee56d50da10df03d7e087126bbe25e18b4a2065466c1924ff0c0f",
   "record_type": "n2e-resolved-case-qualification",
   "record_version": "v1",
   "resolved_canary_pass": false,

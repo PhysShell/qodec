@@ -137,6 +137,15 @@ class TestCanonPolicies(unittest.TestCase):
                 cb = canon.canonicalize(b, pid)
                 self.assertNotEqual(ca, cb, f"policy {pid} masked a semantic change: {a!r} vs {b!r}")
 
+    def test_policy_definition_sha256_pins_rules(self):
+        # deterministic, and distinct policies hash differently -- so a record can pin the policy BYTES
+        a = canon.policy_definition_sha256("vitest-v1")
+        self.assertEqual(a, canon.policy_definition_sha256("vitest-v1"))
+        self.assertNotEqual(a, canon.policy_definition_sha256("pytest-v1"))
+        self.assertNotEqual(a, canon.policy_definition_sha256("identity-v1"))
+        with self.assertRaises(KeyError):
+            canon.policy_definition_sha256("no-such-policy")
+
     def test_unknown_policy_raises(self):
         with self.assertRaises(KeyError):
             canon.canonicalize(b"x", "no-such-policy")

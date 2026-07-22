@@ -62,6 +62,7 @@ class TestCommandOracleQual(unittest.TestCase):
                 "rtk.canonical": {"sha256": c.sha256_bytes(RTK_CLEAN), "bytes": len(RTK_CLEAN)}},
             "re_derived_semantic_projection": {"raw_projection": rp, "rtk_projection": kp,
                                                "equivalence": gv.equivalence(rp, kp)},
+            "frozen_code_identity": cq.frozen_code_identity(self.entry),
             "evidence": {"dir": str(self.ev)}, "case_qualification_pass": True}
 
     # ---------- clean gin qualifies on faithful equivalence ----------
@@ -70,6 +71,26 @@ class TestCommandOracleQual(unittest.TestCase):
 
     def test_dispatch_routes_by_kind(self):
         self.assertTrue(cq.recompute_case_verdict(self.rec, self.entry, self.ev))
+
+    # ---------- frozen-code-identity drift guard is FAIL-CLOSED ----------
+    def test_frozen_code_identity_drift_rejected(self):
+        # a record whose pinned canon-definition hash disagrees with current code is REJECTED, not
+        # silently recomputed under new semantics (the "frozen ID must not change meaning" invariant)
+        rec = copy.deepcopy(self.rec)
+        rec["frozen_code_identity"]["canonicalization_policy_definition_sha256"] = "0" * 64
+        with self.assertRaises(cq.CaseQualificationError):
+            cq.recompute_case_verdict(rec, self.entry, self.ev)
+
+    def test_missing_frozen_code_identity_rejected(self):
+        rec = copy.deepcopy(self.rec); rec.pop("frozen_code_identity")
+        with self.assertRaises(cq.CaseQualificationError):
+            cq.recompute_case_verdict(rec, self.entry, self.ev)
+
+    def test_semantics_module_drift_rejected(self):
+        rec = copy.deepcopy(self.rec)
+        rec["frozen_code_identity"]["semantics_module"]["sha256"] = "f" * 64
+        with self.assertRaises(cq.CaseQualificationError):
+            cq.recompute_case_verdict(rec, self.entry, self.ev)
 
     # ---------- kind dispatch errors ----------
     def test_command_oracle_not_run_through_test_dialect_path(self):
