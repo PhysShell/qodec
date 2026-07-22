@@ -1,0 +1,24 @@
+{
+  "dispatch_policy_id": "n2e-qualification-dispatch-v3",
+  "entries": [
+    {
+      "allowed_case_ids": [
+        "rubocop__rubocop-13687::git::show"
+      ],
+      "canonicalization_policy_id": "git-v1",
+      "dispatch_policy_id": "n2e-qualification-dispatch-v3",
+      "oracle_module_sha256": "431d67fdaf779539dcf13f48176066f42d809a3f9a37ce6063a5c509e2a568f0",
+      "policy_id": "rtk-git-show-merge-first-parent-oracle-v1",
+      "qualification_kind": "rtk_command_oracle",
+      "rtk_source_identity_sha256": "28afec6faa88abf611f4e4963a931cce5d91bc8428854c3d0144a7a959c41726"
+    }
+  ],
+  "generated_by": "tools/(inline) registry-v3 for rubocop merge oracle",
+  "mission": "N2-E",
+  "mission_title": "external RTK-native claim-aligned command corpus",
+  "purpose": "Immutable, checksum-pinned, CASE-SCOPED registry for dispatch-v3. One entry: the rubocop merge-aware oracle bound to rubocop::git::show ONLY (exact-one-match; no family-level binding). Future oracles (Redis/PHP) enter via NEW dispatch generations, never here.",
+  "record_sha256": "sha256:7c21916ef8192dd93b0153af0b266cc750557e559a2933be70a8eab17cb25c1d",
+  "record_type": "n2e-qualification-dispatch-registry",
+  "record_version": "v1",
+  "schema_version": "n2e-record-1"
+}

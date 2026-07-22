@@ -136,13 +136,16 @@ class TestTwelveManifest(unittest.TestCase):
             self._v(_refinalize(rec))
 
     # ---------- dispatch routing axis ----------
-    def test_green_only_loghub_routed_to_dispatch(self):
-        # exactly one case carries a dispatch_policy_id (loghub -> v2); all others route legacy (cq)
-        routed = [x["case_id"] for x in self.rec["cases"] if x.get("dispatch_policy_id") is not None]
-        self.assertEqual(routed, ["loghub::HDFS::log"])
-        lh = next(x for x in self.rec["cases"] if x["case_id"] == "loghub::HDFS::log")
-        self.assertEqual(lh["dispatch_policy_id"], "n2e-qualification-dispatch-v2")
-        self.assertEqual(lh["qualification_kind"], "rtk_command_oracle")
+    def test_green_dispatch_routed_cases(self):
+        # exactly the two grounded command-oracle cases carry a dispatch_policy_id: loghub -> v2,
+        # rubocop (merge) -> v3. Every other case routes legacy (cq).
+        routed = {x["case_id"]: x["dispatch_policy_id"]
+                  for x in self.rec["cases"] if x.get("dispatch_policy_id") is not None}
+        self.assertEqual(routed, {"loghub::HDFS::log": "n2e-qualification-dispatch-v2",
+                                  "rubocop__rubocop-13687::git::show": "n2e-qualification-dispatch-v3"})
+        for cid in routed:
+            e = next(x for x in self.rec["cases"] if x["case_id"] == cid)
+            self.assertEqual(e["qualification_kind"], "rtk_command_oracle")
 
     def test_red_dispatch_policy_drift(self):
         rec = copy.deepcopy(self.rec)
@@ -167,12 +170,12 @@ class TestTwelveManifest(unittest.TestCase):
             self._v(_refinalize(rec))
 
     def test_red_dispatch_policy_added_to_another_command_oracle(self):
-        # a second, un-derived dispatch routing (on a different command-oracle case) diverges from the
-        # frozen-contract-derived roster -> reject
+        # an un-derived dispatch routing on a command-oracle case that the builder does NOT route
+        # (not loghub, not rubocop) diverges from the frozen-contract-derived roster -> reject
         rec = copy.deepcopy(self.rec)
         idx = next(i for i, x in enumerate(rec["cases"])
                    if x["qualification_kind"] == "rtk_command_oracle"
-                   and x["case_id"] != "loghub::HDFS::log")
+                   and x.get("dispatch_policy_id") is None)
         rec["cases"][idx]["dispatch_policy_id"] = "n2e-qualification-dispatch-v2"
         with self.assertRaises(V.ManifestError):
             self._v(_refinalize(rec))

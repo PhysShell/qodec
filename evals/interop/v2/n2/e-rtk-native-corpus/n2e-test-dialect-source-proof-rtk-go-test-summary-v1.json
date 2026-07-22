@@ -4,7 +4,7 @@
   "generated_by": "evals/interop/v2/n2/e-rtk-native-corpus/tools/build_n2e_test_dialect_source_proof.py",
   "manifest_binding": {
     "manifest_generation": 3,
-    "manifest_sha256": "sha256:b243e1659e6a71a7134651ed5fc44fff1eb0cf5990066a88553f9fdfa4f25196"
+    "manifest_sha256": "sha256:1cc3dbd3e5b021aa397165912105f552a48021ff654a5044b22432091ece393c"
   },
   "mission": "N2-E",
   "mission_title": "external RTK-native claim-aligned command corpus",
@@ -17,7 +17,7 @@
     "caddyserver__caddy-5870::go::test::buggy"
   ],
   "purpose": "Source-identity + case-scope proof for rtk-go-test-summary-v1. Pins the exact pinned RTK source it was grounded in, the semantics-module identity, the pinned corpus RTK binary, and the case-scoped manifest binding. Sets no promotion flag.",
-  "record_sha256": "sha256:5c67da57f1236dd95daad39d51df0fa2c3b003b93cee5a7fd58b958d9d297069",
+  "record_sha256": "sha256:b8075609594d1858cc6efac9fb50b8ff342a17a35538825ba4b96e5490db4874",
   "record_type": "n2e-test-dialect-source-proof",
   "record_version": "v1",
   "rtk_source_identity": {

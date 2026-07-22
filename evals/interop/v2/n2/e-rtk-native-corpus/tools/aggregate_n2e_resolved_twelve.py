@@ -28,6 +28,18 @@ import n2e_common as c  # noqa: E402
 import n2e_resolved_loader as L  # noqa: E402
 import n2e_manifest_binding as mb  # noqa: E402
 import n2e_qualification_dispatch as disp  # noqa: E402
+import n2e_qualification_dispatch_v3 as disp3  # noqa: E402
+
+# dispatch-generation router: a case's dispatch_policy_id selects EXACTLY one immutable generation.
+# v2 froze after Loghub; v3 is case-scoped to the rubocop merge oracle; future oracles get v4+. Each
+# generation's module is BYTE-PINNED by its frozen records' dispatch_code_identity, so the router
+# references each module's exact functions (never mutates a module to add generic aliases).
+_DISPATCH_MODULES = {
+    disp.DISPATCH_POLICY_ID: {"bind": disp.bind_dispatch_v2, "recompute": disp.recompute_dispatch_v2,
+                              "err": disp.DispatchError},
+    disp3.DISPATCH_POLICY_ID: {"bind": disp3.bind_dispatch_v3, "recompute": disp3.recompute_dispatch_v3,
+                               "err": disp3.DispatchError},
+}
 import verify_n2e_resolved_twelve_manifest as VM  # noqa: E402
 
 
@@ -194,19 +206,21 @@ def aggregate(roster: list, records: dict, recompute: dict, bind: dict) -> dict:
         # for the wrong one is fail-closed (dispatch identity vs cq frozen identity are mutually
         # exclusive). No plugin discovery, no import path from the artifact, no generic-oracle fallback.
         disp_pid = entry.get("dispatch_policy_id")
+        dm = _DISPATCH_MODULES.get(disp_pid) if disp_pid is not None else None
         if disp_pid is not None:
-            if disp_pid != disp.DISPATCH_POLICY_ID:
+            if dm is None:
                 raise AggregateError(f"{cid}: unknown dispatch_policy_id {disp_pid!r} "
                                      f"(no such dispatch generation registered)")
             # gen-3 case-local binding (which case + kind dispatch), THEN the dispatch identity binding
             # (exactly-one registry match, mutual exclusion vs a cq frozen_code_identity, drift, and no
             # dynamic import path smuggled in the artifact). A dispatch-layer rejection surfaces as an
-            # AggregateError (the aggregator's single failure mode).
+            # AggregateError (the aggregator's single failure mode). The GENERATION is selected from the
+            # manifest entry's dispatch_policy_id -- v2 (Loghub) / v3 (rubocop merge) / future.
             _bind_case_generation(rec, entry)
             try:
-                disp.bind_dispatch_v2(rec, entry)
-            except disp.DispatchError as e:
-                raise AggregateError(f"{cid}: dispatch-v2 binding rejected: {e}")
+                dm["bind"](rec, entry)
+            except dm["err"] as e:
+                raise AggregateError(f"{cid}: {disp_pid} binding rejected: {e}")
         else:
             # a dispatch record must NEVER be laundered through cq. Routing is by the manifest entry, but
             # guard here too: a record carrying a dispatch_code_identity on a non-dispatch entry is barred.
@@ -242,9 +256,9 @@ def aggregate(roster: list, records: dict, recompute: dict, bind: dict) -> dict:
         # ---- INDEPENDENT recomputation through the case's materialized path (dispatch or legacy) ----
         if disp_pid is not None:
             try:
-                derived = bool(disp.recompute_dispatch_v2(rec, entry))
-            except disp.DispatchError as e:
-                raise AggregateError(f"{cid}: dispatch-v2 recompute rejected: {e}")
+                derived = bool(dm["recompute"](rec, entry))
+            except dm["err"] as e:
+                raise AggregateError(f"{cid}: {disp_pid} recompute rejected: {e}")
         else:
             fn = recompute.get(entry["expected_qualification_record_type"])
             if fn is None:
