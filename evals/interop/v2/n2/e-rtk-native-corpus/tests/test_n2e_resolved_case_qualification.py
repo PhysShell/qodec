@@ -31,16 +31,20 @@ RTK_GO = b"""Go test: 0 passed, 1 failed, 1 packages
 --- FAIL: TestBuggy"""
 
 
+CE_SHA = "sha256:" + "e" * 64  # synthetic gen-3 case_entry_sha256 for the caddy fixture
+
+
 def _entry():
     return {"case_id": CADDY, "expected_qualification_record_type": "n2e-resolved-case-qualification",
             "qualification_kind": "rtk_test_dialect",
             "rtk_test_dialect_policy_id": "rtk-go-test-summary-v1",
             "command_semantic_oracle_policy_id": None,
             "canonicalization_policy_id": "caddy-go-test-v1", "contract_generation": 1,
-            "manifest_generation": 2,
-            "manifest_binding": {"manifest_generation": 2, "manifest_sha256": "sha256:" + "d" * 64,
+            "manifest_generation": 3, "case_entry_sha256": CE_SHA,
+            "manifest_binding": {"manifest_generation": 3, "manifest_sha256": "sha256:" + "d" * 64,
                                  "resolved_execution_contract_sha256": "sha256:" + "c" * 64,
-                                 "resolved_membership_sha256": "sha256:" + "m" * 64}}
+                                 "resolved_membership_sha256": "sha256:" + "m" * 64,
+                                 "migration_bridge": None}}
 
 
 def _record(ev: Path):
@@ -49,7 +53,8 @@ def _record(ev: Path):
     rp, kp = go.parse_raw(RAW_GO), go.parse_rtk(RTK_GO)
     return {
         "record_type": "n2e-resolved-case-qualification", "case_id": CADDY,
-        "manifest_generation": 2, "manifest_sha256": "sha256:" + "d" * 64,
+        "case_entry_sha256": CE_SHA,  # gen-3 native per-case binding
+        "frozen_code_identity": cq.frozen_code_identity(_entry()),
         "qualification_kind": "rtk_test_dialect",
         "rtk_test_dialect_policy_id": "rtk-go-test-summary-v1",
         "command_semantic_oracle_policy_id": None,

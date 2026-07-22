@@ -38,6 +38,7 @@ OV_PUBENV = N2E_DIR / "n2e-resolved-publisher-env-overlay-v1.json"
 OV_TOOLCHAIN = N2E_DIR / "n2e-resolved-toolchain-overlay-v1.json"
 OV_SCEN = N2E_DIR / "n2e-resolved-command-scenario-overlay-v1.json"
 OV_CONTRACT = N2E_DIR / "n2e-resolved-execution-contract-v1.json"
+MIGRATION_BRIDGE = N2E_DIR / "n2e-manifest-gen2-to-gen3-binding-migration-v1.json"
 # additive resolved-ENVIRONMENT overlay (Model B frozen dependency snapshot) + its committed
 # immutable evidence
 OV_DEPSNAP = N2E_DIR / "n2e-resolved-dependency-snapshot-overlay-v1.json"
@@ -120,6 +121,30 @@ def _load_ok(path: Path) -> dict:
     return rec
 
 
+def acceptable_base_contract_shas() -> set:
+    """The base-contract SHA(s) a coreutils FROZEN artifact (its resolved execution overlay, dependency
+    snapshot, rust-dialect binding) may legitimately pin: the CURRENT base contract, plus -- when a
+    valid ONE-DIRECTIONAL gen2->gen3 migration bridge attests the base contract advanced with coreutils'
+    entry unchanged -- the frozen gen-2 predecessor. This is the base-contract sibling of per-case
+    manifest binding: a case-local base-contract change (Lucene v2) must NOT invalidate coreutils'
+    byte-identical frozen provenance. The bridge is required, pins the CURRENT contract as its gen-3
+    side, and must list coreutils among the carried-forward cases; otherwise only the current sha is
+    accepted (fail-closed)."""
+    cur = c.sha256_json_file(CONTRACT)
+    acc = {cur}
+    if MIGRATION_BRIDGE.is_file():
+        br = _load_ok(MIGRATION_BRIDGE)
+        if (br.get("record_type") == "n2e-manifest-gen2-to-gen3-binding-migration"
+                and (br.get("gen3") or {}).get("base_execution_contract_sha256") == cur
+                and REPLACEMENT_CASE_ID in (br.get("carried_forward_case_ids") or [])):
+            acc.add((br.get("gen2") or {}).get("base_execution_contract_sha256"))
+    return acc - {None}
+
+
+def _base_contract_sha_ok(pinned: str) -> bool:
+    return pinned in acceptable_base_contract_shas()
+
+
 def _manifest_hash(obj) -> str:
     """sha256 over sort-keyed JSON with DEFAULT separators -- matches the producer/verifier's
     host-graph + full-packages digest exactly (NOT the compact sha256_json_file)."""
@@ -164,7 +189,7 @@ def validate_dependency_snapshot_overlay(ds: dict, dep_ref, rm_sha: str, base_co
         raise ResolvedScopeError("dependency-snapshot overlay wrong record_version")
     if ds.get("resolved_case_id") != REPLACEMENT_CASE_ID:
         raise ResolvedScopeError("dependency-snapshot overlay resolved_case_id != replacement case")
-    if ds.get("base_execution_contract_sha256") != base_contract_sha:
+    if not _base_contract_sha_ok(ds.get("base_execution_contract_sha256")):
         raise ResolvedScopeError("dependency-snapshot overlay base_execution_contract_sha256 mismatch "
                                  "(overlay attached to the wrong execution contract)")
     if ds.get("resolved_membership_sha256") != rm_sha:
@@ -371,7 +396,7 @@ def validate_rtk_rust_cargo_dialect(rec: dict, bound_dialect_id, rm_sha: str, ba
         raise ResolvedScopeError("dialect resolved_case_id != replacement case")
     if rec.get("resolved_membership_sha256") != rm_sha:
         raise ResolvedScopeError("dialect resolved_membership_sha256 mismatch")
-    if rec.get("base_execution_contract_sha256") != base_contract_sha:
+    if not _base_contract_sha_ok(rec.get("base_execution_contract_sha256")):
         raise ResolvedScopeError("dialect base_execution_contract_sha256 mismatch")
     if rec.get("resolved_execution_contract_sha256") != resolved_contract_sha:
         raise ResolvedScopeError("dialect resolved_execution_contract_sha256 mismatch")
@@ -550,7 +575,12 @@ def validate_resolved_closure() -> dict:
     overlays, hashes = {}, {}
     for key, (path, base_key, base_path) in _OVERLAYS.items():
         rec = _load_ok(path)                                # self-hash valid
-        if rec[base_key] != c.sha256_json_file(base_path):  # base whole-file hash matches
+        # the execution-contract overlay pins the BASE CONTRACT it was resolved from: a case-local
+        # base-contract advance (Lucene v2) is accepted only through a valid gen2->gen3 bridge that
+        # attests coreutils' entry is unchanged. Every other overlay pins its own (unchanged) base.
+        base_ok = (_base_contract_sha_ok(rec[base_key]) if base_path == CONTRACT
+                   else rec[base_key] == c.sha256_json_file(base_path))
+        if not base_ok:
             raise ResolvedScopeError(f"{path.name}: {base_key} != current {base_path.name}")
         if rec["resolved_membership_sha256"] != rm_sha:     # same resolved-membership sha
             raise ResolvedScopeError(f"{path.name}: resolved_membership_sha256 mismatch")

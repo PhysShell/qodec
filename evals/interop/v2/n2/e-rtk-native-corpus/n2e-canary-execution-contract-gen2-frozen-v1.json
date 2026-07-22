@@ -26,10 +26,7 @@
         "--tests",
         "org.apache.lucene.search.TestLatLonDocValuesQueries",
         "-Ptests.seed=965304069726D5D6",
-        "-Ptests.jvms=1",
-        "--max-workers=1",
-        "-Dorg.gradle.parallel=false",
-        "--console=plain"
+        "-Ptests.jvms=1"
       ],
       "effective_rtk_argv": [
         "rtk",
@@ -38,38 +35,20 @@
         "--tests",
         "org.apache.lucene.search.TestLatLonDocValuesQueries",
         "-Ptests.seed=965304069726D5D6",
-        "-Ptests.jvms=1",
-        "--max-workers=1",
-        "-Dorg.gradle.parallel=false",
-        "--console=plain"
+        "-Ptests.jvms=1"
       ],
       "execution_control": {
         "arg": "-Ptests.seed=965304069726D5D6",
         "args": [
           "-Ptests.seed=965304069726D5D6",
-          "-Ptests.jvms=1",
-          "--max-workers=1",
-          "-Dorg.gradle.parallel=false",
-          "--console=plain"
+          "-Ptests.jvms=1"
         ],
-        "console": "--console=plain",
-        "daemon_offline_isolation_policy_id": "gradle-offline-isolation-v1",
-        "execution_determinants": [
-          "-Ptests.jvms=1",
-          "--max-workers=1",
-          "-Dorg.gradle.parallel=false",
-          "--console=plain"
-        ],
+        "derivation": "sha256(lucene-randomized-seed-v1+selection_seed+case_id)[:16].upper()",
         "flag": "-Ptests.seed",
-        "max_workers": "--max-workers=1",
-        "parallel_disabled": "-Dorg.gradle.parallel=false",
-        "policy_id": "lucene-gradle-test-execution-v2",
+        "policy_id": "lucene-randomized-seed-v1",
         "seed": "965304069726D5D6",
-        "seed_derivation": "sha256(lucene-randomized-seed-v1+selection_seed+case_id)[:16].upper()",
-        "seed_policy_id": "lucene-randomized-seed-v1",
         "selection_seed": "20260717",
-        "single_jvm": "-Ptests.jvms=1",
-        "supersedes": "lucene-randomized-seed-v1 (seed+jvms only; RAW-nondeterministic run stays diagnostic-only)"
+        "single_jvm": "-Ptests.jvms=1"
       },
       "frozen_rtk_resolution_rule": null,
       "isolation_method": "network-denied-netns(lo-up); positive denial probe",
@@ -738,7 +717,7 @@
   "mission": "N2-E",
   "mission_title": "external RTK-native claim-aligned command corpus",
   "purpose": "Immutable per-case effective-execution contract; normative source for argv/canon/oracle resolution, toolchain+dependency identity references, and mutation guards (correction #3).",
-  "record_sha256": "sha256:081752d84db3ea10db7bc0fa017a45424f85c36602d7d6f45ca10bbb79e935be",
+  "record_sha256": "sha256:b9456276cab45bc1e7fc162963bdc8499f29e5ddc6456630f968f05d5e4fdaf8",
   "record_type": "n2e-canary-execution-contract",
   "record_version": "v1",
   "schema_version": "n2e-record-1"

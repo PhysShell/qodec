@@ -44,13 +44,16 @@ class TestResolver(unittest.TestCase):
         import n2e_execution_control as xctl  # noqa: E402
         cid = "apache__lucene-13704::jvm::test::buggy"
         r = resolver.resolve(SCEN[cid])
-        self.assertEqual(r["execution_control"]["policy_id"], "lucene-randomized-seed-v1")
+        # execution policy v2: seed derivation unchanged (lucene-randomized-seed-v1), but the frozen
+        # execution determinants now include the Gradle-concurrency controls (single worker, no
+        # parallel, plain console) in a fixed order after the seed + single test JVM.
+        self.assertEqual(r["execution_control"]["policy_id"], "lucene-gradle-test-execution-v2")
+        self.assertEqual(r["execution_control"]["seed_policy_id"], "lucene-randomized-seed-v1")
         seed_arg = xctl.seed_arg(cid)
-        # both membership-preserving determinism controls are appended identically to
-        # both arms: the fixed seed AND the single test JVM.
+        tail = [seed_arg, "-Ptests.jvms=1", "--max-workers=1", "-Dorg.gradle.parallel=false", "--console=plain"]
         for arm in ("effective_raw_argv", "effective_rtk_argv"):
             self.assertIn(seed_arg, r[arm])
-            self.assertEqual(r[arm][-1], "-Ptests.jvms=1")
+            self.assertEqual(r[arm][-len(tail):], tail)  # exact ordered v2 determinants, seed first
         self.assertRegex(seed_arg, r"^-Ptests\.seed=[0-9A-F]{16}$")
         # non-seed cases carry no execution-control
         self.assertIsNone(resolver.resolve(SCEN["caddyserver__caddy-5870::go::test::buggy"])["execution_control"])

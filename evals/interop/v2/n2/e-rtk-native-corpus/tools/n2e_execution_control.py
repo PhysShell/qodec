@@ -67,17 +67,43 @@ def seed_arg(case_id: str) -> str | None:
 # that interleaving without changing which tests run (same seed, same membership).
 _SINGLE_JVM_ARG = "-Ptests.jvms=1"
 
+# lucene-gradle-test-execution-v2: the fixed seed + single test JVM were already proven, but the
+# residual per-rep variance sits at the GRADLE-level concurrency layer, not in randomizedtesting:
+# Gradle schedules the test task across multiple WORKERS and may run projects in PARALLEL, interleaving
+# task output. v2 pins the execution determinants that remove that interleaving WITHOUT changing test
+# membership (same seed, same --tests target): a single Gradle worker, parallel execution disabled,
+# plain console so TTY/progress rendering never enters the RAW stream. The seed is still derived by
+# lucene-randomized-seed-v1 (unchanged value); daemon/offline isolation stays owned by
+# gradle-offline-isolation-v1 (--no-daemon etc. applied at runtime with a fresh per-rep
+# GRADLE_USER_HOME), so v2 does NOT restate those flags (no double-flag). The old seed-only run stays
+# diagnostic-only. If the fixed-seed, single-worker, no-parallel, plain-console execution is STILL
+# byte-nondeterministic, that is genuine DISQUALIFIED_INTRINSIC_NONDETERMINISM (diagnostic-only).
+LUCENE_EXECUTION_POLICY_ID = "lucene-gradle-test-execution-v2"
+_MAX_WORKERS_ARG = "--max-workers=1"              # single Gradle worker (build-level concurrency)
+_NO_PARALLEL_ARG = "-Dorg.gradle.parallel=false"  # never run projects in parallel
+_CONSOLE_PLAIN_ARG = "--console=plain"            # no TTY/progress rendering in the captured stream
+# EXACT ordered execution-determinant flags v2 appends to the frozen argv (order frozen: the executed
+# command and the evidence metadata must never diverge into separate orderings)
+_LUCENE_V2_EXEC_ARGS = [_SINGLE_JVM_ARG, _MAX_WORKERS_ARG, _NO_PARALLEL_ARG, _CONSOLE_PLAIN_ARG]
+
 
 def policy_for_case(case_id: str) -> dict | None:
     ent = _SEED_CASES.get(case_id)
     if not ent:
         return None
-    pid, flag = ent
-    args = [seed_arg(case_id), _SINGLE_JVM_ARG]
-    return {"policy_id": pid, "flag": flag, "seed": derive_seed(case_id),
+    seed_pid, flag = ent
+    # seed FIRST (the reproduce-line token), then the Gradle-concurrency determinants -- an ordered
+    # list, never an unordered set.
+    args = [seed_arg(case_id), *_LUCENE_V2_EXEC_ARGS]
+    return {"policy_id": LUCENE_EXECUTION_POLICY_ID, "flag": flag, "seed": derive_seed(case_id),
             "arg": seed_arg(case_id), "args": args, "single_jvm": _SINGLE_JVM_ARG,
-            "selection_seed": selection_seed(),
-            "derivation": f"sha256({pid}+selection_seed+case_id)[:16].upper()"}
+            "max_workers": _MAX_WORKERS_ARG, "parallel_disabled": _NO_PARALLEL_ARG,
+            "console": _CONSOLE_PLAIN_ARG,
+            "seed_policy_id": seed_pid, "selection_seed": selection_seed(),
+            "seed_derivation": f"sha256({seed_pid}+selection_seed+case_id)[:16].upper()",
+            "daemon_offline_isolation_policy_id": GRADLE_OFFLINE_POLICY_ID,
+            "execution_determinants": list(_LUCENE_V2_EXEC_ARGS),
+            "supersedes": "lucene-randomized-seed-v1 (seed+jvms only; RAW-nondeterministic run stays diagnostic-only)"}
 
 
 def gradle_offline_args() -> list[str]:

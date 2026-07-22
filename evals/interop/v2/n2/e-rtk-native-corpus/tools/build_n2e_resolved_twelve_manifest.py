@@ -26,9 +26,11 @@ N2E_DIR = HERE.parent
 sys.path.insert(0, str(HERE))
 import n2e_common as c  # noqa: E402
 import n2e_resolved_loader as L  # noqa: E402
+import n2e_manifest_binding as mb  # noqa: E402
 
 OUT = N2E_DIR / "n2e-resolved-twelve-manifest-v1.json"
-MANIFEST_GENERATION = 2  # gen 2: added the explicit two-mode qualification_kind discriminator
+MANIFEST_GENERATION = 3  # gen 3: per-case binding (case_entry_sha256) + Lucene execution policy v2;
+#                          gen 2 added the explicit two-mode qualification_kind discriminator
 
 # the one case that is already frozen-qualified (P4) carries its concrete record type; every other
 # case declares the uniform per-case qualification type its P5.3 acceptance run must emit.
@@ -110,7 +112,7 @@ def build_manifest() -> dict:
         if x is None:
             raise SystemExit(f"no execution contract for manifest case {cid}")
         kind, dialect, oracle = _qualification_mode(cid)
-        cases.append({
+        entry = {
             "case_id": cid,
             "family": x.get("command_family"),
             "subfamily": x.get("command_subfamily"),
@@ -131,7 +133,15 @@ def build_manifest() -> dict:
             # descriptive: which cases are already frozen-qualified vs pending an acceptance run.
             # NOT a promotion input -- the aggregator derives PASS/absence from the actual records.
             "qualification_status": "frozen" if is_coreutils else "pending",
-        })
+        }
+        # gen-3 CASE-LOCAL binding: the canonical digest of ONLY this case's determinants (pulls the
+        # case's BASE contract entry + the overlay entry when resolved-overlaid). A qualification record
+        # binds to case_id + case_entry_sha256, NOT the whole-manifest SHA, so a later case-local policy
+        # change advances only its own entry. Computed from the determinant fields above (the projection
+        # never reads case_entry_sha256 itself, so adding it here does not alter the digest).
+        entry["case_entry_sha256"] = mb.case_entry_sha256(
+            entry, by_base.get(cid), ov if is_coreutils else None)
+        cases.append(entry)
 
     case_ids = [x["case_id"] for x in cases]
     if len(set(case_ids)) != 12:
@@ -146,6 +156,9 @@ def build_manifest() -> dict:
                 "resolved_canary_pass stays false until the P5.4 aggregator independently derives "
                 "twelve PASSes.",
         manifest_generation=MANIFEST_GENERATION,
+        # gen-3 binding model: qualification records bind by case_id + per-entry case_entry_sha256
+        # (case-local), NOT the whole-manifest SHA. Membership + ordering still fixed by the root.
+        case_entry_binding_model="per-case-v1",
         cardinality=12,
         resolved_membership_sha256=c.sha256_json_file(L.RESOLVED_MEMBERSHIP),
         base_execution_contract_sha256=c.sha256_json_file(L.CONTRACT),

@@ -96,9 +96,9 @@ class TestTwelveManifest(unittest.TestCase):
             self._v(_refinalize(rec))
 
     def test_red_verifier_expects_different_generation(self):
-        # the committed manifest is generation 2; presented where generation 3 is expected -> reject
+        # the committed manifest is generation 3; presented where generation 2 is expected -> reject
         with self.assertRaises(V.ManifestError):
-            self._v(expected_generation=3)
+            self._v(expected_generation=2)
 
     # ---------- two-mode qualification_kind invariant ----------
     def test_red_both_dialect_and_oracle_set(self):

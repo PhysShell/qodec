@@ -76,8 +76,12 @@ class TestDependencySnapshotOverlay(unittest.TestCase):
             L._load_snapshot_overlay(self.ev / "does-not-exist.json")
 
     def test_red_wrong_execution_contract(self):
+        # gen-3: the snapshot's OWN base_execution_contract_sha256 must be bridge-acceptable (current
+        # base OR the gen-2 predecessor the bridge attests). A truly-wrong base sha is still rejected.
+        ds = copy.deepcopy(self.ds)
+        ds["base_execution_contract_sha256"] = "sha256:" + "0" * 64
         with self.assertRaises(L.ResolvedScopeError):
-            self._v(base_sha="sha256:" + "0" * 64)
+            self._v(ds=ds)
 
     def test_red_lock_byte_changed_in_evidence(self):
         (self.ev / "Cargo.lock").write_bytes((self.ev / "Cargo.lock").read_bytes() + b"# tampered\n")
@@ -145,11 +149,15 @@ class TestDependencySnapshotOverlay(unittest.TestCase):
 
     # ---------- Regression ----------
     def test_regression_existing_four_overlays_byte_identical(self):
+        # gen-3: the execution-contract overlay is a FROZEN gen-2 artifact (it pins the gen-2 base
+        # contract and is carried forward by the migration bridge so coreutils' frozen binding stays
+        # byte-identical). The current builder pins the advanced gen-3 base, so it legitimately no
+        # longer reproduces that frozen overlay -- it is EXCLUDED here and validated via the bridge.
+        # The other three overlays are unaffected by the base-contract advance and must still reproduce.
         builders = {
             "n2e-resolved-publisher-env-overlay-v1.json": B.build_publisher_env_overlay,
             "n2e-resolved-toolchain-overlay-v1.json": B.build_toolchain_overlay,
             "n2e-resolved-command-scenario-overlay-v1.json": B.build_command_scenario_overlay,
-            "n2e-resolved-execution-contract-v1.json": B.build_execution_contract_overlay,
         }
         for fname, fn in builders.items():
             body = fn()

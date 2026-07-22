@@ -21,12 +21,17 @@ sys.path.insert(0, str(N2E_DIR / "tools"))
 import aggregate_n2e_resolved_twelve as A  # noqa: E402
 import n2e_resolved_loader as L  # noqa: E402
 
-GEN = 1
+GEN = 3
 MAN_SHA = "sha256:" + "d" * 64
 CTYPE = "n2e-resolved-case-qualification"
 BINDING = {"manifest_generation": GEN, "manifest_sha256": MAN_SHA,
            "resolved_execution_contract_sha256": "sha256:" + "c" * 64,
-           "resolved_membership_sha256": "sha256:" + "m" * 64}
+           "resolved_membership_sha256": "sha256:" + "m" * 64,
+           "migration_bridge": None}
+
+
+def _cehash(i):  # synthetic distinct case_entry_sha256 per case
+    return "sha256:" + f"{i:02d}" + "e" * 62
 
 
 def _roster():
@@ -41,14 +46,16 @@ def _roster():
                   "canonicalization_policy_id": f"canon-{i}-v1",
                   "qualification_kind": kind, "rtk_test_dialect_policy_id": dialect,
                   "command_semantic_oracle_policy_id": oracle,
-                  "contract_generation": 1, "manifest_generation": GEN, "manifest_binding": BINDING})
+                  "contract_generation": 1, "manifest_generation": GEN,
+                  "case_entry_sha256": _cehash(i), "manifest_binding": BINDING})
     return r
 
 
 def _rec(entry, i, ok=True):
+    # gen-3 NATIVE record: binds case-locally by case_entry_sha256
     return {
         "record_type": CTYPE, "case_id": entry["case_id"],
-        "manifest_generation": GEN, "manifest_sha256": MAN_SHA,
+        "case_entry_sha256": entry["case_entry_sha256"],
         "canonicalization_policy_id": entry["canonicalization_policy_id"],
         "qualification_kind": entry["qualification_kind"],
         "rtk_test_dialect_policy_id": entry["rtk_test_dialect_policy_id"],
@@ -135,15 +142,34 @@ class TestAggregate(unittest.TestCase):
             self._agg(records=recs)
 
     # ---------- earlier generation ----------
-    def test_red_record_earlier_manifest_generation(self):
+    def test_red_native_record_wrong_case_entry_sha256(self):
+        # gen-3: a native record whose case_entry_sha256 disagrees with the recomputed gen-3 entry hash
+        # is rejected (right manifest root, WRONG case hash -> reject)
         recs = copy.deepcopy(self.records)
-        recs[self.roster[4]["case_id"]]["manifest_generation"] = 0
+        recs[self.roster[4]["case_id"]]["case_entry_sha256"] = "sha256:" + "0" * 64
         with self.assertRaises(A.AggregateError):
             self._agg(records=recs)
 
-    def test_red_record_stale_manifest_sha(self):
+    def test_red_legacy_record_without_bridge_rejected(self):
+        # a legacy record (no case_entry_sha256) with NO migration bridge available cannot bind -> reject
+        # (the stale whole-manifest binding is never normative on its own)
         recs = copy.deepcopy(self.records)
-        recs[self.roster[4]["case_id"]]["manifest_sha256"] = "sha256:" + "0" * 64
+        legacy = recs[self.roster[4]["case_id"]]
+        legacy.pop("case_entry_sha256")
+        legacy["manifest_sha256"] = "sha256:" + "0" * 64  # a gen-2-style whole-manifest pin
+        with self.assertRaises(A.AggregateError):
+            self._agg(records=recs)  # BINDING.migration_bridge is None
+
+    def test_red_wrong_manifest_root_rejected_by_manifest_verifier(self):
+        # correct case hash but wrong/absent manifest root: aggregate_from_disk pins the real manifest
+        # root via VM.verify_manifest; the synthetic path here proves a native record still needs its
+        # case hash to match the roster derived from that root (root integrity + case-local hash are
+        # independent checks)
+        recs = copy.deepcopy(self.records)
+        # swap two records' case_entry_sha256 so each points at the wrong case entry
+        a, b = self.roster[2]["case_id"], self.roster[4]["case_id"]
+        recs[a]["case_entry_sha256"], recs[b]["case_entry_sha256"] = (
+            recs[b]["case_entry_sha256"], recs[a]["case_entry_sha256"])
         with self.assertRaises(A.AggregateError):
             self._agg(records=recs)
 

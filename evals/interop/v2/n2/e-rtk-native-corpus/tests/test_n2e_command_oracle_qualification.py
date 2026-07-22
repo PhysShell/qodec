@@ -63,6 +63,7 @@ class TestCommandOracleQual(unittest.TestCase):
             "re_derived_semantic_projection": {"raw_projection": rp, "rtk_projection": kp,
                                                "equivalence": gv.equivalence(rp, kp)},
             "frozen_code_identity": cq.frozen_code_identity(self.entry),
+            "case_entry_sha256": self.entry.get("case_entry_sha256"),  # gen-3 native per-case binding
             "evidence": {"dir": str(self.ev)}, "case_qualification_pass": True}
 
     # ---------- clean gin qualifies on faithful equivalence ----------

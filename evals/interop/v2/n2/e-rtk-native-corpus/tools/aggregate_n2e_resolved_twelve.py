@@ -26,6 +26,7 @@ N2E_DIR = HERE.parent
 sys.path.insert(0, str(HERE))
 import n2e_common as c  # noqa: E402
 import n2e_resolved_loader as L  # noqa: E402
+import n2e_manifest_binding as mb  # noqa: E402
 import verify_n2e_resolved_twelve_manifest as VM  # noqa: E402
 
 
@@ -84,16 +85,46 @@ def _bind_coreutils(rec: dict, entry: dict) -> None:
         raise AggregateError(f"{entry['case_id']}: bound_dialect_policy_id != manifest dialect")
 
 
+def _verify_case_binding(rec: dict, entry: dict) -> None:
+    """gen-3 per-case binding. A forward record binds to its case by the CASE-LOCAL case_entry_sha256
+    (independently recomputed into the roster entry), NOT the whole-manifest SHA. Two accepted forms:
+
+      * gen-3 NATIVE record: carries case_entry_sha256; it must equal the recomputed gen-3 entry.
+      * LEGACY gen-2 record (frozen, no case_entry_sha256): accepted ONLY through a valid
+        one-directional gen2->gen3 migration bridge that (a) is for THIS gen-3 root, (b) matches the
+        record's own gen-2 manifest binding, and (c) carries this case forward to the SAME recomputed
+        gen-3 case_entry_sha256. The stale whole-manifest binding is NEVER normative on its own."""
+    cid = entry["case_id"]
+    want = entry["case_entry_sha256"]
+    if rec.get("case_entry_sha256") is not None:
+        if rec["case_entry_sha256"] != want:
+            raise AggregateError(f"{cid}: record case_entry_sha256 != gen-3 manifest entry hash")
+        return
+    # legacy gen-2 record: bridge-mediated carry-forward is the ONLY acceptance path
+    bridge = (entry["manifest_binding"] or {}).get("migration_bridge")
+    if not bridge:
+        raise AggregateError(f"{cid}: legacy record (no case_entry_sha256) requires a migration bridge")
+    if bridge.get("record_type") != "n2e-manifest-gen2-to-gen3-binding-migration":
+        raise AggregateError(f"{cid}: migration bridge wrong record_type")
+    if (bridge.get("gen3") or {}).get("manifest_sha256") != entry["manifest_binding"]["manifest_sha256"]:
+        raise AggregateError(f"{cid}: migration bridge gen3 manifest sha != current manifest root")
+    g2 = bridge.get("gen2") or {}
+    if rec.get("manifest_sha256") != g2.get("manifest_sha256"):
+        raise AggregateError(f"{cid}: legacy record manifest_sha256 != bridge gen-2 manifest")
+    if rec.get("manifest_generation") != g2.get("manifest_generation"):
+        raise AggregateError(f"{cid}: legacy record manifest_generation != bridge gen-2 generation")
+    cf = next((x for x in (bridge.get("case_carry_forward") or []) if x.get("case_id") == cid), None)
+    if cf is None or not cf.get("carried_forward"):
+        raise AggregateError(f"{cid}: migration bridge does not carry this case forward")
+    if cf.get("gen3_case_entry_sha256") != want:
+        raise AggregateError(f"{cid}: bridge gen3 case_entry_sha256 != recomputed gen-3 entry hash")
+
+
 def _bind_case_generation(rec: dict, entry: dict) -> None:
-    """The eleven forward records are built AFTER the manifest and bind it directly by generation +
-    self-hash (a record from an earlier manifest generation is rejected), and must dispatch to the
+    """gen-3: forward records bind CASE-LOCALLY (case_entry_sha256), directly for a native gen-3 record
+    or through the migration bridge for a frozen legacy gen-2 record, and must dispatch to the
     manifest's qualification_kind with the matching single active policy id."""
-    b = entry["manifest_binding"]
-    if rec.get("manifest_generation") != b["manifest_generation"]:
-        raise AggregateError(f"{entry['case_id']}: manifest_generation {rec.get('manifest_generation')} "
-                             f"!= roster {b['manifest_generation']}")
-    if rec.get("manifest_sha256") != b["manifest_sha256"]:
-        raise AggregateError(f"{entry['case_id']}: manifest_sha256 != frozen manifest")
+    _verify_case_binding(rec, entry)
     _check_kind_dispatch(entry["case_id"], rec, entry)
 
 
@@ -214,15 +245,35 @@ def aggregate(roster: list, records: dict, recompute: dict, bind: dict) -> dict:
 
 def _roster_from_manifest(man: dict, man_path: Path) -> list:
     VM.verify_manifest(man)  # fail-closed: exactly the frozen twelve, in order
+    # the migration bridge (if any) is the ONLY thing that lets a frozen legacy gen-2 record bind under
+    # this gen-3 root; loaded once and self-hash-checked here.
+    bridge = None
+    if L.MIGRATION_BRIDGE.is_file():
+        bridge = c.load_record(L.MIGRATION_BRIDGE)
+        ok, msg = c.verify_self_hash(bridge)
+        if not ok:
+            raise AggregateError(f"migration bridge self-hash: {msg}")
     binding = {
         "manifest_generation": man["manifest_generation"],
         "manifest_sha256": c.sha256_json_file(man_path),
         "resolved_execution_contract_sha256": man["resolved_execution_contract_sha256"],
-        "resolved_membership_sha256": man["resolved_membership_sha256"]}
+        "resolved_membership_sha256": man["resolved_membership_sha256"],
+        "migration_bridge": bridge}
+    # independent re-derivation of each case's case-local binding hash from the gen-3 sources -- the
+    # manifest's stored case_entry_sha256 is NEVER trusted; a value its own inputs do not produce fails.
+    contract = c.load_record(L.CONTRACT)
+    overlay = c.load_record(L.OV_CONTRACT)
     roster = []
     for x in man["cases"]:
-        roster.append({**{k: x.get(k) for k in _BIND_KEYS}, "case_id": x["case_id"],
+        cid = x["case_id"]
+        ce = mb.contract_entry_for(cid, contract)
+        oe = mb.overlay_entry_for(cid, overlay)
+        recomputed = mb.case_entry_sha256(x, ce, oe)
+        if recomputed != x.get("case_entry_sha256"):
+            raise AggregateError(f"{cid}: manifest case_entry_sha256 != independent re-derivation")
+        roster.append({**{k: x.get(k) for k in _BIND_KEYS}, "case_id": cid,
                        "manifest_generation": man["manifest_generation"],
+                       "case_entry_sha256": recomputed,
                        "manifest_binding": binding})
     return roster
 

@@ -30,10 +30,17 @@ OVERLAYS = {
 class TestResolvedOverlays(unittest.TestCase):
     def test_overlays_selfhash_and_link_frozen_base(self):
         rm_sha = c.sha256_json_file(RM)
+        import n2e_resolved_loader as L
         for fname, (base_key, base_file) in OVERLAYS.items():
             r = c.load_record(N2E_DIR / fname)
             self.assertTrue(c.verify_self_hash(r)[0], fname)
-            self.assertEqual(r[base_key], c.sha256_json_file(N2E_DIR / base_file), fname)
+            if base_key == "base_execution_contract_sha256":
+                # gen-3: the execution-contract overlay is a FROZEN gen-2 artifact carried forward by
+                # the migration bridge -> it pins a bridge-acceptable base contract sha (the gen-2
+                # predecessor), not necessarily the current one.
+                self.assertIn(r[base_key], L.acceptable_base_contract_shas(), fname)
+            else:
+                self.assertEqual(r[base_key], c.sha256_json_file(N2E_DIR / base_file), fname)
             self.assertEqual(r["resolved_membership_sha256"], rm_sha, fname)
             self.assertEqual(r["resolved_case_id"], CASE_ID)
 
