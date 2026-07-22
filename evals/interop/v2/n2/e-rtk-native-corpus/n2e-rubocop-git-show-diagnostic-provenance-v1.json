@@ -1,0 +1,141 @@
+{
+  "barred_from_qualification": true,
+  "case_id": "rubocop__rubocop-13687::git::show",
+  "diagnostic_runs": [
+    {
+      "impl_commit": "ace837b",
+      "note": "first diagnostic (pre-merge-aware plumbing); revealed f0ec1b58 is a merge",
+      "run_id": "29917094909",
+      "workflow": "qodec-n2e-rubocop-git-show"
+    },
+    {
+      "impl_commit": "cfe7667",
+      "note": "merge-aware diagnostic; validated the full split-authority equivalence",
+      "run_id": "29920222241",
+      "workflow": "qodec-n2e-rubocop-git-show"
+    }
+  ],
+  "fixtures_dir": "evidence/rubocop-git-show-diag",
+  "frozen_fixtures": {
+    "plumb.abbrev_resolve.bin": {
+      "bytes": 41,
+      "sha256": "86dfcb84b5d167b38d0e2c5f39e0bffe536443f693bbb6010a1886f0f0793abf"
+    },
+    "plumb.first_parent_numstat.bin": {
+      "bytes": 64,
+      "sha256": "e1653476cf73bed42a474bcc34ad4fdba2da0fa7a1afc20efd98ae05a3a63d9f"
+    },
+    "plumb.first_parent_shortstat.bin": {
+      "bytes": 49,
+      "sha256": "ec7a6a2551c37624add07f32578274e2662a96e534f6915033b51b0a0030b002"
+    },
+    "plumb.name_status_trap.bin": {
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    "plumb.rev_list_parents.bin": {
+      "bytes": 123,
+      "sha256": "903fd9f1d131871e42bb494458ad44910c181eb2efb9508dad42fcb7fc89d18a"
+    },
+    "plumb.show_stat_crosscheck.bin": {
+      "bytes": 131,
+      "sha256": "9340f93049061f4c6dbecbb454d7d9051101f7657769e924861a7438404f149d"
+    },
+    "raw.stdout.bin": {
+      "bytes": 394,
+      "sha256": "3daedecfd130c0cc83bd3aca8fc10740cf67d1c59045e1237217744ff099341b"
+    },
+    "rtk.stdout.bin": {
+      "bytes": 267,
+      "sha256": "aaf4404a3d10fd0f091c8f8381832e73260a5f8e13ae40ae0039de0ee8696b8f"
+    }
+  },
+  "full_commit_oid": "f0ec1b58283bbf89625883b45d2aec5e515c95b3",
+  "generated_by": "tools/(inline) freeze rubocop git-show merge-aware diagnostic",
+  "merge_topology": {
+    "first_parent_oid": "f852457b508013ae193de684e013bee7aaece84d",
+    "is_merge": true,
+    "ordered_parents": [
+      "f852457b508013ae193de684e013bee7aaece84d",
+      "0a4173569fe7eb182a220019aea99b93f3b3963b"
+    ]
+  },
+  "mission": "N2-E",
+  "mission_title": "external RTK-native claim-aligned command corpus",
+  "non_normative_note": "the frozen RTK output's %ar (relative date), author and subject formatting are NON-NORMATIVE presentation; only the stat/identity core is compared.",
+  "observed": {
+    "abbrev_resolved_oid": "f0ec1b58283bbf89625883b45d2aec5e515c95b3",
+    "abbrev_uniquely_resolves": true,
+    "equivalence": {
+      "compared": [
+        "full_commit_oid",
+        "merge_topology",
+        "ordered_parents",
+        "first_parent_files_changed",
+        "first_parent_insertions",
+        "first_parent_deletions",
+        "affected_paths",
+        "abbreviated_oid_prefix",
+        "abbreviated_oid_unique_resolution",
+        "rtk_output_mode"
+      ],
+      "equivalent": true,
+      "first_parent_oid": "f852457b508013ae193de684e013bee7aaece84d",
+      "mismatches": [],
+      "note": "split authority: RAW=identity+topology, plumbing=first-parent stat, RTK=compact stat. %ar/patch/subject/author/second-parent/combined-diff excluded; raw_fallback rejected.",
+      "rtk_output_mode": "compact"
+    },
+    "first_parent_stat": {
+      "affected_paths": [
+        "spec/rubocop/cop/style/redundant_line_continuation_spec.rb"
+      ],
+      "binary_paths": [],
+      "deletions": 1,
+      "derivable": true,
+      "files_changed": 1,
+      "insertions": 15,
+      "outcome": "first_parent_stat"
+    },
+    "name_status_trap_empty": true,
+    "raw_identity": {
+      "abbreviated_parents": [
+        "f852457",
+        "0a41735"
+      ],
+      "derivable": true,
+      "full_commit_oid": "f0ec1b58283bbf89625883b45d2aec5e515c95b3",
+      "is_merge": true,
+      "outcome": "git_show_merge",
+      "raw_has_diff": false
+    },
+    "rtk_compact": {
+      "abbreviated_oid": "f0ec1b5",
+      "affected_paths": [
+        "spec/rubocop/cop/style/redundant_line_continuation_spec.rb"
+      ],
+      "deletions": 1,
+      "derivable": true,
+      "files_changed": 1,
+      "insertions": 15,
+      "outcome": "git_show",
+      "rtk_output_mode": "compact"
+    },
+    "show_stat_crosscheck": {
+      "affected_paths": [
+        "spec/rubocop/cop/style/redundant_line_continuation_spec.rb"
+      ],
+      "deletions": 1,
+      "derivable": true,
+      "files_changed": 1,
+      "insertions": 15,
+      "outcome": "first_parent_stat"
+    }
+  },
+  "oracle_policy_id": "rtk-git-show-merge-first-parent-oracle-v1",
+  "purpose": "Frozen barred provenance for the rubocop::git::show merge-aware diagnostic. Validates rtk-git-show-merge-first-parent-oracle-v1 end-to-end on the REAL merge commit f0ec1b58 before qualification. BARRED: emits no gate, its runs/impls are barred from acceptance.",
+  "record_kind": "rubocop_git_show_diagnostic_capture",
+  "record_sha256": "sha256:91e44fab874be18f024739a678c71fc899dbc06a8a48e4cfb30b307624dfa78c",
+  "record_type": "n2e-rubocop-git-show-diagnostic-provenance",
+  "record_version": "v1",
+  "schema_version": "n2e-record-1"
+}

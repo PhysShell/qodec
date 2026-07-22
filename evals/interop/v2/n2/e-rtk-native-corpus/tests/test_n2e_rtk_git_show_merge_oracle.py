@@ -10,6 +10,7 @@ from pathlib import Path
 
 N2E_DIR = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(N2E_DIR / "tools"))
+import n2e_common as c  # noqa: E402
 import n2e_rtk_git_show_merge_oracle as mo  # noqa: E402
 
 MERGE = "f0ec1b58283bbf89625883b45d2aec5e515c95b3"
@@ -171,6 +172,48 @@ class TestRedMatrix(unittest.TestCase):
         eq = self._eq(rtk=rtk)
         self.assertFalse(eq["equivalent"])
         self.assertIn("rtk_output_mode_not_compact", eq["mismatches"])
+
+
+class TestFrozenRealFixtureRegression(unittest.TestCase):
+    """Freeze the merge oracle against the REAL `rtk git show` + `git show` + plumbing output on the
+    pinned merge commit f0ec1b58 (barred diagnostic run 29920222241): the split-authority equivalence
+    must close, and the provenance record must be barred."""
+
+    FX = N2E_DIR / "evidence" / "rubocop-git-show-diag"
+    PROV = N2E_DIR / "n2e-rubocop-git-show-diagnostic-provenance-v1.json"
+    OID = "f0ec1b58283bbf89625883b45d2aec5e515c95b3"
+
+    def _rd(self, n):
+        return (self.FX / n).read_bytes()
+
+    def test_equivalence_closes_on_frozen_fixture(self):
+        raw = mo.parse_raw_merge_identity(self._rd("raw.stdout.bin"))
+        rtk = mo.parse_rtk_compact(self._rd("rtk.stdout.bin"))
+        pp = mo.parse_rev_list_parents(self._rd("plumb.rev_list_parents.bin").decode())
+        fp = mo.parse_first_parent_stat(self._rd("plumb.first_parent_numstat.bin"),
+                                        self._rd("plumb.first_parent_shortstat.bin"))
+        abbrev_resolved = self._rd("plumb.abbrev_resolve.bin").decode().strip()
+        eq = mo.equivalence(raw, fp, rtk, pp, self.OID, abbrev_resolved)
+        self.assertTrue(eq["equivalent"], eq["mismatches"])
+        self.assertEqual(pp["first_parent_oid"], "f852457b508013ae193de684e013bee7aaece84d")
+        self.assertTrue(raw["is_merge"] and not raw["raw_has_diff"])
+        self.assertEqual((fp["files_changed"], fp["insertions"], fp["deletions"]), (1, 15, 1))
+        self.assertEqual(rtk["rtk_output_mode"], "compact")
+
+    def test_name_status_trap_is_empty(self):
+        # git's --name-status is EMPTY on this merge -- the trap the diagnostic caught; it is never a
+        # stat authority (numstat+shortstat are).
+        self.assertEqual(self._rd("plumb.name_status_trap.bin").strip(), b"")
+
+    def test_provenance_is_barred(self):
+        import n2e_resolved_loader as L
+        prov = c.load_record(self.PROV)
+        self.assertTrue(prov["barred_from_qualification"])
+        self.assertEqual(prov["record_kind"], "rubocop_git_show_diagnostic_capture")
+        self.assertTrue(prov["observed"]["equivalence"]["equivalent"])
+        for r in prov["diagnostic_runs"]:
+            self.assertIn(r["run_id"], L.BARRED_DIAGNOSTIC_RUNS)
+            self.assertIn(r["impl_commit"], L.BARRED_DIAGNOSTIC_IMPLS)
 
 
 class TestSourceIdentity(unittest.TestCase):
