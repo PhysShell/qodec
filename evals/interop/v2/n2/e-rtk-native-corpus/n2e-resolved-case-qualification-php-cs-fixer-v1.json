@@ -1,0 +1,110 @@
+{
+  "acceptance_run": {
+    "artifact_bytes": 8474,
+    "artifact_sha256": "a8d31135fb2dac6ffb1032f68b588bd964d51c919ada801574de9534b1cab88e",
+    "impl_commit": "c77e06a",
+    "run_attempt": "1",
+    "run_id": "29934155825",
+    "workflow": "qodec-n2e-php-cs-fixer-git-commit"
+  },
+  "canonicalization_policy_id": "git-v1",
+  "case_entry_sha256": "sha256:b636f4a3735e6c66620243e45f50648ef9c947d6da8f1438a5457150d9057a5c",
+  "case_id": "php-cs-fixer__php-cs-fixer-8075::git::commit",
+  "case_qualification_pass": true,
+  "command_semantic_oracle_policy_id": "rtk-git-commit-oracle-v1",
+  "commit_evidence": {
+    "raw_head": {
+      "bytes": 41,
+      "evidence_path": "evidence/php-cs-fixer/qualification/raw.plumb.head.bin",
+      "sha256": "c9d1a28758a57e421d978a730a16fc68282303e9d0862a826ed77a78acb4eb8c"
+    },
+    "raw_name_status": {
+      "bytes": 16,
+      "evidence_path": "evidence/php-cs-fixer/qualification/raw.plumb.name_status.bin",
+      "sha256": "5a388d98b28eadd6bca2ee73ce648886be5eccd8bfde86d57ae31cfb9c7042ff"
+    },
+    "raw_parent": {
+      "bytes": 41,
+      "evidence_path": "evidence/php-cs-fixer/qualification/raw.plumb.parent.bin",
+      "sha256": "46ff9575543c1466edfc3913aa4bb8b046c2a2eab142dfbd4b8d03d266b95514"
+    },
+    "rtk_head": {
+      "bytes": 41,
+      "evidence_path": "evidence/php-cs-fixer/qualification/rtk.plumb.head.bin",
+      "sha256": "c9d1a28758a57e421d978a730a16fc68282303e9d0862a826ed77a78acb4eb8c"
+    },
+    "rtk_name_status": {
+      "bytes": 16,
+      "evidence_path": "evidence/php-cs-fixer/qualification/rtk.plumb.name_status.bin",
+      "sha256": "5a388d98b28eadd6bca2ee73ce648886be5eccd8bfde86d57ae31cfb9c7042ff"
+    },
+    "rtk_parent": {
+      "bytes": 41,
+      "evidence_path": "evidence/php-cs-fixer/qualification/rtk.plumb.parent.bin",
+      "sha256": "46ff9575543c1466edfc3913aa4bb8b046c2a2eab142dfbd4b8d03d266b95514"
+    },
+    "rtk_stdout": {
+      "bytes": 11,
+      "evidence_path": "evidence/php-cs-fixer/qualification/rtk.stdout.bin",
+      "sha256": "80436b3903a346c2320ac86fc670589cd82bf260b02d8ab4381a21e3a0949ecd"
+    }
+  },
+  "commit_identity": {
+    "base_commit": "f0a95a77782538eafca6c4d2f2f2792be3dbbfcf",
+    "reproduced_commit_oid": "53baffeff89e113945b6026abac44ed27444d5db",
+    "staged_tree_oid": "deca95998ea13f9738ca2050f2d4a1a92e910b0d"
+  },
+  "contract_generation": 1,
+  "determinant_policy_id": "git-commit-determinant-v1",
+  "dispatch_code_identity": {
+    "canonicalization_policy_id": "git-v1",
+    "dispatch_module_sha256": "79e2b21883a9530ca147f5a9329905cb2c7a7c394aabe3d437351d2074b60f02",
+    "dispatch_policy_id": "n2e-qualification-dispatch-v4",
+    "oracle_module_sha256": "e149f39a5013606612ba74d6a531c850d1f79a833bb1cf0c5fb2b21f3552183b",
+    "oracle_policy_id": "rtk-git-commit-oracle-v1",
+    "parser_library_sha256": "21a34f2c33e29bed175a2a016996b9fa8a059108ea72ca971bdc4785753b6e73",
+    "registry_sha256": "bc8b872a20ed0b3902d966b2e3b7d60acd1f959065144b6a0627d3367f6f2dfe",
+    "rtk_source_identity_sha256": "28afec6faa88abf611f4e4963a931cce5d91bc8428854c3d0144a7a959c41726"
+  },
+  "dispatch_policy_id": "n2e-qualification-dispatch-v4",
+  "evidence": {
+    "dir": "evidence/php-cs-fixer/qualification"
+  },
+  "generated_by": "evals/interop/v2/n2/e-rtk-native-corpus/tools/build_n2e_php_cs_fixer_git_commit_qualification.py",
+  "identities": {
+    "rtk_sha256": "41f316adf7b30a568208a0a4f824bffb266ecb6d01bd9de81bed58e1d469dfcf"
+  },
+  "manifest_generation": 3,
+  "manifest_sha256": "sha256:4ac7e7b43942f5f62814f1b790eaa8b1e876044c2708d230de95012442e1349f",
+  "mission": "N2-E",
+  "mission_title": "external RTK-native claim-aligned command corpus",
+  "promotion_state": "held (resolved-twelve not yet 12/12)",
+  "purpose": "Immutable per-case qualification for php-cs-fixer__php-cs-fixer-8075::git::commit via the dispatch-v4 registry-bound commit-identity path (NOT cq). The normative claim is the resulting-ref identity: under the pinned git-commit-determinant-v1 policy the RAW and RTK full commit OIDs are EXACTLY equal (the commit object reproduced; the hash is never normalized), both parents == base, and RTK's abbrev is a prefix. Built from a fresh acceptance run; gated by the dispatch binding + recompute. Sets no promotion flag.",
+  "qualification_kind": "rtk_command_oracle",
+  "re_derived": {
+    "equivalence": {
+      "compared": [
+        "outcome",
+        "commit_created",
+        "resulting_ref_oid_equal",
+        "parent_is_base",
+        "abbreviated_oid_prefix"
+      ],
+      "equivalent": true,
+      "mismatches": [],
+      "note": "resulting-ref identity: RAW commit OID == RTK commit OID (reproducible; never normalized), both parents == base, RTK abbrev is a prefix. Subject / author / committer / changed-paths are NOT claimed (RTK does not report them).",
+      "raw_commit_oid": "53baffeff89e113945b6026abac44ed27444d5db",
+      "rtk_abbreviated_oid": "53baffe",
+      "rtk_commit_oid": "53baffeff89e113945b6026abac44ed27444d5db"
+    },
+    "normative_axis": "resulting-ref identity: RAW commit OID == RTK commit OID (reproducible; never normalized), both parents == base, RTK abbrev is a prefix; subject/author/committer/changed-paths excluded"
+  },
+  "record_kind": "php_cs_fixer_git_commit_acceptance_qualification",
+  "record_sha256": "sha256:1d1bcd7586eeec347c7980b31a62d492b797c5ddae31689a31671ec554a7e35c",
+  "record_type": "n2e-resolved-case-qualification",
+  "record_version": "v1",
+  "resolved_canary_pass": false,
+  "rtk_test_dialect_policy_id": null,
+  "schema_version": "n2e-record-1",
+  "verdict_authority": "dispatch-v4 binding + recompute (producer records observations)"
+}
