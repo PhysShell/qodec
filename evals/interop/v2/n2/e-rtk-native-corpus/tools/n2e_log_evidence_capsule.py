@@ -82,14 +82,22 @@ def load_reference() -> dict:
     templates = {r["EventId"]: r["EventTemplate"] for r in rows}
     published = {r["EventId"]: int(r["Occurrences"]) for r in rows}
     matchers = {eid: _template_to_regex(t) for eid, t in templates.items()}
+    # leading literal (template text before the first `<*>`) -- a NECESSARY prefix for a match, so a
+    # cheap `content.startswith(lead)` prefilters most templates before the anchored regex (sound for
+    # exactly-one-match: a template whose leading literal is not a prefix of the line cannot match).
+    leads = {eid: t.split("<*>")[0] for eid, t in templates.items()}
     return {"sha256": ref_sha, "event_ids": sorted(templates), "published": published,
-            "templates": templates, "matchers": matchers, "record": rec}
+            "templates": templates, "matchers": matchers, "leads": leads, "record": rec}
 
 
-def assign_event_id(content: str, matchers: dict) -> tuple[str, int]:
+def assign_event_id(content: str, matchers: dict, leads: dict | None = None) -> tuple[str, int]:
     """Exactly-one-match against the published templates. Returns (EventId, 1) for a unique match;
-    ('<unmatched>', 0) for zero; ('<ambiguous>', n) for >1 -- both are fail-closed rejects."""
-    hits = [eid for eid, rx in matchers.items() if rx.match(content)]
+    ('<unmatched>', 0) for zero; ('<ambiguous>', n) for >1 -- both are fail-closed rejects. `leads`
+    (leading literals) is an OPTIONAL prefilter that changes speed only, never the result."""
+    if leads is not None:
+        hits = [eid for eid, rx in matchers.items() if content.startswith(leads[eid]) and rx.match(content)]
+    else:
+        hits = [eid for eid, rx in matchers.items() if rx.match(content)]
     if len(hits) == 1:
         return hits[0], 1
     if not hits:
@@ -182,8 +190,9 @@ class _Collector:
         for pat, repl in _MASKS:
             masked = pat.sub(repl, masked)
         self._masks.add(masked)
-        # AUTHORITY: published EventId by exactly-one-match
-        eid, n = assign_event_id(msg_b.decode("utf-8", "replace"), self._ref["matchers"])
+        # AUTHORITY: published EventId by exactly-one-match (prefiltered by leading literal for speed)
+        eid, n = assign_event_id(msg_b.decode("utf-8", "replace"),
+                                 self._ref["matchers"], self._ref.get("leads"))
         if eid == "<unmatched>":
             self.unmatched += 1
             return
