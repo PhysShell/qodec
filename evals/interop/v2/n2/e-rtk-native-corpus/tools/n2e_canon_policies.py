@@ -375,6 +375,13 @@ def policy_definition_sha256(policy_id: str) -> str:
     the record's meaning. A callable policy is pinned by its qualified name; a rule list is pinned by
     each (pattern-bytes, flags, replacement) triple in order (replacement callables by qualified name)."""
     import hashlib
+    # RUNTIME:a|b disjunction (e.g. jvm test, where gradle-vs-maven is resolved at runtime): pin the
+    # DEFINITION of every component branch in order, so drift in EITHER branch is detected. Literal ids
+    # take the unchanged path below, so no existing frozen record's pinned digest is affected.
+    if policy_id.startswith("RUNTIME:"):
+        comps = policy_id[len("RUNTIME:"):].split("|")
+        joined = b"\x00".join(c.encode() + b"=" + policy_definition_sha256(c).encode() for c in comps)
+        return hashlib.sha256(b"RUNTIME\x00" + joined).hexdigest()
     if policy_id not in _POLICIES:
         raise KeyError(f"unknown canonicalization policy {policy_id!r}")
     spec = _POLICIES[policy_id]

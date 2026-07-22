@@ -63,6 +63,11 @@ def build(case_id: str, observation: Path, evidence: Path, name: str, run: dict)
         case_id=case_id,
         manifest_generation=man["manifest_generation"],
         manifest_sha256=c.sha256_json_file(MANIFEST),
+        # gen-3 NATIVE per-case binding: the record binds to its case by the case-LOCAL
+        # case_entry_sha256, not the whole-manifest sha. The aggregator INDEPENDENTLY re-derives the
+        # gen-3 entry hash from the manifest's own inputs and rejects any disagreement, so copying the
+        # manifest's stored value here is only a claim the aggregator re-proves.
+        case_entry_sha256=entry.get("case_entry_sha256"),
         qualification_kind=entry["qualification_kind"],
         rtk_test_dialect_policy_id=entry["rtk_test_dialect_policy_id"],
         command_semantic_oracle_policy_id=entry["command_semantic_oracle_policy_id"],
