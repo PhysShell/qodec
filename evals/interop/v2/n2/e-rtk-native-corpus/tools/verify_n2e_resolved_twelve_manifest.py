@@ -29,7 +29,8 @@ _POLICY_KEYS = ("family", "subfamily", "canary_slot", "canonicalization_policy_i
                 "canonicalization_policy_generation", "qualification_kind",
                 "rtk_test_dialect_policy_id", "command_semantic_oracle_policy_id",
                 "base_semantic_oracle_policy_id", "contract_generation",
-                "required_toolchain_identity_ref", "expected_qualification_record_type")
+                "required_toolchain_identity_ref", "expected_qualification_record_type",
+                "dispatch_policy_id")
 
 _KINDS = ("rtk_test_dialect", "rtk_command_oracle")
 
@@ -50,6 +51,11 @@ def _check_two_mode_invariant(cid: str, entry: dict) -> None:
         raise ManifestError(f"{cid}: rtk_test_dialect requires dialect set + oracle null")
     if kind == "rtk_command_oracle" and (oracle is None or dialect is not None):
         raise ManifestError(f"{cid}: rtk_command_oracle requires oracle set + dialect null")
+    # routing invariant: a dispatch_policy_id (versioned registry-bound path) may appear ONLY on an
+    # rtk_command_oracle case -- a test-dialect case is always the frozen cq path. Structural, so a
+    # hand-tampered manifest that routes a dialect case through a dispatch layer is caught here.
+    if entry.get("dispatch_policy_id") is not None and kind != "rtk_command_oracle":
+        raise ManifestError(f"{cid}: dispatch_policy_id set on a non-command-oracle case (kind={kind!r})")
 
 
 def verify_manifest(rec: dict, expected_generation: int = B.MANIFEST_GENERATION) -> dict:

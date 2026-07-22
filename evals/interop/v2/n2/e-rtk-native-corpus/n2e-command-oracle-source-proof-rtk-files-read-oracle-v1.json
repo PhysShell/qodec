@@ -32,7 +32,7 @@
   "generated_by": "evals/interop/v2/n2/e-rtk-native-corpus/tools/build_n2e_command_oracle_source_proof.py",
   "manifest_binding": {
     "manifest_generation": 3,
-    "manifest_sha256": "sha256:d7deb941cb838b7b3a30cddecacc7bda663f583b737829225b3e2d662de57789"
+    "manifest_sha256": "sha256:564d0da85ee71e31964b52f941f23b16baa7a3949b33425b5611fc78ee31ca78"
   },
   "mission": "N2-E",
   "mission_title": "external RTK-native claim-aligned command corpus",
@@ -48,7 +48,7 @@
     "projectlombok__lombok-3312::files_search::read"
   ],
   "purpose": "Source-identity + case-scope proof for rtk-files-read-oracle-v1. Pins the exact pinned RTK source function it was grounded in, the semantics-module identity, the pinned corpus RTK binary, and the case-scoped manifest binding. Sets no promotion flag.",
-  "record_sha256": "sha256:046ba4fe328044760e890954f19d9816a82034caa5b8a39b930d01cba731f757",
+  "record_sha256": "sha256:4b4d9dddda28311f059c9d2c0c2e6544b4d817046a831f85c573f9e7bb2019e4",
   "record_type": "n2e-command-oracle-source-proof",
   "record_version": "v1",
   "rtk_source_identity": {

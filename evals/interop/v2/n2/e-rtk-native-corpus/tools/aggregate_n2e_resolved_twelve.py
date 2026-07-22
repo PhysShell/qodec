@@ -27,6 +27,7 @@ sys.path.insert(0, str(HERE))
 import n2e_common as c  # noqa: E402
 import n2e_resolved_loader as L  # noqa: E402
 import n2e_manifest_binding as mb  # noqa: E402
+import n2e_qualification_dispatch as disp  # noqa: E402
 import verify_n2e_resolved_twelve_manifest as VM  # noqa: E402
 
 
@@ -34,10 +35,11 @@ class AggregateError(Exception):
     pass
 
 
-# roster entry keys the aggregator binds each record to
+# roster entry keys the aggregator binds each record to. dispatch_policy_id is the ROUTING axis: the
+# aggregator selects the path (versioned registry-bound dispatch vs frozen cq) from it and nothing else.
 _BIND_KEYS = ("expected_qualification_record_type", "canonicalization_policy_id",
               "rtk_test_dialect_policy_id", "command_semantic_oracle_policy_id",
-              "qualification_kind", "contract_generation")
+              "qualification_kind", "contract_generation", "dispatch_policy_id")
 
 
 def _check_kind_dispatch(cid: str, rec: dict, entry: dict) -> None:
@@ -186,12 +188,36 @@ def aggregate(roster: list, records: dict, recompute: dict, bind: dict) -> dict:
         if rec.get("record_type") != etype:
             raise AggregateError(f"{cid}: record_type {rec.get('record_type')!r} "
                                  f"!= manifest-declared {etype!r}")
-        # ---- manifest binding (type-dispatched: frozen coreutils vs forward per-case) ----
-        bind_fn = bind.get(etype)
-        if bind_fn is None:
-            raise AggregateError(f"{cid}: no manifest-binding check for {etype!r}")
-        bind_fn(rec, entry)
-        # declared policy binding (wrong dialect/canon/contract-generation -> reject)
+        # ---- routing axis: the path is chosen ONLY from the manifest entry's dispatch_policy_id.
+        # present -> versioned registry-bound dispatch layer (NOT the frozen cq); absent -> legacy cq
+        # path. The two are STRICTLY separated: a manifest entry names exactly one, and a record built
+        # for the wrong one is fail-closed (dispatch identity vs cq frozen identity are mutually
+        # exclusive). No plugin discovery, no import path from the artifact, no generic-oracle fallback.
+        disp_pid = entry.get("dispatch_policy_id")
+        if disp_pid is not None:
+            if disp_pid != disp.DISPATCH_POLICY_ID:
+                raise AggregateError(f"{cid}: unknown dispatch_policy_id {disp_pid!r} "
+                                     f"(no such dispatch generation registered)")
+            # gen-3 case-local binding (which case + kind dispatch), THEN the dispatch identity binding
+            # (exactly-one registry match, mutual exclusion vs a cq frozen_code_identity, drift, and no
+            # dynamic import path smuggled in the artifact). A dispatch-layer rejection surfaces as an
+            # AggregateError (the aggregator's single failure mode).
+            _bind_case_generation(rec, entry)
+            try:
+                disp.bind_dispatch_v2(rec, entry)
+            except disp.DispatchError as e:
+                raise AggregateError(f"{cid}: dispatch-v2 binding rejected: {e}")
+        else:
+            # a dispatch record must NEVER be laundered through cq. Routing is by the manifest entry, but
+            # guard here too: a record carrying a dispatch_code_identity on a non-dispatch entry is barred.
+            if rec.get("dispatch_code_identity") is not None:
+                raise AggregateError(f"{cid}: record carries dispatch_code_identity but manifest entry "
+                                     f"is not routed to a dispatch layer")
+            bind_fn = bind.get(etype)
+            if bind_fn is None:
+                raise AggregateError(f"{cid}: no manifest-binding check for {etype!r}")
+            bind_fn(rec, entry)
+        # declared policy binding (wrong dialect/canon/contract-generation -> reject) -- both paths
         for k in ("canonicalization_policy_id", "rtk_test_dialect_policy_id", "contract_generation"):
             if k in rec and rec.get(k) != entry.get(k):
                 raise AggregateError(f"{cid}: bound {k} {rec.get(k)!r} != manifest {entry.get(k)!r}")
@@ -213,12 +239,18 @@ def aggregate(roster: list, records: dict, recompute: dict, bind: dict) -> dict:
             raise AggregateError(f"{cid}: artifact digest reused from {artifact_keys[ak]} (cross-case)")
         artifact_keys[ak] = cid
 
-        # ---- INDEPENDENT recomputation through the case's materialized path ----
-        fn = recompute.get(entry["expected_qualification_record_type"])
-        if fn is None:
-            raise AggregateError(f"{cid}: no materialized recompute path for "
-                                 f"{entry['expected_qualification_record_type']!r} -- cannot derive PASS")
-        derived = bool(fn(rec, entry))
+        # ---- INDEPENDENT recomputation through the case's materialized path (dispatch or legacy) ----
+        if disp_pid is not None:
+            try:
+                derived = bool(disp.recompute_dispatch_v2(rec, entry))
+            except disp.DispatchError as e:
+                raise AggregateError(f"{cid}: dispatch-v2 recompute rejected: {e}")
+        else:
+            fn = recompute.get(entry["expected_qualification_record_type"])
+            if fn is None:
+                raise AggregateError(f"{cid}: no materialized recompute path for "
+                                     f"{entry['expected_qualification_record_type']!r} -- cannot derive PASS")
+            derived = bool(fn(rec, entry))
         # the aggregator's derivation is authoritative; a producer PASS that disagrees is rejected
         claimed = rec.get("case_qualification_pass",
                           rec.get("coreutils_qualification_pass"))

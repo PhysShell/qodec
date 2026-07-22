@@ -47,6 +47,14 @@ PENDING_QUAL_TYPE = "n2e-resolved-case-qualification"
 # Command shapes that are identical share one oracle id (preact & lombok are both files_search::read).
 RTK_TEST_DIALECT = "rtk_test_dialect"
 RTK_COMMAND_ORACLE = "rtk_command_oracle"
+
+# case_id -> dispatch_policy_id: a case routed through a versioned registry-bound dispatch layer
+# (instead of the frozen cq). Only cases whose oracle is grounded + registered belong here -- future
+# Rubocop/Redis/PHP oracles are NOT pre-registered; they enter via a NEW dispatch generation once
+# grounded. NOT part of the case_entry_sha256 projection (routing, bound by manifest root + registry).
+_DISPATCH_POLICY = {
+    "loghub::HDFS::log": "n2e-qualification-dispatch-v2",
+}
 QUALIFICATION_MODEL = {
     "uutils__coreutils-6731::rust_cargo::test::fixed": (RTK_TEST_DIALECT, "rtk-rust-cargo-test-summary-v1", None),
     "apache__lucene-13704::jvm::test::buggy":           (RTK_TEST_DIALECT, "rtk-jvm-test-summary-v1", None),
@@ -130,6 +138,11 @@ def build_manifest() -> dict:
             "required_rtk_binary_identity_ref": pinned_rtk,
             "expected_qualification_record_type":
                 COREUTILS_QUAL_TYPE if is_coreutils else PENDING_QUAL_TYPE,
+            # ---- routing axis (NOT in case_entry_sha256; bound by the manifest root + the immutable
+            # registry): a case with a dispatch_policy_id qualifies through that versioned dispatch
+            # layer + its checksum-pinned oracle registry, NOT through the frozen cq. All others route
+            # legacy (cq). Loghub is the first; future oracles enter via NEW dispatch generations. ----
+            "dispatch_policy_id": _DISPATCH_POLICY.get(cid),
             # descriptive: which cases are already frozen-qualified vs pending an acceptance run.
             # NOT a promotion input -- the aggregator derives PASS/absence from the actual records.
             "qualification_status": "frozen" if is_coreutils else "pending",
