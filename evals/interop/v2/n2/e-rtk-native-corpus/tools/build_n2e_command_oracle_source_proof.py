@@ -38,6 +38,8 @@ ORACLE_PROOFS = {
         ("n2e_rtk_git_show_merge_oracle.py", ["rubocop__rubocop-13687::git::show"]),
     "rtk-git-commit-oracle-v1":
         ("n2e_rtk_git_commit_oracle.py", ["php-cs-fixer__php-cs-fixer-8075::git::commit"]),
+    "rtk-docker-images-oracle-v1":
+        ("n2e_rtk_docker_images_oracle.py", ["container::redis::docker::images"]),
 }
 
 
