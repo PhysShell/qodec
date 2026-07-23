@@ -1,0 +1,89 @@
+{
+  "anchor_to_pinned_reduced_row": {
+    "base_commit_matches": true,
+    "fail_to_pass_matches": true,
+    "pass_to_pass_count_matches": true,
+    "repo_matches": true,
+    "version_matches": true
+  },
+  "base_commit": "a4088475832957e070b8f904cd3a33a818d07d72",
+  "case_id": "uutils__coreutils-6731::rust_cargo::test::fixed",
+  "complete_instance_row_path": "evidence/coreutils-6731/uutils__coreutils-6731.row.json",
+  "complete_instance_row_sha256": "sha256:fe321a79116e05415d2ce4c90f3164d241c8c2c7ac31a9f2f3f1640dda08ef18",
+  "dataset": {
+    "id": "SWE-bench/SWE-bench_Multilingual",
+    "revision": "2b7aced941b4873e9cad3e76abbae93f481d1beb"
+  },
+  "docker_toolchain": {
+    "docker_specs": {
+      "rust_version": "1.81"
+    },
+    "kind": "rust",
+    "version": "1.81"
+  },
+  "equalities": {
+    "anchor_all_true": true,
+    "docker_rust_version_equal": true,
+    "install_byte_equal": true,
+    "instance_id_matches": true,
+    "pre_install_byte_equal": true,
+    "recipe_source_blob_matches": true,
+    "recipe_source_sha256_matches": true,
+    "repo_matches": true,
+    "spec_dict_matches": true,
+    "test_cmd_byte_equal": true,
+    "version_matches": true
+  },
+  "fail_to_pass": [
+    "test_tr::test_trailing_backslash"
+  ],
+  "fail_to_pass_sha256": "sha256:68a3e99f9975587a71e9632a5943cd930dd6a25628fe928b95a13b862008588c",
+  "generated_by": "evals/interop/v2/n2/e-rtk-native-corpus/tools/build_n2e_coreutils_instance_recipe_applicability.py",
+  "gold_patch_bytes": 1412,
+  "gold_patch_sha256": "sha256:af01ce8ca8aeb831f885085fc656601320743284f1ec65e2b4b6db34f6387ded",
+  "harness_bundle": {
+    "path": "fixtures/swebench-source/swebench-f7bbbb2.bundle",
+    "sha256": "sha256:337fe73d1f0aa706eca746dae0f363c6d45ec2dd2e7ec18a7d31f2f277021a3f"
+  },
+  "harness_commit": "f7bbbb2ccdf479001d6467c9e34af59e44a840f9",
+  "install_command_bytes": [
+    "cargo test backslash --no-run"
+  ],
+  "instance_id": "uutils__coreutils-6731",
+  "instance_recipe_applicable": true,
+  "mission": "N2-E",
+  "mission_title": "external RTK-native claim-aligned command corpus",
+  "pass_to_pass_count": 9,
+  "pass_to_pass_sha256": "sha256:f73cd1034e6dd11bf0d927e68d0a32f91f879ca4a04546546e9ec057de0172fc",
+  "pinned_reduced_instance_row": {
+    "base_commit": "a4088475832957e070b8f904cd3a33a818d07d72",
+    "fail_to_pass": [
+      "test_tr::test_trailing_backslash"
+    ],
+    "instance_id": "uutils__coreutils-6731",
+    "pass_to_pass_count": 9,
+    "repo": "uutils/coreutils",
+    "version": "6731"
+  },
+  "policy_id": "n2e-coreutils-instance-recipe-applicability-v1",
+  "purpose": "Offline proof that the pinned harness maps (uutils/coreutils, 6731) to exactly the recipe in the resolved publisher-env overlay; full instance identity recorded.",
+  "recipe_selection_mechanism": "MAP_REPO_VERSION_TO_SPECS_RUST[repo][version] -> COREUTILS_SPECS[version] (pinned harness rust.py)",
+  "record_sha256": "sha256:2cd4d59026afd017aae4f142a097f7a38362e489be0bd350e78c803960b2b006",
+  "record_type": "n2e-coreutils-instance-recipe-applicability",
+  "record_version": "v1",
+  "resolved_publisher_overlay_sha256": "sha256:04f3af99a7d50e3b06273c105f092bfb6811395eae7ead1d2df6dfb128592138",
+  "resolved_spec_dict": "COREUTILS_SPECS",
+  "resolved_spec_key": "6731",
+  "rust_py": {
+    "git_blob_sha1": "068c7c2414edbcc14d42cca3bae96d27bdfb39f4",
+    "path": "swebench/harness/constants/rust.py",
+    "sha256": "1ad97f35f1202ef2a69c066b29d2edc5f552fd62db2230f38d2f7dd91a4a3da2"
+  },
+  "schema_version": "n2e-record-1",
+  "swebench_instances_sha256": "sha256:4154254e8fe163aa06a8408b40eaa8ef28d96f546bef40be390b8a9b746d0d42",
+  "test_command_bytes": [
+    "cargo test backslash --no-fail-fast"
+  ],
+  "test_patch_bytes": 1366,
+  "test_patch_sha256": "sha256:985a7bd4aefd37a55e73386b0444f0221335cf2e98587684c284c19d1e672415"
+}

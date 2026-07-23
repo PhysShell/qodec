@@ -1,0 +1,54 @@
+{
+  "argv": [
+    "git",
+    "commit",
+    "-m",
+    "n2e"
+  ],
+  "generated_by": "tools/(inline) git-commit determinant policy",
+  "git_author": {
+    "date": "2026-07-17T00:00:00+0000",
+    "email": "n2e@local",
+    "name": "n2e"
+  },
+  "git_committer": {
+    "date": "2026-07-17T00:00:00+0000",
+    "email": "n2e@local",
+    "name": "n2e"
+  },
+  "hooks": {
+    "enforced_via": "fresh `git init`/fetch/checkout leaves only inactive .sample hooks; preparation also sets repo-local `core.hooksPath` to an empty dir",
+    "mode": "inactive"
+  },
+  "index_worktree_state": {
+    "note": "the harness's deterministic dirty state (run_canary_case._construct_git_state for the commit subfamily): the single staged file whose blob + path fully determine the tree delta",
+    "staged_content": "n2e deterministic dirty state\n",
+    "staged_content_sha256": "008d4800c0e92dec383745f7f6f36be5dea38256fc3561601c8934c5b89047a5",
+    "staged_paths": [
+      "N2E_DIRTY.txt"
+    ]
+  },
+  "message": "n2e",
+  "mission": "N2-E",
+  "mission_title": "external RTK-native claim-aligned command corpus",
+  "parent_commit": "f0a95a77782538eafca6c4d2f2f2792be3dbbfcf",
+  "policy_id": "git-commit-determinant-v1",
+  "purpose": "Versioned, frozen pinning of EVERY determinant of the new commit object for php-cs-fixer::git::commit, so the RAW `git commit` and RTK `rtk git commit` produce the SAME full commit OID. The hash is never normalized: if it fails to reproduce, a determinant leaked. A commit OID hashes {tree, parent, author name/email/date, committer name/email/date, message} -- all pinned here; signing + hooks are disabled so neither perturbs the object.",
+  "record_sha256": "sha256:6d1d38a5929d8763430bb71e2bbe97808137124042ddae7bea190936908233b3",
+  "record_type": "n2e-git-commit-determinant-policy",
+  "record_version": "v1",
+  "reproducibility_rule": "RAW commit OID == RTK commit OID EXACTLY; never normalize the hash.",
+  "rtk_argv": [
+    "rtk",
+    "git",
+    "commit",
+    "-m",
+    "n2e"
+  ],
+  "schema_version": "n2e-record-1",
+  "signing": {
+    "enforced_via": "GIT_CONFIG_GLOBAL=/dev/null + GIT_CONFIG_SYSTEM=/dev/null + repo-local `git config commit.gpgsign false` set during preparation",
+    "gpgsign": false
+  },
+  "timezone": "UTC"
+}

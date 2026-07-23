@@ -1,0 +1,188 @@
+name: qodec-n2e-coreutils-diagnostic
+
+# Focused, OUTCOME-NEUTRAL diagnostic for the resolved replacement uutils/coreutils-6731
+# (rust 1.81.0). NOT canonical acceptance: it establishes exact toolchain identity, two
+# independent acquisitions A/B + parity, the exact publisher-install Cargo.lock mutation
+# behaviour, a deterministic final measurement input, RAW qualification via a native Cargo
+# target-execution proof, primary RAW+RTK streams, and pinned RTK Cargo-filter source
+# provenance. The Rust RTK dialect is NOT yet approved -> outcome RTK_DIALECT_UNPROVEN,
+# acceptance_pass=false. Diagnostic COMPLETENESS (not corpus acceptance) is what the job
+# gates on. No step commits generated records back to the branch. Manual-only; the
+# disposable trigger branch (ci-trigger/n2e-coreutils-diagnostic-<shortI>) carries an
+# ADDITIVE push stanza and every job checks out the implementation commit I = HEAD~1.
+on:
+  workflow_dispatch: {}
+
+permissions:
+  contents: read
+
+env:
+  LC_ALL: C.UTF-8
+  LANG: C.UTF-8
+  TZ: UTC
+  N2E: evals/interop/v2/n2/e-rtk-native-corpus
+  RTK_SHA: "41f316adf7b30a568208a0a4f824bffb266ecb6d01bd9de81bed58e1d469dfcf"
+
+jobs:
+  resolve:
+    runs-on: ubuntu-24.04
+    outputs:
+      impl: ${{ steps.i.outputs.impl }}
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        with:
+          fetch-depth: 2
+          persist-credentials: false
+      - id: i
+        run: |
+          if [ "${{ github.event_name }}" = "push" ] && echo "${{ github.ref }}" | grep -q 'ci-trigger/'; then
+            impl="$(git rev-parse HEAD~1)"
+          else
+            impl="${{ github.sha }}"
+          fi
+          echo "impl=$impl" >> "$GITHUB_OUTPUT"
+          echo "implementation commit I = $impl"
+
+  verify:
+    runs-on: ubuntu-24.04
+    needs: [resolve]
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        with:
+          ref: ${{ needs.resolve.outputs.impl }}
+          persist-credentials: false
+      - uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065 # v5.6.0
+        with:
+          python-version: "3.11"
+      - name: Verify frozen base records (registry re-extraction + execution contract)
+        run: |
+          cd "$N2E"
+          python3 tools/verify_n2e_publisher_registry.py
+          python3 tools/verify_n2e_execution_contract.py
+          python3 tools/verify_n2e_toolchain_lock.py --self-hash-only
+      - name: Verify resolved membership + overlays + coreutils applicability (fail-closed loader)
+        run: |
+          cd "$N2E"
+          python3 tools/verify_n2e_resolved_membership.py
+          python3 - <<'PY'
+          import sys; sys.path.insert(0, "tools")
+          import n2e_resolved_loader as L, n2e_common as c
+          cl = L.validate_resolved_closure()
+          assert cl["effective_ids"].count("uutils__coreutils-6731::rust_cargo::test::fixed") == 1
+          assert "tokio-rs__tokio-4384::rust_cargo::test::fixed" not in cl["effective_ids"]
+          for f in ("coreutils-6731-instance-recipe-applicability-v1.json",
+                    "n2e-resolved-publisher-env-overlay-v1.json",
+                    "n2e-resolved-toolchain-overlay-v1.json",
+                    "n2e-resolved-command-scenario-overlay-v1.json",
+                    "n2e-resolved-execution-contract-v1.json"):
+              ok, msg = c.verify_self_hash(c.load_record(f)); assert ok, (f, msg)
+          ap = c.load_record("coreutils-6731-instance-recipe-applicability-v1.json")
+          assert ap["instance_recipe_applicable"] is True
+          print("resolved closure + overlays + applicability: OK")
+          PY
+
+  substrate:
+    runs-on: ubuntu-24.04
+    needs: [resolve]
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        with:
+          ref: ${{ needs.resolve.outputs.impl }}
+          persist-credentials: false
+      - uses: cachix/install-nix-action@08dcb3a5e62fa31e2da3d490afc4176ef55ecd72 # v30
+        with:
+          extra_nix_config: |
+            experimental-features = nix-command flakes
+            sandbox = true
+      - name: Build + export pinned RTK/QODEC closures; assert RTK identity
+        run: |
+          nix build .#rtk-pinned .#qodec -L --no-update-lock-file
+          RTK="$(nix path-info .#rtk-pinned)"
+          QODEC="$(nix path-info .#qodec)"
+          SHA="$(sha256sum "$RTK/bin/rtk" | cut -d' ' -f1)"
+          echo "rtk sha256=$SHA"; test "$SHA" = "$RTK_SHA"
+          mkdir -p substrate
+          echo "$RTK"   > substrate/rtk.storepath
+          echo "$QODEC" > substrate/qodec.storepath
+          nix-store --query --requisites "$RTK" "$QODEC" > substrate/closure-paths.txt
+          nix-store --export $(cat substrate/closure-paths.txt) | zstd -T0 -19 > substrate/closure.nar.zst
+          sha256sum substrate/closure.nar.zst > substrate/closure.nar.zst.sha256
+      - uses: actions/upload-artifact@b4b15b8c7c6ac21ea08fcf65892d2ee8f75cf882 # v4.6.2
+        with:
+          name: coreutils-substrate
+          path: substrate
+          if-no-files-found: error
+          retention-days: 3
+
+  diagnostic:
+    runs-on: ubuntu-24.04
+    needs: [resolve, verify, substrate]
+    timeout-minutes: 90
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        with:
+          ref: ${{ needs.resolve.outputs.impl }}
+          persist-credentials: false
+      - uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065 # v5.6.0
+        with:
+          python-version: "3.11"
+      - uses: cachix/install-nix-action@08dcb3a5e62fa31e2da3d490afc4176ef55ecd72 # v30
+      - uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4.3.0
+        with:
+          name: coreutils-substrate
+          path: substrate
+      - name: Import + verify RTK/QODEC closure identity
+        run: |
+          sha="$(cut -d' ' -f1 substrate/closure.nar.zst.sha256)"
+          test "$sha" = "$(sha256sum substrate/closure.nar.zst | cut -d' ' -f1)"
+          zstd -d -c substrate/closure.nar.zst | nix-store --import
+          RTK="$(cat substrate/rtk.storepath)/bin/rtk"
+          QODEC="$(cat substrate/qodec.storepath)/bin/qodec"
+          test "$(sha256sum "$RTK" | cut -d' ' -f1)" = "$RTK_SHA"
+          "$RTK" --version >/dev/null
+          echo "RTK_BIN=$RTK" >> "$GITHUB_ENV"
+          echo "QODEC_BIN=$QODEC" >> "$GITHUB_ENV"
+      - name: rustup present (probe installs the exact 1.81.0 per acquisition)
+        run: |
+          rustup --version
+          rustc --version || true
+      # correction 9: run probe -> build external manifest -> UPLOAD (always) -> verifier gate
+      - name: Run the focused Coreutils diagnostic (network-enabled acq; network-denied measurement)
+        run: |
+          cd "$N2E"
+          mkdir -p out
+          python3 tools/probe_coreutils_diagnostic.py --out coreutils-6731-diagnostic-v1.json --evidence out/evidence/coreutils-6731
+          echo "=== outcome ==="
+          python3 -c "import json;d=json.load(open('coreutils-6731-diagnostic-v1.json'));print('outcome=',d.get('outcome'),'acceptance_pass=',d.get('acceptance_pass'));print('acquisition_classification=',json.dumps(d.get('acquisition_classification'),indent=1)[:1500])"
+      - name: Build EXTERNAL artifact manifest (path/bytes/sha256 of every uploaded file; not self-referential)
+        if: always()
+        run: |
+          cd "$N2E"
+          python3 - <<'PY'
+          import hashlib, json, os
+          from pathlib import Path
+          man_path = Path("out/external-artifact-manifest.json")
+          files = [Path("coreutils-6731-diagnostic-v1.json")]
+          for f in sorted(Path("out").rglob("*")):
+              if f.is_file() and f != man_path:
+                  files.append(f)
+          entries = []
+          for f in files:
+              b = f.read_bytes()
+              entries.append({"file": str(f), "bytes": len(b), "sha256": hashlib.sha256(b).hexdigest()})
+          man_path.write_text(json.dumps({"count": len(entries), "files": entries}, indent=1, sort_keys=True))
+          print("external manifest:", len(entries), "files")
+          PY
+      - uses: actions/upload-artifact@b4b15b8c7c6ac21ea08fcf65892d2ee8f75cf882 # v4.6.2
+        if: always()
+        with:
+          name: coreutils-diagnostic
+          path: |
+            ${{ env.N2E }}/coreutils-6731-diagnostic-v1.json
+            ${{ env.N2E }}/out
+          if-no-files-found: error
+          retention-days: 30
+      - name: Independent diagnostic verifier (GATE; runs AFTER upload)
+        run: |
+          cd "$N2E"
+          python3 tools/verify_coreutils_diagnostic.py coreutils-6731-diagnostic-v1.json out/evidence/coreutils-6731

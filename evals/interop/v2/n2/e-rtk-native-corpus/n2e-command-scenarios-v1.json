@@ -1,0 +1,5191 @@
+{
+  "claim_surface_sha256": "sha256:ac3045ec38231b89d93b79234588d9b078a181864736b8fe73ac4a5855a5612b",
+  "generated_by": "evals/interop/v2/n2/e-rtk-native-corpus/tools/build_n2e_command_scenarios.py",
+  "inventory_sha256": "sha256:37990cd07fa5048c25e2c1a535c12c650434ba61dbc3a09eae6860eb73c5b7c1",
+  "mission": "N2-E",
+  "mission_title": "external RTK-native claim-aligned command corpus",
+  "purpose": "Exact per-case command contracts for the 70 selected cases (\u00a712).",
+  "record_sha256": "sha256:a96f6fb1450f5ea04df082a6616880e8d6adfe8b6c6f1b924eb2b5ddf5703e04",
+  "record_type": "n2e-command-scenarios",
+  "record_version": "v1",
+  "rtk_binary_sha256": "41f316adf7b30a568208a0a4f824bffb266ecb6d01bd9de81bed58e1d469dfcf",
+  "rtk_source_commit": "5d32d0736f686b69d1e8b9dc45c007d4eb77a0a2",
+  "scenario_count": 70,
+  "scenarios": [
+    {
+      "case_id": "apache__druid-13704::git::add",
+      "cluster_id": "swebench:apache__druid-13704",
+      "command_family": "git",
+      "command_subfamily": "add",
+      "environment": {
+        "COLUMNS": "120",
+        "LANG": "C.UTF-8",
+        "LC_ALL": "C.UTF-8",
+        "LINES": "40",
+        "NO_COLOR": "1",
+        "TERM": "dumb",
+        "TZ": "UTC"
+      },
+      "expected_exit_code": null,
+      "expected_raw_outcome": "text",
+      "explicit_rtk_argv": [
+        "rtk",
+        "git",
+        "add",
+        "-A"
+      ],
+      "license_provenance": {
+        "source_id": "swe-bench-multilingual"
+      },
+      "locale": "C.UTF-8",
+      "measurement_recipe": {
+        "combine_policy": "stdout_then_stderr",
+        "isolation": "network-denied (unshare -n), fresh workdir",
+        "reps": 3
+      },
+      "memory_limit_bytes": 10737418240,
+      "original_argv": [
+        "git",
+        "add",
+        "-A"
+      ],
+      "original_command_shell_readable": "git add -A",
+      "output_size_stratum": "unmeasured_pre_qualification",
+      "repository": "apache/druid",
+      "rtk_argv_resolution": null,
+      "rtk_support_classification": "RTK_NATIVE_SPECIALIZED",
+      "semantic_oracle_parameters": [
+        "exit_code",
+        "resulting_ref",
+        "changed_paths"
+      ],
+      "semantic_oracle_type": "git_state_oracle",
+      "setup_recipe": {
+        "acquire": "network acquisition per \u00a75 (image build / archive / checkout)",
+        "identity": {
+          "base_commit": "51dfde02840017092486fb75be2b16566aff6a19",
+          "instance_id": "apache__druid-13704",
+          "kind": "swebench_recipe",
+          "repository": "apache/druid"
+        }
+      },
+      "snapshot_variant": "dirty",
+      "source_id": "swe-bench-multilingual",
+      "source_image_identity": {
+        "base_commit": "51dfde02840017092486fb75be2b16566aff6a19",
+        "instance_id": "apache__druid-13704",
+        "kind": "swebench_recipe",
+        "repository": "apache/druid"
+      },
+      "stdout_stderr_policy": "capture separately; meter combined stdout_then_stderr",
+      "target_test_ids": null,
+      "terminal_width": 120,
+      "timeout_seconds": 120,
+      "timezone": "UTC",
+      "working_directory": "/work"
+    },
+    {
+      "case_id": "apache__druid-14092::jvm::test::buggy",
+      "cluster_id": "swebench:apache__druid-14092",
+      "command_family": "jvm",
+      "command_subfamily": "test",
+      "environment": {
+        "COLUMNS": "120",
+        "LANG": "C.UTF-8",
+        "LC_ALL": "C.UTF-8",
+        "LINES": "40",
+        "NO_COLOR": "1",
+        "TERM": "dumb",
+        "TZ": "UTC"
+      },
+      "expected_exit_code": null,
+      "expected_raw_outcome": "fail",
+      "explicit_rtk_argv": [
+        "rtk",
+        "mvn",
+        "test"
+      ],
+      "license_provenance": {
+        "source_id": "swe-bench-multilingual"
+      },
+      "locale": "C.UTF-8",
+      "measurement_recipe": {
+        "combine_policy": "stdout_then_stderr",
+        "isolation": "network-denied (unshare -n), fresh workdir",
+        "reps": 3
+      },
+      "memory_limit_bytes": 10737418240,
+      "original_argv": [
+        "mvn",
+        "test"
+      ],
+      "original_command_shell_readable": "mvn test",
+      "output_size_stratum": "unmeasured_pre_qualification",
+      "repository": "apache/druid",
+      "rtk_argv_resolution": null,
+      "rtk_support_classification": "RTK_NATIVE_SPECIALIZED",
+      "semantic_oracle_parameters": [
+        "exit_code",
+        "total",
+        "passed",
+        "failed",
+        "skipped",
+        "failed_test_ids",
+        "failing_module_ids",
+        "primary_error_locations"
+      ],
+      "semantic_oracle_type": "test_oracle",
+      "setup_recipe": {
+        "acquire": "network acquisition per \u00a75 (image build / archive / checkout)",
+        "identity": {
+          "base_commit": "4fffee17761286996a8c43154b72db4bcaafb16d",
+          "instance_id": "apache__druid-14092",
+          "kind": "swebench_recipe",
+          "repository": "apache/druid"
+        }
+      },
+      "snapshot_variant": "buggy",
+      "source_id": "swe-bench-multilingual",
+      "source_image_identity": {
+        "base_commit": "4fffee17761286996a8c43154b72db4bcaafb16d",
+        "instance_id": "apache__druid-14092",
+        "kind": "swebench_recipe",
+        "repository": "apache/druid"
+      },
+      "stdout_stderr_policy": "capture separately; meter combined stdout_then_stderr",
+      "target_test_ids": [
+        "org.apache.druid.discovery.DruidLeaderClientTest#test503ResponseFromServerAndCacheRefresh"
+      ],
+      "terminal_width": 120,
+      "timeout_seconds": 600,
+      "timezone": "UTC",
+      "working_directory": "/work"
+    },
+    {
+      "case_id": "apache__lucene-11760::jvm::test::buggy",
+      "cluster_id": "swebench:apache__lucene-11760",
+      "command_family": "jvm",
+      "command_subfamily": "test",
+      "environment": {
+        "COLUMNS": "120",
+        "LANG": "C.UTF-8",
+        "LC_ALL": "C.UTF-8",
+        "LINES": "40",
+        "NO_COLOR": "1",
+        "TERM": "dumb",
+        "TZ": "UTC"
+      },
+      "expected_exit_code": null,
+      "expected_raw_outcome": "fail",
+      "explicit_rtk_argv": [
+        "rtk",
+        "mvn",
+        "test"
+      ],
+      "license_provenance": {
+        "source_id": "swe-bench-multilingual"
+      },
+      "locale": "C.UTF-8",
+      "measurement_recipe": {
+        "combine_policy": "stdout_then_stderr",
+        "isolation": "network-denied (unshare -n), fresh workdir",
+        "reps": 3
+      },
+      "memory_limit_bytes": 10737418240,
+      "original_argv": [
+        "mvn",
+        "test"
+      ],
+      "original_command_shell_readable": "mvn test",
+      "output_size_stratum": "unmeasured_pre_qualification",
+      "repository": "apache/lucene",
+      "rtk_argv_resolution": null,
+      "rtk_support_classification": "RTK_NATIVE_SPECIALIZED",
+      "semantic_oracle_parameters": [
+        "exit_code",
+        "total",
+        "passed",
+        "failed",
+        "skipped",
+        "failed_test_ids",
+        "failing_module_ids",
+        "primary_error_locations"
+      ],
+      "semantic_oracle_type": "test_oracle",
+      "setup_recipe": {
+        "acquire": "network acquisition per \u00a75 (image build / archive / checkout)",
+        "identity": {
+          "base_commit": "0ea8035612344e861bbdeaffca2255e5e1480a6a",
+          "instance_id": "apache__lucene-11760",
+          "kind": "swebench_recipe",
+          "repository": "apache/lucene"
+        }
+      },
+      "snapshot_variant": "buggy",
+      "source_id": "swe-bench-multilingual",
+      "source_image_identity": {
+        "base_commit": "0ea8035612344e861bbdeaffca2255e5e1480a6a",
+        "instance_id": "apache__lucene-11760",
+        "kind": "swebench_recipe",
+        "repository": "apache/lucene"
+      },
+      "stdout_stderr_policy": "capture separately; meter combined stdout_then_stderr",
+      "target_test_ids": [
+        "org.apache.lucene.queries.intervals.TestIntervalBuilder > testEmptyIntervals"
+      ],
+      "terminal_width": 120,
+      "timeout_seconds": 600,
+      "timezone": "UTC",
+      "working_directory": "/work"
+    },
+    {
+      "case_id": "apache__lucene-13704::jvm::test::buggy",
+      "cluster_id": "swebench:apache__lucene-13704",
+      "command_family": "jvm",
+      "command_subfamily": "test",
+      "environment": {
+        "COLUMNS": "120",
+        "LANG": "C.UTF-8",
+        "LC_ALL": "C.UTF-8",
+        "LINES": "40",
+        "NO_COLOR": "1",
+        "TERM": "dumb",
+        "TZ": "UTC"
+      },
+      "expected_exit_code": null,
+      "expected_raw_outcome": "fail",
+      "explicit_rtk_argv": [
+        "rtk",
+        "mvn",
+        "test"
+      ],
+      "license_provenance": {
+        "source_id": "swe-bench-multilingual"
+      },
+      "locale": "C.UTF-8",
+      "measurement_recipe": {
+        "combine_policy": "stdout_then_stderr",
+        "isolation": "network-denied (unshare -n), fresh workdir",
+        "reps": 3
+      },
+      "memory_limit_bytes": 10737418240,
+      "original_argv": [
+        "mvn",
+        "test"
+      ],
+      "original_command_shell_readable": "mvn test",
+      "output_size_stratum": "unmeasured_pre_qualification",
+      "repository": "apache/lucene",
+      "rtk_argv_resolution": null,
+      "rtk_support_classification": "RTK_NATIVE_SPECIALIZED",
+      "semantic_oracle_parameters": [
+        "exit_code",
+        "total",
+        "passed",
+        "failed",
+        "skipped",
+        "failed_test_ids",
+        "failing_module_ids",
+        "primary_error_locations"
+      ],
+      "semantic_oracle_type": "test_oracle",
+      "setup_recipe": {
+        "acquire": "network acquisition per \u00a75 (image build / archive / checkout)",
+        "identity": {
+          "base_commit": "ce4f56e74ad1087df8bdc019fc09d1b40438e8b3",
+          "instance_id": "apache__lucene-13704",
+          "kind": "swebench_recipe",
+          "repository": "apache/lucene"
+        }
+      },
+      "snapshot_variant": "buggy",
+      "source_id": "swe-bench-multilingual",
+      "source_image_identity": {
+        "base_commit": "ce4f56e74ad1087df8bdc019fc09d1b40438e8b3",
+        "instance_id": "apache__lucene-13704",
+        "kind": "swebench_recipe",
+        "repository": "apache/lucene"
+      },
+      "stdout_stderr_policy": "capture separately; meter combined stdout_then_stderr",
+      "target_test_ids": [
+        "TestLatLonDocValuesQueries > testNarrowPolygonCloseToNorthPole"
+      ],
+      "terminal_width": 120,
+      "timeout_seconds": 600,
+      "timezone": "UTC",
+      "working_directory": "/work"
+    },
+    {
+      "case_id": "astral-sh__ruff-15626::rust_cargo::test::buggy",
+      "cluster_id": "swebench:astral-sh__ruff-15626",
+      "command_family": "rust_cargo",
+      "command_subfamily": "test",
+      "environment": {
+        "COLUMNS": "120",
+        "LANG": "C.UTF-8",
+        "LC_ALL": "C.UTF-8",
+        "LINES": "40",
+        "NO_COLOR": "1",
+        "TERM": "dumb",
+        "TZ": "UTC"
+      },
+      "expected_exit_code": null,
+      "expected_raw_outcome": "fail",
+      "explicit_rtk_argv": [
+        "rtk",
+        "cargo",
+        "test"
+      ],
+      "license_provenance": {
+        "source_id": "swe-bench-multilingual"
+      },
+      "locale": "C.UTF-8",
+      "measurement_recipe": {
+        "combine_policy": "stdout_then_stderr",
+        "isolation": "network-denied (unshare -n), fresh workdir",
+        "reps": 3
+      },
+      "memory_limit_bytes": 10737418240,
+      "original_argv": [
+        "cargo",
+        "test"
+      ],
+      "original_command_shell_readable": "cargo test",
+      "output_size_stratum": "unmeasured_pre_qualification",
+      "repository": "astral-sh/ruff",
+      "rtk_argv_resolution": null,
+      "rtk_support_classification": "RTK_NATIVE_SPECIALIZED",
+      "semantic_oracle_parameters": [
+        "exit_code",
+        "total",
+        "passed",
+        "failed",
+        "skipped",
+        "failed_test_ids",
+        "failing_module_ids",
+        "primary_error_locations"
+      ],
+      "semantic_oracle_type": "test_oracle",
+      "setup_recipe": {
+        "acquire": "network acquisition per \u00a75 (image build / archive / checkout)",
+        "identity": {
+          "base_commit": "13a6b5600b47489ca6af0b5a13d916bda8e50662",
+          "instance_id": "astral-sh__ruff-15626",
+          "kind": "swebench_recipe",
+          "repository": "astral-sh/ruff"
+        }
+      },
+      "snapshot_variant": "buggy",
+      "source_id": "swe-bench-multilingual",
+      "source_image_identity": {
+        "base_commit": "13a6b5600b47489ca6af0b5a13d916bda8e50662",
+        "instance_id": "astral-sh__ruff-15626",
+        "kind": "swebench_recipe",
+        "repository": "astral-sh/ruff"
+      },
+      "stdout_stderr_policy": "capture separately; meter combined stdout_then_stderr",
+      "target_test_ids": [
+        "rules::flake8_simplify::tests::rules::rule_negateequalop_path_new_sim201_py_expects",
+        "rules::flake8_simplify::tests::rules::rule_negatenotequalop_path_new_sim202_py_expects"
+      ],
+      "terminal_width": 120,
+      "timeout_seconds": 600,
+      "timezone": "UTC",
+      "working_directory": "/work"
+    },
+    {
+      "case_id": "axios__axios-4731::git::log",
+      "cluster_id": "swebench:axios__axios-4731",
+      "command_family": "git",
+      "command_subfamily": "log",
+      "environment": {
+        "COLUMNS": "120",
+        "LANG": "C.UTF-8",
+        "LC_ALL": "C.UTF-8",
+        "LINES": "40",
+        "NO_COLOR": "1",
+        "TERM": "dumb",
+        "TZ": "UTC"
+      },
+      "expected_exit_code": null,
+      "expected_raw_outcome": "text",
+      "explicit_rtk_argv": [
+        "rtk",
+        "git",
+        "log"
+      ],
+      "license_provenance": {
+        "source_id": "swe-bench-multilingual"
+      },
+      "locale": "C.UTF-8",
+      "measurement_recipe": {
+        "combine_policy": "stdout_then_stderr",
+        "isolation": "network-denied (unshare -n), fresh workdir",
+        "reps": 3
+      },
+      "memory_limit_bytes": 10737418240,
+      "original_argv": [
+        "git",
+        "log"
+      ],
+      "original_command_shell_readable": "git log",
+      "output_size_stratum": "unmeasured_pre_qualification",
+      "repository": "axios/axios",
+      "rtk_argv_resolution": null,
+      "rtk_support_classification": "RTK_NATIVE_SPECIALIZED",
+      "semantic_oracle_parameters": [
+        "commit_sha_sequence",
+        "subject_sequence",
+        "requested_range"
+      ],
+      "semantic_oracle_type": "git_log_oracle",
+      "setup_recipe": {
+        "acquire": "network acquisition per \u00a75 (image build / archive / checkout)",
+        "identity": {
+          "base_commit": "c30252f685e8f4326722de84923fcbc8cf557f06",
+          "instance_id": "axios__axios-4731",
+          "kind": "swebench_recipe",
+          "repository": "axios/axios"
+        }
+      },
+      "snapshot_variant": "clean",
+      "source_id": "swe-bench-multilingual",
+      "source_image_identity": {
+        "base_commit": "c30252f685e8f4326722de84923fcbc8cf557f06",
+        "instance_id": "axios__axios-4731",
+        "kind": "swebench_recipe",
+        "repository": "axios/axios"
+      },
+      "stdout_stderr_policy": "capture separately; meter combined stdout_then_stderr",
+      "target_test_ids": null,
+      "terminal_width": 120,
+      "timeout_seconds": 120,
+      "timezone": "UTC",
+      "working_directory": "/work"
+    },
+    {
+      "case_id": "babel__babel-13928::js_ts::tsc",
+      "cluster_id": "swebench:babel__babel-13928",
+      "command_family": "js_ts",
+      "command_subfamily": "tsc",
+      "environment": {
+        "COLUMNS": "120",
+        "LANG": "C.UTF-8",
+        "LC_ALL": "C.UTF-8",
+        "LINES": "40",
+        "NO_COLOR": "1",
+        "TERM": "dumb",
+        "TZ": "UTC"
+      },
+      "expected_exit_code": 0,
+      "expected_raw_outcome": "text",
+      "explicit_rtk_argv": [
+        "rtk",
+        "tsc"
+      ],
+      "license_provenance": {
+        "source_id": "swe-bench-multilingual"
+      },
+      "locale": "C.UTF-8",
+      "measurement_recipe": {
+        "combine_policy": "stdout_then_stderr",
+        "isolation": "network-denied (unshare -n), fresh workdir",
+        "reps": 3
+      },
+      "memory_limit_bytes": 10737418240,
+      "original_argv": [
+        "tsc"
+      ],
+      "original_command_shell_readable": "tsc",
+      "output_size_stratum": "unmeasured_pre_qualification",
+      "repository": "babel/babel",
+      "rtk_argv_resolution": null,
+      "rtk_support_classification": "RTK_NATIVE_SPECIALIZED",
+      "semantic_oracle_parameters": [
+        "exit_code",
+        "severity",
+        "diagnostic_code",
+        "file",
+        "line",
+        "error_count",
+        "warning_count"
+      ],
+      "semantic_oracle_type": "diagnostics_oracle",
+      "setup_recipe": {
+        "acquire": "network acquisition per \u00a75 (image build / archive / checkout)",
+        "identity": {
+          "base_commit": "5134505bf93013c5fa7df66704df8d04becb7f7d",
+          "instance_id": "babel__babel-13928",
+          "kind": "swebench_recipe",
+          "repository": "babel/babel"
+        }
+      },
+      "snapshot_variant": "fixed",
+      "source_id": "swe-bench-multilingual",
+      "source_image_identity": {
+        "base_commit": "5134505bf93013c5fa7df66704df8d04becb7f7d",
+        "instance_id": "babel__babel-13928",
+        "kind": "swebench_recipe",
+        "repository": "babel/babel"
+      },
+      "stdout_stderr_policy": "capture separately; meter combined stdout_then_stderr",
+      "target_test_ids": null,
+      "terminal_width": 120,
+      "timeout_seconds": 120,
+      "timezone": "UTC",
+      "working_directory": "/work"
+    },
+    {
+      "case_id": "babel__babel-14532::git::status",
+      "cluster_id": "swebench:babel__babel-14532",
+      "command_family": "git",
+      "command_subfamily": "status",
+      "environment": {
+        "COLUMNS": "120",
+        "LANG": "C.UTF-8",
+        "LC_ALL": "C.UTF-8",
+        "LINES": "40",
+        "NO_COLOR": "1",
+        "TERM": "dumb",
+        "TZ": "UTC"
+      },
+      "expected_exit_code": null,
+      "expected_raw_outcome": "text",
+      "explicit_rtk_argv": [
+        "rtk",
+        "git",
+        "status"
+      ],
+      "license_provenance": {
+        "source_id": "swe-bench-multilingual"
+      },
+      "locale": "C.UTF-8",
+      "measurement_recipe": {
+        "combine_policy": "stdout_then_stderr",
+        "isolation": "network-denied (unshare -n), fresh workdir",
+        "reps": 3
+      },
+      "memory_limit_bytes": 10737418240,
+      "original_argv": [
+        "git",
+        "status"
+      ],
+      "original_command_shell_readable": "git status",
+      "output_size_stratum": "unmeasured_pre_qualification",
+      "repository": "babel/babel",
+      "rtk_argv_resolution": null,
+      "rtk_support_classification": "RTK_NATIVE_SPECIALIZED",
+      "semantic_oracle_parameters": [
+        "changed_paths",
+        "status_code_per_path",
+        "branch_ahead_behind",
+        "untracked_paths"
+      ],
+      "semantic_oracle_type": "git_status_oracle",
+      "setup_recipe": {
+        "acquire": "network acquisition per \u00a75 (image build / archive / checkout)",
+        "identity": {
+          "base_commit": "fbd065256ca00d68089293ad48ea9aeba5481914",
+          "instance_id": "babel__babel-14532",
+          "kind": "swebench_recipe",
+          "repository": "babel/babel"
+        }
+      },
+      "snapshot_variant": "dirty",
+      "source_id": "swe-bench-multilingual",
+      "source_image_identity": {
+        "base_commit": "fbd065256ca00d68089293ad48ea9aeba5481914",
+        "instance_id": "babel__babel-14532",
+        "kind": "swebench_recipe",
+        "repository": "babel/babel"
+      },
+      "stdout_stderr_policy": "capture separately; meter combined stdout_then_stderr",
+      "target_test_ids": null,
+      "terminal_width": 120,
+      "timeout_seconds": 120,
+      "timezone": "UTC",
+      "working_directory": "/work"
+    },
+    {
+      "case_id": "babel__babel-14532::js_ts::test::fixed",
+      "cluster_id": "swebench:babel__babel-14532",
+      "command_family": "js_ts",
+      "command_subfamily": "test",
+      "environment": {
+        "COLUMNS": "120",
+        "LANG": "C.UTF-8",
+        "LC_ALL": "C.UTF-8",
+        "LINES": "40",
+        "NO_COLOR": "1",
+        "TERM": "dumb",
+        "TZ": "UTC"
+      },
+      "expected_exit_code": 0,
+      "expected_raw_outcome": "pass",
+      "explicit_rtk_argv": null,
+      "license_provenance": {
+        "source_id": "swe-bench-multilingual"
+      },
+      "locale": "C.UTF-8",
+      "measurement_recipe": {
+        "combine_policy": "stdout_then_stderr",
+        "isolation": "network-denied (unshare -n), fresh workdir",
+        "reps": 3
+      },
+      "memory_limit_bytes": 10737418240,
+      "original_argv": [
+        "npm",
+        "test"
+      ],
+      "original_command_shell_readable": "npm test",
+      "output_size_stratum": "unmeasured_pre_qualification",
+      "repository": "babel/babel",
+      "rtk_argv_resolution": "acquisition:test_runner_from_package_json -> rtk jest|vitest",
+      "rtk_support_classification": "RTK_NATIVE_SPECIALIZED",
+      "semantic_oracle_parameters": [
+        "exit_code",
+        "total",
+        "passed",
+        "failed",
+        "skipped",
+        "failed_test_ids",
+        "failing_module_ids",
+        "primary_error_locations"
+      ],
+      "semantic_oracle_type": "test_oracle",
+      "setup_recipe": {
+        "acquire": "network acquisition per \u00a75 (image build / archive / checkout)",
+        "identity": {
+          "base_commit": "fbd065256ca00d68089293ad48ea9aeba5481914",
+          "instance_id": "babel__babel-14532",
+          "kind": "swebench_recipe",
+          "repository": "babel/babel"
+        }
+      },
+      "snapshot_variant": "fixed",
+      "source_id": "swe-bench-multilingual",
+      "source_image_identity": {
+        "base_commit": "fbd065256ca00d68089293ad48ea9aeba5481914",
+        "instance_id": "babel__babel-14532",
+        "kind": "swebench_recipe",
+        "repository": "babel/babel"
+      },
+      "stdout_stderr_policy": "capture separately; meter combined stdout_then_stderr",
+      "target_test_ids": [
+        "unary postfix"
+      ],
+      "terminal_width": 120,
+      "timeout_seconds": 600,
+      "timezone": "UTC",
+      "working_directory": "/work"
+    },
+    {
+      "case_id": "bugsinpy::PySnooper::python::ruff",
+      "cluster_id": "bugsinpy:PySnooper",
+      "command_family": "python",
+      "command_subfamily": "ruff",
+      "environment": {
+        "COLUMNS": "120",
+        "LANG": "C.UTF-8",
+        "LC_ALL": "C.UTF-8",
+        "LINES": "40",
+        "NO_COLOR": "1",
+        "TERM": "dumb",
+        "TZ": "UTC"
+      },
+      "expected_exit_code": 0,
+      "expected_raw_outcome": "text",
+      "explicit_rtk_argv": [
+        "rtk",
+        "ruff",
+        "check",
+        "."
+      ],
+      "license_provenance": {
+        "source_id": "bugsinpy"
+      },
+      "locale": "C.UTF-8",
+      "measurement_recipe": {
+        "combine_policy": "stdout_then_stderr",
+        "isolation": "network-denied (unshare -n), fresh workdir",
+        "reps": 3
+      },
+      "memory_limit_bytes": 10737418240,
+      "original_argv": [
+        "ruff",
+        "check",
+        "."
+      ],
+      "original_command_shell_readable": "ruff check .",
+      "output_size_stratum": "unmeasured_pre_qualification",
+      "repository": "bugsinpy/PySnooper",
+      "rtk_argv_resolution": null,
+      "rtk_support_classification": "RTK_NATIVE_SPECIALIZED",
+      "semantic_oracle_parameters": [
+        "exit_code",
+        "severity",
+        "diagnostic_code",
+        "file",
+        "line",
+        "error_count",
+        "warning_count"
+      ],
+      "semantic_oracle_type": "diagnostics_oracle",
+      "setup_recipe": {
+        "acquire": "network acquisition per \u00a75 (image build / archive / checkout)",
+        "identity": {
+          "kind": "unspecified"
+        }
+      },
+      "snapshot_variant": "fixed",
+      "source_id": "bugsinpy",
+      "source_image_identity": {
+        "kind": "unspecified"
+      },
+      "stdout_stderr_policy": "capture separately; meter combined stdout_then_stderr",
+      "target_test_ids": null,
+      "terminal_width": 120,
+      "timeout_seconds": 120,
+      "timezone": "UTC",
+      "working_directory": "/work"
+    },
+    {
+      "case_id": "bugsinpy::ansible-11::python::pytest::fixed",
+      "cluster_id": "bugsinpy:ansible:11",
+      "command_family": "python",
+      "command_subfamily": "pytest",
+      "environment": {
+        "COLUMNS": "120",
+        "LANG": "C.UTF-8",
+        "LC_ALL": "C.UTF-8",
+        "LINES": "40",
+        "NO_COLOR": "1",
+        "TERM": "dumb",
+        "TZ": "UTC"
+      },
+      "expected_exit_code": 0,
+      "expected_raw_outcome": "pass",
+      "explicit_rtk_argv": [
+        "rtk",
+        "pytest",
+        "test/units/modules/network/ios/test_ios_banner.py"
+      ],
+      "license_provenance": {
+        "source_id": "bugsinpy"
+      },
+      "locale": "C.UTF-8",
+      "measurement_recipe": {
+        "combine_policy": "stdout_then_stderr",
+        "isolation": "network-denied (unshare -n), fresh workdir",
+        "reps": 3
+      },
+      "memory_limit_bytes": 10737418240,
+      "original_argv": [
+        "pytest",
+        "test/units/modules/network/ios/test_ios_banner.py"
+      ],
+      "original_command_shell_readable": "pytest test/units/modules/network/ios/test_ios_banner.py",
+      "output_size_stratum": "unmeasured_pre_qualification",
+      "repository": "bugsinpy/ansible",
+      "rtk_argv_resolution": null,
+      "rtk_support_classification": "RTK_NATIVE_SPECIALIZED",
+      "semantic_oracle_parameters": [
+        "exit_code",
+        "total",
+        "passed",
+        "failed",
+        "skipped",
+        "failed_test_ids",
+        "failing_module_ids",
+        "primary_error_locations"
+      ],
+      "semantic_oracle_type": "test_oracle",
+      "setup_recipe": {
+        "acquire": "network acquisition per \u00a75 (image build / archive / checkout)",
+        "identity": {
+          "buggy_commit": "da07b98b7a433493728ddb7ac7efbd20b8988776",
+          "fixed_commit": "52f3ce8a808f943561803bd664e695fed1841fe8",
+          "kind": "bugsinpy_recipe",
+          "repository": "bugsinpy/ansible"
+        }
+      },
+      "snapshot_variant": "fixed",
+      "source_id": "bugsinpy",
+      "source_image_identity": {
+        "buggy_commit": "da07b98b7a433493728ddb7ac7efbd20b8988776",
+        "fixed_commit": "52f3ce8a808f943561803bd664e695fed1841fe8",
+        "kind": "bugsinpy_recipe",
+        "repository": "bugsinpy/ansible"
+      },
+      "stdout_stderr_policy": "capture separately; meter combined stdout_then_stderr",
+      "target_test_ids": [
+        "pytest test/units/modules/network/ios/test_ios_banner.py::TestIosBannerModule::test_ios_banner_nochange\npytest test/units/modules/network/ios/test_ios_banner.py::TestIosBannerIos12Module::test_ios_banner_nochange"
+      ],
+      "terminal_width": 120,
+      "timeout_seconds": 120,
+      "timezone": "UTC",
+      "working_directory": "/work"
+    },
+    {
+      "case_id": "bugsinpy::luigi-8::python::pytest::fixed",
+      "cluster_id": "bugsinpy:luigi:8",
+      "command_family": "python",
+      "command_subfamily": "pytest",
+      "environment": {
+        "COLUMNS": "120",
+        "LANG": "C.UTF-8",
+        "LC_ALL": "C.UTF-8",
+        "LINES": "40",
+        "NO_COLOR": "1",
+        "TERM": "dumb",
+        "TZ": "UTC"
+      },
+      "expected_exit_code": 0,
+      "expected_raw_outcome": "pass",
+      "explicit_rtk_argv": [
+        "rtk",
+        "pytest",
+        "test/contrib/redshift_test.py"
+      ],
+      "license_provenance": {
+        "source_id": "bugsinpy"
+      },
+      "locale": "C.UTF-8",
+      "measurement_recipe": {
+        "combine_policy": "stdout_then_stderr",
+        "isolation": "network-denied (unshare -n), fresh workdir",
+        "reps": 3
+      },
+      "memory_limit_bytes": 10737418240,
+      "original_argv": [
+        "pytest",
+        "test/contrib/redshift_test.py"
+      ],
+      "original_command_shell_readable": "pytest test/contrib/redshift_test.py",
+      "output_size_stratum": "unmeasured_pre_qualification",
+      "repository": "bugsinpy/luigi",
+      "rtk_argv_resolution": null,
+      "rtk_support_classification": "RTK_NATIVE_SPECIALIZED",
+      "semantic_oracle_parameters": [
+        "exit_code",
+        "total",
+        "passed",
+        "failed",
+        "skipped",
+        "failed_test_ids",
+        "failing_module_ids",
+        "primary_error_locations"
+      ],
+      "semantic_oracle_type": "test_oracle",
+      "setup_recipe": {
+        "acquire": "network acquisition per \u00a75 (image build / archive / checkout)",
+        "identity": {
+          "buggy_commit": "61ee32e9968978c32be12a6af0affa3a5750e87e",
+          "fixed_commit": "8874b93165953c4f6bbe7b747804654d13290018",
+          "kind": "bugsinpy_recipe",
+          "repository": "bugsinpy/luigi"
+        }
+      },
+      "snapshot_variant": "fixed",
+      "source_id": "bugsinpy",
+      "source_image_identity": {
+        "buggy_commit": "61ee32e9968978c32be12a6af0affa3a5750e87e",
+        "fixed_commit": "8874b93165953c4f6bbe7b747804654d13290018",
+        "kind": "bugsinpy_recipe",
+        "repository": "bugsinpy/luigi"
+      },
+      "stdout_stderr_policy": "capture separately; meter combined stdout_then_stderr",
+      "target_test_ids": [
+        "pytest test/contrib/redshift_test.py::TestS3CopyToSchemaTable::test_s3_copy_to_table"
+      ],
+      "terminal_width": 120,
+      "timeout_seconds": 120,
+      "timezone": "UTC",
+      "working_directory": "/work"
+    },
+    {
+      "case_id": "bugsinpy::luigi::python::ruff",
+      "cluster_id": "bugsinpy:luigi",
+      "command_family": "python",
+      "command_subfamily": "ruff",
+      "environment": {
+        "COLUMNS": "120",
+        "LANG": "C.UTF-8",
+        "LC_ALL": "C.UTF-8",
+        "LINES": "40",
+        "NO_COLOR": "1",
+        "TERM": "dumb",
+        "TZ": "UTC"
+      },
+      "expected_exit_code": 0,
+      "expected_raw_outcome": "text",
+      "explicit_rtk_argv": [
+        "rtk",
+        "ruff",
+        "check",
+        "."
+      ],
+      "license_provenance": {
+        "source_id": "bugsinpy"
+      },
+      "locale": "C.UTF-8",
+      "measurement_recipe": {
+        "combine_policy": "stdout_then_stderr",
+        "isolation": "network-denied (unshare -n), fresh workdir",
+        "reps": 3
+      },
+      "memory_limit_bytes": 10737418240,
+      "original_argv": [
+        "ruff",
+        "check",
+        "."
+      ],
+      "original_command_shell_readable": "ruff check .",
+      "output_size_stratum": "unmeasured_pre_qualification",
+      "repository": "bugsinpy/luigi",
+      "rtk_argv_resolution": null,
+      "rtk_support_classification": "RTK_NATIVE_SPECIALIZED",
+      "semantic_oracle_parameters": [
+        "exit_code",
+        "severity",
+        "diagnostic_code",
+        "file",
+        "line",
+        "error_count",
+        "warning_count"
+      ],
+      "semantic_oracle_type": "diagnostics_oracle",
+      "setup_recipe": {
+        "acquire": "network acquisition per \u00a75 (image build / archive / checkout)",
+        "identity": {
+          "kind": "unspecified"
+        }
+      },
+      "snapshot_variant": "fixed",
+      "source_id": "bugsinpy",
+      "source_image_identity": {
+        "kind": "unspecified"
+      },
+      "stdout_stderr_policy": "capture separately; meter combined stdout_then_stderr",
+      "target_test_ids": null,
+      "terminal_width": 120,
+      "timeout_seconds": 120,
+      "timezone": "UTC",
+      "working_directory": "/work"
+    },
+    {
+      "case_id": "bugsinpy::pandas-117::python::pytest::buggy",
+      "cluster_id": "bugsinpy:pandas:117",
+      "command_family": "python",
+      "command_subfamily": "pytest",
+      "environment": {
+        "COLUMNS": "120",
+        "LANG": "C.UTF-8",
+        "LC_ALL": "C.UTF-8",
+        "LINES": "40",
+        "NO_COLOR": "1",
+        "TERM": "dumb",
+        "TZ": "UTC"
+      },
+      "expected_exit_code": null,
+      "expected_raw_outcome": "fail",
+      "explicit_rtk_argv": [
+        "rtk",
+        "pytest",
+        "pandas/tests/series/test_analytics.py"
+      ],
+      "license_provenance": {
+        "source_id": "bugsinpy"
+      },
+      "locale": "C.UTF-8",
+      "measurement_recipe": {
+        "combine_policy": "stdout_then_stderr",
+        "isolation": "network-denied (unshare -n), fresh workdir",
+        "reps": 3
+      },
+      "memory_limit_bytes": 10737418240,
+      "original_argv": [
+        "pytest",
+        "pandas/tests/series/test_analytics.py"
+      ],
+      "original_command_shell_readable": "pytest pandas/tests/series/test_analytics.py",
+      "output_size_stratum": "unmeasured_pre_qualification",
+      "repository": "bugsinpy/pandas",
+      "rtk_argv_resolution": null,
+      "rtk_support_classification": "RTK_NATIVE_SPECIALIZED",
+      "semantic_oracle_parameters": [
+        "exit_code",
+        "total",
+        "passed",
+        "failed",
+        "skipped",
+        "failed_test_ids",
+        "failing_module_ids",
+        "primary_error_locations"
+      ],
+      "semantic_oracle_type": "test_oracle",
+      "setup_recipe": {
+        "acquire": "network acquisition per \u00a75 (image build / archive / checkout)",
+        "identity": {
+          "buggy_commit": "fc100fe",
+          "fixed_commit": "f98d2b6587b74c9a640b062d94911b199d962119",
+          "kind": "bugsinpy_recipe",
+          "repository": "bugsinpy/pandas"
+        }
+      },
+      "snapshot_variant": "buggy",
+      "source_id": "bugsinpy",
+      "source_image_identity": {
+        "buggy_commit": "fc100fe",
+        "fixed_commit": "f98d2b6587b74c9a640b062d94911b199d962119",
+        "kind": "bugsinpy_recipe",
+        "repository": "bugsinpy/pandas"
+      },
+      "stdout_stderr_policy": "capture separately; meter combined stdout_then_stderr",
+      "target_test_ids": [
+        "pytest pandas/tests/series/test_analytics.py::TestSeriesAnalytics::test_count"
+      ],
+      "terminal_width": 120,
+      "timeout_seconds": 120,
+      "timezone": "UTC",
+      "working_directory": "/work"
+    },
+    {
+      "case_id": "bugsinpy::pandas-20::python::pytest::buggy",
+      "cluster_id": "bugsinpy:pandas:20",
+      "command_family": "python",
+      "command_subfamily": "pytest",
+      "environment": {
+        "COLUMNS": "120",
+        "LANG": "C.UTF-8",
+        "LC_ALL": "C.UTF-8",
+        "LINES": "40",
+        "NO_COLOR": "1",
+        "TERM": "dumb",
+        "TZ": "UTC"
+      },
+      "expected_exit_code": null,
+      "expected_raw_outcome": "fail",
+      "explicit_rtk_argv": [
+        "rtk",
+        "pytest",
+        "pandas/tests/tseries/offsets/test_yqm_offsets.py"
+      ],
+      "license_provenance": {
+        "source_id": "bugsinpy"
+      },
+      "locale": "C.UTF-8",
+      "measurement_recipe": {
+        "combine_policy": "stdout_then_stderr",
+        "isolation": "network-denied (unshare -n), fresh workdir",
+        "reps": 3
+      },
+      "memory_limit_bytes": 10737418240,
+      "original_argv": [
+        "pytest",
+        "pandas/tests/tseries/offsets/test_yqm_offsets.py"
+      ],
+      "original_command_shell_readable": "pytest pandas/tests/tseries/offsets/test_yqm_offsets.py",
+      "output_size_stratum": "unmeasured_pre_qualification",
+      "repository": "bugsinpy/pandas",
+      "rtk_argv_resolution": null,
+      "rtk_support_classification": "RTK_NATIVE_SPECIALIZED",
+      "semantic_oracle_parameters": [
+        "exit_code",
+        "total",
+        "passed",
+        "failed",
+        "skipped",
+        "failed_test_ids",
+        "failing_module_ids",
+        "primary_error_locations"
+      ],
+      "semantic_oracle_type": "test_oracle",
+      "setup_recipe": {
+        "acquire": "network acquisition per \u00a75 (image build / archive / checkout)",
+        "identity": {
+          "buggy_commit": "ea09d50",
+          "fixed_commit": "92afd5c2c08216e4e9c80eb6b92b1660f91846e0",
+          "kind": "bugsinpy_recipe",
+          "repository": "bugsinpy/pandas"
+        }
+      },
+      "snapshot_variant": "buggy",
+      "source_id": "bugsinpy",
+      "source_image_identity": {
+        "buggy_commit": "ea09d50",
+        "fixed_commit": "92afd5c2c08216e4e9c80eb6b92b1660f91846e0",
+        "kind": "bugsinpy_recipe",
+        "repository": "bugsinpy/pandas"
+      },
+      "stdout_stderr_policy": "capture separately; meter combined stdout_then_stderr",
+      "target_test_ids": [
+        "pytest pandas/tests/tseries/offsets/test_yqm_offsets.py::test_apply_index"
+      ],
+      "terminal_width": 120,
+      "timeout_seconds": 120,
+      "timezone": "UTC",
+      "working_directory": "/work"
+    },
+    {
+      "case_id": "bugsinpy::scrapy-9::python::pytest::fixed",
+      "cluster_id": "bugsinpy:scrapy:9",
+      "command_family": "python",
+      "command_subfamily": "pytest",
+      "environment": {
+        "COLUMNS": "120",
+        "LANG": "C.UTF-8",
+        "LC_ALL": "C.UTF-8",
+        "LINES": "40",
+        "NO_COLOR": "1",
+        "TERM": "dumb",
+        "TZ": "UTC"
+      },
+      "expected_exit_code": 0,
+      "expected_raw_outcome": "pass",
+      "explicit_rtk_argv": [
+        "rtk",
+        "pytest",
+        "tests/test_mail.py"
+      ],
+      "license_provenance": {
+        "source_id": "bugsinpy"
+      },
+      "locale": "C.UTF-8",
+      "measurement_recipe": {
+        "combine_policy": "stdout_then_stderr",
+        "isolation": "network-denied (unshare -n), fresh workdir",
+        "reps": 3
+      },
+      "memory_limit_bytes": 10737418240,
+      "original_argv": [
+        "pytest",
+        "tests/test_mail.py"
+      ],
+      "original_command_shell_readable": "pytest tests/test_mail.py",
+      "output_size_stratum": "unmeasured_pre_qualification",
+      "repository": "bugsinpy/scrapy",
+      "rtk_argv_resolution": null,
+      "rtk_support_classification": "RTK_NATIVE_SPECIALIZED",
+      "semantic_oracle_parameters": [
+        "exit_code",
+        "total",
+        "passed",
+        "failed",
+        "skipped",
+        "failed_test_ids",
+        "failing_module_ids",
+        "primary_error_locations"
+      ],
+      "semantic_oracle_type": "test_oracle",
+      "setup_recipe": {
+        "acquire": "network acquisition per \u00a75 (image build / archive / checkout)",
+        "identity": {
+          "buggy_commit": "a9c69458ff1667cc4d20ba25bb6a0dd9a5a08ce6",
+          "fixed_commit": "ff3aec661355a82a6f77355a95e1f391fa586c2b",
+          "kind": "bugsinpy_recipe",
+          "repository": "bugsinpy/scrapy"
+        }
+      },
+      "snapshot_variant": "fixed",
+      "source_id": "bugsinpy",
+      "source_image_identity": {
+        "buggy_commit": "a9c69458ff1667cc4d20ba25bb6a0dd9a5a08ce6",
+        "fixed_commit": "ff3aec661355a82a6f77355a95e1f391fa586c2b",
+        "kind": "bugsinpy_recipe",
+        "repository": "bugsinpy/scrapy"
+      },
+      "stdout_stderr_policy": "capture separately; meter combined stdout_then_stderr",
+      "target_test_ids": [
+        "python -m unittest -q tests.test_mail.MailSenderTest.test_send_single_values_to_and_cc"
+      ],
+      "terminal_width": 120,
+      "timeout_seconds": 120,
+      "timezone": "UTC",
+      "working_directory": "/work"
+    },
+    {
+      "case_id": "bugsinpy::youtube-dl-33::python::pytest::buggy",
+      "cluster_id": "bugsinpy:youtube-dl:33",
+      "command_family": "python",
+      "command_subfamily": "pytest",
+      "environment": {
+        "COLUMNS": "120",
+        "LANG": "C.UTF-8",
+        "LC_ALL": "C.UTF-8",
+        "LINES": "40",
+        "NO_COLOR": "1",
+        "TERM": "dumb",
+        "TZ": "UTC"
+      },
+      "expected_exit_code": null,
+      "expected_raw_outcome": "fail",
+      "explicit_rtk_argv": [
+        "rtk",
+        "pytest",
+        "test/test_utils.py"
+      ],
+      "license_provenance": {
+        "source_id": "bugsinpy"
+      },
+      "locale": "C.UTF-8",
+      "measurement_recipe": {
+        "combine_policy": "stdout_then_stderr",
+        "isolation": "network-denied (unshare -n), fresh workdir",
+        "reps": 3
+      },
+      "memory_limit_bytes": 10737418240,
+      "original_argv": [
+        "pytest",
+        "test/test_utils.py"
+      ],
+      "original_command_shell_readable": "pytest test/test_utils.py",
+      "output_size_stratum": "unmeasured_pre_qualification",
+      "repository": "bugsinpy/youtube-dl",
+      "rtk_argv_resolution": null,
+      "rtk_support_classification": "RTK_NATIVE_SPECIALIZED",
+      "semantic_oracle_parameters": [
+        "exit_code",
+        "total",
+        "passed",
+        "failed",
+        "skipped",
+        "failed_test_ids",
+        "failing_module_ids",
+        "primary_error_locations"
+      ],
+      "semantic_oracle_type": "test_oracle",
+      "setup_recipe": {
+        "acquire": "network acquisition per \u00a75 (image build / archive / checkout)",
+        "identity": {
+          "buggy_commit": "50c8266ef0b2b6d011257a909f47fd623dda8eb2",
+          "fixed_commit": "6ad4013d40e839211e2896129eed05ccd40ee963",
+          "kind": "bugsinpy_recipe",
+          "repository": "bugsinpy/youtube-dl"
+        }
+      },
+      "snapshot_variant": "buggy",
+      "source_id": "bugsinpy",
+      "source_image_identity": {
+        "buggy_commit": "50c8266ef0b2b6d011257a909f47fd623dda8eb2",
+        "fixed_commit": "6ad4013d40e839211e2896129eed05ccd40ee963",
+        "kind": "bugsinpy_recipe",
+        "repository": "bugsinpy/youtube-dl"
+      },
+      "stdout_stderr_policy": "capture separately; meter combined stdout_then_stderr",
+      "target_test_ids": [
+        "python -m unittest -q test.test_utils.TestUtil.test_parse_iso8601"
+      ],
+      "terminal_width": 120,
+      "timeout_seconds": 120,
+      "timezone": "UTC",
+      "working_directory": "/work"
+    },
+    {
+      "case_id": "burntsushi__ripgrep-2576::files_search::ls",
+      "cluster_id": "swebench:burntsushi__ripgrep-2576",
+      "command_family": "files_search",
+      "command_subfamily": "ls",
+      "environment": {
+        "COLUMNS": "120",
+        "LANG": "C.UTF-8",
+        "LC_ALL": "C.UTF-8",
+        "LINES": "40",
+        "NO_COLOR": "1",
+        "TERM": "dumb",
+        "TZ": "UTC"
+      },
+      "expected_exit_code": null,
+      "expected_raw_outcome": "text",
+      "explicit_rtk_argv": [
+        "rtk",
+        "ls",
+        "-la"
+      ],
+      "license_provenance": {
+        "source_id": "swe-bench-multilingual"
+      },
+      "locale": "C.UTF-8",
+      "measurement_recipe": {
+        "combine_policy": "stdout_then_stderr",
+        "isolation": "network-denied (unshare -n), fresh workdir",
+        "reps": 3
+      },
+      "memory_limit_bytes": 10737418240,
+      "original_argv": [
+        "ls",
+        "-la"
+      ],
+      "original_command_shell_readable": "ls -la",
+      "output_size_stratum": "unmeasured_pre_qualification",
+      "repository": "burntsushi/ripgrep",
+      "rtk_argv_resolution": null,
+      "rtk_support_classification": "RTK_NATIVE_SPECIALIZED",
+      "semantic_oracle_parameters": [
+        "entry_set",
+        "type_per_entry"
+      ],
+      "semantic_oracle_type": "file_listing_oracle",
+      "setup_recipe": {
+        "acquire": "network acquisition per \u00a75 (image build / archive / checkout)",
+        "identity": {
+          "base_commit": "fed4fea217abbc502f2e823465de903c8f2b623d",
+          "instance_id": "burntsushi__ripgrep-2576",
+          "kind": "swebench_recipe",
+          "repository": "burntsushi/ripgrep"
+        }
+      },
+      "snapshot_variant": "snapshot",
+      "source_id": "swe-bench-multilingual",
+      "source_image_identity": {
+        "base_commit": "fed4fea217abbc502f2e823465de903c8f2b623d",
+        "instance_id": "burntsushi__ripgrep-2576",
+        "kind": "swebench_recipe",
+        "repository": "burntsushi/ripgrep"
+      },
+      "stdout_stderr_policy": "capture separately; meter combined stdout_then_stderr",
+      "target_test_ids": null,
+      "terminal_width": 120,
+      "timeout_seconds": 120,
+      "timezone": "UTC",
+      "working_directory": "/work"
+    },
+    {
+      "case_id": "burntsushi__ripgrep-2576::rust_cargo::build",
+      "cluster_id": "swebench:burntsushi__ripgrep-2576",
+      "command_family": "rust_cargo",
+      "command_subfamily": "build",
+      "environment": {
+        "COLUMNS": "120",
+        "LANG": "C.UTF-8",
+        "LC_ALL": "C.UTF-8",
+        "LINES": "40",
+        "NO_COLOR": "1",
+        "TERM": "dumb",
+        "TZ": "UTC"
+      },
+      "expected_exit_code": 0,
+      "expected_raw_outcome": "text",
+      "explicit_rtk_argv": [
+        "rtk",
+        "cargo",
+        "build"
+      ],
+      "license_provenance": {
+        "source_id": "swe-bench-multilingual"
+      },
+      "locale": "C.UTF-8",
+      "measurement_recipe": {
+        "combine_policy": "stdout_then_stderr",
+        "isolation": "network-denied (unshare -n), fresh workdir",
+        "reps": 3
+      },
+      "memory_limit_bytes": 10737418240,
+      "original_argv": [
+        "cargo",
+        "build"
+      ],
+      "original_command_shell_readable": "cargo build",
+      "output_size_stratum": "unmeasured_pre_qualification",
+      "repository": "burntsushi/ripgrep",
+      "rtk_argv_resolution": null,
+      "rtk_support_classification": "RTK_NATIVE_SPECIALIZED",
+      "semantic_oracle_parameters": [
+        "exit_code",
+        "severity",
+        "diagnostic_code",
+        "file",
+        "line",
+        "error_count",
+        "warning_count"
+      ],
+      "semantic_oracle_type": "diagnostics_oracle",
+      "setup_recipe": {
+        "acquire": "network acquisition per \u00a75 (image build / archive / checkout)",
+        "identity": {
+          "base_commit": "fed4fea217abbc502f2e823465de903c8f2b623d",
+          "instance_id": "burntsushi__ripgrep-2576",
+          "kind": "swebench_recipe",
+          "repository": "burntsushi/ripgrep"
+        }
+      },
+      "snapshot_variant": "fixed",
+      "source_id": "swe-bench-multilingual",
+      "source_image_identity": {
+        "base_commit": "fed4fea217abbc502f2e823465de903c8f2b623d",
+        "instance_id": "burntsushi__ripgrep-2576",
+        "kind": "swebench_recipe",
+        "repository": "burntsushi/ripgrep"
+      },
+      "stdout_stderr_policy": "capture separately; meter combined stdout_then_stderr",
+      "target_test_ids": null,
+      "terminal_width": 120,
+      "timeout_seconds": 120,
+      "timezone": "UTC",
+      "working_directory": "/work"
+    },
+    {
+      "case_id": "caddyserver__caddy-5404::go::test::fixed",
+      "cluster_id": "swebench:caddyserver__caddy-5404",
+      "command_family": "go",
+      "command_subfamily": "test",
+      "environment": {
+        "COLUMNS": "120",
+        "LANG": "C.UTF-8",
+        "LC_ALL": "C.UTF-8",
+        "LINES": "40",
+        "NO_COLOR": "1",
+        "TERM": "dumb",
+        "TZ": "UTC"
+      },
+      "expected_exit_code": 0,
+      "expected_raw_outcome": "pass",
+      "explicit_rtk_argv": [
+        "rtk",
+        "go",
+        "test",
+        "./..."
+      ],
+      "license_provenance": {
+        "source_id": "swe-bench-multilingual"
+      },
+      "locale": "C.UTF-8",
+      "measurement_recipe": {
+        "combine_policy": "stdout_then_stderr",
+        "isolation": "network-denied (unshare -n), fresh workdir",
+        "reps": 3
+      },
+      "memory_limit_bytes": 10737418240,
+      "original_argv": [
+        "go",
+        "test",
+        "./..."
+      ],
+      "original_command_shell_readable": "go test ./...",
+      "output_size_stratum": "unmeasured_pre_qualification",
+      "repository": "caddyserver/caddy",
+      "rtk_argv_resolution": null,
+      "rtk_support_classification": "RTK_NATIVE_SPECIALIZED",
+      "semantic_oracle_parameters": [
+        "exit_code",
+        "total",
+        "passed",
+        "failed",
+        "skipped",
+        "failed_test_ids",
+        "failing_module_ids",
+        "primary_error_locations"
+      ],
+      "semantic_oracle_type": "test_oracle",
+      "setup_recipe": {
+        "acquire": "network acquisition per \u00a75 (image build / archive / checkout)",
+        "identity": {
+          "base_commit": "960150bb034dc9a549ee7289b1a4eb4abafeb30a",
+          "instance_id": "caddyserver__caddy-5404",
+          "kind": "swebench_recipe",
+          "repository": "caddyserver/caddy"
+        }
+      },
+      "snapshot_variant": "fixed",
+      "source_id": "swe-bench-multilingual",
+      "source_image_identity": {
+        "base_commit": "960150bb034dc9a549ee7289b1a4eb4abafeb30a",
+        "instance_id": "caddyserver__caddy-5404",
+        "kind": "swebench_recipe",
+        "repository": "caddyserver/caddy"
+      },
+      "stdout_stderr_policy": "capture separately; meter combined stdout_then_stderr",
+      "target_test_ids": [
+        "TestLexer"
+      ],
+      "terminal_width": 120,
+      "timeout_seconds": 600,
+      "timezone": "UTC",
+      "working_directory": "/work"
+    },
+    {
+      "case_id": "caddyserver__caddy-5870::go::test::buggy",
+      "cluster_id": "swebench:caddyserver__caddy-5870",
+      "command_family": "go",
+      "command_subfamily": "test",
+      "environment": {
+        "COLUMNS": "120",
+        "LANG": "C.UTF-8",
+        "LC_ALL": "C.UTF-8",
+        "LINES": "40",
+        "NO_COLOR": "1",
+        "TERM": "dumb",
+        "TZ": "UTC"
+      },
+      "expected_exit_code": null,
+      "expected_raw_outcome": "fail",
+      "explicit_rtk_argv": [
+        "rtk",
+        "go",
+        "test",
+        "./..."
+      ],
+      "license_provenance": {
+        "source_id": "swe-bench-multilingual"
+      },
+      "locale": "C.UTF-8",
+      "measurement_recipe": {
+        "combine_policy": "stdout_then_stderr",
+        "isolation": "network-denied (unshare -n), fresh workdir",
+        "reps": 3
+      },
+      "memory_limit_bytes": 10737418240,
+      "original_argv": [
+        "go",
+        "test",
+        "./..."
+      ],
+      "original_command_shell_readable": "go test ./...",
+      "output_size_stratum": "unmeasured_pre_qualification",
+      "repository": "caddyserver/caddy",
+      "rtk_argv_resolution": null,
+      "rtk_support_classification": "RTK_NATIVE_SPECIALIZED",
+      "semantic_oracle_parameters": [
+        "exit_code",
+        "total",
+        "passed",
+        "failed",
+        "skipped",
+        "failed_test_ids",
+        "failing_module_ids",
+        "primary_error_locations"
+      ],
+      "semantic_oracle_type": "test_oracle",
+      "setup_recipe": {
+        "acquire": "network acquisition per \u00a75 (image build / archive / checkout)",
+        "identity": {
+          "base_commit": "fae195ac7eb9f4b0e9436384cd0529a11355e367",
+          "instance_id": "caddyserver__caddy-5870",
+          "kind": "swebench_recipe",
+          "repository": "caddyserver/caddy"
+        }
+      },
+      "snapshot_variant": "buggy",
+      "source_id": "swe-bench-multilingual",
+      "source_image_identity": {
+        "base_commit": "fae195ac7eb9f4b0e9436384cd0529a11355e367",
+        "instance_id": "caddyserver__caddy-5870",
+        "kind": "swebench_recipe",
+        "repository": "caddyserver/caddy"
+      },
+      "stdout_stderr_policy": "capture separately; meter combined stdout_then_stderr",
+      "target_test_ids": [
+        "TestUnsyncedConfigAccess"
+      ],
+      "terminal_width": 120,
+      "timeout_seconds": 600,
+      "timezone": "UTC",
+      "working_directory": "/work"
+    },
+    {
+      "case_id": "container::busybox::docker::ps",
+      "cluster_id": "container:busybox",
+      "command_family": "containers",
+      "command_subfamily": "ps",
+      "environment": {
+        "COLUMNS": "120",
+        "LANG": "C.UTF-8",
+        "LC_ALL": "C.UTF-8",
+        "LINES": "40",
+        "NO_COLOR": "1",
+        "TERM": "dumb",
+        "TZ": "UTC"
+      },
+      "expected_exit_code": null,
+      "expected_raw_outcome": "text",
+      "explicit_rtk_argv": [
+        "rtk",
+        "docker",
+        "ps"
+      ],
+      "license_provenance": {
+        "source_id": "container-busybox"
+      },
+      "locale": "C.UTF-8",
+      "measurement_recipe": {
+        "combine_policy": "stdout_then_stderr",
+        "isolation": "network-denied (unshare -n), fresh workdir",
+        "reps": 3
+      },
+      "memory_limit_bytes": 10737418240,
+      "original_argv": [
+        "docker",
+        "ps"
+      ],
+      "original_command_shell_readable": "docker ps",
+      "output_size_stratum": "unmeasured_pre_qualification",
+      "repository": "library/busybox",
+      "rtk_argv_resolution": null,
+      "rtk_support_classification": "RTK_NATIVE_SPECIALIZED",
+      "semantic_oracle_parameters": [
+        "container_image_identity_set",
+        "names",
+        "state",
+        "exit_status",
+        "log_event_identities"
+      ],
+      "semantic_oracle_type": "docker_oracle",
+      "setup_recipe": {
+        "acquire": "network acquisition per \u00a75 (image build / archive / checkout)",
+        "identity": {
+          "child_digest": "sha256:7a3ebe5bfd1a4a19797d20b0c0bb39d44393e9a03fd852c0865b0f540d868df0",
+          "index_digest": "sha256:9532d8c39891ca2ecde4d30d7710e01fb739c87a8b9299685c63704296b16028",
+          "kind": "oci_image",
+          "platform": "linux/amd64",
+          "repository": "library/busybox"
+        }
+      },
+      "snapshot_variant": "running",
+      "source_id": "container-busybox",
+      "source_image_identity": {
+        "child_digest": "sha256:7a3ebe5bfd1a4a19797d20b0c0bb39d44393e9a03fd852c0865b0f540d868df0",
+        "index_digest": "sha256:9532d8c39891ca2ecde4d30d7710e01fb739c87a8b9299685c63704296b16028",
+        "kind": "oci_image",
+        "platform": "linux/amd64",
+        "repository": "library/busybox"
+      },
+      "stdout_stderr_policy": "capture separately; meter combined stdout_then_stderr",
+      "target_test_ids": null,
+      "terminal_width": 120,
+      "timeout_seconds": 120,
+      "timezone": "UTC",
+      "working_directory": "/work"
+    },
+    {
+      "case_id": "container::nginx::docker::images",
+      "cluster_id": "container:nginx",
+      "command_family": "containers",
+      "command_subfamily": "images",
+      "environment": {
+        "COLUMNS": "120",
+        "LANG": "C.UTF-8",
+        "LC_ALL": "C.UTF-8",
+        "LINES": "40",
+        "NO_COLOR": "1",
+        "TERM": "dumb",
+        "TZ": "UTC"
+      },
+      "expected_exit_code": null,
+      "expected_raw_outcome": "text",
+      "explicit_rtk_argv": [
+        "rtk",
+        "docker",
+        "images"
+      ],
+      "license_provenance": {
+        "source_id": "container-nginx"
+      },
+      "locale": "C.UTF-8",
+      "measurement_recipe": {
+        "combine_policy": "stdout_then_stderr",
+        "isolation": "network-denied (unshare -n), fresh workdir",
+        "reps": 3
+      },
+      "memory_limit_bytes": 10737418240,
+      "original_argv": [
+        "docker",
+        "images"
+      ],
+      "original_command_shell_readable": "docker images",
+      "output_size_stratum": "unmeasured_pre_qualification",
+      "repository": "library/nginx",
+      "rtk_argv_resolution": null,
+      "rtk_support_classification": "RTK_NATIVE_SPECIALIZED",
+      "semantic_oracle_parameters": [
+        "container_image_identity_set",
+        "names",
+        "state",
+        "exit_status",
+        "log_event_identities"
+      ],
+      "semantic_oracle_type": "docker_oracle",
+      "setup_recipe": {
+        "acquire": "network acquisition per \u00a75 (image build / archive / checkout)",
+        "identity": {
+          "child_digest": "sha256:679a5fd058f6ca754a561846fe27927e408074431d63556e8fc588fc38be6901",
+          "index_digest": "sha256:814a8e88df978ade80e584cc5b333144b9372a8e3c98872d07137dbf3b44d0e4",
+          "kind": "oci_image",
+          "platform": "linux/amd64",
+          "repository": "library/nginx"
+        }
+      },
+      "snapshot_variant": "running",
+      "source_id": "container-nginx",
+      "source_image_identity": {
+        "child_digest": "sha256:679a5fd058f6ca754a561846fe27927e408074431d63556e8fc588fc38be6901",
+        "index_digest": "sha256:814a8e88df978ade80e584cc5b333144b9372a8e3c98872d07137dbf3b44d0e4",
+        "kind": "oci_image",
+        "platform": "linux/amd64",
+        "repository": "library/nginx"
+      },
+      "stdout_stderr_policy": "capture separately; meter combined stdout_then_stderr",
+      "target_test_ids": null,
+      "terminal_width": 120,
+      "timeout_seconds": 120,
+      "timezone": "UTC",
+      "working_directory": "/work"
+    },
+    {
+      "case_id": "container::postgres::docker::ps",
+      "cluster_id": "container:postgres",
+      "command_family": "containers",
+      "command_subfamily": "ps",
+      "environment": {
+        "COLUMNS": "120",
+        "LANG": "C.UTF-8",
+        "LC_ALL": "C.UTF-8",
+        "LINES": "40",
+        "NO_COLOR": "1",
+        "TERM": "dumb",
+        "TZ": "UTC"
+      },
+      "expected_exit_code": null,
+      "expected_raw_outcome": "text",
+      "explicit_rtk_argv": [
+        "rtk",
+        "docker",
+        "ps"
+      ],
+      "license_provenance": {
+        "source_id": "container-postgres"
+      },
+      "locale": "C.UTF-8",
+      "measurement_recipe": {
+        "combine_policy": "stdout_then_stderr",
+        "isolation": "network-denied (unshare -n), fresh workdir",
+        "reps": 3
+      },
+      "memory_limit_bytes": 10737418240,
+      "original_argv": [
+        "docker",
+        "ps"
+      ],
+      "original_command_shell_readable": "docker ps",
+      "output_size_stratum": "unmeasured_pre_qualification",
+      "repository": "library/postgres",
+      "rtk_argv_resolution": null,
+      "rtk_support_classification": "RTK_NATIVE_SPECIALIZED",
+      "semantic_oracle_parameters": [
+        "container_image_identity_set",
+        "names",
+        "state",
+        "exit_status",
+        "log_event_identities"
+      ],
+      "semantic_oracle_type": "docker_oracle",
+      "setup_recipe": {
+        "acquire": "network acquisition per \u00a75 (image build / archive / checkout)",
+        "identity": {
+          "child_digest": "sha256:5d706d5aa3ad311722f373fdc09e6a22b454bec70d34d9786383983fd83c5e46",
+          "index_digest": "sha256:7e5df973a74872482e320dcbdeb055e178d6f42de0558b083892c50cda833c96",
+          "kind": "oci_image",
+          "platform": "linux/amd64",
+          "repository": "library/postgres"
+        }
+      },
+      "snapshot_variant": "running",
+      "source_id": "container-postgres",
+      "source_image_identity": {
+        "child_digest": "sha256:5d706d5aa3ad311722f373fdc09e6a22b454bec70d34d9786383983fd83c5e46",
+        "index_digest": "sha256:7e5df973a74872482e320dcbdeb055e178d6f42de0558b083892c50cda833c96",
+        "kind": "oci_image",
+        "platform": "linux/amd64",
+        "repository": "library/postgres"
+      },
+      "stdout_stderr_policy": "capture separately; meter combined stdout_then_stderr",
+      "target_test_ids": null,
+      "terminal_width": 120,
+      "timeout_seconds": 120,
+      "timezone": "UTC",
+      "working_directory": "/work"
+    },
+    {
+      "case_id": "container::redis::docker::images",
+      "cluster_id": "container:redis",
+      "command_family": "containers",
+      "command_subfamily": "images",
+      "environment": {
+        "COLUMNS": "120",
+        "LANG": "C.UTF-8",
+        "LC_ALL": "C.UTF-8",
+        "LINES": "40",
+        "NO_COLOR": "1",
+        "TERM": "dumb",
+        "TZ": "UTC"
+      },
+      "expected_exit_code": null,
+      "expected_raw_outcome": "text",
+      "explicit_rtk_argv": [
+        "rtk",
+        "docker",
+        "images"
+      ],
+      "license_provenance": {
+        "source_id": "container-redis"
+      },
+      "locale": "C.UTF-8",
+      "measurement_recipe": {
+        "combine_policy": "stdout_then_stderr",
+        "isolation": "network-denied (unshare -n), fresh workdir",
+        "reps": 3
+      },
+      "memory_limit_bytes": 10737418240,
+      "original_argv": [
+        "docker",
+        "images"
+      ],
+      "original_command_shell_readable": "docker images",
+      "output_size_stratum": "unmeasured_pre_qualification",
+      "repository": "library/redis",
+      "rtk_argv_resolution": null,
+      "rtk_support_classification": "RTK_NATIVE_SPECIALIZED",
+      "semantic_oracle_parameters": [
+        "container_image_identity_set",
+        "names",
+        "state",
+        "exit_status",
+        "log_event_identities"
+      ],
+      "semantic_oracle_type": "docker_oracle",
+      "setup_recipe": {
+        "acquire": "network acquisition per \u00a75 (image build / archive / checkout)",
+        "identity": {
+          "child_digest": "sha256:395033a36458e5312f5bce401452efe6606705fc8b9a574611af6436ac3ff632",
+          "index_digest": "sha256:c1e88455c85225310bbea54816e9c3f4b5295815e6dbf80c34d40afc6df28275",
+          "kind": "oci_image",
+          "platform": "linux/amd64",
+          "repository": "library/redis"
+        }
+      },
+      "snapshot_variant": "running",
+      "source_id": "container-redis",
+      "source_image_identity": {
+        "child_digest": "sha256:395033a36458e5312f5bce401452efe6606705fc8b9a574611af6436ac3ff632",
+        "index_digest": "sha256:c1e88455c85225310bbea54816e9c3f4b5295815e6dbf80c34d40afc6df28275",
+        "kind": "oci_image",
+        "platform": "linux/amd64",
+        "repository": "library/redis"
+      },
+      "stdout_stderr_policy": "capture separately; meter combined stdout_then_stderr",
+      "target_test_ids": null,
+      "terminal_width": 120,
+      "timeout_seconds": 120,
+      "timezone": "UTC",
+      "working_directory": "/work"
+    },
+    {
+      "case_id": "facebook__docusaurus-8927::js_ts::lint",
+      "cluster_id": "swebench:facebook__docusaurus-8927",
+      "command_family": "js_ts",
+      "command_subfamily": "lint",
+      "environment": {
+        "COLUMNS": "120",
+        "LANG": "C.UTF-8",
+        "LC_ALL": "C.UTF-8",
+        "LINES": "40",
+        "NO_COLOR": "1",
+        "TERM": "dumb",
+        "TZ": "UTC"
+      },
+      "expected_exit_code": 0,
+      "expected_raw_outcome": "text",
+      "explicit_rtk_argv": [
+        "rtk",
+        "lint",
+        "."
+      ],
+      "license_provenance": {
+        "source_id": "swe-bench-multilingual"
+      },
+      "locale": "C.UTF-8",
+      "measurement_recipe": {
+        "combine_policy": "stdout_then_stderr",
+        "isolation": "network-denied (unshare -n), fresh workdir",
+        "reps": 3
+      },
+      "memory_limit_bytes": 10737418240,
+      "original_argv": [
+        "eslint",
+        "."
+      ],
+      "original_command_shell_readable": "eslint .",
+      "output_size_stratum": "unmeasured_pre_qualification",
+      "repository": "facebook/docusaurus",
+      "rtk_argv_resolution": null,
+      "rtk_support_classification": "RTK_NATIVE_SPECIALIZED",
+      "semantic_oracle_parameters": [
+        "exit_code",
+        "severity",
+        "diagnostic_code",
+        "file",
+        "line",
+        "error_count",
+        "warning_count"
+      ],
+      "semantic_oracle_type": "diagnostics_oracle",
+      "setup_recipe": {
+        "acquire": "network acquisition per \u00a75 (image build / archive / checkout)",
+        "identity": {
+          "base_commit": "41f1c1e3c26ad1e24acd3306077e2534dd8fa0db",
+          "instance_id": "facebook__docusaurus-8927",
+          "kind": "swebench_recipe",
+          "repository": "facebook/docusaurus"
+        }
+      },
+      "snapshot_variant": "fixed",
+      "source_id": "swe-bench-multilingual",
+      "source_image_identity": {
+        "base_commit": "41f1c1e3c26ad1e24acd3306077e2534dd8fa0db",
+        "instance_id": "facebook__docusaurus-8927",
+        "kind": "swebench_recipe",
+        "repository": "facebook/docusaurus"
+      },
+      "stdout_stderr_policy": "capture separately; meter combined stdout_then_stderr",
+      "target_test_ids": null,
+      "terminal_width": 120,
+      "timeout_seconds": 120,
+      "timezone": "UTC",
+      "working_directory": "/work"
+    },
+    {
+      "case_id": "facebook__docusaurus-8927::js_ts::test::fixed",
+      "cluster_id": "swebench:facebook__docusaurus-8927",
+      "command_family": "js_ts",
+      "command_subfamily": "test",
+      "environment": {
+        "COLUMNS": "120",
+        "LANG": "C.UTF-8",
+        "LC_ALL": "C.UTF-8",
+        "LINES": "40",
+        "NO_COLOR": "1",
+        "TERM": "dumb",
+        "TZ": "UTC"
+      },
+      "expected_exit_code": 0,
+      "expected_raw_outcome": "pass",
+      "explicit_rtk_argv": null,
+      "license_provenance": {
+        "source_id": "swe-bench-multilingual"
+      },
+      "locale": "C.UTF-8",
+      "measurement_recipe": {
+        "combine_policy": "stdout_then_stderr",
+        "isolation": "network-denied (unshare -n), fresh workdir",
+        "reps": 3
+      },
+      "memory_limit_bytes": 10737418240,
+      "original_argv": [
+        "npm",
+        "test"
+      ],
+      "original_command_shell_readable": "npm test",
+      "output_size_stratum": "unmeasured_pre_qualification",
+      "repository": "facebook/docusaurus",
+      "rtk_argv_resolution": "acquisition:test_runner_from_package_json -> rtk jest|vitest",
+      "rtk_support_classification": "RTK_NATIVE_SPECIALIZED",
+      "semantic_oracle_parameters": [
+        "exit_code",
+        "total",
+        "passed",
+        "failed",
+        "skipped",
+        "failed_test_ids",
+        "failing_module_ids",
+        "primary_error_locations"
+      ],
+      "semantic_oracle_type": "test_oracle",
+      "setup_recipe": {
+        "acquire": "network acquisition per \u00a75 (image build / archive / checkout)",
+        "identity": {
+          "base_commit": "41f1c1e3c26ad1e24acd3306077e2534dd8fa0db",
+          "instance_id": "facebook__docusaurus-8927",
+          "kind": "swebench_recipe",
+          "repository": "facebook/docusaurus"
+        }
+      },
+      "snapshot_variant": "fixed",
+      "source_id": "swe-bench-multilingual",
+      "source_image_identity": {
+        "base_commit": "41f1c1e3c26ad1e24acd3306077e2534dd8fa0db",
+        "instance_id": "facebook__docusaurus-8927",
+        "kind": "swebench_recipe",
+        "repository": "facebook/docusaurus"
+      },
+      "stdout_stderr_policy": "capture separately; meter combined stdout_then_stderr",
+      "target_test_ids": [
+        "does not replace non-Markdown links",
+        "handles stray spaces"
+      ],
+      "terminal_width": 120,
+      "timeout_seconds": 600,
+      "timezone": "UTC",
+      "working_directory": "/work"
+    },
+    {
+      "case_id": "gin-gonic__gin-2755::go::vet",
+      "cluster_id": "swebench:gin-gonic__gin-2755",
+      "command_family": "go",
+      "command_subfamily": "vet",
+      "environment": {
+        "COLUMNS": "120",
+        "LANG": "C.UTF-8",
+        "LC_ALL": "C.UTF-8",
+        "LINES": "40",
+        "NO_COLOR": "1",
+        "TERM": "dumb",
+        "TZ": "UTC"
+      },
+      "expected_exit_code": 0,
+      "expected_raw_outcome": "text",
+      "explicit_rtk_argv": [
+        "rtk",
+        "go",
+        "vet",
+        "./..."
+      ],
+      "license_provenance": {
+        "source_id": "swe-bench-multilingual"
+      },
+      "locale": "C.UTF-8",
+      "measurement_recipe": {
+        "combine_policy": "stdout_then_stderr",
+        "isolation": "network-denied (unshare -n), fresh workdir",
+        "reps": 3
+      },
+      "memory_limit_bytes": 10737418240,
+      "original_argv": [
+        "go",
+        "vet",
+        "./..."
+      ],
+      "original_command_shell_readable": "go vet ./...",
+      "output_size_stratum": "unmeasured_pre_qualification",
+      "repository": "gin-gonic/gin",
+      "rtk_argv_resolution": null,
+      "rtk_support_classification": "RTK_NATIVE_SPECIALIZED",
+      "semantic_oracle_parameters": [
+        "exit_code",
+        "severity",
+        "diagnostic_code",
+        "file",
+        "line",
+        "error_count",
+        "warning_count"
+      ],
+      "semantic_oracle_type": "diagnostics_oracle",
+      "setup_recipe": {
+        "acquire": "network acquisition per \u00a75 (image build / archive / checkout)",
+        "identity": {
+          "base_commit": "f2bbdfe9f26d84cb994f381050692a9e4553bf75",
+          "instance_id": "gin-gonic__gin-2755",
+          "kind": "swebench_recipe",
+          "repository": "gin-gonic/gin"
+        }
+      },
+      "snapshot_variant": "fixed",
+      "source_id": "swe-bench-multilingual",
+      "source_image_identity": {
+        "base_commit": "f2bbdfe9f26d84cb994f381050692a9e4553bf75",
+        "instance_id": "gin-gonic__gin-2755",
+        "kind": "swebench_recipe",
+        "repository": "gin-gonic/gin"
+      },
+      "stdout_stderr_policy": "capture separately; meter combined stdout_then_stderr",
+      "target_test_ids": null,
+      "terminal_width": 120,
+      "timeout_seconds": 120,
+      "timezone": "UTC",
+      "working_directory": "/work"
+    },
+    {
+      "case_id": "gin-gonic__gin-4003::git::status",
+      "cluster_id": "swebench:gin-gonic__gin-4003",
+      "command_family": "git",
+      "command_subfamily": "status",
+      "environment": {
+        "COLUMNS": "120",
+        "LANG": "C.UTF-8",
+        "LC_ALL": "C.UTF-8",
+        "LINES": "40",
+        "NO_COLOR": "1",
+        "TERM": "dumb",
+        "TZ": "UTC"
+      },
+      "expected_exit_code": null,
+      "expected_raw_outcome": "text",
+      "explicit_rtk_argv": [
+        "rtk",
+        "git",
+        "status"
+      ],
+      "license_provenance": {
+        "source_id": "swe-bench-multilingual"
+      },
+      "locale": "C.UTF-8",
+      "measurement_recipe": {
+        "combine_policy": "stdout_then_stderr",
+        "isolation": "network-denied (unshare -n), fresh workdir",
+        "reps": 3
+      },
+      "memory_limit_bytes": 10737418240,
+      "original_argv": [
+        "git",
+        "status"
+      ],
+      "original_command_shell_readable": "git status",
+      "output_size_stratum": "unmeasured_pre_qualification",
+      "repository": "gin-gonic/gin",
+      "rtk_argv_resolution": null,
+      "rtk_support_classification": "RTK_NATIVE_SPECIALIZED",
+      "semantic_oracle_parameters": [
+        "changed_paths",
+        "status_code_per_path",
+        "branch_ahead_behind",
+        "untracked_paths"
+      ],
+      "semantic_oracle_type": "git_status_oracle",
+      "setup_recipe": {
+        "acquire": "network acquisition per \u00a75 (image build / archive / checkout)",
+        "identity": {
+          "base_commit": "9c081de9cdd1948f521d47d170d18cbc2981c33a",
+          "instance_id": "gin-gonic__gin-4003",
+          "kind": "swebench_recipe",
+          "repository": "gin-gonic/gin"
+        }
+      },
+      "snapshot_variant": "dirty",
+      "source_id": "swe-bench-multilingual",
+      "source_image_identity": {
+        "base_commit": "9c081de9cdd1948f521d47d170d18cbc2981c33a",
+        "instance_id": "gin-gonic__gin-4003",
+        "kind": "swebench_recipe",
+        "repository": "gin-gonic/gin"
+      },
+      "stdout_stderr_policy": "capture separately; meter combined stdout_then_stderr",
+      "target_test_ids": null,
+      "terminal_width": 120,
+      "timeout_seconds": 120,
+      "timezone": "UTC",
+      "working_directory": "/work"
+    },
+    {
+      "case_id": "gohugoio__hugo-12171::go::test::buggy",
+      "cluster_id": "swebench:gohugoio__hugo-12171",
+      "command_family": "go",
+      "command_subfamily": "test",
+      "environment": {
+        "COLUMNS": "120",
+        "LANG": "C.UTF-8",
+        "LC_ALL": "C.UTF-8",
+        "LINES": "40",
+        "NO_COLOR": "1",
+        "TERM": "dumb",
+        "TZ": "UTC"
+      },
+      "expected_exit_code": null,
+      "expected_raw_outcome": "fail",
+      "explicit_rtk_argv": [
+        "rtk",
+        "go",
+        "test",
+        "./..."
+      ],
+      "license_provenance": {
+        "source_id": "swe-bench-multilingual"
+      },
+      "locale": "C.UTF-8",
+      "measurement_recipe": {
+        "combine_policy": "stdout_then_stderr",
+        "isolation": "network-denied (unshare -n), fresh workdir",
+        "reps": 3
+      },
+      "memory_limit_bytes": 10737418240,
+      "original_argv": [
+        "go",
+        "test",
+        "./..."
+      ],
+      "original_command_shell_readable": "go test ./...",
+      "output_size_stratum": "unmeasured_pre_qualification",
+      "repository": "gohugoio/hugo",
+      "rtk_argv_resolution": null,
+      "rtk_support_classification": "RTK_NATIVE_SPECIALIZED",
+      "semantic_oracle_parameters": [
+        "exit_code",
+        "total",
+        "passed",
+        "failed",
+        "skipped",
+        "failed_test_ids",
+        "failing_module_ids",
+        "primary_error_locations"
+      ],
+      "semantic_oracle_type": "test_oracle",
+      "setup_recipe": {
+        "acquire": "network acquisition per \u00a75 (image build / archive / checkout)",
+        "identity": {
+          "base_commit": "a322282e70c2935c79f9c0f5c593bfdd032eb964",
+          "instance_id": "gohugoio__hugo-12171",
+          "kind": "swebench_recipe",
+          "repository": "gohugoio/hugo"
+        }
+      },
+      "snapshot_variant": "buggy",
+      "source_id": "swe-bench-multilingual",
+      "source_image_identity": {
+        "base_commit": "a322282e70c2935c79f9c0f5c593bfdd032eb964",
+        "instance_id": "gohugoio__hugo-12171",
+        "kind": "swebench_recipe",
+        "repository": "gohugoio/hugo"
+      },
+      "stdout_stderr_policy": "capture separately; meter combined stdout_then_stderr",
+      "target_test_ids": [
+        "TestPagesSimilarSectionNames"
+      ],
+      "terminal_width": 120,
+      "timeout_seconds": 600,
+      "timezone": "UTC",
+      "working_directory": "/work"
+    },
+    {
+      "case_id": "gohugoio__hugo-12579::go::test::fixed",
+      "cluster_id": "swebench:gohugoio__hugo-12579",
+      "command_family": "go",
+      "command_subfamily": "test",
+      "environment": {
+        "COLUMNS": "120",
+        "LANG": "C.UTF-8",
+        "LC_ALL": "C.UTF-8",
+        "LINES": "40",
+        "NO_COLOR": "1",
+        "TERM": "dumb",
+        "TZ": "UTC"
+      },
+      "expected_exit_code": 0,
+      "expected_raw_outcome": "pass",
+      "explicit_rtk_argv": [
+        "rtk",
+        "go",
+        "test",
+        "./..."
+      ],
+      "license_provenance": {
+        "source_id": "swe-bench-multilingual"
+      },
+      "locale": "C.UTF-8",
+      "measurement_recipe": {
+        "combine_policy": "stdout_then_stderr",
+        "isolation": "network-denied (unshare -n), fresh workdir",
+        "reps": 3
+      },
+      "memory_limit_bytes": 10737418240,
+      "original_argv": [
+        "go",
+        "test",
+        "./..."
+      ],
+      "original_command_shell_readable": "go test ./...",
+      "output_size_stratum": "unmeasured_pre_qualification",
+      "repository": "gohugoio/hugo",
+      "rtk_argv_resolution": null,
+      "rtk_support_classification": "RTK_NATIVE_SPECIALIZED",
+      "semantic_oracle_parameters": [
+        "exit_code",
+        "total",
+        "passed",
+        "failed",
+        "skipped",
+        "failed_test_ids",
+        "failing_module_ids",
+        "primary_error_locations"
+      ],
+      "semantic_oracle_type": "test_oracle",
+      "setup_recipe": {
+        "acquire": "network acquisition per \u00a75 (image build / archive / checkout)",
+        "identity": {
+          "base_commit": "9c4e14eb4f890d2a3caad2dcd9209609b7274914",
+          "instance_id": "gohugoio__hugo-12579",
+          "kind": "swebench_recipe",
+          "repository": "gohugoio/hugo"
+        }
+      },
+      "snapshot_variant": "fixed",
+      "source_id": "swe-bench-multilingual",
+      "source_image_identity": {
+        "base_commit": "9c4e14eb4f890d2a3caad2dcd9209609b7274914",
+        "instance_id": "gohugoio__hugo-12579",
+        "kind": "swebench_recipe",
+        "repository": "gohugoio/hugo"
+      },
+      "stdout_stderr_policy": "capture separately; meter combined stdout_then_stderr",
+      "target_test_ids": [
+        "TestGroupByParamCalledWithUnavailableParam"
+      ],
+      "terminal_width": 120,
+      "timeout_seconds": 600,
+      "timezone": "UTC",
+      "working_directory": "/work"
+    },
+    {
+      "case_id": "google__gson-2024::jvm::test::fixed",
+      "cluster_id": "swebench:google__gson-2024",
+      "command_family": "jvm",
+      "command_subfamily": "test",
+      "environment": {
+        "COLUMNS": "120",
+        "LANG": "C.UTF-8",
+        "LC_ALL": "C.UTF-8",
+        "LINES": "40",
+        "NO_COLOR": "1",
+        "TERM": "dumb",
+        "TZ": "UTC"
+      },
+      "expected_exit_code": 0,
+      "expected_raw_outcome": "pass",
+      "explicit_rtk_argv": [
+        "rtk",
+        "mvn",
+        "test"
+      ],
+      "license_provenance": {
+        "source_id": "swe-bench-multilingual"
+      },
+      "locale": "C.UTF-8",
+      "measurement_recipe": {
+        "combine_policy": "stdout_then_stderr",
+        "isolation": "network-denied (unshare -n), fresh workdir",
+        "reps": 3
+      },
+      "memory_limit_bytes": 10737418240,
+      "original_argv": [
+        "mvn",
+        "test"
+      ],
+      "original_command_shell_readable": "mvn test",
+      "output_size_stratum": "unmeasured_pre_qualification",
+      "repository": "google/gson",
+      "rtk_argv_resolution": null,
+      "rtk_support_classification": "RTK_NATIVE_SPECIALIZED",
+      "semantic_oracle_parameters": [
+        "exit_code",
+        "total",
+        "passed",
+        "failed",
+        "skipped",
+        "failed_test_ids",
+        "failing_module_ids",
+        "primary_error_locations"
+      ],
+      "semantic_oracle_type": "test_oracle",
+      "setup_recipe": {
+        "acquire": "network acquisition per \u00a75 (image build / archive / checkout)",
+        "identity": {
+          "base_commit": "16b42ff5805074126c2e5484450c182773e408a2",
+          "instance_id": "google__gson-2024",
+          "kind": "swebench_recipe",
+          "repository": "google/gson"
+        }
+      },
+      "snapshot_variant": "fixed",
+      "source_id": "swe-bench-multilingual",
+      "source_image_identity": {
+        "base_commit": "16b42ff5805074126c2e5484450c182773e408a2",
+        "instance_id": "google__gson-2024",
+        "kind": "swebench_recipe",
+        "repository": "google/gson"
+      },
+      "stdout_stderr_policy": "capture separately; meter combined stdout_then_stderr",
+      "target_test_ids": [
+        "com.google.gson.functional.FieldNamingTest#testUpperCaseWithUnderscores",
+        "com.google.gson.functional.NamingPolicyTest#testGsonWithUpperCaseUnderscorePolicySerialization",
+        "com.google.gson.functional.NamingPolicyTest#testGsonWithUpperCaseUnderscorePolicyDeserialiation"
+      ],
+      "terminal_width": 120,
+      "timeout_seconds": 600,
+      "timezone": "UTC",
+      "working_directory": "/work"
+    },
+    {
+      "case_id": "google__gson-2158::jvm::test::fixed",
+      "cluster_id": "swebench:google__gson-2158",
+      "command_family": "jvm",
+      "command_subfamily": "test",
+      "environment": {
+        "COLUMNS": "120",
+        "LANG": "C.UTF-8",
+        "LC_ALL": "C.UTF-8",
+        "LINES": "40",
+        "NO_COLOR": "1",
+        "TERM": "dumb",
+        "TZ": "UTC"
+      },
+      "expected_exit_code": 0,
+      "expected_raw_outcome": "pass",
+      "explicit_rtk_argv": [
+        "rtk",
+        "mvn",
+        "test"
+      ],
+      "license_provenance": {
+        "source_id": "swe-bench-multilingual"
+      },
+      "locale": "C.UTF-8",
+      "measurement_recipe": {
+        "combine_policy": "stdout_then_stderr",
+        "isolation": "network-denied (unshare -n), fresh workdir",
+        "reps": 3
+      },
+      "memory_limit_bytes": 10737418240,
+      "original_argv": [
+        "mvn",
+        "test"
+      ],
+      "original_command_shell_readable": "mvn test",
+      "output_size_stratum": "unmeasured_pre_qualification",
+      "repository": "google/gson",
+      "rtk_argv_resolution": null,
+      "rtk_support_classification": "RTK_NATIVE_SPECIALIZED",
+      "semantic_oracle_parameters": [
+        "exit_code",
+        "total",
+        "passed",
+        "failed",
+        "skipped",
+        "failed_test_ids",
+        "failing_module_ids",
+        "primary_error_locations"
+      ],
+      "semantic_oracle_type": "test_oracle",
+      "setup_recipe": {
+        "acquire": "network acquisition per \u00a75 (image build / archive / checkout)",
+        "identity": {
+          "base_commit": "796193d0326a2f44bc314bf24262732ea3e64014",
+          "instance_id": "google__gson-2158",
+          "kind": "swebench_recipe",
+          "repository": "google/gson"
+        }
+      },
+      "snapshot_variant": "fixed",
+      "source_id": "swe-bench-multilingual",
+      "source_image_identity": {
+        "base_commit": "796193d0326a2f44bc314bf24262732ea3e64014",
+        "instance_id": "google__gson-2158",
+        "kind": "swebench_recipe",
+        "repository": "google/gson"
+      },
+      "stdout_stderr_policy": "capture separately; meter combined stdout_then_stderr",
+      "target_test_ids": [
+        "com.google.gson.functional.PrimitiveTest#testByteSerialization",
+        "com.google.gson.functional.PrimitiveTest#testShortSerialization",
+        "com.google.gson.functional.PrimitiveTest#testIntSerialization",
+        "com.google.gson.functional.PrimitiveTest#testLongSerialization",
+        "com.google.gson.functional.PrimitiveTest#testFloatSerialization",
+        "com.google.gson.functional.PrimitiveTest#testDoubleSerialization"
+      ],
+      "terminal_width": 120,
+      "timeout_seconds": 600,
+      "timezone": "UTC",
+      "working_directory": "/work"
+    },
+    {
+      "case_id": "hashicorp__terraform-34580::git::diff",
+      "cluster_id": "swebench:hashicorp__terraform-34580",
+      "command_family": "git",
+      "command_subfamily": "diff",
+      "environment": {
+        "COLUMNS": "120",
+        "LANG": "C.UTF-8",
+        "LC_ALL": "C.UTF-8",
+        "LINES": "40",
+        "NO_COLOR": "1",
+        "TERM": "dumb",
+        "TZ": "UTC"
+      },
+      "expected_exit_code": null,
+      "expected_raw_outcome": "text",
+      "explicit_rtk_argv": [
+        "rtk",
+        "git",
+        "diff"
+      ],
+      "license_provenance": {
+        "source_id": "swe-bench-multilingual"
+      },
+      "locale": "C.UTF-8",
+      "measurement_recipe": {
+        "combine_policy": "stdout_then_stderr",
+        "isolation": "network-denied (unshare -n), fresh workdir",
+        "reps": 3
+      },
+      "memory_limit_bytes": 10737418240,
+      "original_argv": [
+        "git",
+        "diff"
+      ],
+      "original_command_shell_readable": "git diff",
+      "output_size_stratum": "unmeasured_pre_qualification",
+      "repository": "hashicorp/terraform",
+      "rtk_argv_resolution": null,
+      "rtk_support_classification": "RTK_NATIVE_SPECIALIZED",
+      "semantic_oracle_parameters": [
+        "affected_paths",
+        "added_deleted_totals",
+        "patch_semantic_hash",
+        "binary_markers"
+      ],
+      "semantic_oracle_type": "git_diff_oracle",
+      "setup_recipe": {
+        "acquire": "network acquisition per \u00a75 (image build / archive / checkout)",
+        "identity": {
+          "base_commit": "8faa757e20d8df6c458a002c6bd4e1bc26f41581",
+          "instance_id": "hashicorp__terraform-34580",
+          "kind": "swebench_recipe",
+          "repository": "hashicorp/terraform"
+        }
+      },
+      "snapshot_variant": "dirty",
+      "source_id": "swe-bench-multilingual",
+      "source_image_identity": {
+        "base_commit": "8faa757e20d8df6c458a002c6bd4e1bc26f41581",
+        "instance_id": "hashicorp__terraform-34580",
+        "kind": "swebench_recipe",
+        "repository": "hashicorp/terraform"
+      },
+      "stdout_stderr_policy": "capture separately; meter combined stdout_then_stderr",
+      "target_test_ids": null,
+      "terminal_width": 120,
+      "timeout_seconds": 120,
+      "timezone": "UTC",
+      "working_directory": "/work"
+    },
+    {
+      "case_id": "immutable-js__immutable-js-2006::git::diff",
+      "cluster_id": "swebench:immutable-js__immutable-js-2006",
+      "command_family": "git",
+      "command_subfamily": "diff",
+      "environment": {
+        "COLUMNS": "120",
+        "LANG": "C.UTF-8",
+        "LC_ALL": "C.UTF-8",
+        "LINES": "40",
+        "NO_COLOR": "1",
+        "TERM": "dumb",
+        "TZ": "UTC"
+      },
+      "expected_exit_code": null,
+      "expected_raw_outcome": "text",
+      "explicit_rtk_argv": [
+        "rtk",
+        "git",
+        "diff"
+      ],
+      "license_provenance": {
+        "source_id": "swe-bench-multilingual"
+      },
+      "locale": "C.UTF-8",
+      "measurement_recipe": {
+        "combine_policy": "stdout_then_stderr",
+        "isolation": "network-denied (unshare -n), fresh workdir",
+        "reps": 3
+      },
+      "memory_limit_bytes": 10737418240,
+      "original_argv": [
+        "git",
+        "diff"
+      ],
+      "original_command_shell_readable": "git diff",
+      "output_size_stratum": "unmeasured_pre_qualification",
+      "repository": "immutable-js/immutable-js",
+      "rtk_argv_resolution": null,
+      "rtk_support_classification": "RTK_NATIVE_SPECIALIZED",
+      "semantic_oracle_parameters": [
+        "affected_paths",
+        "added_deleted_totals",
+        "patch_semantic_hash",
+        "binary_markers"
+      ],
+      "semantic_oracle_type": "git_diff_oracle",
+      "setup_recipe": {
+        "acquire": "network acquisition per \u00a75 (image build / archive / checkout)",
+        "identity": {
+          "base_commit": "493afba6ec17d9c999dc5a15ac80c71c6bdba1c3",
+          "instance_id": "immutable-js__immutable-js-2006",
+          "kind": "swebench_recipe",
+          "repository": "immutable-js/immutable-js"
+        }
+      },
+      "snapshot_variant": "dirty",
+      "source_id": "swe-bench-multilingual",
+      "source_image_identity": {
+        "base_commit": "493afba6ec17d9c999dc5a15ac80c71c6bdba1c3",
+        "instance_id": "immutable-js__immutable-js-2006",
+        "kind": "swebench_recipe",
+        "repository": "immutable-js/immutable-js"
+      },
+      "stdout_stderr_policy": "capture separately; meter combined stdout_then_stderr",
+      "target_test_ids": null,
+      "terminal_width": 120,
+      "timeout_seconds": 120,
+      "timezone": "UTC",
+      "working_directory": "/work"
+    },
+    {
+      "case_id": "javaparser__javaparser-4538::jvm::test::fixed",
+      "cluster_id": "swebench:javaparser__javaparser-4538",
+      "command_family": "jvm",
+      "command_subfamily": "test",
+      "environment": {
+        "COLUMNS": "120",
+        "LANG": "C.UTF-8",
+        "LC_ALL": "C.UTF-8",
+        "LINES": "40",
+        "NO_COLOR": "1",
+        "TERM": "dumb",
+        "TZ": "UTC"
+      },
+      "expected_exit_code": 0,
+      "expected_raw_outcome": "pass",
+      "explicit_rtk_argv": [
+        "rtk",
+        "mvn",
+        "test"
+      ],
+      "license_provenance": {
+        "source_id": "swe-bench-multilingual"
+      },
+      "locale": "C.UTF-8",
+      "measurement_recipe": {
+        "combine_policy": "stdout_then_stderr",
+        "isolation": "network-denied (unshare -n), fresh workdir",
+        "reps": 3
+      },
+      "memory_limit_bytes": 10737418240,
+      "original_argv": [
+        "mvn",
+        "test"
+      ],
+      "original_command_shell_readable": "mvn test",
+      "output_size_stratum": "unmeasured_pre_qualification",
+      "repository": "javaparser/javaparser",
+      "rtk_argv_resolution": null,
+      "rtk_support_classification": "RTK_NATIVE_SPECIALIZED",
+      "semantic_oracle_parameters": [
+        "exit_code",
+        "total",
+        "passed",
+        "failed",
+        "skipped",
+        "failed_test_ids",
+        "failing_module_ids",
+        "primary_error_locations"
+      ],
+      "semantic_oracle_type": "test_oracle",
+      "setup_recipe": {
+        "acquire": "network acquisition per \u00a75 (image build / archive / checkout)",
+        "identity": {
+          "base_commit": "e0eb16b8870fc05c03ab794e502dd76f97422e26",
+          "instance_id": "javaparser__javaparser-4538",
+          "kind": "swebench_recipe",
+          "repository": "javaparser/javaparser"
+        }
+      },
+      "snapshot_variant": "fixed",
+      "source_id": "swe-bench-multilingual",
+      "source_image_identity": {
+        "base_commit": "e0eb16b8870fc05c03ab794e502dd76f97422e26",
+        "instance_id": "javaparser__javaparser-4538",
+        "kind": "swebench_recipe",
+        "repository": "javaparser/javaparser"
+      },
+      "stdout_stderr_policy": "capture separately; meter combined stdout_then_stderr",
+      "target_test_ids": [
+        "NodeTest"
+      ],
+      "terminal_width": 120,
+      "timeout_seconds": 600,
+      "timezone": "UTC",
+      "working_directory": "/work"
+    },
+    {
+      "case_id": "laravel__framework-52866::git::show",
+      "cluster_id": "swebench:laravel__framework-52866",
+      "command_family": "git",
+      "command_subfamily": "show",
+      "environment": {
+        "COLUMNS": "120",
+        "LANG": "C.UTF-8",
+        "LC_ALL": "C.UTF-8",
+        "LINES": "40",
+        "NO_COLOR": "1",
+        "TERM": "dumb",
+        "TZ": "UTC"
+      },
+      "expected_exit_code": null,
+      "expected_raw_outcome": "text",
+      "explicit_rtk_argv": [
+        "rtk",
+        "git",
+        "show"
+      ],
+      "license_provenance": {
+        "source_id": "swe-bench-multilingual"
+      },
+      "locale": "C.UTF-8",
+      "measurement_recipe": {
+        "combine_policy": "stdout_then_stderr",
+        "isolation": "network-denied (unshare -n), fresh workdir",
+        "reps": 3
+      },
+      "memory_limit_bytes": 10737418240,
+      "original_argv": [
+        "git",
+        "show"
+      ],
+      "original_command_shell_readable": "git show",
+      "output_size_stratum": "unmeasured_pre_qualification",
+      "repository": "laravel/framework",
+      "rtk_argv_resolution": null,
+      "rtk_support_classification": "RTK_NATIVE_SPECIALIZED",
+      "semantic_oracle_parameters": [
+        "affected_paths",
+        "added_deleted_totals",
+        "patch_semantic_hash",
+        "binary_markers"
+      ],
+      "semantic_oracle_type": "git_diff_oracle",
+      "setup_recipe": {
+        "acquire": "network acquisition per \u00a75 (image build / archive / checkout)",
+        "identity": {
+          "base_commit": "4c7850844e218b4fa25e29c83bc80b7ef06836cb",
+          "instance_id": "laravel__framework-52866",
+          "kind": "swebench_recipe",
+          "repository": "laravel/framework"
+        }
+      },
+      "snapshot_variant": "clean",
+      "source_id": "swe-bench-multilingual",
+      "source_image_identity": {
+        "base_commit": "4c7850844e218b4fa25e29c83bc80b7ef06836cb",
+        "instance_id": "laravel__framework-52866",
+        "kind": "swebench_recipe",
+        "repository": "laravel/framework"
+      },
+      "stdout_stderr_policy": "capture separately; meter combined stdout_then_stderr",
+      "target_test_ids": null,
+      "terminal_width": 120,
+      "timeout_seconds": 120,
+      "timezone": "UTC",
+      "working_directory": "/work"
+    },
+    {
+      "case_id": "loghub::Apache::grep",
+      "cluster_id": "loghub:Apache",
+      "command_family": "files_search",
+      "command_subfamily": "grep",
+      "environment": {
+        "COLUMNS": "120",
+        "LANG": "C.UTF-8",
+        "LC_ALL": "C.UTF-8",
+        "LINES": "40",
+        "NO_COLOR": "1",
+        "TERM": "dumb",
+        "TZ": "UTC"
+      },
+      "expected_exit_code": null,
+      "expected_raw_outcome": "text",
+      "explicit_rtk_argv": [
+        "rtk",
+        "grep",
+        "-n",
+        "error",
+        "Apache.log"
+      ],
+      "license_provenance": {
+        "source_id": "loghub-2.0"
+      },
+      "locale": "C.UTF-8",
+      "measurement_recipe": {
+        "combine_policy": "stdout_then_stderr",
+        "isolation": "network-denied (unshare -n), fresh workdir",
+        "reps": 3
+      },
+      "memory_limit_bytes": 10737418240,
+      "original_argv": [
+        "grep",
+        "-n",
+        "error",
+        "Apache.log"
+      ],
+      "original_command_shell_readable": "grep -n error Apache.log",
+      "output_size_stratum": "unmeasured_pre_qualification",
+      "repository": "loghub/Apache",
+      "rtk_argv_resolution": null,
+      "rtk_support_classification": "RTK_NATIVE_SPECIALIZED",
+      "semantic_oracle_parameters": [
+        "match_identities(path,line,text_hash)"
+      ],
+      "semantic_oracle_type": "grep_oracle",
+      "setup_recipe": {
+        "acquire": "network acquisition per \u00a75 (image build / archive / checkout)",
+        "identity": {
+          "checksum": "md5:0c52d166e5ee118b2d19d8a57cd2d0b4",
+          "key": "Apache.zip",
+          "kind": "zenodo_file",
+          "size": 578629
+        }
+      },
+      "snapshot_variant": "prepared",
+      "source_id": "loghub-2.0",
+      "source_image_identity": {
+        "checksum": "md5:0c52d166e5ee118b2d19d8a57cd2d0b4",
+        "key": "Apache.zip",
+        "kind": "zenodo_file",
+        "size": 578629
+      },
+      "stdout_stderr_policy": "capture separately; meter combined stdout_then_stderr",
+      "target_test_ids": null,
+      "terminal_width": 120,
+      "timeout_seconds": 120,
+      "timezone": "UTC",
+      "working_directory": "/work"
+    },
+    {
+      "case_id": "loghub::BGL::grep",
+      "cluster_id": "loghub:BGL",
+      "command_family": "files_search",
+      "command_subfamily": "grep",
+      "environment": {
+        "COLUMNS": "120",
+        "LANG": "C.UTF-8",
+        "LC_ALL": "C.UTF-8",
+        "LINES": "40",
+        "NO_COLOR": "1",
+        "TERM": "dumb",
+        "TZ": "UTC"
+      },
+      "expected_exit_code": null,
+      "expected_raw_outcome": "text",
+      "explicit_rtk_argv": [
+        "rtk",
+        "grep",
+        "-n",
+        "error",
+        "BGL.log"
+      ],
+      "license_provenance": {
+        "source_id": "loghub-2.0"
+      },
+      "locale": "C.UTF-8",
+      "measurement_recipe": {
+        "combine_policy": "stdout_then_stderr",
+        "isolation": "network-denied (unshare -n), fresh workdir",
+        "reps": 3
+      },
+      "memory_limit_bytes": 10737418240,
+      "original_argv": [
+        "grep",
+        "-n",
+        "error",
+        "BGL.log"
+      ],
+      "original_command_shell_readable": "grep -n error BGL.log",
+      "output_size_stratum": "unmeasured_pre_qualification",
+      "repository": "loghub/BGL",
+      "rtk_argv_resolution": null,
+      "rtk_support_classification": "RTK_NATIVE_SPECIALIZED",
+      "semantic_oracle_parameters": [
+        "match_identities(path,line,text_hash)"
+      ],
+      "semantic_oracle_type": "grep_oracle",
+      "setup_recipe": {
+        "acquire": "network acquisition per \u00a75 (image build / archive / checkout)",
+        "identity": {
+          "checksum": "md5:521ee643375bb6e9d0dd88636ff7ece1",
+          "key": "BGL.zip",
+          "kind": "zenodo_file",
+          "size": 86118141
+        }
+      },
+      "snapshot_variant": "prepared",
+      "source_id": "loghub-2.0",
+      "source_image_identity": {
+        "checksum": "md5:521ee643375bb6e9d0dd88636ff7ece1",
+        "key": "BGL.zip",
+        "kind": "zenodo_file",
+        "size": 86118141
+      },
+      "stdout_stderr_policy": "capture separately; meter combined stdout_then_stderr",
+      "target_test_ids": null,
+      "terminal_width": 120,
+      "timeout_seconds": 120,
+      "timezone": "UTC",
+      "working_directory": "/work"
+    },
+    {
+      "case_id": "loghub::BGL::log",
+      "cluster_id": "loghub:BGL",
+      "command_family": "logs",
+      "command_subfamily": "log",
+      "environment": {
+        "COLUMNS": "120",
+        "LANG": "C.UTF-8",
+        "LC_ALL": "C.UTF-8",
+        "LINES": "40",
+        "NO_COLOR": "1",
+        "TERM": "dumb",
+        "TZ": "UTC"
+      },
+      "expected_exit_code": null,
+      "expected_raw_outcome": "text",
+      "explicit_rtk_argv": [
+        "rtk",
+        "log",
+        "BGL.log"
+      ],
+      "license_provenance": {
+        "source_id": "loghub-2.0"
+      },
+      "locale": "C.UTF-8",
+      "measurement_recipe": {
+        "combine_policy": "stdout_then_stderr",
+        "isolation": "network-denied (unshare -n), fresh workdir",
+        "reps": 3
+      },
+      "memory_limit_bytes": 10737418240,
+      "original_argv": [
+        "cat",
+        "BGL.log"
+      ],
+      "original_command_shell_readable": "cat BGL.log",
+      "output_size_stratum": "unmeasured_pre_qualification",
+      "repository": "loghub/BGL",
+      "rtk_argv_resolution": null,
+      "rtk_support_classification": "RTK_NATIVE_SPECIALIZED",
+      "semantic_oracle_parameters": [
+        "unique_template_ids",
+        "occurrence_counts",
+        "severity_counts",
+        "first_last_occurrence"
+      ],
+      "semantic_oracle_type": "log_oracle",
+      "setup_recipe": {
+        "acquire": "network acquisition per \u00a75 (image build / archive / checkout)",
+        "identity": {
+          "checksum": "md5:521ee643375bb6e9d0dd88636ff7ece1",
+          "key": "BGL.zip",
+          "kind": "zenodo_file",
+          "size": 86118141
+        }
+      },
+      "snapshot_variant": "prepared",
+      "source_id": "loghub-2.0",
+      "source_image_identity": {
+        "checksum": "md5:521ee643375bb6e9d0dd88636ff7ece1",
+        "key": "BGL.zip",
+        "kind": "zenodo_file",
+        "size": 86118141
+      },
+      "stdout_stderr_policy": "capture separately; meter combined stdout_then_stderr",
+      "target_test_ids": null,
+      "terminal_width": 120,
+      "timeout_seconds": 120,
+      "timezone": "UTC",
+      "working_directory": "/work"
+    },
+    {
+      "case_id": "loghub::HDFS::grep",
+      "cluster_id": "loghub:HDFS",
+      "command_family": "files_search",
+      "command_subfamily": "grep",
+      "environment": {
+        "COLUMNS": "120",
+        "LANG": "C.UTF-8",
+        "LC_ALL": "C.UTF-8",
+        "LINES": "40",
+        "NO_COLOR": "1",
+        "TERM": "dumb",
+        "TZ": "UTC"
+      },
+      "expected_exit_code": null,
+      "expected_raw_outcome": "text",
+      "explicit_rtk_argv": [
+        "rtk",
+        "grep",
+        "-n",
+        "error",
+        "HDFS.log"
+      ],
+      "license_provenance": {
+        "source_id": "loghub-2.0"
+      },
+      "locale": "C.UTF-8",
+      "measurement_recipe": {
+        "combine_policy": "stdout_then_stderr",
+        "isolation": "network-denied (unshare -n), fresh workdir",
+        "reps": 3
+      },
+      "memory_limit_bytes": 10737418240,
+      "original_argv": [
+        "grep",
+        "-n",
+        "error",
+        "HDFS.log"
+      ],
+      "original_command_shell_readable": "grep -n error HDFS.log",
+      "output_size_stratum": "unmeasured_pre_qualification",
+      "repository": "loghub/HDFS",
+      "rtk_argv_resolution": null,
+      "rtk_support_classification": "RTK_NATIVE_SPECIALIZED",
+      "semantic_oracle_parameters": [
+        "match_identities(path,line,text_hash)"
+      ],
+      "semantic_oracle_type": "grep_oracle",
+      "setup_recipe": {
+        "acquire": "network acquisition per \u00a75 (image build / archive / checkout)",
+        "identity": {
+          "checksum": "md5:f23880dd4938379a535ab71a8d27a798",
+          "key": "HDFS.zip",
+          "kind": "zenodo_file",
+          "size": 321944794
+        }
+      },
+      "snapshot_variant": "prepared",
+      "source_id": "loghub-2.0",
+      "source_image_identity": {
+        "checksum": "md5:f23880dd4938379a535ab71a8d27a798",
+        "key": "HDFS.zip",
+        "kind": "zenodo_file",
+        "size": 321944794
+      },
+      "stdout_stderr_policy": "capture separately; meter combined stdout_then_stderr",
+      "target_test_ids": null,
+      "terminal_width": 120,
+      "timeout_seconds": 120,
+      "timezone": "UTC",
+      "working_directory": "/work"
+    },
+    {
+      "case_id": "loghub::HDFS::log",
+      "cluster_id": "loghub:HDFS",
+      "command_family": "logs",
+      "command_subfamily": "log",
+      "environment": {
+        "COLUMNS": "120",
+        "LANG": "C.UTF-8",
+        "LC_ALL": "C.UTF-8",
+        "LINES": "40",
+        "NO_COLOR": "1",
+        "TERM": "dumb",
+        "TZ": "UTC"
+      },
+      "expected_exit_code": null,
+      "expected_raw_outcome": "text",
+      "explicit_rtk_argv": [
+        "rtk",
+        "log",
+        "HDFS.log"
+      ],
+      "license_provenance": {
+        "source_id": "loghub-2.0"
+      },
+      "locale": "C.UTF-8",
+      "measurement_recipe": {
+        "combine_policy": "stdout_then_stderr",
+        "isolation": "network-denied (unshare -n), fresh workdir",
+        "reps": 3
+      },
+      "memory_limit_bytes": 10737418240,
+      "original_argv": [
+        "cat",
+        "HDFS.log"
+      ],
+      "original_command_shell_readable": "cat HDFS.log",
+      "output_size_stratum": "unmeasured_pre_qualification",
+      "repository": "loghub/HDFS",
+      "rtk_argv_resolution": null,
+      "rtk_support_classification": "RTK_NATIVE_SPECIALIZED",
+      "semantic_oracle_parameters": [
+        "unique_template_ids",
+        "occurrence_counts",
+        "severity_counts",
+        "first_last_occurrence"
+      ],
+      "semantic_oracle_type": "log_oracle",
+      "setup_recipe": {
+        "acquire": "network acquisition per \u00a75 (image build / archive / checkout)",
+        "identity": {
+          "checksum": "md5:f23880dd4938379a535ab71a8d27a798",
+          "key": "HDFS.zip",
+          "kind": "zenodo_file",
+          "size": 321944794
+        }
+      },
+      "snapshot_variant": "prepared",
+      "source_id": "loghub-2.0",
+      "source_image_identity": {
+        "checksum": "md5:f23880dd4938379a535ab71a8d27a798",
+        "key": "HDFS.zip",
+        "kind": "zenodo_file",
+        "size": 321944794
+      },
+      "stdout_stderr_policy": "capture separately; meter combined stdout_then_stderr",
+      "target_test_ids": null,
+      "terminal_width": 120,
+      "timeout_seconds": 120,
+      "timezone": "UTC",
+      "working_directory": "/work"
+    },
+    {
+      "case_id": "loghub::Hadoop::grep",
+      "cluster_id": "loghub:Hadoop",
+      "command_family": "files_search",
+      "command_subfamily": "grep",
+      "environment": {
+        "COLUMNS": "120",
+        "LANG": "C.UTF-8",
+        "LC_ALL": "C.UTF-8",
+        "LINES": "40",
+        "NO_COLOR": "1",
+        "TERM": "dumb",
+        "TZ": "UTC"
+      },
+      "expected_exit_code": null,
+      "expected_raw_outcome": "text",
+      "explicit_rtk_argv": [
+        "rtk",
+        "grep",
+        "-n",
+        "error",
+        "Hadoop.log"
+      ],
+      "license_provenance": {
+        "source_id": "loghub-2.0"
+      },
+      "locale": "C.UTF-8",
+      "measurement_recipe": {
+        "combine_policy": "stdout_then_stderr",
+        "isolation": "network-denied (unshare -n), fresh workdir",
+        "reps": 3
+      },
+      "memory_limit_bytes": 10737418240,
+      "original_argv": [
+        "grep",
+        "-n",
+        "error",
+        "Hadoop.log"
+      ],
+      "original_command_shell_readable": "grep -n error Hadoop.log",
+      "output_size_stratum": "unmeasured_pre_qualification",
+      "repository": "loghub/Hadoop",
+      "rtk_argv_resolution": null,
+      "rtk_support_classification": "RTK_NATIVE_SPECIALIZED",
+      "semantic_oracle_parameters": [
+        "match_identities(path,line,text_hash)"
+      ],
+      "semantic_oracle_type": "grep_oracle",
+      "setup_recipe": {
+        "acquire": "network acquisition per \u00a75 (image build / archive / checkout)",
+        "identity": {
+          "checksum": "md5:e8d413f0ea3f3e90956f185da9d635a8",
+          "key": "Hadoop.zip",
+          "kind": "zenodo_file",
+          "size": 4263949
+        }
+      },
+      "snapshot_variant": "prepared",
+      "source_id": "loghub-2.0",
+      "source_image_identity": {
+        "checksum": "md5:e8d413f0ea3f3e90956f185da9d635a8",
+        "key": "Hadoop.zip",
+        "kind": "zenodo_file",
+        "size": 4263949
+      },
+      "stdout_stderr_policy": "capture separately; meter combined stdout_then_stderr",
+      "target_test_ids": null,
+      "terminal_width": 120,
+      "timeout_seconds": 120,
+      "timezone": "UTC",
+      "working_directory": "/work"
+    },
+    {
+      "case_id": "loghub::Hadoop::log",
+      "cluster_id": "loghub:Hadoop",
+      "command_family": "logs",
+      "command_subfamily": "log",
+      "environment": {
+        "COLUMNS": "120",
+        "LANG": "C.UTF-8",
+        "LC_ALL": "C.UTF-8",
+        "LINES": "40",
+        "NO_COLOR": "1",
+        "TERM": "dumb",
+        "TZ": "UTC"
+      },
+      "expected_exit_code": null,
+      "expected_raw_outcome": "text",
+      "explicit_rtk_argv": [
+        "rtk",
+        "log",
+        "Hadoop.log"
+      ],
+      "license_provenance": {
+        "source_id": "loghub-2.0"
+      },
+      "locale": "C.UTF-8",
+      "measurement_recipe": {
+        "combine_policy": "stdout_then_stderr",
+        "isolation": "network-denied (unshare -n), fresh workdir",
+        "reps": 3
+      },
+      "memory_limit_bytes": 10737418240,
+      "original_argv": [
+        "cat",
+        "Hadoop.log"
+      ],
+      "original_command_shell_readable": "cat Hadoop.log",
+      "output_size_stratum": "unmeasured_pre_qualification",
+      "repository": "loghub/Hadoop",
+      "rtk_argv_resolution": null,
+      "rtk_support_classification": "RTK_NATIVE_SPECIALIZED",
+      "semantic_oracle_parameters": [
+        "unique_template_ids",
+        "occurrence_counts",
+        "severity_counts",
+        "first_last_occurrence"
+      ],
+      "semantic_oracle_type": "log_oracle",
+      "setup_recipe": {
+        "acquire": "network acquisition per \u00a75 (image build / archive / checkout)",
+        "identity": {
+          "checksum": "md5:e8d413f0ea3f3e90956f185da9d635a8",
+          "key": "Hadoop.zip",
+          "kind": "zenodo_file",
+          "size": 4263949
+        }
+      },
+      "snapshot_variant": "prepared",
+      "source_id": "loghub-2.0",
+      "source_image_identity": {
+        "checksum": "md5:e8d413f0ea3f3e90956f185da9d635a8",
+        "key": "Hadoop.zip",
+        "kind": "zenodo_file",
+        "size": 4263949
+      },
+      "stdout_stderr_policy": "capture separately; meter combined stdout_then_stderr",
+      "target_test_ids": null,
+      "terminal_width": 120,
+      "timeout_seconds": 120,
+      "timezone": "UTC",
+      "working_directory": "/work"
+    },
+    {
+      "case_id": "loghub::HealthApp::log",
+      "cluster_id": "loghub:HealthApp",
+      "command_family": "logs",
+      "command_subfamily": "log",
+      "environment": {
+        "COLUMNS": "120",
+        "LANG": "C.UTF-8",
+        "LC_ALL": "C.UTF-8",
+        "LINES": "40",
+        "NO_COLOR": "1",
+        "TERM": "dumb",
+        "TZ": "UTC"
+      },
+      "expected_exit_code": null,
+      "expected_raw_outcome": "text",
+      "explicit_rtk_argv": [
+        "rtk",
+        "log",
+        "HealthApp.log"
+      ],
+      "license_provenance": {
+        "source_id": "loghub-2.0"
+      },
+      "locale": "C.UTF-8",
+      "measurement_recipe": {
+        "combine_policy": "stdout_then_stderr",
+        "isolation": "network-denied (unshare -n), fresh workdir",
+        "reps": 3
+      },
+      "memory_limit_bytes": 10737418240,
+      "original_argv": [
+        "cat",
+        "HealthApp.log"
+      ],
+      "original_command_shell_readable": "cat HealthApp.log",
+      "output_size_stratum": "unmeasured_pre_qualification",
+      "repository": "loghub/HealthApp",
+      "rtk_argv_resolution": null,
+      "rtk_support_classification": "RTK_NATIVE_SPECIALIZED",
+      "semantic_oracle_parameters": [
+        "unique_template_ids",
+        "occurrence_counts",
+        "severity_counts",
+        "first_last_occurrence"
+      ],
+      "semantic_oracle_type": "log_oracle",
+      "setup_recipe": {
+        "acquire": "network acquisition per \u00a75 (image build / archive / checkout)",
+        "identity": {
+          "checksum": "md5:6b90126e1c78591454aef10ecc1da098",
+          "key": "HealthApp.zip",
+          "kind": "zenodo_file",
+          "size": 3960708
+        }
+      },
+      "snapshot_variant": "prepared",
+      "source_id": "loghub-2.0",
+      "source_image_identity": {
+        "checksum": "md5:6b90126e1c78591454aef10ecc1da098",
+        "key": "HealthApp.zip",
+        "kind": "zenodo_file",
+        "size": 3960708
+      },
+      "stdout_stderr_policy": "capture separately; meter combined stdout_then_stderr",
+      "target_test_ids": null,
+      "terminal_width": 120,
+      "timeout_seconds": 120,
+      "timezone": "UTC",
+      "working_directory": "/work"
+    },
+    {
+      "case_id": "loghub::OpenStack::log",
+      "cluster_id": "loghub:OpenStack",
+      "command_family": "logs",
+      "command_subfamily": "log",
+      "environment": {
+        "COLUMNS": "120",
+        "LANG": "C.UTF-8",
+        "LC_ALL": "C.UTF-8",
+        "LINES": "40",
+        "NO_COLOR": "1",
+        "TERM": "dumb",
+        "TZ": "UTC"
+      },
+      "expected_exit_code": null,
+      "expected_raw_outcome": "text",
+      "explicit_rtk_argv": [
+        "rtk",
+        "log",
+        "OpenStack.log"
+      ],
+      "license_provenance": {
+        "source_id": "loghub-2.0"
+      },
+      "locale": "C.UTF-8",
+      "measurement_recipe": {
+        "combine_policy": "stdout_then_stderr",
+        "isolation": "network-denied (unshare -n), fresh workdir",
+        "reps": 3
+      },
+      "memory_limit_bytes": 10737418240,
+      "original_argv": [
+        "cat",
+        "OpenStack.log"
+      ],
+      "original_command_shell_readable": "cat OpenStack.log",
+      "output_size_stratum": "unmeasured_pre_qualification",
+      "repository": "loghub/OpenStack",
+      "rtk_argv_resolution": null,
+      "rtk_support_classification": "RTK_NATIVE_SPECIALIZED",
+      "semantic_oracle_parameters": [
+        "unique_template_ids",
+        "occurrence_counts",
+        "severity_counts",
+        "first_last_occurrence"
+      ],
+      "semantic_oracle_type": "log_oracle",
+      "setup_recipe": {
+        "acquire": "network acquisition per \u00a75 (image build / archive / checkout)",
+        "identity": {
+          "checksum": "md5:707faeedf8b1b9f920c073114139a023",
+          "key": "OpenStack.zip",
+          "kind": "zenodo_file",
+          "size": 7387614
+        }
+      },
+      "snapshot_variant": "prepared",
+      "source_id": "loghub-2.0",
+      "source_image_identity": {
+        "checksum": "md5:707faeedf8b1b9f920c073114139a023",
+        "key": "OpenStack.zip",
+        "kind": "zenodo_file",
+        "size": 7387614
+      },
+      "stdout_stderr_policy": "capture separately; meter combined stdout_then_stderr",
+      "target_test_ids": null,
+      "terminal_width": 120,
+      "timeout_seconds": 120,
+      "timezone": "UTC",
+      "working_directory": "/work"
+    },
+    {
+      "case_id": "loghub::Proxifier::grep",
+      "cluster_id": "loghub:Proxifier",
+      "command_family": "files_search",
+      "command_subfamily": "grep",
+      "environment": {
+        "COLUMNS": "120",
+        "LANG": "C.UTF-8",
+        "LC_ALL": "C.UTF-8",
+        "LINES": "40",
+        "NO_COLOR": "1",
+        "TERM": "dumb",
+        "TZ": "UTC"
+      },
+      "expected_exit_code": null,
+      "expected_raw_outcome": "text",
+      "explicit_rtk_argv": [
+        "rtk",
+        "grep",
+        "-n",
+        "error",
+        "Proxifier.log"
+      ],
+      "license_provenance": {
+        "source_id": "loghub-2.0"
+      },
+      "locale": "C.UTF-8",
+      "measurement_recipe": {
+        "combine_policy": "stdout_then_stderr",
+        "isolation": "network-denied (unshare -n), fresh workdir",
+        "reps": 3
+      },
+      "memory_limit_bytes": 10737418240,
+      "original_argv": [
+        "grep",
+        "-n",
+        "error",
+        "Proxifier.log"
+      ],
+      "original_command_shell_readable": "grep -n error Proxifier.log",
+      "output_size_stratum": "unmeasured_pre_qualification",
+      "repository": "loghub/Proxifier",
+      "rtk_argv_resolution": null,
+      "rtk_support_classification": "RTK_NATIVE_SPECIALIZED",
+      "semantic_oracle_parameters": [
+        "match_identities(path,line,text_hash)"
+      ],
+      "semantic_oracle_type": "grep_oracle",
+      "setup_recipe": {
+        "acquire": "network acquisition per \u00a75 (image build / archive / checkout)",
+        "identity": {
+          "checksum": "md5:2e4b67dc68c3a4f1c18e267c341c52a2",
+          "key": "Proxifier.zip",
+          "kind": "zenodo_file",
+          "size": 380635
+        }
+      },
+      "snapshot_variant": "prepared",
+      "source_id": "loghub-2.0",
+      "source_image_identity": {
+        "checksum": "md5:2e4b67dc68c3a4f1c18e267c341c52a2",
+        "key": "Proxifier.zip",
+        "kind": "zenodo_file",
+        "size": 380635
+      },
+      "stdout_stderr_policy": "capture separately; meter combined stdout_then_stderr",
+      "target_test_ids": null,
+      "terminal_width": 120,
+      "timeout_seconds": 120,
+      "timezone": "UTC",
+      "working_directory": "/work"
+    },
+    {
+      "case_id": "loghub::Proxifier::log",
+      "cluster_id": "loghub:Proxifier",
+      "command_family": "logs",
+      "command_subfamily": "log",
+      "environment": {
+        "COLUMNS": "120",
+        "LANG": "C.UTF-8",
+        "LC_ALL": "C.UTF-8",
+        "LINES": "40",
+        "NO_COLOR": "1",
+        "TERM": "dumb",
+        "TZ": "UTC"
+      },
+      "expected_exit_code": null,
+      "expected_raw_outcome": "text",
+      "explicit_rtk_argv": [
+        "rtk",
+        "log",
+        "Proxifier.log"
+      ],
+      "license_provenance": {
+        "source_id": "loghub-2.0"
+      },
+      "locale": "C.UTF-8",
+      "measurement_recipe": {
+        "combine_policy": "stdout_then_stderr",
+        "isolation": "network-denied (unshare -n), fresh workdir",
+        "reps": 3
+      },
+      "memory_limit_bytes": 10737418240,
+      "original_argv": [
+        "cat",
+        "Proxifier.log"
+      ],
+      "original_command_shell_readable": "cat Proxifier.log",
+      "output_size_stratum": "unmeasured_pre_qualification",
+      "repository": "loghub/Proxifier",
+      "rtk_argv_resolution": null,
+      "rtk_support_classification": "RTK_NATIVE_SPECIALIZED",
+      "semantic_oracle_parameters": [
+        "unique_template_ids",
+        "occurrence_counts",
+        "severity_counts",
+        "first_last_occurrence"
+      ],
+      "semantic_oracle_type": "log_oracle",
+      "setup_recipe": {
+        "acquire": "network acquisition per \u00a75 (image build / archive / checkout)",
+        "identity": {
+          "checksum": "md5:2e4b67dc68c3a4f1c18e267c341c52a2",
+          "key": "Proxifier.zip",
+          "kind": "zenodo_file",
+          "size": 380635
+        }
+      },
+      "snapshot_variant": "prepared",
+      "source_id": "loghub-2.0",
+      "source_image_identity": {
+        "checksum": "md5:2e4b67dc68c3a4f1c18e267c341c52a2",
+        "key": "Proxifier.zip",
+        "kind": "zenodo_file",
+        "size": 380635
+      },
+      "stdout_stderr_policy": "capture separately; meter combined stdout_then_stderr",
+      "target_test_ids": null,
+      "terminal_width": 120,
+      "timeout_seconds": 120,
+      "timezone": "UTC",
+      "working_directory": "/work"
+    },
+    {
+      "case_id": "loghub::Thunderbird::grep",
+      "cluster_id": "loghub:Thunderbird",
+      "command_family": "files_search",
+      "command_subfamily": "grep",
+      "environment": {
+        "COLUMNS": "120",
+        "LANG": "C.UTF-8",
+        "LC_ALL": "C.UTF-8",
+        "LINES": "40",
+        "NO_COLOR": "1",
+        "TERM": "dumb",
+        "TZ": "UTC"
+      },
+      "expected_exit_code": null,
+      "expected_raw_outcome": "text",
+      "explicit_rtk_argv": [
+        "rtk",
+        "grep",
+        "-n",
+        "error",
+        "Thunderbird.log"
+      ],
+      "license_provenance": {
+        "source_id": "loghub-2.0"
+      },
+      "locale": "C.UTF-8",
+      "measurement_recipe": {
+        "combine_policy": "stdout_then_stderr",
+        "isolation": "network-denied (unshare -n), fresh workdir",
+        "reps": 3
+      },
+      "memory_limit_bytes": 10737418240,
+      "original_argv": [
+        "grep",
+        "-n",
+        "error",
+        "Thunderbird.log"
+      ],
+      "original_command_shell_readable": "grep -n error Thunderbird.log",
+      "output_size_stratum": "unmeasured_pre_qualification",
+      "repository": "loghub/Thunderbird",
+      "rtk_argv_resolution": null,
+      "rtk_support_classification": "RTK_NATIVE_SPECIALIZED",
+      "semantic_oracle_parameters": [
+        "match_identities(path,line,text_hash)"
+      ],
+      "semantic_oracle_type": "grep_oracle",
+      "setup_recipe": {
+        "acquire": "network acquisition per \u00a75 (image build / archive / checkout)",
+        "identity": {
+          "checksum": "md5:a8d365d003845c3bef61661375513910",
+          "key": "Thunderbird.zip",
+          "kind": "zenodo_file",
+          "size": 293018641
+        }
+      },
+      "snapshot_variant": "prepared",
+      "source_id": "loghub-2.0",
+      "source_image_identity": {
+        "checksum": "md5:a8d365d003845c3bef61661375513910",
+        "key": "Thunderbird.zip",
+        "kind": "zenodo_file",
+        "size": 293018641
+      },
+      "stdout_stderr_policy": "capture separately; meter combined stdout_then_stderr",
+      "target_test_ids": null,
+      "terminal_width": 120,
+      "timeout_seconds": 120,
+      "timezone": "UTC",
+      "working_directory": "/work"
+    },
+    {
+      "case_id": "mrdoob__three.js-27395::js_ts::test::buggy",
+      "cluster_id": "swebench:mrdoob__three.js-27395",
+      "command_family": "js_ts",
+      "command_subfamily": "test",
+      "environment": {
+        "COLUMNS": "120",
+        "LANG": "C.UTF-8",
+        "LC_ALL": "C.UTF-8",
+        "LINES": "40",
+        "NO_COLOR": "1",
+        "TERM": "dumb",
+        "TZ": "UTC"
+      },
+      "expected_exit_code": null,
+      "expected_raw_outcome": "fail",
+      "explicit_rtk_argv": null,
+      "license_provenance": {
+        "source_id": "swe-bench-multilingual"
+      },
+      "locale": "C.UTF-8",
+      "measurement_recipe": {
+        "combine_policy": "stdout_then_stderr",
+        "isolation": "network-denied (unshare -n), fresh workdir",
+        "reps": 3
+      },
+      "memory_limit_bytes": 10737418240,
+      "original_argv": [
+        "npm",
+        "test"
+      ],
+      "original_command_shell_readable": "npm test",
+      "output_size_stratum": "unmeasured_pre_qualification",
+      "repository": "mrdoob/three.js",
+      "rtk_argv_resolution": "acquisition:test_runner_from_package_json -> rtk jest|vitest",
+      "rtk_support_classification": "RTK_NATIVE_SPECIALIZED",
+      "semantic_oracle_parameters": [
+        "exit_code",
+        "total",
+        "passed",
+        "failed",
+        "skipped",
+        "failed_test_ids",
+        "failing_module_ids",
+        "primary_error_locations"
+      ],
+      "semantic_oracle_type": "test_oracle",
+      "setup_recipe": {
+        "acquire": "network acquisition per \u00a75 (image build / archive / checkout)",
+        "identity": {
+          "base_commit": "b99b3fd955864f534b1e2649518112f7e50fef21",
+          "instance_id": "mrdoob__three.js-27395",
+          "kind": "swebench_recipe",
+          "repository": "mrdoob/three.js"
+        }
+      },
+      "snapshot_variant": "buggy",
+      "source_id": "swe-bench-multilingual",
+      "source_image_identity": {
+        "base_commit": "b99b3fd955864f534b1e2649518112f7e50fef21",
+        "instance_id": "mrdoob__three.js-27395",
+        "kind": "swebench_recipe",
+        "repository": "mrdoob/three.js"
+      },
+      "stdout_stderr_policy": "capture separately; meter combined stdout_then_stderr",
+      "target_test_ids": [
+        "Maths > Sphere > isSphere"
+      ],
+      "terminal_width": 120,
+      "timeout_seconds": 600,
+      "timezone": "UTC",
+      "working_directory": "/work"
+    },
+    {
+      "case_id": "nushell__nushell-12950::rust_cargo::check",
+      "cluster_id": "swebench:nushell__nushell-12950",
+      "command_family": "rust_cargo",
+      "command_subfamily": "check",
+      "environment": {
+        "COLUMNS": "120",
+        "LANG": "C.UTF-8",
+        "LC_ALL": "C.UTF-8",
+        "LINES": "40",
+        "NO_COLOR": "1",
+        "TERM": "dumb",
+        "TZ": "UTC"
+      },
+      "expected_exit_code": 0,
+      "expected_raw_outcome": "text",
+      "explicit_rtk_argv": [
+        "rtk",
+        "cargo",
+        "check"
+      ],
+      "license_provenance": {
+        "source_id": "swe-bench-multilingual"
+      },
+      "locale": "C.UTF-8",
+      "measurement_recipe": {
+        "combine_policy": "stdout_then_stderr",
+        "isolation": "network-denied (unshare -n), fresh workdir",
+        "reps": 3
+      },
+      "memory_limit_bytes": 10737418240,
+      "original_argv": [
+        "cargo",
+        "check"
+      ],
+      "original_command_shell_readable": "cargo check",
+      "output_size_stratum": "unmeasured_pre_qualification",
+      "repository": "nushell/nushell",
+      "rtk_argv_resolution": null,
+      "rtk_support_classification": "RTK_NATIVE_SPECIALIZED",
+      "semantic_oracle_parameters": [
+        "exit_code",
+        "severity",
+        "diagnostic_code",
+        "file",
+        "line",
+        "error_count",
+        "warning_count"
+      ],
+      "semantic_oracle_type": "diagnostics_oracle",
+      "setup_recipe": {
+        "acquire": "network acquisition per \u00a75 (image build / archive / checkout)",
+        "identity": {
+          "base_commit": "0c5a67f4e5bf17a2fffbe3cbb54792a6464b3237",
+          "instance_id": "nushell__nushell-12950",
+          "kind": "swebench_recipe",
+          "repository": "nushell/nushell"
+        }
+      },
+      "snapshot_variant": "fixed",
+      "source_id": "swe-bench-multilingual",
+      "source_image_identity": {
+        "base_commit": "0c5a67f4e5bf17a2fffbe3cbb54792a6464b3237",
+        "instance_id": "nushell__nushell-12950",
+        "kind": "swebench_recipe",
+        "repository": "nushell/nushell"
+      },
+      "stdout_stderr_policy": "capture separately; meter combined stdout_then_stderr",
+      "target_test_ids": null,
+      "terminal_width": 120,
+      "timeout_seconds": 120,
+      "timezone": "UTC",
+      "working_directory": "/work"
+    },
+    {
+      "case_id": "php-cs-fixer__php-cs-fixer-8075::git::commit",
+      "cluster_id": "swebench:php-cs-fixer__php-cs-fixer-8075",
+      "command_family": "git",
+      "command_subfamily": "commit",
+      "environment": {
+        "COLUMNS": "120",
+        "LANG": "C.UTF-8",
+        "LC_ALL": "C.UTF-8",
+        "LINES": "40",
+        "NO_COLOR": "1",
+        "TERM": "dumb",
+        "TZ": "UTC"
+      },
+      "expected_exit_code": null,
+      "expected_raw_outcome": "text",
+      "explicit_rtk_argv": [
+        "rtk",
+        "git",
+        "commit",
+        "-m",
+        "n2e"
+      ],
+      "license_provenance": {
+        "source_id": "swe-bench-multilingual"
+      },
+      "locale": "C.UTF-8",
+      "measurement_recipe": {
+        "combine_policy": "stdout_then_stderr",
+        "isolation": "network-denied (unshare -n), fresh workdir",
+        "reps": 3
+      },
+      "memory_limit_bytes": 10737418240,
+      "original_argv": [
+        "git",
+        "commit",
+        "-m",
+        "n2e"
+      ],
+      "original_command_shell_readable": "git commit -m n2e",
+      "output_size_stratum": "unmeasured_pre_qualification",
+      "repository": "php-cs-fixer/php-cs-fixer",
+      "rtk_argv_resolution": null,
+      "rtk_support_classification": "RTK_NATIVE_SPECIALIZED",
+      "semantic_oracle_parameters": [
+        "exit_code",
+        "resulting_ref",
+        "changed_paths"
+      ],
+      "semantic_oracle_type": "git_state_oracle",
+      "setup_recipe": {
+        "acquire": "network acquisition per \u00a75 (image build / archive / checkout)",
+        "identity": {
+          "base_commit": "f0a95a77782538eafca6c4d2f2f2792be3dbbfcf",
+          "instance_id": "php-cs-fixer__php-cs-fixer-8075",
+          "kind": "swebench_recipe",
+          "repository": "php-cs-fixer/php-cs-fixer"
+        }
+      },
+      "snapshot_variant": "dirty",
+      "source_id": "swe-bench-multilingual",
+      "source_image_identity": {
+        "base_commit": "f0a95a77782538eafca6c4d2f2f2792be3dbbfcf",
+        "instance_id": "php-cs-fixer__php-cs-fixer-8075",
+        "kind": "swebench_recipe",
+        "repository": "php-cs-fixer/php-cs-fixer"
+      },
+      "stdout_stderr_policy": "capture separately; meter combined stdout_then_stderr",
+      "target_test_ids": null,
+      "terminal_width": 120,
+      "timeout_seconds": 120,
+      "timezone": "UTC",
+      "working_directory": "/work"
+    },
+    {
+      "case_id": "phpoffice__phpspreadsheet-4313::files_search::ls",
+      "cluster_id": "swebench:phpoffice__phpspreadsheet-4313",
+      "command_family": "files_search",
+      "command_subfamily": "ls",
+      "environment": {
+        "COLUMNS": "120",
+        "LANG": "C.UTF-8",
+        "LC_ALL": "C.UTF-8",
+        "LINES": "40",
+        "NO_COLOR": "1",
+        "TERM": "dumb",
+        "TZ": "UTC"
+      },
+      "expected_exit_code": null,
+      "expected_raw_outcome": "text",
+      "explicit_rtk_argv": [
+        "rtk",
+        "ls",
+        "-la"
+      ],
+      "license_provenance": {
+        "source_id": "swe-bench-multilingual"
+      },
+      "locale": "C.UTF-8",
+      "measurement_recipe": {
+        "combine_policy": "stdout_then_stderr",
+        "isolation": "network-denied (unshare -n), fresh workdir",
+        "reps": 3
+      },
+      "memory_limit_bytes": 10737418240,
+      "original_argv": [
+        "ls",
+        "-la"
+      ],
+      "original_command_shell_readable": "ls -la",
+      "output_size_stratum": "unmeasured_pre_qualification",
+      "repository": "phpoffice/phpspreadsheet",
+      "rtk_argv_resolution": null,
+      "rtk_support_classification": "RTK_NATIVE_SPECIALIZED",
+      "semantic_oracle_parameters": [
+        "entry_set",
+        "type_per_entry"
+      ],
+      "semantic_oracle_type": "file_listing_oracle",
+      "setup_recipe": {
+        "acquire": "network acquisition per \u00a75 (image build / archive / checkout)",
+        "identity": {
+          "base_commit": "eacaa25dca01b79b9b468184c452b97ad0b30dd7",
+          "instance_id": "phpoffice__phpspreadsheet-4313",
+          "kind": "swebench_recipe",
+          "repository": "phpoffice/phpspreadsheet"
+        }
+      },
+      "snapshot_variant": "snapshot",
+      "source_id": "swe-bench-multilingual",
+      "source_image_identity": {
+        "base_commit": "eacaa25dca01b79b9b468184c452b97ad0b30dd7",
+        "instance_id": "phpoffice__phpspreadsheet-4313",
+        "kind": "swebench_recipe",
+        "repository": "phpoffice/phpspreadsheet"
+      },
+      "stdout_stderr_policy": "capture separately; meter combined stdout_then_stderr",
+      "target_test_ids": null,
+      "terminal_width": 120,
+      "timeout_seconds": 120,
+      "timezone": "UTC",
+      "working_directory": "/work"
+    },
+    {
+      "case_id": "preactjs__preact-3345::files_search::read",
+      "cluster_id": "swebench:preactjs__preact-3345",
+      "command_family": "files_search",
+      "command_subfamily": "read",
+      "environment": {
+        "COLUMNS": "120",
+        "LANG": "C.UTF-8",
+        "LC_ALL": "C.UTF-8",
+        "LINES": "40",
+        "NO_COLOR": "1",
+        "TERM": "dumb",
+        "TZ": "UTC"
+      },
+      "expected_exit_code": null,
+      "expected_raw_outcome": "text",
+      "explicit_rtk_argv": [
+        "rtk",
+        "read",
+        "README.md"
+      ],
+      "license_provenance": {
+        "source_id": "swe-bench-multilingual"
+      },
+      "locale": "C.UTF-8",
+      "measurement_recipe": {
+        "combine_policy": "stdout_then_stderr",
+        "isolation": "network-denied (unshare -n), fresh workdir",
+        "reps": 3
+      },
+      "memory_limit_bytes": 10737418240,
+      "original_argv": [
+        "cat",
+        "README.md"
+      ],
+      "original_command_shell_readable": "cat README.md",
+      "output_size_stratum": "unmeasured_pre_qualification",
+      "repository": "preactjs/preact",
+      "rtk_argv_resolution": null,
+      "rtk_support_classification": "RTK_NATIVE_SPECIALIZED",
+      "semantic_oracle_parameters": [
+        "selected_path",
+        "source_sha256",
+        "requested_range",
+        "truncation",
+        "retained_line_coverage"
+      ],
+      "semantic_oracle_type": "file_read_oracle",
+      "setup_recipe": {
+        "acquire": "network acquisition per \u00a75 (image build / archive / checkout)",
+        "identity": {
+          "base_commit": "e0e17046753fe09881dfb8d5a69b44933d1fa1ea",
+          "instance_id": "preactjs__preact-3345",
+          "kind": "swebench_recipe",
+          "repository": "preactjs/preact"
+        }
+      },
+      "snapshot_variant": "snapshot",
+      "source_id": "swe-bench-multilingual",
+      "source_image_identity": {
+        "base_commit": "e0e17046753fe09881dfb8d5a69b44933d1fa1ea",
+        "instance_id": "preactjs__preact-3345",
+        "kind": "swebench_recipe",
+        "repository": "preactjs/preact"
+      },
+      "stdout_stderr_policy": "capture separately; meter combined stdout_then_stderr",
+      "target_test_ids": null,
+      "terminal_width": 120,
+      "timeout_seconds": 120,
+      "timezone": "UTC",
+      "working_directory": "/work"
+    },
+    {
+      "case_id": "preactjs__preact-3345::js_ts::lint",
+      "cluster_id": "swebench:preactjs__preact-3345",
+      "command_family": "js_ts",
+      "command_subfamily": "lint",
+      "environment": {
+        "COLUMNS": "120",
+        "LANG": "C.UTF-8",
+        "LC_ALL": "C.UTF-8",
+        "LINES": "40",
+        "NO_COLOR": "1",
+        "TERM": "dumb",
+        "TZ": "UTC"
+      },
+      "expected_exit_code": 0,
+      "expected_raw_outcome": "text",
+      "explicit_rtk_argv": [
+        "rtk",
+        "lint",
+        "."
+      ],
+      "license_provenance": {
+        "source_id": "swe-bench-multilingual"
+      },
+      "locale": "C.UTF-8",
+      "measurement_recipe": {
+        "combine_policy": "stdout_then_stderr",
+        "isolation": "network-denied (unshare -n), fresh workdir",
+        "reps": 3
+      },
+      "memory_limit_bytes": 10737418240,
+      "original_argv": [
+        "eslint",
+        "."
+      ],
+      "original_command_shell_readable": "eslint .",
+      "output_size_stratum": "unmeasured_pre_qualification",
+      "repository": "preactjs/preact",
+      "rtk_argv_resolution": null,
+      "rtk_support_classification": "RTK_NATIVE_SPECIALIZED",
+      "semantic_oracle_parameters": [
+        "exit_code",
+        "severity",
+        "diagnostic_code",
+        "file",
+        "line",
+        "error_count",
+        "warning_count"
+      ],
+      "semantic_oracle_type": "diagnostics_oracle",
+      "setup_recipe": {
+        "acquire": "network acquisition per \u00a75 (image build / archive / checkout)",
+        "identity": {
+          "base_commit": "e0e17046753fe09881dfb8d5a69b44933d1fa1ea",
+          "instance_id": "preactjs__preact-3345",
+          "kind": "swebench_recipe",
+          "repository": "preactjs/preact"
+        }
+      },
+      "snapshot_variant": "fixed",
+      "source_id": "swe-bench-multilingual",
+      "source_image_identity": {
+        "base_commit": "e0e17046753fe09881dfb8d5a69b44933d1fa1ea",
+        "instance_id": "preactjs__preact-3345",
+        "kind": "swebench_recipe",
+        "repository": "preactjs/preact"
+      },
+      "stdout_stderr_policy": "capture separately; meter combined stdout_then_stderr",
+      "target_test_ids": null,
+      "terminal_width": 120,
+      "timeout_seconds": 120,
+      "timezone": "UTC",
+      "working_directory": "/work"
+    },
+    {
+      "case_id": "preactjs__preact-3739::git::status",
+      "cluster_id": "swebench:preactjs__preact-3739",
+      "command_family": "git",
+      "command_subfamily": "status",
+      "environment": {
+        "COLUMNS": "120",
+        "LANG": "C.UTF-8",
+        "LC_ALL": "C.UTF-8",
+        "LINES": "40",
+        "NO_COLOR": "1",
+        "TERM": "dumb",
+        "TZ": "UTC"
+      },
+      "expected_exit_code": null,
+      "expected_raw_outcome": "text",
+      "explicit_rtk_argv": [
+        "rtk",
+        "git",
+        "status"
+      ],
+      "license_provenance": {
+        "source_id": "swe-bench-multilingual"
+      },
+      "locale": "C.UTF-8",
+      "measurement_recipe": {
+        "combine_policy": "stdout_then_stderr",
+        "isolation": "network-denied (unshare -n), fresh workdir",
+        "reps": 3
+      },
+      "memory_limit_bytes": 10737418240,
+      "original_argv": [
+        "git",
+        "status"
+      ],
+      "original_command_shell_readable": "git status",
+      "output_size_stratum": "unmeasured_pre_qualification",
+      "repository": "preactjs/preact",
+      "rtk_argv_resolution": null,
+      "rtk_support_classification": "RTK_NATIVE_SPECIALIZED",
+      "semantic_oracle_parameters": [
+        "changed_paths",
+        "status_code_per_path",
+        "branch_ahead_behind",
+        "untracked_paths"
+      ],
+      "semantic_oracle_type": "git_status_oracle",
+      "setup_recipe": {
+        "acquire": "network acquisition per \u00a75 (image build / archive / checkout)",
+        "identity": {
+          "base_commit": "2cafedee2ddf7c73795e887ef1970df4be2bca90",
+          "instance_id": "preactjs__preact-3739",
+          "kind": "swebench_recipe",
+          "repository": "preactjs/preact"
+        }
+      },
+      "snapshot_variant": "dirty",
+      "source_id": "swe-bench-multilingual",
+      "source_image_identity": {
+        "base_commit": "2cafedee2ddf7c73795e887ef1970df4be2bca90",
+        "instance_id": "preactjs__preact-3739",
+        "kind": "swebench_recipe",
+        "repository": "preactjs/preact"
+      },
+      "stdout_stderr_policy": "capture separately; meter combined stdout_then_stderr",
+      "target_test_ids": null,
+      "terminal_width": 120,
+      "timeout_seconds": 120,
+      "timezone": "UTC",
+      "working_directory": "/work"
+    },
+    {
+      "case_id": "projectlombok__lombok-3312::files_search::read",
+      "cluster_id": "swebench:projectlombok__lombok-3312",
+      "command_family": "files_search",
+      "command_subfamily": "read",
+      "environment": {
+        "COLUMNS": "120",
+        "LANG": "C.UTF-8",
+        "LC_ALL": "C.UTF-8",
+        "LINES": "40",
+        "NO_COLOR": "1",
+        "TERM": "dumb",
+        "TZ": "UTC"
+      },
+      "expected_exit_code": null,
+      "expected_raw_outcome": "text",
+      "explicit_rtk_argv": [
+        "rtk",
+        "read",
+        "README.md"
+      ],
+      "license_provenance": {
+        "source_id": "swe-bench-multilingual"
+      },
+      "locale": "C.UTF-8",
+      "measurement_recipe": {
+        "combine_policy": "stdout_then_stderr",
+        "isolation": "network-denied (unshare -n), fresh workdir",
+        "reps": 3
+      },
+      "memory_limit_bytes": 10737418240,
+      "original_argv": [
+        "cat",
+        "README.md"
+      ],
+      "original_command_shell_readable": "cat README.md",
+      "output_size_stratum": "unmeasured_pre_qualification",
+      "repository": "projectlombok/lombok",
+      "rtk_argv_resolution": null,
+      "rtk_support_classification": "RTK_NATIVE_SPECIALIZED",
+      "semantic_oracle_parameters": [
+        "selected_path",
+        "source_sha256",
+        "requested_range",
+        "truncation",
+        "retained_line_coverage"
+      ],
+      "semantic_oracle_type": "file_read_oracle",
+      "setup_recipe": {
+        "acquire": "network acquisition per \u00a75 (image build / archive / checkout)",
+        "identity": {
+          "base_commit": "b69ff85b9494a1a05a5763ef53069437328d443a",
+          "instance_id": "projectlombok__lombok-3312",
+          "kind": "swebench_recipe",
+          "repository": "projectlombok/lombok"
+        }
+      },
+      "snapshot_variant": "snapshot",
+      "source_id": "swe-bench-multilingual",
+      "source_image_identity": {
+        "base_commit": "b69ff85b9494a1a05a5763ef53069437328d443a",
+        "instance_id": "projectlombok__lombok-3312",
+        "kind": "swebench_recipe",
+        "repository": "projectlombok/lombok"
+      },
+      "stdout_stderr_policy": "capture separately; meter combined stdout_then_stderr",
+      "target_test_ids": null,
+      "terminal_width": 120,
+      "timeout_seconds": 120,
+      "timezone": "UTC",
+      "working_directory": "/work"
+    },
+    {
+      "case_id": "projectlombok__lombok-3422::git::diff",
+      "cluster_id": "swebench:projectlombok__lombok-3422",
+      "command_family": "git",
+      "command_subfamily": "diff",
+      "environment": {
+        "COLUMNS": "120",
+        "LANG": "C.UTF-8",
+        "LC_ALL": "C.UTF-8",
+        "LINES": "40",
+        "NO_COLOR": "1",
+        "TERM": "dumb",
+        "TZ": "UTC"
+      },
+      "expected_exit_code": null,
+      "expected_raw_outcome": "text",
+      "explicit_rtk_argv": [
+        "rtk",
+        "git",
+        "diff"
+      ],
+      "license_provenance": {
+        "source_id": "swe-bench-multilingual"
+      },
+      "locale": "C.UTF-8",
+      "measurement_recipe": {
+        "combine_policy": "stdout_then_stderr",
+        "isolation": "network-denied (unshare -n), fresh workdir",
+        "reps": 3
+      },
+      "memory_limit_bytes": 10737418240,
+      "original_argv": [
+        "git",
+        "diff"
+      ],
+      "original_command_shell_readable": "git diff",
+      "output_size_stratum": "unmeasured_pre_qualification",
+      "repository": "projectlombok/lombok",
+      "rtk_argv_resolution": null,
+      "rtk_support_classification": "RTK_NATIVE_SPECIALIZED",
+      "semantic_oracle_parameters": [
+        "affected_paths",
+        "added_deleted_totals",
+        "patch_semantic_hash",
+        "binary_markers"
+      ],
+      "semantic_oracle_type": "git_diff_oracle",
+      "setup_recipe": {
+        "acquire": "network acquisition per \u00a75 (image build / archive / checkout)",
+        "identity": {
+          "base_commit": "dbd6ad41df78e1c1491be60ec0166ceb3bd8bb05",
+          "instance_id": "projectlombok__lombok-3422",
+          "kind": "swebench_recipe",
+          "repository": "projectlombok/lombok"
+        }
+      },
+      "snapshot_variant": "dirty",
+      "source_id": "swe-bench-multilingual",
+      "source_image_identity": {
+        "base_commit": "dbd6ad41df78e1c1491be60ec0166ceb3bd8bb05",
+        "instance_id": "projectlombok__lombok-3422",
+        "kind": "swebench_recipe",
+        "repository": "projectlombok/lombok"
+      },
+      "stdout_stderr_policy": "capture separately; meter combined stdout_then_stderr",
+      "target_test_ids": null,
+      "terminal_width": 120,
+      "timeout_seconds": 120,
+      "timezone": "UTC",
+      "working_directory": "/work"
+    },
+    {
+      "case_id": "prometheus__prometheus-11859::go::build",
+      "cluster_id": "swebench:prometheus__prometheus-11859",
+      "command_family": "go",
+      "command_subfamily": "build",
+      "environment": {
+        "COLUMNS": "120",
+        "LANG": "C.UTF-8",
+        "LC_ALL": "C.UTF-8",
+        "LINES": "40",
+        "NO_COLOR": "1",
+        "TERM": "dumb",
+        "TZ": "UTC"
+      },
+      "expected_exit_code": 0,
+      "expected_raw_outcome": "text",
+      "explicit_rtk_argv": [
+        "rtk",
+        "go",
+        "build",
+        "./..."
+      ],
+      "license_provenance": {
+        "source_id": "swe-bench-multilingual"
+      },
+      "locale": "C.UTF-8",
+      "measurement_recipe": {
+        "combine_policy": "stdout_then_stderr",
+        "isolation": "network-denied (unshare -n), fresh workdir",
+        "reps": 3
+      },
+      "memory_limit_bytes": 10737418240,
+      "original_argv": [
+        "go",
+        "build",
+        "./..."
+      ],
+      "original_command_shell_readable": "go build ./...",
+      "output_size_stratum": "unmeasured_pre_qualification",
+      "repository": "prometheus/prometheus",
+      "rtk_argv_resolution": null,
+      "rtk_support_classification": "RTK_NATIVE_SPECIALIZED",
+      "semantic_oracle_parameters": [
+        "exit_code",
+        "severity",
+        "diagnostic_code",
+        "file",
+        "line",
+        "error_count",
+        "warning_count"
+      ],
+      "semantic_oracle_type": "diagnostics_oracle",
+      "setup_recipe": {
+        "acquire": "network acquisition per \u00a75 (image build / archive / checkout)",
+        "identity": {
+          "base_commit": "5ec1b4baaf01dae0b22567db53886c83b74e0e76",
+          "instance_id": "prometheus__prometheus-11859",
+          "kind": "swebench_recipe",
+          "repository": "prometheus/prometheus"
+        }
+      },
+      "snapshot_variant": "fixed",
+      "source_id": "swe-bench-multilingual",
+      "source_image_identity": {
+        "base_commit": "5ec1b4baaf01dae0b22567db53886c83b74e0e76",
+        "instance_id": "prometheus__prometheus-11859",
+        "kind": "swebench_recipe",
+        "repository": "prometheus/prometheus"
+      },
+      "stdout_stderr_policy": "capture separately; meter combined stdout_then_stderr",
+      "target_test_ids": null,
+      "terminal_width": 120,
+      "timeout_seconds": 120,
+      "timezone": "UTC",
+      "working_directory": "/work"
+    },
+    {
+      "case_id": "redis__redis-10764::git::push",
+      "cluster_id": "swebench:redis__redis-10764",
+      "command_family": "git",
+      "command_subfamily": "push",
+      "environment": {
+        "COLUMNS": "120",
+        "LANG": "C.UTF-8",
+        "LC_ALL": "C.UTF-8",
+        "LINES": "40",
+        "NO_COLOR": "1",
+        "TERM": "dumb",
+        "TZ": "UTC"
+      },
+      "expected_exit_code": null,
+      "expected_raw_outcome": "text",
+      "explicit_rtk_argv": [
+        "rtk",
+        "git",
+        "push",
+        "n2e-local",
+        "HEAD"
+      ],
+      "license_provenance": {
+        "source_id": "swe-bench-multilingual"
+      },
+      "locale": "C.UTF-8",
+      "measurement_recipe": {
+        "combine_policy": "stdout_then_stderr",
+        "isolation": "network-denied (unshare -n), fresh workdir",
+        "reps": 3
+      },
+      "memory_limit_bytes": 10737418240,
+      "original_argv": [
+        "git",
+        "push",
+        "n2e-local",
+        "HEAD"
+      ],
+      "original_command_shell_readable": "git push n2e-local HEAD",
+      "output_size_stratum": "unmeasured_pre_qualification",
+      "repository": "redis/redis",
+      "rtk_argv_resolution": null,
+      "rtk_support_classification": "RTK_NATIVE_SPECIALIZED",
+      "semantic_oracle_parameters": [
+        "exit_code",
+        "resulting_ref",
+        "changed_paths"
+      ],
+      "semantic_oracle_type": "git_state_oracle",
+      "setup_recipe": {
+        "acquire": "network acquisition per \u00a75 (image build / archive / checkout)",
+        "identity": {
+          "base_commit": "843a4cdc075a5b251e1b154f8013a9e0abe1038b",
+          "instance_id": "redis__redis-10764",
+          "kind": "swebench_recipe",
+          "repository": "redis/redis"
+        }
+      },
+      "snapshot_variant": "clean",
+      "source_id": "swe-bench-multilingual",
+      "source_image_identity": {
+        "base_commit": "843a4cdc075a5b251e1b154f8013a9e0abe1038b",
+        "instance_id": "redis__redis-10764",
+        "kind": "swebench_recipe",
+        "repository": "redis/redis"
+      },
+      "stdout_stderr_policy": "capture separately; meter combined stdout_then_stderr",
+      "target_test_ids": null,
+      "terminal_width": 120,
+      "timeout_seconds": 120,
+      "timezone": "UTC",
+      "working_directory": "/work"
+    },
+    {
+      "case_id": "rubocop__rubocop-13503::git::push",
+      "cluster_id": "swebench:rubocop__rubocop-13503",
+      "command_family": "git",
+      "command_subfamily": "push",
+      "environment": {
+        "COLUMNS": "120",
+        "LANG": "C.UTF-8",
+        "LC_ALL": "C.UTF-8",
+        "LINES": "40",
+        "NO_COLOR": "1",
+        "TERM": "dumb",
+        "TZ": "UTC"
+      },
+      "expected_exit_code": null,
+      "expected_raw_outcome": "text",
+      "explicit_rtk_argv": [
+        "rtk",
+        "git",
+        "push",
+        "n2e-local",
+        "HEAD"
+      ],
+      "license_provenance": {
+        "source_id": "swe-bench-multilingual"
+      },
+      "locale": "C.UTF-8",
+      "measurement_recipe": {
+        "combine_policy": "stdout_then_stderr",
+        "isolation": "network-denied (unshare -n), fresh workdir",
+        "reps": 3
+      },
+      "memory_limit_bytes": 10737418240,
+      "original_argv": [
+        "git",
+        "push",
+        "n2e-local",
+        "HEAD"
+      ],
+      "original_command_shell_readable": "git push n2e-local HEAD",
+      "output_size_stratum": "unmeasured_pre_qualification",
+      "repository": "rubocop/rubocop",
+      "rtk_argv_resolution": null,
+      "rtk_support_classification": "RTK_NATIVE_SPECIALIZED",
+      "semantic_oracle_parameters": [
+        "exit_code",
+        "resulting_ref",
+        "changed_paths"
+      ],
+      "semantic_oracle_type": "git_state_oracle",
+      "setup_recipe": {
+        "acquire": "network acquisition per \u00a75 (image build / archive / checkout)",
+        "identity": {
+          "base_commit": "5800663c334011cc0fb580498ebc54f5a09187c2",
+          "instance_id": "rubocop__rubocop-13503",
+          "kind": "swebench_recipe",
+          "repository": "rubocop/rubocop"
+        }
+      },
+      "snapshot_variant": "clean",
+      "source_id": "swe-bench-multilingual",
+      "source_image_identity": {
+        "base_commit": "5800663c334011cc0fb580498ebc54f5a09187c2",
+        "instance_id": "rubocop__rubocop-13503",
+        "kind": "swebench_recipe",
+        "repository": "rubocop/rubocop"
+      },
+      "stdout_stderr_policy": "capture separately; meter combined stdout_then_stderr",
+      "target_test_ids": null,
+      "terminal_width": 120,
+      "timeout_seconds": 120,
+      "timezone": "UTC",
+      "working_directory": "/work"
+    },
+    {
+      "case_id": "rubocop__rubocop-13687::git::show",
+      "cluster_id": "swebench:rubocop__rubocop-13687",
+      "command_family": "git",
+      "command_subfamily": "show",
+      "environment": {
+        "COLUMNS": "120",
+        "LANG": "C.UTF-8",
+        "LC_ALL": "C.UTF-8",
+        "LINES": "40",
+        "NO_COLOR": "1",
+        "TERM": "dumb",
+        "TZ": "UTC"
+      },
+      "expected_exit_code": null,
+      "expected_raw_outcome": "text",
+      "explicit_rtk_argv": [
+        "rtk",
+        "git",
+        "show"
+      ],
+      "license_provenance": {
+        "source_id": "swe-bench-multilingual"
+      },
+      "locale": "C.UTF-8",
+      "measurement_recipe": {
+        "combine_policy": "stdout_then_stderr",
+        "isolation": "network-denied (unshare -n), fresh workdir",
+        "reps": 3
+      },
+      "memory_limit_bytes": 10737418240,
+      "original_argv": [
+        "git",
+        "show"
+      ],
+      "original_command_shell_readable": "git show",
+      "output_size_stratum": "unmeasured_pre_qualification",
+      "repository": "rubocop/rubocop",
+      "rtk_argv_resolution": null,
+      "rtk_support_classification": "RTK_NATIVE_SPECIALIZED",
+      "semantic_oracle_parameters": [
+        "affected_paths",
+        "added_deleted_totals",
+        "patch_semantic_hash",
+        "binary_markers"
+      ],
+      "semantic_oracle_type": "git_diff_oracle",
+      "setup_recipe": {
+        "acquire": "network acquisition per \u00a75 (image build / archive / checkout)",
+        "identity": {
+          "base_commit": "f0ec1b58283bbf89625883b45d2aec5e515c95b3",
+          "instance_id": "rubocop__rubocop-13687",
+          "kind": "swebench_recipe",
+          "repository": "rubocop/rubocop"
+        }
+      },
+      "snapshot_variant": "clean",
+      "source_id": "swe-bench-multilingual",
+      "source_image_identity": {
+        "base_commit": "f0ec1b58283bbf89625883b45d2aec5e515c95b3",
+        "instance_id": "rubocop__rubocop-13687",
+        "kind": "swebench_recipe",
+        "repository": "rubocop/rubocop"
+      },
+      "stdout_stderr_policy": "capture separately; meter combined stdout_then_stderr",
+      "target_test_ids": null,
+      "terminal_width": 120,
+      "timeout_seconds": 120,
+      "timezone": "UTC",
+      "working_directory": "/work"
+    },
+    {
+      "case_id": "sharkdp__bat-562::rust_cargo::clippy",
+      "cluster_id": "swebench:sharkdp__bat-562",
+      "command_family": "rust_cargo",
+      "command_subfamily": "clippy",
+      "environment": {
+        "COLUMNS": "120",
+        "LANG": "C.UTF-8",
+        "LC_ALL": "C.UTF-8",
+        "LINES": "40",
+        "NO_COLOR": "1",
+        "TERM": "dumb",
+        "TZ": "UTC"
+      },
+      "expected_exit_code": 0,
+      "expected_raw_outcome": "text",
+      "explicit_rtk_argv": [
+        "rtk",
+        "cargo",
+        "clippy"
+      ],
+      "license_provenance": {
+        "source_id": "swe-bench-multilingual"
+      },
+      "locale": "C.UTF-8",
+      "measurement_recipe": {
+        "combine_policy": "stdout_then_stderr",
+        "isolation": "network-denied (unshare -n), fresh workdir",
+        "reps": 3
+      },
+      "memory_limit_bytes": 10737418240,
+      "original_argv": [
+        "cargo",
+        "clippy"
+      ],
+      "original_command_shell_readable": "cargo clippy",
+      "output_size_stratum": "unmeasured_pre_qualification",
+      "repository": "sharkdp/bat",
+      "rtk_argv_resolution": null,
+      "rtk_support_classification": "RTK_NATIVE_SPECIALIZED",
+      "semantic_oracle_parameters": [
+        "exit_code",
+        "severity",
+        "diagnostic_code",
+        "file",
+        "line",
+        "error_count",
+        "warning_count"
+      ],
+      "semantic_oracle_type": "diagnostics_oracle",
+      "setup_recipe": {
+        "acquire": "network acquisition per \u00a75 (image build / archive / checkout)",
+        "identity": {
+          "base_commit": "2b9d25df052e50c60531b1000703b79bf9b6065a",
+          "instance_id": "sharkdp__bat-562",
+          "kind": "swebench_recipe",
+          "repository": "sharkdp/bat"
+        }
+      },
+      "snapshot_variant": "fixed",
+      "source_id": "swe-bench-multilingual",
+      "source_image_identity": {
+        "base_commit": "2b9d25df052e50c60531b1000703b79bf9b6065a",
+        "instance_id": "sharkdp__bat-562",
+        "kind": "swebench_recipe",
+        "repository": "sharkdp/bat"
+      },
+      "stdout_stderr_policy": "capture separately; meter combined stdout_then_stderr",
+      "target_test_ids": null,
+      "terminal_width": 120,
+      "timeout_seconds": 120,
+      "timezone": "UTC",
+      "working_directory": "/work"
+    },
+    {
+      "case_id": "tokio-rs__axum-1934::rust_cargo::test::buggy",
+      "cluster_id": "swebench:tokio-rs__axum-1934",
+      "command_family": "rust_cargo",
+      "command_subfamily": "test",
+      "environment": {
+        "COLUMNS": "120",
+        "LANG": "C.UTF-8",
+        "LC_ALL": "C.UTF-8",
+        "LINES": "40",
+        "NO_COLOR": "1",
+        "TERM": "dumb",
+        "TZ": "UTC"
+      },
+      "expected_exit_code": null,
+      "expected_raw_outcome": "fail",
+      "explicit_rtk_argv": [
+        "rtk",
+        "cargo",
+        "test"
+      ],
+      "license_provenance": {
+        "source_id": "swe-bench-multilingual"
+      },
+      "locale": "C.UTF-8",
+      "measurement_recipe": {
+        "combine_policy": "stdout_then_stderr",
+        "isolation": "network-denied (unshare -n), fresh workdir",
+        "reps": 3
+      },
+      "memory_limit_bytes": 10737418240,
+      "original_argv": [
+        "cargo",
+        "test"
+      ],
+      "original_command_shell_readable": "cargo test",
+      "output_size_stratum": "unmeasured_pre_qualification",
+      "repository": "tokio-rs/axum",
+      "rtk_argv_resolution": null,
+      "rtk_support_classification": "RTK_NATIVE_SPECIALIZED",
+      "semantic_oracle_parameters": [
+        "exit_code",
+        "total",
+        "passed",
+        "failed",
+        "skipped",
+        "failed_test_ids",
+        "failing_module_ids",
+        "primary_error_locations"
+      ],
+      "semantic_oracle_type": "test_oracle",
+      "setup_recipe": {
+        "acquire": "network acquisition per \u00a75 (image build / archive / checkout)",
+        "identity": {
+          "base_commit": "e97462d45251c21ffd1ba4fb5db30f3cf6f6cb6c",
+          "instance_id": "tokio-rs__axum-1934",
+          "kind": "swebench_recipe",
+          "repository": "tokio-rs/axum"
+        }
+      },
+      "snapshot_variant": "buggy",
+      "source_id": "swe-bench-multilingual",
+      "source_image_identity": {
+        "base_commit": "e97462d45251c21ffd1ba4fb5db30f3cf6f6cb6c",
+        "instance_id": "tokio-rs__axum-1934",
+        "kind": "swebench_recipe",
+        "repository": "tokio-rs/axum"
+      },
+      "stdout_stderr_policy": "capture separately; meter combined stdout_then_stderr",
+      "target_test_ids": [
+        "routing::tests::fallback::doesnt_panic_if_used_with_nested_router"
+      ],
+      "terminal_width": 120,
+      "timeout_seconds": 600,
+      "timezone": "UTC",
+      "working_directory": "/work"
+    },
+    {
+      "case_id": "tokio-rs__axum-691::rust_cargo::test::buggy",
+      "cluster_id": "swebench:tokio-rs__axum-691",
+      "command_family": "rust_cargo",
+      "command_subfamily": "test",
+      "environment": {
+        "COLUMNS": "120",
+        "LANG": "C.UTF-8",
+        "LC_ALL": "C.UTF-8",
+        "LINES": "40",
+        "NO_COLOR": "1",
+        "TERM": "dumb",
+        "TZ": "UTC"
+      },
+      "expected_exit_code": null,
+      "expected_raw_outcome": "fail",
+      "explicit_rtk_argv": [
+        "rtk",
+        "cargo",
+        "test"
+      ],
+      "license_provenance": {
+        "source_id": "swe-bench-multilingual"
+      },
+      "locale": "C.UTF-8",
+      "measurement_recipe": {
+        "combine_policy": "stdout_then_stderr",
+        "isolation": "network-denied (unshare -n), fresh workdir",
+        "reps": 3
+      },
+      "memory_limit_bytes": 10737418240,
+      "original_argv": [
+        "cargo",
+        "test"
+      ],
+      "original_command_shell_readable": "cargo test",
+      "output_size_stratum": "unmeasured_pre_qualification",
+      "repository": "tokio-rs/axum",
+      "rtk_argv_resolution": null,
+      "rtk_support_classification": "RTK_NATIVE_SPECIALIZED",
+      "semantic_oracle_parameters": [
+        "exit_code",
+        "total",
+        "passed",
+        "failed",
+        "skipped",
+        "failed_test_ids",
+        "failing_module_ids",
+        "primary_error_locations"
+      ],
+      "semantic_oracle_type": "test_oracle",
+      "setup_recipe": {
+        "acquire": "network acquisition per \u00a75 (image build / archive / checkout)",
+        "identity": {
+          "base_commit": "d6ce99190b2d53e5858678264027e656197f0efa",
+          "instance_id": "tokio-rs__axum-691",
+          "kind": "swebench_recipe",
+          "repository": "tokio-rs/axum"
+        }
+      },
+      "snapshot_variant": "buggy",
+      "source_id": "swe-bench-multilingual",
+      "source_image_identity": {
+        "base_commit": "d6ce99190b2d53e5858678264027e656197f0efa",
+        "instance_id": "tokio-rs__axum-691",
+        "kind": "swebench_recipe",
+        "repository": "tokio-rs/axum"
+      },
+      "stdout_stderr_policy": "capture separately; meter combined stdout_then_stderr",
+      "target_test_ids": [
+        "routing::tests::nest::nesting_router_at_root"
+      ],
+      "terminal_width": 120,
+      "timeout_seconds": 600,
+      "timezone": "UTC",
+      "working_directory": "/work"
+    },
+    {
+      "case_id": "tokio-rs__tokio-4384::git::add",
+      "cluster_id": "swebench:tokio-rs__tokio-4384",
+      "command_family": "git",
+      "command_subfamily": "add",
+      "environment": {
+        "COLUMNS": "120",
+        "LANG": "C.UTF-8",
+        "LC_ALL": "C.UTF-8",
+        "LINES": "40",
+        "NO_COLOR": "1",
+        "TERM": "dumb",
+        "TZ": "UTC"
+      },
+      "expected_exit_code": null,
+      "expected_raw_outcome": "text",
+      "explicit_rtk_argv": [
+        "rtk",
+        "git",
+        "add",
+        "-A"
+      ],
+      "license_provenance": {
+        "source_id": "swe-bench-multilingual"
+      },
+      "locale": "C.UTF-8",
+      "measurement_recipe": {
+        "combine_policy": "stdout_then_stderr",
+        "isolation": "network-denied (unshare -n), fresh workdir",
+        "reps": 3
+      },
+      "memory_limit_bytes": 10737418240,
+      "original_argv": [
+        "git",
+        "add",
+        "-A"
+      ],
+      "original_command_shell_readable": "git add -A",
+      "output_size_stratum": "unmeasured_pre_qualification",
+      "repository": "tokio-rs/tokio",
+      "rtk_argv_resolution": null,
+      "rtk_support_classification": "RTK_NATIVE_SPECIALIZED",
+      "semantic_oracle_parameters": [
+        "exit_code",
+        "resulting_ref",
+        "changed_paths"
+      ],
+      "semantic_oracle_type": "git_state_oracle",
+      "setup_recipe": {
+        "acquire": "network acquisition per \u00a75 (image build / archive / checkout)",
+        "identity": {
+          "base_commit": "553cc3b194df875cac8736473e1f01cf3e40a660",
+          "instance_id": "tokio-rs__tokio-4384",
+          "kind": "swebench_recipe",
+          "repository": "tokio-rs/tokio"
+        }
+      },
+      "snapshot_variant": "dirty",
+      "source_id": "swe-bench-multilingual",
+      "source_image_identity": {
+        "base_commit": "553cc3b194df875cac8736473e1f01cf3e40a660",
+        "instance_id": "tokio-rs__tokio-4384",
+        "kind": "swebench_recipe",
+        "repository": "tokio-rs/tokio"
+      },
+      "stdout_stderr_policy": "capture separately; meter combined stdout_then_stderr",
+      "target_test_ids": null,
+      "terminal_width": 120,
+      "timeout_seconds": 120,
+      "timezone": "UTC",
+      "working_directory": "/work"
+    },
+    {
+      "case_id": "tokio-rs__tokio-4384::rust_cargo::test::fixed",
+      "cluster_id": "swebench:tokio-rs__tokio-4384",
+      "command_family": "rust_cargo",
+      "command_subfamily": "test",
+      "environment": {
+        "COLUMNS": "120",
+        "LANG": "C.UTF-8",
+        "LC_ALL": "C.UTF-8",
+        "LINES": "40",
+        "NO_COLOR": "1",
+        "TERM": "dumb",
+        "TZ": "UTC"
+      },
+      "expected_exit_code": 0,
+      "expected_raw_outcome": "pass",
+      "explicit_rtk_argv": [
+        "rtk",
+        "cargo",
+        "test"
+      ],
+      "license_provenance": {
+        "source_id": "swe-bench-multilingual"
+      },
+      "locale": "C.UTF-8",
+      "measurement_recipe": {
+        "combine_policy": "stdout_then_stderr",
+        "isolation": "network-denied (unshare -n), fresh workdir",
+        "reps": 3
+      },
+      "memory_limit_bytes": 10737418240,
+      "original_argv": [
+        "cargo",
+        "test"
+      ],
+      "original_command_shell_readable": "cargo test",
+      "output_size_stratum": "unmeasured_pre_qualification",
+      "repository": "tokio-rs/tokio",
+      "rtk_argv_resolution": null,
+      "rtk_support_classification": "RTK_NATIVE_SPECIALIZED",
+      "semantic_oracle_parameters": [
+        "exit_code",
+        "total",
+        "passed",
+        "failed",
+        "skipped",
+        "failed_test_ids",
+        "failing_module_ids",
+        "primary_error_locations"
+      ],
+      "semantic_oracle_type": "test_oracle",
+      "setup_recipe": {
+        "acquire": "network acquisition per \u00a75 (image build / archive / checkout)",
+        "identity": {
+          "base_commit": "553cc3b194df875cac8736473e1f01cf3e40a660",
+          "instance_id": "tokio-rs__tokio-4384",
+          "kind": "swebench_recipe",
+          "repository": "tokio-rs/tokio"
+        }
+      },
+      "snapshot_variant": "fixed",
+      "source_id": "swe-bench-multilingual",
+      "source_image_identity": {
+        "base_commit": "553cc3b194df875cac8736473e1f01cf3e40a660",
+        "instance_id": "tokio-rs__tokio-4384",
+        "kind": "swebench_recipe",
+        "repository": "tokio-rs/tokio"
+      },
+      "stdout_stderr_policy": "capture separately; meter combined stdout_then_stderr",
+      "target_test_ids": [
+        "net_types_are_unwind_safe",
+        "unix_net_types_are_unwind_safe"
+      ],
+      "terminal_width": 120,
+      "timeout_seconds": 600,
+      "timezone": "UTC",
+      "working_directory": "/work"
+    },
+    {
+      "case_id": "uutils__coreutils-6682::rust_cargo::test::fixed",
+      "cluster_id": "swebench:uutils__coreutils-6682",
+      "command_family": "rust_cargo",
+      "command_subfamily": "test",
+      "environment": {
+        "COLUMNS": "120",
+        "LANG": "C.UTF-8",
+        "LC_ALL": "C.UTF-8",
+        "LINES": "40",
+        "NO_COLOR": "1",
+        "TERM": "dumb",
+        "TZ": "UTC"
+      },
+      "expected_exit_code": 0,
+      "expected_raw_outcome": "pass",
+      "explicit_rtk_argv": [
+        "rtk",
+        "cargo",
+        "test"
+      ],
+      "license_provenance": {
+        "source_id": "swe-bench-multilingual"
+      },
+      "locale": "C.UTF-8",
+      "measurement_recipe": {
+        "combine_policy": "stdout_then_stderr",
+        "isolation": "network-denied (unshare -n), fresh workdir",
+        "reps": 3
+      },
+      "memory_limit_bytes": 10737418240,
+      "original_argv": [
+        "cargo",
+        "test"
+      ],
+      "original_command_shell_readable": "cargo test",
+      "output_size_stratum": "unmeasured_pre_qualification",
+      "repository": "uutils/coreutils",
+      "rtk_argv_resolution": null,
+      "rtk_support_classification": "RTK_NATIVE_SPECIALIZED",
+      "semantic_oracle_parameters": [
+        "exit_code",
+        "total",
+        "passed",
+        "failed",
+        "skipped",
+        "failed_test_ids",
+        "failing_module_ids",
+        "primary_error_locations"
+      ],
+      "semantic_oracle_type": "test_oracle",
+      "setup_recipe": {
+        "acquire": "network acquisition per \u00a75 (image build / archive / checkout)",
+        "identity": {
+          "base_commit": "b89a6255a9cb5ee09867707f395d02929273dc45",
+          "instance_id": "uutils__coreutils-6682",
+          "kind": "swebench_recipe",
+          "repository": "uutils/coreutils"
+        }
+      },
+      "snapshot_variant": "fixed",
+      "source_id": "swe-bench-multilingual",
+      "source_image_identity": {
+        "base_commit": "b89a6255a9cb5ee09867707f395d02929273dc45",
+        "instance_id": "uutils__coreutils-6682",
+        "kind": "swebench_recipe",
+        "repository": "uutils/coreutils"
+      },
+      "stdout_stderr_policy": "capture separately; meter combined stdout_then_stderr",
+      "target_test_ids": [
+        "test_mkdir::test_mkdir_parent_mode_skip_existing_last_component_chmod"
+      ],
+      "terminal_width": 120,
+      "timeout_seconds": 600,
+      "timezone": "UTC",
+      "working_directory": "/work"
+    },
+    {
+      "case_id": "vuejs__core-11589::js_ts::test::buggy",
+      "cluster_id": "swebench:vuejs__core-11589",
+      "command_family": "js_ts",
+      "command_subfamily": "test",
+      "environment": {
+        "COLUMNS": "120",
+        "LANG": "C.UTF-8",
+        "LC_ALL": "C.UTF-8",
+        "LINES": "40",
+        "NO_COLOR": "1",
+        "TERM": "dumb",
+        "TZ": "UTC"
+      },
+      "expected_exit_code": null,
+      "expected_raw_outcome": "fail",
+      "explicit_rtk_argv": null,
+      "license_provenance": {
+        "source_id": "swe-bench-multilingual"
+      },
+      "locale": "C.UTF-8",
+      "measurement_recipe": {
+        "combine_policy": "stdout_then_stderr",
+        "isolation": "network-denied (unshare -n), fresh workdir",
+        "reps": 3
+      },
+      "memory_limit_bytes": 10737418240,
+      "original_argv": [
+        "npm",
+        "test"
+      ],
+      "original_command_shell_readable": "npm test",
+      "output_size_stratum": "unmeasured_pre_qualification",
+      "repository": "vuejs/core",
+      "rtk_argv_resolution": "acquisition:test_runner_from_package_json -> rtk jest|vitest",
+      "rtk_support_classification": "RTK_NATIVE_SPECIALIZED",
+      "semantic_oracle_parameters": [
+        "exit_code",
+        "total",
+        "passed",
+        "failed",
+        "skipped",
+        "failed_test_ids",
+        "failing_module_ids",
+        "primary_error_locations"
+      ],
+      "semantic_oracle_type": "test_oracle",
+      "setup_recipe": {
+        "acquire": "network acquisition per \u00a75 (image build / archive / checkout)",
+        "identity": {
+          "base_commit": "3653bc0f45d6fedf84e29b64ca52584359c383c0",
+          "instance_id": "vuejs__core-11589",
+          "kind": "swebench_recipe",
+          "repository": "vuejs/core"
+        }
+      },
+      "snapshot_variant": "buggy",
+      "source_id": "swe-bench-multilingual",
+      "source_image_identity": {
+        "base_commit": "3653bc0f45d6fedf84e29b64ca52584359c383c0",
+        "instance_id": "vuejs__core-11589",
+        "kind": "swebench_recipe",
+        "repository": "vuejs/core"
+      },
+      "stdout_stderr_policy": "capture separately; meter combined stdout_then_stderr",
+      "target_test_ids": [
+        "packages/runtime-core/__tests__/apiWatch.spec.ts > api: watch > should be executed correctly"
+      ],
+      "terminal_width": 120,
+      "timeout_seconds": 600,
+      "timezone": "UTC",
+      "working_directory": "/work"
+    },
+    {
+      "case_id": "vuejs__core-11870::js_ts::tsc",
+      "cluster_id": "swebench:vuejs__core-11870",
+      "command_family": "js_ts",
+      "command_subfamily": "tsc",
+      "environment": {
+        "COLUMNS": "120",
+        "LANG": "C.UTF-8",
+        "LC_ALL": "C.UTF-8",
+        "LINES": "40",
+        "NO_COLOR": "1",
+        "TERM": "dumb",
+        "TZ": "UTC"
+      },
+      "expected_exit_code": 0,
+      "expected_raw_outcome": "text",
+      "explicit_rtk_argv": [
+        "rtk",
+        "tsc"
+      ],
+      "license_provenance": {
+        "source_id": "swe-bench-multilingual"
+      },
+      "locale": "C.UTF-8",
+      "measurement_recipe": {
+        "combine_policy": "stdout_then_stderr",
+        "isolation": "network-denied (unshare -n), fresh workdir",
+        "reps": 3
+      },
+      "memory_limit_bytes": 10737418240,
+      "original_argv": [
+        "tsc"
+      ],
+      "original_command_shell_readable": "tsc",
+      "output_size_stratum": "unmeasured_pre_qualification",
+      "repository": "vuejs/core",
+      "rtk_argv_resolution": null,
+      "rtk_support_classification": "RTK_NATIVE_SPECIALIZED",
+      "semantic_oracle_parameters": [
+        "exit_code",
+        "severity",
+        "diagnostic_code",
+        "file",
+        "line",
+        "error_count",
+        "warning_count"
+      ],
+      "semantic_oracle_type": "diagnostics_oracle",
+      "setup_recipe": {
+        "acquire": "network acquisition per \u00a75 (image build / archive / checkout)",
+        "identity": {
+          "base_commit": "67d6596d40b1807b9cd8eb0d9282932ea77be3c0",
+          "instance_id": "vuejs__core-11870",
+          "kind": "swebench_recipe",
+          "repository": "vuejs/core"
+        }
+      },
+      "snapshot_variant": "fixed",
+      "source_id": "swe-bench-multilingual",
+      "source_image_identity": {
+        "base_commit": "67d6596d40b1807b9cd8eb0d9282932ea77be3c0",
+        "instance_id": "vuejs__core-11870",
+        "kind": "swebench_recipe",
+        "repository": "vuejs/core"
+      },
+      "stdout_stderr_policy": "capture separately; meter combined stdout_then_stderr",
+      "target_test_ids": null,
+      "terminal_width": 120,
+      "timeout_seconds": 120,
+      "timezone": "UTC",
+      "working_directory": "/work"
+    }
+  ],
+  "schema_version": "n2e-record-1",
+  "selection_sha256": "sha256:403845edd8f2463af496bc8091351113ded07880cb1b318de6b4ec98ab7f6c29"
+}

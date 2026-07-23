@@ -1,0 +1,918 @@
+{
+  "claim_sources": {
+    "readme": {
+      "path": "README.md",
+      "sha256": "259b6f4dbb93e27b59de6233fb904b0d476c1dacf6e39c33faf8af11fedc5dcb"
+    },
+    "registry_rs": {
+      "path": "src/discover/registry.rs",
+      "sha256": "23ae71b890aa875d35f3b253e96fb32f1bf0c6342d8424dd5b194a154a680b43"
+    },
+    "rules_rs": {
+      "path": "src/discover/rules.rs",
+      "sha256": "7662a4ae0189464605030447fcc77b676164aeedebe64a9f1d5f556f3b87b915"
+    }
+  },
+  "classification_vocabulary": [
+    "RTK_NATIVE_SPECIALIZED",
+    "RTK_GENERIC_TEST_WRAPPER",
+    "RTK_PASSTHROUGH_CONTROL"
+  ],
+  "generated_by": "evals/interop/v2/n2/e-rtk-native-corpus/tools/build_n2e_rtk_claim_surface.py",
+  "mission": "N2-E",
+  "mission_title": "external RTK-native claim-aligned command corpus",
+  "purpose": "Align N2-E command scenarios to the pinned RTK's own command surface and published savings claims, derived from the pinned source and verified against the pinned binary's real `rtk rewrite` behavior. RTK's percentages are recorded as claims, never as measured truth.",
+  "record_sha256": "sha256:b5fa555ab7816f2a7c5c47d1609e734d8fef81db0fa99eba0c1b63d34016772e",
+  "record_type": "n2e-rtk-claim-surface",
+  "record_version": "v1",
+  "rtk_binary_sha256": "41f316adf7b30a568208a0a4f824bffb266ecb6d01bd9de81bed58e1d469dfcf",
+  "rtk_source_commit": "5d32d0736f686b69d1e8b9dc45c007d4eb77a0a2",
+  "scenario_count": 34,
+  "scenarios": [
+    {
+      "command_family": "files_search",
+      "command_subfamily": "ls",
+      "expected_rewrite": "rtk ls -la",
+      "explicit_rtk_argv": [
+        "rtk",
+        "ls",
+        "-la"
+      ],
+      "original_argv": [
+        "ls",
+        "-la"
+      ],
+      "original_command": "ls -la",
+      "rewrite_exit_code": 3,
+      "rewrite_mode": "hook",
+      "rtk_module": "src/cmds/system/ls.rs",
+      "rtk_savings_claim": {
+        "category": "Files",
+        "claim_source": "src/discover/rules.rs:109",
+        "estimated_savings_pct": 65.0,
+        "rtk_cmd": "rtk ls",
+        "subcmd_status_override": null
+      },
+      "rtk_support_classification": "RTK_NATIVE_SPECIALIZED"
+    },
+    {
+      "command_family": "files_search",
+      "command_subfamily": "tree",
+      "expected_rewrite": "rtk tree",
+      "explicit_rtk_argv": [
+        "rtk",
+        "tree"
+      ],
+      "original_argv": [
+        "tree"
+      ],
+      "original_command": "tree",
+      "rewrite_exit_code": 3,
+      "rewrite_mode": "hook",
+      "rtk_module": "src/cmds/system/tree.rs",
+      "rtk_savings_claim": {
+        "category": "Files",
+        "claim_source": "src/discover/rules.rs:410",
+        "estimated_savings_pct": 70.0,
+        "rtk_cmd": "rtk tree",
+        "subcmd_status_override": null
+      },
+      "rtk_support_classification": "RTK_NATIVE_SPECIALIZED"
+    },
+    {
+      "command_family": "files_search",
+      "command_subfamily": "read",
+      "expected_rewrite": "rtk read README.md",
+      "explicit_rtk_argv": [
+        "rtk",
+        "read",
+        "README.md"
+      ],
+      "original_argv": [
+        "cat",
+        "README.md"
+      ],
+      "original_command": "cat README.md",
+      "rewrite_exit_code": 3,
+      "rewrite_mode": "hook",
+      "rtk_module": "src/cmds/system/read.rs",
+      "rtk_savings_claim": {
+        "category": "Files",
+        "claim_source": "src/discover/rules.rs:82",
+        "estimated_savings_pct": 60.0,
+        "rtk_cmd": "rtk read",
+        "subcmd_status_override": null
+      },
+      "rtk_support_classification": "RTK_NATIVE_SPECIALIZED"
+    },
+    {
+      "command_family": "files_search",
+      "command_subfamily": "grep",
+      "expected_rewrite": "rtk grep -rn TODO .",
+      "explicit_rtk_argv": [
+        "rtk",
+        "grep",
+        "-rn",
+        "TODO",
+        "."
+      ],
+      "original_argv": [
+        "grep",
+        "-rn",
+        "TODO",
+        "."
+      ],
+      "original_command": "grep -rn TODO .",
+      "rewrite_exit_code": 3,
+      "rewrite_mode": "hook",
+      "rtk_module": "src/cmds/system/search.rs",
+      "rtk_savings_claim": {
+        "category": "Files",
+        "claim_source": "src/discover/rules.rs:91",
+        "estimated_savings_pct": 75.0,
+        "rtk_cmd": "rtk grep",
+        "subcmd_status_override": null
+      },
+      "rtk_support_classification": "RTK_NATIVE_SPECIALIZED"
+    },
+    {
+      "command_family": "files_search",
+      "command_subfamily": "rg",
+      "expected_rewrite": "rtk rg TODO",
+      "explicit_rtk_argv": [
+        "rtk",
+        "rg",
+        "TODO"
+      ],
+      "original_argv": [
+        "rg",
+        "TODO"
+      ],
+      "original_command": "rg TODO",
+      "rewrite_exit_code": 3,
+      "rewrite_mode": "hook",
+      "rtk_module": "src/cmds/system/search.rs",
+      "rtk_savings_claim": {
+        "category": "Files",
+        "claim_source": "src/discover/rules.rs:100",
+        "estimated_savings_pct": 75.0,
+        "rtk_cmd": "rtk rg",
+        "subcmd_status_override": null
+      },
+      "rtk_support_classification": "RTK_NATIVE_SPECIALIZED"
+    },
+    {
+      "command_family": "files_search",
+      "command_subfamily": "find",
+      "expected_rewrite": "rtk find . -name '*.rs'",
+      "explicit_rtk_argv": [
+        "rtk",
+        "find",
+        ".",
+        "-name",
+        "'*.rs'"
+      ],
+      "original_argv": [
+        "find",
+        ".",
+        "-name",
+        "*.rs"
+      ],
+      "original_command": "find . -name '*.rs'",
+      "rewrite_exit_code": 3,
+      "rewrite_mode": "hook",
+      "rtk_module": "src/cmds/system/find_cmd.rs",
+      "rtk_savings_claim": {
+        "category": "Files",
+        "claim_source": "src/discover/rules.rs:118",
+        "estimated_savings_pct": 70.0,
+        "rtk_cmd": "rtk find",
+        "subcmd_status_override": null
+      },
+      "rtk_support_classification": "RTK_NATIVE_SPECIALIZED"
+    },
+    {
+      "command_family": "git",
+      "command_subfamily": "status",
+      "expected_rewrite": "rtk git status",
+      "explicit_rtk_argv": [
+        "rtk",
+        "git",
+        "status"
+      ],
+      "original_argv": [
+        "git",
+        "status"
+      ],
+      "original_command": "git status",
+      "rewrite_exit_code": 3,
+      "rewrite_mode": "hook",
+      "rtk_module": "src/cmds/git/git.rs",
+      "rtk_savings_claim": {
+        "category": "Git",
+        "claim_source": "src/discover/rules.rs:14",
+        "estimated_savings_pct": 70.0,
+        "rtk_cmd": "rtk git",
+        "subcmd_status_override": null
+      },
+      "rtk_support_classification": "RTK_NATIVE_SPECIALIZED"
+    },
+    {
+      "command_family": "git",
+      "command_subfamily": "diff",
+      "expected_rewrite": "rtk git diff",
+      "explicit_rtk_argv": [
+        "rtk",
+        "git",
+        "diff"
+      ],
+      "original_argv": [
+        "git",
+        "diff"
+      ],
+      "original_command": "git diff",
+      "rewrite_exit_code": 3,
+      "rewrite_mode": "hook",
+      "rtk_module": "src/cmds/git/diff_cmd.rs",
+      "rtk_savings_claim": {
+        "category": "Git",
+        "claim_source": "src/discover/rules.rs:14",
+        "estimated_savings_pct": 80.0,
+        "rtk_cmd": "rtk git",
+        "subcmd_status_override": null
+      },
+      "rtk_support_classification": "RTK_NATIVE_SPECIALIZED"
+    },
+    {
+      "command_family": "git",
+      "command_subfamily": "log",
+      "expected_rewrite": "rtk git log",
+      "explicit_rtk_argv": [
+        "rtk",
+        "git",
+        "log"
+      ],
+      "original_argv": [
+        "git",
+        "log"
+      ],
+      "original_command": "git log",
+      "rewrite_exit_code": 3,
+      "rewrite_mode": "hook",
+      "rtk_module": "src/cmds/git/git.rs",
+      "rtk_savings_claim": {
+        "category": "Git",
+        "claim_source": "src/discover/rules.rs:14",
+        "estimated_savings_pct": 70.0,
+        "rtk_cmd": "rtk git",
+        "subcmd_status_override": null
+      },
+      "rtk_support_classification": "RTK_NATIVE_SPECIALIZED"
+    },
+    {
+      "command_family": "git",
+      "command_subfamily": "show",
+      "expected_rewrite": "rtk git show",
+      "explicit_rtk_argv": [
+        "rtk",
+        "git",
+        "show"
+      ],
+      "original_argv": [
+        "git",
+        "show"
+      ],
+      "original_command": "git show",
+      "rewrite_exit_code": 3,
+      "rewrite_mode": "hook",
+      "rtk_module": "src/cmds/git/git.rs",
+      "rtk_savings_claim": {
+        "category": "Git",
+        "claim_source": "src/discover/rules.rs:14",
+        "estimated_savings_pct": 80.0,
+        "rtk_cmd": "rtk git",
+        "subcmd_status_override": null
+      },
+      "rtk_support_classification": "RTK_NATIVE_SPECIALIZED"
+    },
+    {
+      "command_family": "git",
+      "command_subfamily": "add",
+      "expected_rewrite": "rtk git add .",
+      "explicit_rtk_argv": [
+        "rtk",
+        "git",
+        "add",
+        "."
+      ],
+      "original_argv": [
+        "git",
+        "add",
+        "."
+      ],
+      "original_command": "git add .",
+      "rewrite_exit_code": 3,
+      "rewrite_mode": "hook",
+      "rtk_module": "src/cmds/git/git.rs",
+      "rtk_savings_claim": {
+        "category": "Git",
+        "claim_source": "src/discover/rules.rs:14",
+        "estimated_savings_pct": 59.0,
+        "rtk_cmd": "rtk git",
+        "subcmd_status_override": null
+      },
+      "rtk_support_classification": "RTK_NATIVE_SPECIALIZED"
+    },
+    {
+      "command_family": "git",
+      "command_subfamily": "commit",
+      "expected_rewrite": "rtk git commit -m msg",
+      "explicit_rtk_argv": [
+        "rtk",
+        "git",
+        "commit",
+        "-m",
+        "msg"
+      ],
+      "original_argv": [
+        "git",
+        "commit",
+        "-m",
+        "msg"
+      ],
+      "original_command": "git commit -m msg",
+      "rewrite_exit_code": 3,
+      "rewrite_mode": "hook",
+      "rtk_module": "src/cmds/git/git.rs",
+      "rtk_savings_claim": {
+        "category": "Git",
+        "claim_source": "src/discover/rules.rs:14",
+        "estimated_savings_pct": 59.0,
+        "rtk_cmd": "rtk git",
+        "subcmd_status_override": null
+      },
+      "rtk_support_classification": "RTK_NATIVE_SPECIALIZED"
+    },
+    {
+      "command_family": "git",
+      "command_subfamily": "push",
+      "expected_rewrite": "rtk git push",
+      "explicit_rtk_argv": [
+        "rtk",
+        "git",
+        "push"
+      ],
+      "original_argv": [
+        "git",
+        "push"
+      ],
+      "original_command": "git push",
+      "rewrite_exit_code": 3,
+      "rewrite_mode": "hook",
+      "rtk_module": "src/cmds/git/git.rs",
+      "rtk_savings_claim": {
+        "category": "Git",
+        "claim_source": "src/discover/rules.rs:14",
+        "estimated_savings_pct": 70.0,
+        "rtk_cmd": "rtk git",
+        "subcmd_status_override": null
+      },
+      "rtk_support_classification": "RTK_NATIVE_SPECIALIZED"
+    },
+    {
+      "command_family": "rust_cargo",
+      "command_subfamily": "test",
+      "expected_rewrite": "rtk cargo test",
+      "explicit_rtk_argv": [
+        "rtk",
+        "cargo",
+        "test"
+      ],
+      "original_argv": [
+        "cargo",
+        "test"
+      ],
+      "original_command": "cargo test",
+      "rewrite_exit_code": 3,
+      "rewrite_mode": "hook",
+      "rtk_module": "src/cmds/rust/cargo_cmd.rs",
+      "rtk_savings_claim": {
+        "category": "Cargo",
+        "claim_source": "src/discover/rules.rs:46",
+        "estimated_savings_pct": 90.0,
+        "rtk_cmd": "rtk cargo",
+        "subcmd_status_override": null
+      },
+      "rtk_support_classification": "RTK_NATIVE_SPECIALIZED"
+    },
+    {
+      "command_family": "rust_cargo",
+      "command_subfamily": "build",
+      "expected_rewrite": "rtk cargo build",
+      "explicit_rtk_argv": [
+        "rtk",
+        "cargo",
+        "build"
+      ],
+      "original_argv": [
+        "cargo",
+        "build"
+      ],
+      "original_command": "cargo build",
+      "rewrite_exit_code": 3,
+      "rewrite_mode": "hook",
+      "rtk_module": "src/cmds/rust/cargo_cmd.rs",
+      "rtk_savings_claim": {
+        "category": "Cargo",
+        "claim_source": "src/discover/rules.rs:46",
+        "estimated_savings_pct": 80.0,
+        "rtk_cmd": "rtk cargo",
+        "subcmd_status_override": null
+      },
+      "rtk_support_classification": "RTK_NATIVE_SPECIALIZED"
+    },
+    {
+      "command_family": "rust_cargo",
+      "command_subfamily": "check",
+      "expected_rewrite": "rtk cargo check",
+      "explicit_rtk_argv": [
+        "rtk",
+        "cargo",
+        "check"
+      ],
+      "original_argv": [
+        "cargo",
+        "check"
+      ],
+      "original_command": "cargo check",
+      "rewrite_exit_code": 3,
+      "rewrite_mode": "hook",
+      "rtk_module": "src/cmds/rust/cargo_cmd.rs",
+      "rtk_savings_claim": {
+        "category": "Cargo",
+        "claim_source": "src/discover/rules.rs:46",
+        "estimated_savings_pct": 80.0,
+        "rtk_cmd": "rtk cargo",
+        "subcmd_status_override": null
+      },
+      "rtk_support_classification": "RTK_NATIVE_SPECIALIZED"
+    },
+    {
+      "command_family": "rust_cargo",
+      "command_subfamily": "clippy",
+      "expected_rewrite": "rtk cargo clippy",
+      "explicit_rtk_argv": [
+        "rtk",
+        "cargo",
+        "clippy"
+      ],
+      "original_argv": [
+        "cargo",
+        "clippy"
+      ],
+      "original_command": "cargo clippy",
+      "rewrite_exit_code": 3,
+      "rewrite_mode": "hook",
+      "rtk_module": "src/cmds/rust/cargo_cmd.rs",
+      "rtk_savings_claim": {
+        "category": "Cargo",
+        "claim_source": "src/discover/rules.rs:46",
+        "estimated_savings_pct": 80.0,
+        "rtk_cmd": "rtk cargo",
+        "subcmd_status_override": null
+      },
+      "rtk_support_classification": "RTK_NATIVE_SPECIALIZED"
+    },
+    {
+      "command_family": "python",
+      "command_subfamily": "pytest",
+      "expected_rewrite": "rtk pytest",
+      "explicit_rtk_argv": [
+        "rtk",
+        "pytest"
+      ],
+      "original_argv": [
+        "pytest"
+      ],
+      "original_command": "pytest",
+      "rewrite_exit_code": 3,
+      "rewrite_mode": "hook",
+      "rtk_module": "src/cmds/python/pytest_cmd.rs",
+      "rtk_savings_claim": {
+        "category": "Python",
+        "claim_source": "src/discover/rules.rs:464",
+        "estimated_savings_pct": 90.0,
+        "rtk_cmd": "rtk pytest",
+        "subcmd_status_override": null
+      },
+      "rtk_support_classification": "RTK_NATIVE_SPECIALIZED"
+    },
+    {
+      "command_family": "python",
+      "command_subfamily": "ruff",
+      "expected_rewrite": "rtk ruff check .",
+      "explicit_rtk_argv": [
+        "rtk",
+        "ruff",
+        "check",
+        "."
+      ],
+      "original_argv": [
+        "ruff",
+        "check",
+        "."
+      ],
+      "original_command": "ruff check .",
+      "rewrite_exit_code": 3,
+      "rewrite_mode": "hook",
+      "rtk_module": "src/cmds/python/ruff_cmd.rs",
+      "rtk_savings_claim": {
+        "category": "Python",
+        "claim_source": "src/discover/rules.rs:455",
+        "estimated_savings_pct": 80.0,
+        "rtk_cmd": "rtk ruff",
+        "subcmd_status_override": null
+      },
+      "rtk_support_classification": "RTK_NATIVE_SPECIALIZED"
+    },
+    {
+      "command_family": "js_ts",
+      "command_subfamily": "jest",
+      "expected_rewrite": "rtk jest",
+      "explicit_rtk_argv": [
+        "rtk",
+        "jest"
+      ],
+      "original_argv": [
+        "jest"
+      ],
+      "original_command": "jest",
+      "rewrite_exit_code": 3,
+      "rewrite_mode": "hook",
+      "rtk_module": "src/cmds/js/mod.rs",
+      "rtk_savings_claim": {
+        "category": "Tests",
+        "claim_source": "src/discover/rules.rs:253",
+        "estimated_savings_pct": 99.0,
+        "rtk_cmd": "rtk jest",
+        "subcmd_status_override": null
+      },
+      "rtk_support_classification": "RTK_NATIVE_SPECIALIZED"
+    },
+    {
+      "command_family": "js_ts",
+      "command_subfamily": "vitest",
+      "expected_rewrite": "rtk vitest",
+      "explicit_rtk_argv": [
+        "rtk",
+        "vitest"
+      ],
+      "original_argv": [
+        "vitest"
+      ],
+      "original_command": "vitest",
+      "rewrite_exit_code": 3,
+      "rewrite_mode": "hook",
+      "rtk_module": "src/cmds/js/vitest_cmd.rs",
+      "rtk_savings_claim": {
+        "category": "Tests",
+        "claim_source": "src/discover/rules.rs:293",
+        "estimated_savings_pct": 99.0,
+        "rtk_cmd": "rtk vitest",
+        "subcmd_status_override": null
+      },
+      "rtk_support_classification": "RTK_NATIVE_SPECIALIZED"
+    },
+    {
+      "command_family": "js_ts",
+      "command_subfamily": "tsc",
+      "expected_rewrite": "rtk tsc",
+      "explicit_rtk_argv": [
+        "rtk",
+        "tsc"
+      ],
+      "original_argv": [
+        "tsc"
+      ],
+      "original_command": "tsc",
+      "rewrite_exit_code": 3,
+      "rewrite_mode": "hook",
+      "rtk_module": "src/cmds/js/tsc_cmd.rs",
+      "rtk_savings_claim": {
+        "category": "Build",
+        "claim_source": "src/discover/rules.rs:127",
+        "estimated_savings_pct": 83.0,
+        "rtk_cmd": "rtk tsc",
+        "subcmd_status_override": null
+      },
+      "rtk_support_classification": "RTK_NATIVE_SPECIALIZED"
+    },
+    {
+      "command_family": "js_ts",
+      "command_subfamily": "lint",
+      "expected_rewrite": "rtk lint .",
+      "explicit_rtk_argv": [
+        "rtk",
+        "lint",
+        "."
+      ],
+      "original_argv": [
+        "eslint",
+        "."
+      ],
+      "original_command": "eslint .",
+      "rewrite_exit_code": 3,
+      "rewrite_mode": "hook",
+      "rtk_module": "src/cmds/js/lint_cmd.rs",
+      "rtk_savings_claim": {
+        "category": "Build",
+        "claim_source": "src/discover/rules.rs:152",
+        "estimated_savings_pct": 84.0,
+        "rtk_cmd": "rtk lint",
+        "subcmd_status_override": null
+      },
+      "rtk_support_classification": "RTK_NATIVE_SPECIALIZED"
+    },
+    {
+      "command_family": "js_ts",
+      "command_subfamily": "pnpm",
+      "expected_rewrite": "rtk pnpm run build",
+      "explicit_rtk_argv": [
+        "rtk",
+        "pnpm",
+        "run",
+        "build"
+      ],
+      "original_argv": [
+        "pnpm",
+        "run",
+        "build"
+      ],
+      "original_command": "pnpm run build",
+      "rewrite_exit_code": 3,
+      "rewrite_mode": "hook",
+      "rtk_module": "src/cmds/js/pnpm_cmd.rs",
+      "rtk_savings_claim": {
+        "category": "PackageManager",
+        "claim_source": "src/discover/rules.rs:55",
+        "estimated_savings_pct": 80.0,
+        "rtk_cmd": "rtk pnpm",
+        "subcmd_status_override": null
+      },
+      "rtk_support_classification": "RTK_NATIVE_SPECIALIZED"
+    },
+    {
+      "command_family": "js_ts",
+      "command_subfamily": "npm",
+      "expected_rewrite": null,
+      "explicit_rtk_argv": null,
+      "original_argv": [
+        "npm",
+        "test"
+      ],
+      "original_command": "npm test",
+      "rewrite_exit_code": 1,
+      "rewrite_mode": "hook",
+      "rtk_module": "src/cmds/js/npm_cmd.rs",
+      "rtk_savings_claim": null,
+      "rtk_support_classification": "RTK_PASSTHROUGH_CONTROL"
+    },
+    {
+      "command_family": "go",
+      "command_subfamily": "test",
+      "expected_rewrite": "rtk go test ./...",
+      "explicit_rtk_argv": [
+        "rtk",
+        "go",
+        "test",
+        "./..."
+      ],
+      "original_argv": [
+        "go",
+        "test",
+        "./..."
+      ],
+      "original_command": "go test ./...",
+      "rewrite_exit_code": 3,
+      "rewrite_mode": "hook",
+      "rtk_module": "src/cmds/go/go_cmd.rs",
+      "rtk_savings_claim": {
+        "category": "Go",
+        "claim_source": "src/discover/rules.rs:491",
+        "estimated_savings_pct": 90.0,
+        "rtk_cmd": "rtk go",
+        "subcmd_status_override": null
+      },
+      "rtk_support_classification": "RTK_NATIVE_SPECIALIZED"
+    },
+    {
+      "command_family": "go",
+      "command_subfamily": "build",
+      "expected_rewrite": "rtk go build ./...",
+      "explicit_rtk_argv": [
+        "rtk",
+        "go",
+        "build",
+        "./..."
+      ],
+      "original_argv": [
+        "go",
+        "build",
+        "./..."
+      ],
+      "original_command": "go build ./...",
+      "rewrite_exit_code": 3,
+      "rewrite_mode": "hook",
+      "rtk_module": "src/cmds/go/go_cmd.rs",
+      "rtk_savings_claim": {
+        "category": "Go",
+        "claim_source": "src/discover/rules.rs:491",
+        "estimated_savings_pct": 80.0,
+        "rtk_cmd": "rtk go",
+        "subcmd_status_override": null
+      },
+      "rtk_support_classification": "RTK_NATIVE_SPECIALIZED"
+    },
+    {
+      "command_family": "go",
+      "command_subfamily": "vet",
+      "expected_rewrite": "rtk go vet ./...",
+      "explicit_rtk_argv": [
+        "rtk",
+        "go",
+        "vet",
+        "./..."
+      ],
+      "original_argv": [
+        "go",
+        "vet",
+        "./..."
+      ],
+      "original_command": "go vet ./...",
+      "rewrite_exit_code": 3,
+      "rewrite_mode": "hook",
+      "rtk_module": "src/cmds/go/go_cmd.rs",
+      "rtk_savings_claim": {
+        "category": "Go",
+        "claim_source": "src/discover/rules.rs:491",
+        "estimated_savings_pct": 75.0,
+        "rtk_cmd": "rtk go",
+        "subcmd_status_override": null
+      },
+      "rtk_support_classification": "RTK_NATIVE_SPECIALIZED"
+    },
+    {
+      "command_family": "jvm",
+      "command_subfamily": "mvn",
+      "expected_rewrite": "rtk mvn test",
+      "explicit_rtk_argv": [
+        "rtk",
+        "mvn",
+        "test"
+      ],
+      "original_argv": [
+        "mvn",
+        "test"
+      ],
+      "original_command": "mvn test",
+      "rewrite_exit_code": 3,
+      "rewrite_mode": "hook",
+      "rtk_module": "src/cmds/jvm/mvn_cmd.rs",
+      "rtk_savings_claim": {
+        "category": "Build",
+        "claim_source": "src/discover/rules.rs:796",
+        "estimated_savings_pct": 82.0,
+        "rtk_cmd": "rtk mvn",
+        "subcmd_status_override": null
+      },
+      "rtk_support_classification": "RTK_NATIVE_SPECIALIZED"
+    },
+    {
+      "command_family": "jvm",
+      "command_subfamily": "gradlew",
+      "expected_rewrite": "rtk gradlew test",
+      "explicit_rtk_argv": [
+        "rtk",
+        "gradlew",
+        "test"
+      ],
+      "original_argv": [
+        "gradle",
+        "test"
+      ],
+      "original_command": "gradle test",
+      "rewrite_exit_code": 3,
+      "rewrite_mode": "hook",
+      "rtk_module": "src/cmds/jvm/gradlew_cmd.rs",
+      "rtk_savings_claim": {
+        "category": "Build",
+        "claim_source": "src/discover/rules.rs:733",
+        "estimated_savings_pct": 90.0,
+        "rtk_cmd": "rtk gradlew",
+        "subcmd_status_override": null
+      },
+      "rtk_support_classification": "RTK_NATIVE_SPECIALIZED"
+    },
+    {
+      "command_family": "logs",
+      "command_subfamily": "log",
+      "expected_rewrite": "rtk read app.log",
+      "explicit_rtk_argv": [
+        "rtk",
+        "log",
+        "app.log"
+      ],
+      "original_argv": [
+        "cat",
+        "app.log"
+      ],
+      "original_command": "cat app.log",
+      "rewrite_exit_code": 3,
+      "rewrite_mode": "explicit_native_interface",
+      "rtk_module": "src/cmds/system/log_cmd.rs",
+      "rtk_savings_claim": null,
+      "rtk_support_classification": "RTK_NATIVE_SPECIALIZED"
+    },
+    {
+      "command_family": "containers",
+      "command_subfamily": "ps",
+      "expected_rewrite": "rtk docker ps",
+      "explicit_rtk_argv": [
+        "rtk",
+        "docker",
+        "ps"
+      ],
+      "original_argv": [
+        "docker",
+        "ps"
+      ],
+      "original_command": "docker ps",
+      "rewrite_exit_code": 3,
+      "rewrite_mode": "hook",
+      "rtk_module": "src/cmds/cloud/container.rs",
+      "rtk_savings_claim": {
+        "category": "Infra",
+        "claim_source": "src/discover/rules.rs:383",
+        "estimated_savings_pct": 85.0,
+        "rtk_cmd": "rtk docker",
+        "subcmd_status_override": null
+      },
+      "rtk_support_classification": "RTK_NATIVE_SPECIALIZED"
+    },
+    {
+      "command_family": "containers",
+      "command_subfamily": "images",
+      "expected_rewrite": "rtk docker images",
+      "explicit_rtk_argv": [
+        "rtk",
+        "docker",
+        "images"
+      ],
+      "original_argv": [
+        "docker",
+        "images"
+      ],
+      "original_command": "docker images",
+      "rewrite_exit_code": 3,
+      "rewrite_mode": "hook",
+      "rtk_module": "src/cmds/cloud/container.rs",
+      "rtk_savings_claim": {
+        "category": "Infra",
+        "claim_source": "src/discover/rules.rs:383",
+        "estimated_savings_pct": 85.0,
+        "rtk_cmd": "rtk docker",
+        "subcmd_status_override": null
+      },
+      "rtk_support_classification": "RTK_NATIVE_SPECIALIZED"
+    },
+    {
+      "command_family": "containers",
+      "command_subfamily": "logs",
+      "expected_rewrite": "rtk docker logs c1",
+      "explicit_rtk_argv": [
+        "rtk",
+        "docker",
+        "logs",
+        "c1"
+      ],
+      "original_argv": [
+        "docker",
+        "logs",
+        "c1"
+      ],
+      "original_command": "docker logs c1",
+      "rewrite_exit_code": 3,
+      "rewrite_mode": "hook",
+      "rtk_module": "src/cmds/cloud/container.rs",
+      "rtk_savings_claim": {
+        "category": "Infra",
+        "claim_source": "src/discover/rules.rs:383",
+        "estimated_savings_pct": 85.0,
+        "rtk_cmd": "rtk docker",
+        "subcmd_status_override": null
+      },
+      "rtk_support_classification": "RTK_NATIVE_SPECIALIZED"
+    }
+  ],
+  "schema_version": "n2e-record-1"
+}

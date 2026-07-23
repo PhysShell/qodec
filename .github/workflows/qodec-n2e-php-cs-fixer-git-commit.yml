@@ -1,0 +1,177 @@
+name: qodec-n2e-php-cs-fixer-git-commit
+
+# php-cs-fixer::git::commit capture through rtk-git-commit-oracle-v1. TWO modes, selected by the trigger:
+#   * diagnostic (BARRED): ci-trigger/n2e-phpcs-commit-diag-*  or dispatch mode=diagnostic
+#   * acceptance:          ci-trigger/n2e-phpcs-commit-accept-* or dispatch mode=acceptance
+# `git commit` MUTATES, so the probe prepares one checkout (pinned commit determinants) then commits
+# on TWO byte-identical copies -- RAW `git commit` + RTK `rtk git commit`, network-denied -- and proves
+# the resulting commit OID reproduces. Records OBSERVATIONS ONLY; the dispatch recompute decides PASS.
+# Disposable trigger branch carries an ADDITIVE push commit; every job checks out impl = HEAD~1.
+on:
+  workflow_dispatch:
+    inputs:
+      mode:
+        description: "diagnostic (barred) | acceptance"
+        type: choice
+        options: [diagnostic, acceptance]
+        default: diagnostic
+  push:
+    branches:
+      - 'ci-trigger/n2e-phpcs-commit-diag-*'
+      - 'ci-trigger/n2e-phpcs-commit-accept-*'
+
+permissions:
+  contents: read
+
+env:
+  LC_ALL: C.UTF-8
+  LANG: C.UTF-8
+  TZ: UTC
+  N2E: evals/interop/v2/n2/e-rtk-native-corpus
+  RTK_SHA: "41f316adf7b30a568208a0a4f824bffb266ecb6d01bd9de81bed58e1d469dfcf"
+  CASE: "php-cs-fixer__php-cs-fixer-8075::git::commit"
+
+jobs:
+  resolve:
+    runs-on: ubuntu-24.04
+    outputs:
+      impl: ${{ steps.i.outputs.impl }}
+      mode: ${{ steps.i.outputs.mode }}
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        with:
+          fetch-depth: 2
+          persist-credentials: false
+      - id: i
+        run: |
+          if [ "${{ github.event_name }}" = "push" ] && echo "${{ github.ref }}" | grep -q 'ci-trigger/'; then
+            impl="$(git rev-parse HEAD~1)"
+          else
+            impl="${{ github.sha }}"
+          fi
+          if echo "${{ github.ref }}" | grep -q 'phpcs-commit-accept-'; then
+            mode="acceptance"
+          elif echo "${{ github.ref }}" | grep -q 'phpcs-commit-diag-'; then
+            mode="diagnostic"
+          else
+            mode="${{ github.event.inputs.mode || 'diagnostic' }}"
+          fi
+          echo "impl=$impl" >> "$GITHUB_OUTPUT"
+          echo "mode=$mode" >> "$GITHUB_OUTPUT"
+          echo "implementation commit I = $impl ; mode = $mode"
+
+  substrate:
+    runs-on: ubuntu-24.04
+    needs: [resolve]
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        with:
+          ref: ${{ needs.resolve.outputs.impl }}
+          persist-credentials: false
+      - uses: cachix/install-nix-action@08dcb3a5e62fa31e2da3d490afc4176ef55ecd72 # v30
+        with:
+          extra_nix_config: |
+            experimental-features = nix-command flakes
+            sandbox = true
+      - name: Build + export pinned RTK/QODEC closures; assert RTK identity
+        run: |
+          nix build .#rtk-pinned .#qodec -L --no-update-lock-file
+          RTK="$(nix path-info .#rtk-pinned)"
+          QODEC="$(nix path-info .#qodec)"
+          SHA="$(sha256sum "$RTK/bin/rtk" | cut -d' ' -f1)"
+          echo "rtk sha256=$SHA"; test "$SHA" = "$RTK_SHA"
+          mkdir -p substrate
+          echo "$RTK"   > substrate/rtk.storepath
+          echo "$QODEC" > substrate/qodec.storepath
+          nix-store --query --requisites "$RTK" "$QODEC" > substrate/closure-paths.txt
+          nix-store --export $(cat substrate/closure-paths.txt) | zstd -T0 -19 > substrate/closure.nar.zst
+          sha256sum substrate/closure.nar.zst > substrate/closure.nar.zst.sha256
+      - uses: actions/upload-artifact@b4b15b8c7c6ac21ea08fcf65892d2ee8f75cf882 # v4.6.2
+        with:
+          name: phpcs-commit-substrate
+          path: substrate
+          if-no-files-found: error
+          retention-days: 3
+
+  capture:
+    runs-on: ubuntu-24.04
+    needs: [resolve, substrate]
+    timeout-minutes: 40
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        with:
+          ref: ${{ needs.resolve.outputs.impl }}
+          persist-credentials: false
+      - uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065 # v5.6.0
+        with:
+          python-version: "3.11"
+      - uses: cachix/install-nix-action@08dcb3a5e62fa31e2da3d490afc4176ef55ecd72 # v30
+      - uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4.3.0
+        with:
+          name: phpcs-commit-substrate
+          path: substrate
+      - name: Import + verify RTK/QODEC closure identity
+        run: |
+          sha="$(cut -d' ' -f1 substrate/closure.nar.zst.sha256)"
+          test "$sha" = "$(sha256sum substrate/closure.nar.zst | cut -d' ' -f1)"
+          zstd -d -c substrate/closure.nar.zst | nix-store --import
+          RTK="$(cat substrate/rtk.storepath)/bin/rtk"
+          QODEC="$(cat substrate/qodec.storepath)/bin/qodec"
+          test "$(sha256sum "$RTK" | cut -d' ' -f1)" = "$RTK_SHA"
+          "$RTK" --version >/dev/null
+          echo "RTK_BIN=$RTK" >> "$GITHUB_ENV"
+          echo "QODEC_BIN=$QODEC" >> "$GITHUB_ENV"
+      # acquisition has network (git fetch github); the git show / rtk git show / plumbing arms are
+      # network-denied. The probe records observations only; no gate moves in-CI.
+      - name: Run the php-cs-fixer git commit capture (mode=${{ needs.resolve.outputs.mode }})
+        env:
+          MODE: ${{ needs.resolve.outputs.mode }}
+        run: |
+          cd "$N2E"
+          mkdir -p out
+          python3 tools/probe_php_cs_fixer_git_commit.py --case "$CASE" --mode "$MODE" \
+            --out php-cs-fixer-git-commit-$MODE-v1.json \
+            --evidence out/evidence/php-cs-fixer-git-commit
+          echo "=== capture summary (mode=$MODE) ==="
+          python3 - "$MODE" <<'PY'
+          import json, sys
+          mode = sys.argv[1]
+          d = json.load(open(f"php-cs-fixer-git-commit-{mode}-v1.json"))
+          print("outcome:", d.get("outcome"), "barred:", d.get("barred_from_qualification"))
+          ra = d.get("raw_arm") or {}; rk = d.get("rtk_arm") or {}
+          print("staged_tree_oid:", d.get("staged_tree_oid"))
+          print("raw exit:", ra.get("exit_code"), "raw git_state:", ra.get("git_state"))
+          print("rtk exit:", rk.get("exit_code"), "rtk stdout:", (rk.get("stdout") or {}).get("text"),
+                "rtk parsed:", rk.get("parsed"))
+          print("rtk git_state:", rk.get("git_state"))
+          oo = d.get("oracle_observation") or {}
+          print("raw_commit_oid:", oo.get("raw_commit_oid"), "rtk_commit_oid:", oo.get("rtk_commit_oid"),
+                "OID_REPRODUCED:", oo.get("oid_reproduced"))
+          print("equivalence:", oo.get("equivalence"))
+          PY
+      - name: Build EXTERNAL artifact manifest (path/bytes/sha256)
+        if: always()
+        run: |
+          cd "$N2E"
+          python3 - <<'PY'
+          import hashlib, json
+          from pathlib import Path
+          man = Path("out/external-artifact-manifest.json")
+          files = [p for p in Path(".").glob("php-cs-fixer-git-commit-*-v1.json")]
+          for f in sorted(Path("out").rglob("*")):
+              if f.is_file() and f != man:
+                  files.append(f)
+          entries = [{"file": str(f), "bytes": len(f.read_bytes()),
+                      "sha256": hashlib.sha256(f.read_bytes()).hexdigest()} for f in files]
+          man.write_text(json.dumps({"count": len(entries), "files": entries}, indent=1, sort_keys=True))
+          print("external manifest:", len(entries), "files")
+          PY
+      - uses: actions/upload-artifact@b4b15b8c7c6ac21ea08fcf65892d2ee8f75cf882 # v4.6.2
+        if: always()
+        with:
+          name: php-cs-fixer-git-commit-${{ needs.resolve.outputs.mode }}
+          path: |
+            ${{ env.N2E }}/php-cs-fixer-git-commit-*-v1.json
+            ${{ env.N2E }}/out
+          if-no-files-found: error
+          retention-days: 30

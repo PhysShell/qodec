@@ -1,0 +1,466 @@
+{
+  "acceptance_note": "RTK savings reporting-only; never a gate (\u00a715/\u00a719).",
+  "acquisition": {
+    "commit": "ff3aec661355a82a6f77355a95e1f391fa586c2b",
+    "environment_identity": {
+      "construction": {
+        "baseline_tracked_status": [],
+        "declared_patch_tracked": []
+      },
+      "dependencies": {
+        "after_acquisition": {
+          "poetry.lock": null,
+          "pyproject.toml": null,
+          "requirements.txt": "ef26beaccfd01d35be84c3f64aca0bd6e4c987f1abea26a703e2ed90d71eaa5b",
+          "setup.cfg": "36fbff1fefd6f6da23247ce74cda69fcc73af6baafdbd1e16ec7c8367a2b130f",
+          "setup.py": "8f6c33c89be9209f5385a7187aa24ed44b373818abaa703e411c334076dfe6f9"
+        },
+        "committed_mutated": [],
+        "generated": [],
+        "mutation_guard_ok": true,
+        "pristine_checkout": {
+          "poetry.lock": null,
+          "pyproject.toml": null,
+          "requirements.txt": "ef26beaccfd01d35be84c3f64aca0bd6e4c987f1abea26a703e2ed90d71eaa5b",
+          "setup.cfg": "36fbff1fefd6f6da23247ce74cda69fcc73af6baafdbd1e16ec7c8367a2b130f",
+          "setup.py": "8f6c33c89be9209f5385a7187aa24ed44b373818abaa703e411c334076dfe6f9"
+        },
+        "protected_files": [
+          "requirements.txt",
+          "setup.py",
+          "setup.cfg",
+          "pyproject.toml",
+          "poetry.lock"
+        ]
+      },
+      "platform": {
+        "machine": "x86_64",
+        "system": "Linux",
+        "uname": "Linux-6.17.0-1020-azure-x86_64-with-glibc2.39"
+      },
+      "python_version_pin": "3.8.3",
+      "toolchain": {
+        "pip": {
+          "path": "/home/runner/work/_temp/n2e-case-88gee2v1/.venv/bin/pip",
+          "present": true,
+          "sha256": "960c00c09e77e49c60d59a17bdfab5d56299ff2a51bd9177fab05ca8ebaf8bdc",
+          "version": "pip 25.0.1 from /home/runner/work/_temp/n2e-case-88gee2v1/.venv/lib/python3.8/site-packages/pip (python 3.8)"
+        },
+        "python3": {
+          "path": "/home/runner/work/_temp/n2e-case-88gee2v1/.venv/bin/python",
+          "present": true,
+          "sha256": "d76083811334838074130ee3964fb0d81eb3e53a09eef1616ef60fe14e6ece6c",
+          "version": "Python 3.8.18 (default, Dec 12 2024, 19:15:30) \n[GCC 13.2.0]"
+        }
+      },
+      "warm_commands": [
+        {
+          "cmd": [
+            "/opt/hostedtoolcache/Python/3.8.18/x64/bin/python",
+            "-m",
+            "venv",
+            "/home/runner/work/_temp/n2e-case-88gee2v1/.venv"
+          ],
+          "exit": 0
+        },
+        {
+          "cmd": [
+            "/home/runner/work/_temp/n2e-case-88gee2v1/.venv/bin/python",
+            "-m",
+            "pip",
+            "install",
+            "--upgrade",
+            "pip",
+            "setuptools",
+            "wheel"
+          ],
+          "exit": 0
+        },
+        {
+          "cmd": [
+            "/home/runner/work/_temp/n2e-case-88gee2v1/.venv/bin/python",
+            "-m",
+            "pip",
+            "install",
+            "-e",
+            "."
+          ],
+          "exit": 0
+        },
+        {
+          "cmd": [
+            "/home/runner/work/_temp/n2e-case-88gee2v1/.venv/bin/python",
+            "-m",
+            "pip",
+            "install",
+            "pytest"
+          ],
+          "exit": 0
+        }
+      ]
+    },
+    "github_url": "https://github.com/scrapy/scrapy",
+    "home_local": true,
+    "identity_verified": true,
+    "offline_env": {
+      "PATH": "/home/runner/work/_temp/n2e-case-88gee2v1/.venv/bin:/opt/n2e-jdk/bin:/usr/local/go/bin:/home/runner/.nix-profile/bin:/nix/var/nix/profiles/default/bin:/opt/hostedtoolcache/Python/3.11.15/x64/bin:/opt/hostedtoolcache/Python/3.11.15/x64:/opt/hostedtoolcache/Python/3.8.18/x64/bin:/opt/hostedtoolcache/Python/3.8.18/x64:/snap/bin:/home/runner/.local/bin:/opt/pipx_bin:/home/runner/.cargo/bin:/home/runner/.config/composer/vendor/bin:/usr/local/.ghcup/bin:/home/runner/.dotnet/tools:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin:/usr/games:/usr/local/games:/snap/bin",
+      "PYTHONDONTWRITEBYTECODE": "1",
+      "PYTHONHASHSEED": "0"
+    },
+    "policy": "pytest-v1",
+    "repository": "bugsinpy/scrapy",
+    "resolved_raw_argv": [
+      "pytest",
+      "tests/test_mail.py"
+    ],
+    "resolved_rtk_argv": [
+      "rtk",
+      "pytest",
+      "tests/test_mail.py"
+    ],
+    "warm": {
+      "ok": true,
+      "python_interpreter": "/opt/hostedtoolcache/Python/3.8.18/x64/bin/python",
+      "resolution_rule": "frozen_argv_verbatim",
+      "scheduler_flags": null,
+      "steps": [
+        {
+          "cmd": [
+            "/opt/hostedtoolcache/Python/3.8.18/x64/bin/python",
+            "-m",
+            "venv",
+            "/home/runner/work/_temp/n2e-case-88gee2v1/.venv"
+          ],
+          "exit": 0,
+          "tail": ""
+        },
+        {
+          "cmd": [
+            "/home/runner/work/_temp/n2e-case-88gee2v1/.venv/bin/python",
+            "-m",
+            "pip",
+            "install",
+            "--upgrade",
+            "pip",
+            "setuptools",
+            "wheel"
+          ],
+          "exit": 0,
+          "tail": " (1.8 MB)\n     \u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501 1.8/1.8 MB 18.0 MB/s eta 0:00:00\nRequirement already satisfied: setuptools in /home/runner/work/_temp/n2e-case-88gee2v1/.venv/lib/python3.8/site-packages (56.0.0)\nCollecting setuptools\n  Downloading setuptools-75.3.4-py3-none-any.whl (1.3 MB)\n     \u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501 1.3/1.3 MB 5.0 MB/s eta 0:00:00\nCollecting wheel\n  Downloading wheel-0.45.1-py3-none-any.whl (72 kB)\n     \u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501 72.5/72.5 kB 32.7 MB/s eta 0:00:00\nInstalling collected packages: wheel, setuptools, pip\n  Attempting uninstall: setuptools\n    Found existing installation: setuptools 56.0.0\n    Uninstalling setuptools-56.0.0:\n      Successfully uninstalled setuptools-56.0.0\n  Attempting uninstall: pip\n    Found existing installation: pip 23.0.1\n    Uninstalling pip-23.0.1:\n      Successfully uninstalled pip-23.0.1\nSuccessfully installed pip-25.0.1 setuptools-75.3.4 wheel-0.45.1\n"
+        },
+        {
+          "cmd": [
+            "/home/runner/work/_temp/n2e-case-88gee2v1/.venv/bin/python",
+            "-m",
+            "pip",
+            "install",
+            "-e",
+            "."
+          ],
+          "exit": 0,
+          "tail": "ons-4.13.2-py3-none-any.whl (45 kB)\nDownloading zope.interface-7.2-cp38-cp38-manylinux_2_5_x86_64.manylinux1_x86_64.manylinux_2_17_x86_64.manylinux2014_x86_64.whl (257 kB)\nDownloading jmespath-1.0.1-py3-none-any.whl (20 kB)\nDownloading cffi-1.17.1-cp38-cp38-manylinux_2_17_x86_64.manylinux2014_x86_64.whl (446 kB)\nDownloading idna-3.15-py3-none-any.whl (72 kB)\nDownloading tomli-2.4.1-py3-none-any.whl (14 kB)\nDownloading pycparser-2.23-py3-none-any.whl (118 kB)\nInstalling collected packages: PyDispatcher, zope-interface, w3lib, typing-extensions, tomli, six, queuelib, pycparser, packaging, lxml, jmespath, idna, cssselect, constantly, attrs, parsel, incremental, hyperlink, cffi, automat, Twisted, cryptography, service_identity, pyOpenSSL, Scrapy\n  Running setup.py develop for Scrapy\nSuccessfully installed PyDispatcher-2.0.7 Scrapy Twisted-25.5.0 attrs-25.3.0 automat-24.8.1 cffi-1.17.1 constantly-23.10.4 cryptography-47.0.0 cssselect-1.2.0 hyperlink-21.0.0 idna-3.15 incremental-24.11.0 jmespath-1.0.1 lxml-6.1.1 packaging-26.2 parsel-1.9.1 pyOpenSSL-26.2.0 pycparser-2.23 queuelib-1.7.0 service_identity-26.1.0 six-1.17.0 tomli-2.4.1 typing-extensions-4.13.2 w3lib-2.2.1 zope-interface-7.2\n  DEPRECATION: Legacy editable install of Scrapy==1.2.2 from file:///home/runner/work/_temp/n2e-case-88gee2v1/repo (setup.py develop) is deprecated. pip 25.1 will enforce this behaviour change. A possible replacement is to add a pyproject.toml or enable --use-pep517, and use setuptools >= 64. If the resulting installation is not behaving as expected, try using --config-settings editable_mode=compat. Please consult the setuptools documentation for more information. Discussion can be found at https://github.com/pypa/pip/issues/11457\n"
+        },
+        {
+          "cmd": [
+            "/home/runner/work/_temp/n2e-case-88gee2v1/.venv/bin/python",
+            "-m",
+            "pip",
+            "install",
+            "pytest"
+          ],
+          "exit": 0,
+          "tail": ".3.5-py3-none-any.whl.metadata (7.6 kB)\nCollecting exceptiongroup>=1.0.0rc8 (from pytest)\n  Downloading exceptiongroup-1.3.1-py3-none-any.whl.metadata (6.7 kB)\nCollecting iniconfig (from pytest)\n  Downloading iniconfig-2.1.0-py3-none-any.whl.metadata (2.7 kB)\nRequirement already satisfied: packaging in /home/runner/work/_temp/n2e-case-88gee2v1/.venv/lib/python3.8/site-packages (from pytest) (26.2)\nCollecting pluggy<2,>=1.5 (from pytest)\n  Downloading pluggy-1.5.0-py3-none-any.whl.metadata (4.8 kB)\nRequirement already satisfied: tomli>=1 in /home/runner/work/_temp/n2e-case-88gee2v1/.venv/lib/python3.8/site-packages (from pytest) (2.4.1)\nRequirement already satisfied: typing-extensions>=4.6.0 in /home/runner/work/_temp/n2e-case-88gee2v1/.venv/lib/python3.8/site-packages (from exceptiongroup>=1.0.0rc8->pytest) (4.13.2)\nDownloading pytest-8.3.5-py3-none-any.whl (343 kB)\nDownloading exceptiongroup-1.3.1-py3-none-any.whl (16 kB)\nDownloading pluggy-1.5.0-py3-none-any.whl (20 kB)\nDownloading iniconfig-2.1.0-py3-none-any.whl (6.0 kB)\nInstalling collected packages: pluggy, iniconfig, exceptiongroup, pytest\nSuccessfully installed exceptiongroup-1.3.1 iniconfig-2.1.0 pluggy-1.5.0 pytest-8.3.5\n"
+        }
+      ],
+      "venv_bin": "/home/runner/work/_temp/n2e-case-88gee2v1/.venv/bin"
+    },
+    "workdir": "repo"
+  },
+  "canonicalization_policy": "pytest-v1",
+  "case_id": "bugsinpy::scrapy-9::python::pytest::fixed",
+  "command_family": "python",
+  "command_subfamily": "pytest",
+  "generated_by": "tools/run_canary_case.py",
+  "isolation": {
+    "denial_probe": {
+      "denied": true,
+      "output": "DENIED 101"
+    },
+    "method": "sudo-unshare-n"
+  },
+  "mission": "N2-E",
+  "mission_title": "external RTK-native claim-aligned command corpus",
+  "raw_arm": {
+    "canonical_deterministic": true,
+    "canonical_sha256": "865efe963e7a8f07b97b1a742ca8ac60bdde4285d1e15bbf5669810c2037da7b",
+    "canonicalization_policy": "pytest-v1",
+    "exit_code": 0,
+    "exit_code_stable": true,
+    "nondeterminism_sample": null,
+    "o200k_tokens": 492,
+    "per_rep_execution_proof": null,
+    "primary_evidence_files": [
+      {
+        "bytes": 1997,
+        "case_id": "bugsinpy::scrapy-9::python::pytest::fixed",
+        "compression": "zlib",
+        "file": "raw.rep0.zst",
+        "policy_id": "pytest-v1",
+        "rep": 0,
+        "role": "raw",
+        "sha256": "865efe963e7a8f07b97b1a742ca8ac60bdde4285d1e15bbf5669810c2037da7b"
+      },
+      {
+        "bytes": 1997,
+        "case_id": "bugsinpy::scrapy-9::python::pytest::fixed",
+        "compression": "zlib",
+        "file": "raw.rep1.zst",
+        "policy_id": "pytest-v1",
+        "rep": 1,
+        "role": "raw",
+        "sha256": "865efe963e7a8f07b97b1a742ca8ac60bdde4285d1e15bbf5669810c2037da7b"
+      },
+      {
+        "bytes": 1997,
+        "case_id": "bugsinpy::scrapy-9::python::pytest::fixed",
+        "compression": "zlib",
+        "file": "raw.rep2.zst",
+        "policy_id": "pytest-v1",
+        "rep": 2,
+        "role": "raw",
+        "sha256": "865efe963e7a8f07b97b1a742ca8ac60bdde4285d1e15bbf5669810c2037da7b"
+      }
+    ],
+    "raw_capture_hashes": [
+      "4e6810fff251b32707c0fa5f906d41d522633c6dac77109db8de470fb1b314ec",
+      "4e6810fff251b32707c0fa5f906d41d522633c6dac77109db8de470fb1b314ec",
+      "4e6810fff251b32707c0fa5f906d41d522633c6dac77109db8de470fb1b314ec"
+    ],
+    "reps_completed": 3,
+    "rtk_envelope_policy": null,
+    "rtk_sidecar_proof": null,
+    "runs": [
+      {
+        "canonical_bytes": 1997,
+        "canonical_sha256": "865efe963e7a8f07b97b1a742ca8ac60bdde4285d1e15bbf5669810c2037da7b",
+        "exit_code": 0,
+        "raw_combined_sha256": "4e6810fff251b32707c0fa5f906d41d522633c6dac77109db8de470fb1b314ec"
+      },
+      {
+        "canonical_bytes": 1997,
+        "canonical_sha256": "865efe963e7a8f07b97b1a742ca8ac60bdde4285d1e15bbf5669810c2037da7b",
+        "exit_code": 0,
+        "raw_combined_sha256": "4e6810fff251b32707c0fa5f906d41d522633c6dac77109db8de470fb1b314ec"
+      },
+      {
+        "canonical_bytes": 1997,
+        "canonical_sha256": "865efe963e7a8f07b97b1a742ca8ac60bdde4285d1e15bbf5669810c2037da7b",
+        "exit_code": 0,
+        "raw_combined_sha256": "4e6810fff251b32707c0fa5f906d41d522633c6dac77109db8de470fb1b314ec"
+      }
+    ],
+    "target_execution_ok": null,
+    "timed_out": false
+  },
+  "raw_semantic_oracle": {
+    "evidence": {
+      "declared": "passing",
+      "exit": 0,
+      "summary": {
+        "failed": 0,
+        "failing_ids": [],
+        "passed": 6
+      }
+    },
+    "oracle": "test_outcome",
+    "verdict": true
+  },
+  "record_sha256": "sha256:09f9f8ab790ec6771c17580dbaae932afa8c75563084acb6bfaefc0f5d242856",
+  "record_type": "n2e-canary-case",
+  "record_version": "v1",
+  "rejection_reasons": [
+    "rtk oracle disagreement: test_agreement"
+  ],
+  "rtk_arm": {
+    "canonical_deterministic": true,
+    "canonical_sha256": "8be4d1929f65ff74921c87ee607f1586974a531f49a7ae70e4dd079ea94442cd",
+    "canonicalization_policy": "pytest-v1",
+    "exit_code": 0,
+    "exit_code_stable": true,
+    "nondeterminism_sample": null,
+    "o200k_tokens": 7,
+    "per_rep_execution_proof": null,
+    "primary_evidence_files": [
+      {
+        "bytes": 17,
+        "case_id": "bugsinpy::scrapy-9::python::pytest::fixed",
+        "compression": "zlib",
+        "file": "rtk.rep0.zst",
+        "policy_id": "pytest-v1",
+        "rep": 0,
+        "role": "rtk",
+        "sha256": "8be4d1929f65ff74921c87ee607f1586974a531f49a7ae70e4dd079ea94442cd"
+      },
+      {
+        "bytes": 17,
+        "case_id": "bugsinpy::scrapy-9::python::pytest::fixed",
+        "compression": "zlib",
+        "file": "rtk.rep1.zst",
+        "policy_id": "pytest-v1",
+        "rep": 1,
+        "role": "rtk",
+        "sha256": "8be4d1929f65ff74921c87ee607f1586974a531f49a7ae70e4dd079ea94442cd"
+      },
+      {
+        "bytes": 17,
+        "case_id": "bugsinpy::scrapy-9::python::pytest::fixed",
+        "compression": "zlib",
+        "file": "rtk.rep2.zst",
+        "policy_id": "pytest-v1",
+        "rep": 2,
+        "role": "rtk",
+        "sha256": "8be4d1929f65ff74921c87ee607f1586974a531f49a7ae70e4dd079ea94442cd"
+      }
+    ],
+    "raw_capture_hashes": [
+      "8be4d1929f65ff74921c87ee607f1586974a531f49a7ae70e4dd079ea94442cd",
+      "8be4d1929f65ff74921c87ee607f1586974a531f49a7ae70e4dd079ea94442cd",
+      "8be4d1929f65ff74921c87ee607f1586974a531f49a7ae70e4dd079ea94442cd"
+    ],
+    "reps_completed": 3,
+    "rtk_envelope_policy": "rtk-envelope-v1",
+    "rtk_sidecar_proof": {
+      "identity_only_in_unmeasured_sidecar": false,
+      "reps": [
+        {
+          "measured_failing_ids": [],
+          "measured_parsed_summary": {
+            "aggregate_summary_conflict": false,
+            "aggregate_summary_present": false,
+            "dialect": "rtk-go-test-summary-v1",
+            "failed": null,
+            "failing_ids": [],
+            "packages": null,
+            "passed": null,
+            "skipped": null
+          },
+          "required_ids": [
+            "test_send_single_values_to_and_cc"
+          ],
+          "required_missing_from_measured": [
+            "test_send_single_values_to_and_cc"
+          ],
+          "required_parsed_failing_in_sidecar": [],
+          "semantic_loss_ids_this_rep": [],
+          "sidecar_bytes": null,
+          "sidecar_failing_ids": [],
+          "sidecar_parsed_summary": null,
+          "sidecar_read": false,
+          "sidecar_sha256": null,
+          "tee_pointer": null,
+          "tee_pointer_present": false
+        },
+        {
+          "measured_failing_ids": [],
+          "measured_parsed_summary": {
+            "aggregate_summary_conflict": false,
+            "aggregate_summary_present": false,
+            "dialect": "rtk-go-test-summary-v1",
+            "failed": null,
+            "failing_ids": [],
+            "packages": null,
+            "passed": null,
+            "skipped": null
+          },
+          "required_ids": [
+            "test_send_single_values_to_and_cc"
+          ],
+          "required_missing_from_measured": [
+            "test_send_single_values_to_and_cc"
+          ],
+          "required_parsed_failing_in_sidecar": [],
+          "semantic_loss_ids_this_rep": [],
+          "sidecar_bytes": null,
+          "sidecar_failing_ids": [],
+          "sidecar_parsed_summary": null,
+          "sidecar_read": false,
+          "sidecar_sha256": null,
+          "tee_pointer": null,
+          "tee_pointer_present": false
+        },
+        {
+          "measured_failing_ids": [],
+          "measured_parsed_summary": {
+            "aggregate_summary_conflict": false,
+            "aggregate_summary_present": false,
+            "dialect": "rtk-go-test-summary-v1",
+            "failed": null,
+            "failing_ids": [],
+            "packages": null,
+            "passed": null,
+            "skipped": null
+          },
+          "required_ids": [
+            "test_send_single_values_to_and_cc"
+          ],
+          "required_missing_from_measured": [
+            "test_send_single_values_to_and_cc"
+          ],
+          "required_parsed_failing_in_sidecar": [],
+          "semantic_loss_ids_this_rep": [],
+          "sidecar_bytes": null,
+          "sidecar_failing_ids": [],
+          "sidecar_parsed_summary": null,
+          "sidecar_read": false,
+          "sidecar_sha256": null,
+          "tee_pointer": null,
+          "tee_pointer_present": false
+        }
+      ],
+      "required_ids": [
+        "test_send_single_values_to_and_cc"
+      ],
+      "semantic_loss_confirmed": false
+    },
+    "runs": [
+      {
+        "canonical_bytes": 17,
+        "canonical_sha256": "8be4d1929f65ff74921c87ee607f1586974a531f49a7ae70e4dd079ea94442cd",
+        "exit_code": 0,
+        "raw_combined_sha256": "8be4d1929f65ff74921c87ee607f1586974a531f49a7ae70e4dd079ea94442cd"
+      },
+      {
+        "canonical_bytes": 17,
+        "canonical_sha256": "8be4d1929f65ff74921c87ee607f1586974a531f49a7ae70e4dd079ea94442cd",
+        "exit_code": 0,
+        "raw_combined_sha256": "8be4d1929f65ff74921c87ee607f1586974a531f49a7ae70e4dd079ea94442cd"
+      },
+      {
+        "canonical_bytes": 17,
+        "canonical_sha256": "8be4d1929f65ff74921c87ee607f1586974a531f49a7ae70e4dd079ea94442cd",
+        "exit_code": 0,
+        "raw_combined_sha256": "8be4d1929f65ff74921c87ee607f1586974a531f49a7ae70e4dd079ea94442cd"
+      }
+    ],
+    "target_execution_ok": null,
+    "timed_out": false
+  },
+  "rtk_binary_sha256": "41f316adf7b30a568208a0a4f824bffb266ecb6d01bd9de81bed58e1d469dfcf",
+  "rtk_savings_pct_reporting_only": 98.58,
+  "rtk_semantic_oracle": {
+    "evidence": {
+      "error": "no proven RTK dialect for family 'python' -- fail-closed (do not reuse the Go parser)",
+      "raw": {
+        "failed": 0,
+        "failing_ids": [],
+        "passed": 6
+      },
+      "rtk_dialect": null,
+      "unproven_family": "python"
+    },
+    "oracle": "test_agreement",
+    "verdict": false
+  },
+  "schema_version": "n2e-record-1",
+  "status": "RTK_REJECTED"
+}

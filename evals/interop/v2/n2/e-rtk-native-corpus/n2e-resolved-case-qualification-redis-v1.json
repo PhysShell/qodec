@@ -1,0 +1,107 @@
+{
+  "acceptance_run": {
+    "artifact_bytes": 13156,
+    "artifact_sha256": "e282e7a7fce2032dbd9d0a14a10be5f1fa698eef9490b0c29d0eec6a032911f9",
+    "impl_commit": "762a17c",
+    "run_attempt": "1",
+    "run_id": "29958444281",
+    "workflow": "qodec-n2e-redis-docker-images"
+  },
+  "canonicalization_policy_id": "docker-v1",
+  "case_entry_sha256": "sha256:5f07ffb80e3dacf23cd3fcdd37208f3b962fa79e2ef96ddf04a830cb9a86e6e4",
+  "case_id": "container::redis::docker::images",
+  "case_qualification_pass": true,
+  "command_semantic_oracle_policy_id": "rtk-docker-images-oracle-v1",
+  "contract_generation": 1,
+  "dispatch_code_identity": {
+    "canonicalization_policy_id": "docker-v1",
+    "dispatch_module_sha256": "020f45f95b0cc11404dbdc5854ffc9b192b17e3204afa50c9eb37e308919f678",
+    "dispatch_policy_id": "n2e-qualification-dispatch-v5",
+    "execution_policy_sha256": "3a133130963fe2e3bcf9072587926a90804590287403502ab73d0d8bea705714",
+    "oracle_module_sha256": "f6ded452cf38374d24e910f3a2b44c098789fe9ae68742430dbecd2aec6ad082",
+    "oracle_policy_id": "rtk-docker-images-oracle-v1",
+    "registry_sha256": "bf553b97e8b9ba9fa568a0ab4780223b61c21607add10930116ce7ac8f1cc720",
+    "rtk_source_identity_sha256": "e79f773e1bfa6cb9c8ce7de797dca0a13d6cea07c385d28b0c210dbd75b61bfe"
+  },
+  "dispatch_policy_id": "n2e-qualification-dispatch-v5",
+  "docker_evidence": {
+    "raw_format_rows": {
+      "bytes": 17,
+      "evidence_path": "evidence/redis/qualification/raw.format_rows.bin",
+      "sha256": "9530b8966dc1880a02b52681620271b6497fd991da77f226153b1e09344f4d91"
+    },
+    "raw_inspect": {
+      "bytes": 2678,
+      "evidence_path": "evidence/redis/qualification/raw.inspect.json",
+      "sha256": "c3167f1313c3a894c9783cd23f48721c37f58f3c1edb4c90c1a68b609e150662"
+    },
+    "rtk_inspect": {
+      "bytes": 2678,
+      "evidence_path": "evidence/redis/qualification/rtk.inspect.json",
+      "sha256": "a1977853d7f976078c38feb3dcb8eb7acb81e481117216f6b4b324c4cfc97e98"
+    },
+    "rtk_stdout": {
+      "bytes": 46,
+      "evidence_path": "evidence/redis/qualification/rtk.stdout.bin",
+      "sha256": "9da768a783fa4667994fac744c89f7444cffa81349c6010dcbbd6dab7bd06e86"
+    }
+  },
+  "evidence": {
+    "dir": "evidence/redis/qualification"
+  },
+  "execution_policy_id": "redis-docker-images-execution-v1",
+  "generated_by": "evals/interop/v2/n2/e-rtk-native-corpus/tools/build_n2e_redis_docker_images_qualification.py",
+  "identities": {
+    "dind_image_digest": "docker@sha256:aa3df78ecf320f5fafdce71c659f1629e96e9de0968305fe1de670e0ca9176ce",
+    "host_docker_client": {
+      "bytes": 43134496,
+      "path": "/usr/bin/docker",
+      "sha256": "6435ff9214bf8e0931078fb0980809728cac0a54a526d4f28a26d3e48132b58d",
+      "version": "28.0.4"
+    },
+    "rtk_sha256": "41f316adf7b30a568208a0a4f824bffb266ecb6d01bd9de81bed58e1d469dfcf"
+  },
+  "image_identity": {
+    "child_digest": "sha256:395033a36458e5312f5bce401452efe6606705fc8b9a574611af6436ac3ff632",
+    "config_id": "sha256:87b460005bd3a6621dabf2855ec42bf96b1b6d044b6109bd9736128ab178ddec",
+    "index_digest": "sha256:c1e88455c85225310bbea54816e9c3f4b5295815e6dbf80c34d40afc6df28275",
+    "platform": "linux/amd64",
+    "repo_digest": "redis@sha256:c1e88455c85225310bbea54816e9c3f4b5295815e6dbf80c34d40afc6df28275"
+  },
+  "manifest_generation": 3,
+  "manifest_sha256": "sha256:80a6decdddf8a57917fc395d773bd552db4803933de90e99f9cfa42d6b1b893e",
+  "mission": "N2-E",
+  "mission_title": "external RTK-native claim-aligned command corpus",
+  "promotion_state": "held until top-level policy (resolved_canary_pass flips to true at 12/12; original_canary_pass stays false; promotion is a separate step)",
+  "purpose": "Immutable per-case qualification for container::redis::docker::images via the dispatch-v5 registry-bound docker-images path (NOT cq). RTK claims ONLY outcome + (repository:tag, size) multiset + count (compact); the image identity (config Id + RepoDigest == the pinned index digest, platform amd64/linux) is proven as an execution determinant from docker image inspect on two independent isolated pinned daemons. Built from a fresh acceptance run; gated by the dispatch binding + recompute. Sets no promotion flag.",
+  "qualification_kind": "rtk_command_oracle",
+  "re_derived": {
+    "equivalence": {
+      "compared": [
+        "outcome",
+        "output_mode",
+        "image_count",
+        "repository_tag_size_multiset",
+        "header_total_faithful"
+      ],
+      "equivalent": true,
+      "image_count": 1,
+      "listing_multiset": [
+        "redis:n2e\t46.7MB"
+      ],
+      "mismatches": [],
+      "note": "RTK preserves ONLY outcome + the (repository:tag, size) listing multiset + count; image ID / digest / CREATED are NOT emitted by RTK (identity is an execution determinant proven from docker image inspect, not an oracle claim).",
+      "output_mode": "compact"
+    },
+    "normative_axis": "RTK preserves outcome + (repository:tag, size) multiset + count (compact); image ID / digest / CREATED NOT emitted by RTK; identity proven from inspect as an execution determinant",
+    "output_mode": "compact"
+  },
+  "record_kind": "redis_docker_images_acceptance_qualification",
+  "record_sha256": "sha256:530dae95484ceeaa8563c78d11d1e988368c6a41ca6bb686c9644ef03c2101f0",
+  "record_type": "n2e-resolved-case-qualification",
+  "record_version": "v1",
+  "resolved_canary_pass": false,
+  "rtk_test_dialect_policy_id": null,
+  "schema_version": "n2e-record-1",
+  "verdict_authority": "dispatch-v5 binding + recompute (producer records observations)"
+}

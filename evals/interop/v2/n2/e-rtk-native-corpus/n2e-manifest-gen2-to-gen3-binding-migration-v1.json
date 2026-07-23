@@ -1,0 +1,113 @@
+{
+  "carried_forward_case_ids": [
+    "bugsinpy::scrapy-9::python::pytest::fixed",
+    "caddyserver__caddy-5870::go::test::buggy",
+    "container::redis::docker::images",
+    "gin-gonic__gin-2755::go::vet",
+    "loghub::HDFS::log",
+    "php-cs-fixer__php-cs-fixer-8075::git::commit",
+    "preactjs__preact-3345::files_search::read",
+    "projectlombok__lombok-3312::files_search::read",
+    "uutils__coreutils-6731::rust_cargo::test::fixed",
+    "vuejs__core-11589::js_ts::test::buggy"
+  ],
+  "case_carry_forward": [
+    {
+      "carried_forward": false,
+      "case_id": "apache__lucene-13704::jvm::test::buggy",
+      "gen2_projection_sha256": "sha256:ddd67215da79ecb1e1327c1dfc95ae26f2099305f77a6cd23577efd0b5ae430f",
+      "gen3_case_entry_sha256": "sha256:6729529c8be06f7fff0f9fb298b7bf03d3c6a1f5d4c1b2e0215dc1a871ff4bfa"
+    },
+    {
+      "carried_forward": true,
+      "case_id": "bugsinpy::scrapy-9::python::pytest::fixed",
+      "gen2_projection_sha256": "sha256:70799cd30add774750c14889279c3edb6282bfa86a5d6aebe10942d19e46eae5",
+      "gen3_case_entry_sha256": "sha256:70799cd30add774750c14889279c3edb6282bfa86a5d6aebe10942d19e46eae5"
+    },
+    {
+      "carried_forward": true,
+      "case_id": "caddyserver__caddy-5870::go::test::buggy",
+      "gen2_projection_sha256": "sha256:0b29d7ec75600b15fc04a687a4b87d852a4e91ef8667dad111440f405c94485d",
+      "gen3_case_entry_sha256": "sha256:0b29d7ec75600b15fc04a687a4b87d852a4e91ef8667dad111440f405c94485d"
+    },
+    {
+      "carried_forward": true,
+      "case_id": "container::redis::docker::images",
+      "gen2_projection_sha256": "sha256:5f07ffb80e3dacf23cd3fcdd37208f3b962fa79e2ef96ddf04a830cb9a86e6e4",
+      "gen3_case_entry_sha256": "sha256:5f07ffb80e3dacf23cd3fcdd37208f3b962fa79e2ef96ddf04a830cb9a86e6e4"
+    },
+    {
+      "carried_forward": true,
+      "case_id": "gin-gonic__gin-2755::go::vet",
+      "gen2_projection_sha256": "sha256:ee96f563fe99dad817083e3c016729ab5ec2557304acbfbfb40edcba03da800c",
+      "gen3_case_entry_sha256": "sha256:ee96f563fe99dad817083e3c016729ab5ec2557304acbfbfb40edcba03da800c"
+    },
+    {
+      "carried_forward": true,
+      "case_id": "loghub::HDFS::log",
+      "gen2_projection_sha256": "sha256:e856d30bb34ff5a77c3ae2bf34a3a9230249d736ac40f32cc58277ccd12f7f29",
+      "gen3_case_entry_sha256": "sha256:e856d30bb34ff5a77c3ae2bf34a3a9230249d736ac40f32cc58277ccd12f7f29"
+    },
+    {
+      "carried_forward": true,
+      "case_id": "php-cs-fixer__php-cs-fixer-8075::git::commit",
+      "gen2_projection_sha256": "sha256:b636f4a3735e6c66620243e45f50648ef9c947d6da8f1438a5457150d9057a5c",
+      "gen3_case_entry_sha256": "sha256:b636f4a3735e6c66620243e45f50648ef9c947d6da8f1438a5457150d9057a5c"
+    },
+    {
+      "carried_forward": true,
+      "case_id": "preactjs__preact-3345::files_search::read",
+      "gen2_projection_sha256": "sha256:2412d86616776817a0902890c74a9e6ce3ba0ed536b905c7303aca8ce844f5d0",
+      "gen3_case_entry_sha256": "sha256:2412d86616776817a0902890c74a9e6ce3ba0ed536b905c7303aca8ce844f5d0"
+    },
+    {
+      "carried_forward": true,
+      "case_id": "projectlombok__lombok-3312::files_search::read",
+      "gen2_projection_sha256": "sha256:3f8955e9eb39632c0ccbdb450e29ed4bbd6059673d4be71bc38c8e106a7e09d5",
+      "gen3_case_entry_sha256": "sha256:3f8955e9eb39632c0ccbdb450e29ed4bbd6059673d4be71bc38c8e106a7e09d5"
+    },
+    {
+      "carried_forward": false,
+      "case_id": "rubocop__rubocop-13687::git::show",
+      "gen2_projection_sha256": "sha256:8104005d429416a5f323f2745f5a8d5a458f5448cbb534d45000a15c563d1a49",
+      "gen3_case_entry_sha256": "sha256:cf2b0d8f08d77cab8e3f30ca8dd77df508677fcb1a669fab4f3d1e624568bc4a"
+    },
+    {
+      "carried_forward": true,
+      "case_id": "uutils__coreutils-6731::rust_cargo::test::fixed",
+      "gen2_projection_sha256": "sha256:e4862ebe814d379a54733e9ab03695358ec48d9ad2ad48b2e37caf22ca6baf85",
+      "gen3_case_entry_sha256": "sha256:e4862ebe814d379a54733e9ab03695358ec48d9ad2ad48b2e37caf22ca6baf85"
+    },
+    {
+      "carried_forward": true,
+      "case_id": "vuejs__core-11589::js_ts::test::buggy",
+      "gen2_projection_sha256": "sha256:380bfd20c48aa9be0e2642f3c3facd5e68fe17f0d9e71b3e05bc31e16911ecfc",
+      "gen3_case_entry_sha256": "sha256:380bfd20c48aa9be0e2642f3c3facd5e68fe17f0d9e71b3e05bc31e16911ecfc"
+    }
+  ],
+  "declared_changed_cases": [
+    "apache__lucene-13704::jvm::test::buggy",
+    "rubocop__rubocop-13687::git::show"
+  ],
+  "direction": "gen2->gen3 (a gen-3 record is never reinterpreted as gen-2)",
+  "gen2": {
+    "base_execution_contract_sha256": "sha256:e7cff3ea7a0e2fb914b589c0679502016910dd48eccdd4a7b1de37988749d899",
+    "manifest_generation": 2,
+    "manifest_sha256": "sha256:2e05cb53ae79231d6dccffb9e677c05ddeadf57e9b6ae9adf45cef71a907c51c"
+  },
+  "gen3": {
+    "base_execution_contract_sha256": "sha256:dc540df409bcb7a320020dc6480fd2c782a172e2d55575995a7a380088848e77",
+    "manifest_generation": 3,
+    "manifest_sha256": "sha256:80a6decdddf8a57917fc395d773bd552db4803933de90e99f9cfa42d6b1b893e"
+  },
+  "generated_by": "evals/interop/v2/n2/e-rtk-native-corpus/tools/build_n2e_manifest_migration.py",
+  "invariant": "non-carried set == declared_changed_cases; every case with a LEGACY bridge-bound record carries forward; a declared case may hold no legacy record; any other diff is fail-closed",
+  "mission": "N2-E",
+  "mission_title": "external RTK-native claim-aligned command corpus",
+  "overlay_execution_contract_sha256": "sha256:156c110528eb37b5d550df78f31468aa8e02bc542993794f73fe9b14b631d744",
+  "purpose": "One-directional gen-2 -> gen-3 binding bridge: authorizes the frozen (byte-identical) legacy PASS records under the gen-3 per-case-binding root by proving each case's determinant projection carried forward. Cases whose gen-3 determinants intentionally differ from the gen-2 baseline are DECLARED (and may carry no legacy record). Not a permanent compatibility layer.",
+  "record_sha256": "sha256:aa3ccbef2f1b082cef481b9e8c82d4f8da7f57b0e1d262a24b30d1729612014c",
+  "record_type": "n2e-manifest-gen2-to-gen3-binding-migration",
+  "record_version": "v1",
+  "schema_version": "n2e-record-1"
+}

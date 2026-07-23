@@ -1,0 +1,52 @@
+{
+  "base_command_scenarios_sha256": "sha256:69f51947bdca6ae8c880b87e02cb43e7f24a2e435d465142e80b3f50fbdbd0e1",
+  "generated_by": "evals/interop/v2/n2/e-rtk-native-corpus/tools/build_n2e_resolved_overlays.py",
+  "mission": "N2-E",
+  "mission_title": "external RTK-native claim-aligned command corpus",
+  "overlay_scenario_count": 1,
+  "overlay_scenarios": [
+    {
+      "base_commit": "a4088475832957e070b8f904cd3a33a818d07d72",
+      "case_id": "uutils__coreutils-6731::rust_cargo::test::fixed",
+      "command_family": "rust_cargo",
+      "command_subfamily": "test",
+      "explicit_rtk_argv": [
+        "rtk",
+        "cargo",
+        "test",
+        "backslash",
+        "--no-fail-fast"
+      ],
+      "original_argv": [
+        "cargo",
+        "test",
+        "backslash",
+        "--no-fail-fast"
+      ],
+      "resolution_rule": "publisher_recipe",
+      "rtk_argv_resolution": null,
+      "semantic_oracle_type": "test_oracle",
+      "snapshot_variant": "fixed",
+      "source_image_identity": {
+        "dataset": {
+          "id": "SWE-bench/SWE-bench_Multilingual",
+          "revision": "2b7aced941b4873e9cad3e76abbae93f481d1beb"
+        },
+        "instance_id": "uutils__coreutils-6731",
+        "repository": "uutils/coreutils"
+      },
+      "target_test_ids": [
+        "test_tr::test_trailing_backslash"
+      ],
+      "timeout_seconds": 600
+    }
+  ],
+  "purpose": "Resolved-scope overlay for the coreutils-6731 replacement; frozen base is never modified. Effective contract = frozen base + verified replacement overlay.",
+  "record_sha256": "sha256:93e846986ccdedfbd7fb8e14724ebdc7314e63d8cef52c33e63c6b2d9e71f844",
+  "record_type": "n2e-resolved-command-scenario-overlay",
+  "record_version": "v1",
+  "replaces": "tokio-rs__tokio-4384::rust_cargo::test::fixed",
+  "resolved_case_id": "uutils__coreutils-6731::rust_cargo::test::fixed",
+  "resolved_membership_sha256": "sha256:d3bdb6637d391c0eabba008abd6b03385267486e6c0ccea99fd574f190fcf69f",
+  "schema_version": "n2e-record-1"
+}

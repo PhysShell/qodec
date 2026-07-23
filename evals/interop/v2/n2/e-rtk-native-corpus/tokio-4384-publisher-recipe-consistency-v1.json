@@ -1,0 +1,528 @@
+{
+  "base_commit": "553cc3b194df875cac8736473e1f01cf3e40a660",
+  "case_id": "tokio-rs__tokio-4384::rust_cargo::test::fixed",
+  "classification_input": {
+    "boundary": {
+      "no_compatible_pair_proof": "SOURCE_PROVENANCE_DEFECT (before unreproducibility)",
+      "upstream_fails_identically_all_identities_match_via_parity_verifier": "DISQUALIFIED_ENVIRONMENT_UNREPRODUCIBLE",
+      "upstream_reproduction_defect": "TOKIO_UPSTREAM_REPRODUCTION_DEFECT (fix the probe, re-run)",
+      "upstream_source_checkout_reproduction_succeeds": "HARNESS_DEFECT (diff + fix N2-E)"
+    },
+    "classification": null,
+    "compatible_pair_proven": false,
+    "n2e_failure_class": "cargo_locked_resolution_refusal",
+    "n2e_locked_exit": 101,
+    "upstream_failure_class": "cargo_locked_resolution_refusal",
+    "upstream_status": "upstream_install_ran"
+  },
+  "dataset_revision": "2b7aced941b4873e9cad3e76abbae93f481d1beb",
+  "generated_by": "evals/interop/v2/n2/e-rtk-native-corpus/tools/probe_tokio_recipe_consistency.py",
+  "harness_commit": "f7bbbb2ccdf479001d6467c9e34af59e44a840f9",
+  "harness_dataset_provenance": {
+    "compatible_pair_proven": false,
+    "dataset_name_level_link_files": [
+      "README.md",
+      "docs/faq.md",
+      "docs/guides/datasets.md",
+      "docs/guides/quickstart.md"
+    ],
+    "dataset_revision": "2b7aced941b4873e9cad3e76abbae93f481d1beb",
+    "dataset_revision_level_link_files": [],
+    "harness_commit": "f7bbbb2ccdf479001d6467c9e34af59e44a840f9",
+    "name_level_link": true,
+    "note": "a dataset-NAME mention or a shared instance '4384' is NOT a pair proof; a published reference tying the exact dataset revision to this harness commit is required. Absent that -> SOURCE_PROVENANCE_DEFECT.",
+    "revision_level_link": false
+  },
+  "instance_id": "tokio-rs__tokio-4384",
+  "instance_row_sha256": "7b7906d880c8e121971a429bee0f7cd486fbab0911267fa1643c4c34c4d02c28",
+  "mission": "N2-E",
+  "mission_title": "external RTK-native claim-aligned command corpus",
+  "n2e_identity": {
+    "base_commit": "553cc3b194df875cac8736473e1f01cf3e40a660",
+    "cargo_binary_identity": {
+      "command_v_cargo": "/home/runner/.cargo/bin/cargo",
+      "is_symlink": true,
+      "real_cargo_binary_sha256": "da77b17765651b7a4405178a21d3dab1fa39dddec927d37c0fd5663b7c8623de",
+      "realpath": "/home/runner/.cargo/bin/rustup",
+      "realpath_sha256": "4acc9acc76d5079515b46346a485974457b5a79893cfb01112423c89aeb5aa10",
+      "rustup_which_cargo": "/home/runner/.rustup/toolchains/1.83.0-x86_64-unknown-linux-gnu/bin/cargo",
+      "rustup_which_cargo_sha256": "da77b17765651b7a4405178a21d3dab1fa39dddec927d37c0fd5663b7c8623de",
+      "symlink_target": "rustup"
+    },
+    "cargo_config": {
+      ".cargo/config": null,
+      ".cargo/config.toml": null
+    },
+    "cargo_version_verbose": "cargo 1.83.0 (5ffbef321 2024-10-29)\nrelease: 1.83.0\ncommit-hash: 5ffbef3211a8c378857905775a15c5b32a174d3b\ncommit-date: 2024-10-29\nhost: x86_64-unknown-linux-gnu\nlibgit2: 1.8.1 (sys:0.19.0 vendored)\nlibcurl: 8.9.0-DEV (sys:0.4.74+curl-8.9.0 vendored ssl:OpenSSL/1.1.1w)\nssl: OpenSSL 1.1.1w  11 Sep 2023\nos: Ubuntu 24.4.0 (noble) [64-bit]\n",
+    "cwd": "/tmp/tokio-probe-ssdmiy_l/repo",
+    "effective_env": {
+      "CARGO_HOME": "/tmp/tokio-probe-ssdmiy_l/.home_n2e/.cargo",
+      "HOME": "/tmp/tokio-probe-ssdmiy_l/.home_n2e",
+      "PATH": "/opt/hostedtoolcache/Python/3.11.15/x64/bin:/opt/hostedtoolcache/Python/3.11.15/x64:/snap/bin:/home/runner/.local/bin:/opt/pipx_bin:/home/runner/.cargo/bin:/home/runner/.config/composer/vendor/bin:/usr/local/.ghcup/bin:/home/runner/.dotnet/tools:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin:/usr/games:/usr/local/games:/snap/bin",
+      "RUSTFLAGS": "-Awarnings",
+      "RUSTUP_HOME": "/home/runner/.rustup",
+      "RUSTUP_TOOLCHAIN": "1.83.0"
+    },
+    "failure_class": {
+      "class": "cargo_locked_resolution_refusal",
+      "locked_resolution_refusal": true,
+      "requested_lock_mutation": true,
+      "updating_crates_io_index": true
+    },
+    "fixture_evidence": {
+      "byte_identical": false,
+      "byte_length_delta": 1,
+      "diff_is_solely_trailing_newline": true,
+      "materialized_cargo_lock_bytes": 43466,
+      "materialized_cargo_lock_sha256": "893e9f8cdda5729df8bb00b28adc2d0bd67a16324517062c1edc518c7c1bde8d",
+      "materialized_extra_suffix": "\n",
+      "upstream_fixture_bytes": 43465,
+      "upstream_fixture_git_blob": "903110c1640b9c408631c89d642157b286bce642",
+      "upstream_fixture_path": "swebench/harness/constants/fixtures/tokio-rs__tokio-4384.Cargo.lock",
+      "upstream_fixture_sha256": "6f7401a1c6c2690bc5b48d54b1be4a87a443252febe89ccc74ac4e9e65f38dba"
+    },
+    "head": "553cc3b194df875cac8736473e1f01cf3e40a660",
+    "head_matches_base": true,
+    "install": {
+      "argv": [
+        "cargo",
+        "+1.83.0",
+        "test",
+        "--locked",
+        "--package",
+        "tokio",
+        "--test",
+        "net_lookup_host",
+        "--features",
+        "full",
+        "--no-fail-fast",
+        "--no-run"
+      ],
+      "command": "RUSTFLAGS=-Awarnings cargo test --locked --package tokio --test net_lookup_host --features full --no-fail-fast --no-run",
+      "exit": 101,
+      "stderr": "    Updating crates.io index\nerror: the lock file /tmp/tokio-probe-ssdmiy_l/repo/Cargo.lock needs to be updated but --locked was passed to prevent this\nIf you want to try to generate the lock file without accessing the network, remove the --locked flag and use --offline instead.\n",
+      "stderr_bytes": 280,
+      "stderr_sha256": "b5e673bf64c1447bcf1ddb8fc71070e3f2c408dbc724de00e8a0f4ed7375d0b8",
+      "stdout": "",
+      "stdout_bytes": 0,
+      "stdout_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "timed_out": false
+    },
+    "rust_toolchain": {
+      "rust-toolchain": null,
+      "rust-toolchain.toml": null
+    },
+    "target_platform": "x86_64-unknown-linux-gnu",
+    "tracked_status_clean": true,
+    "workspace_manifests": {
+      "Cargo.toml": "aec2ec75eb5009eeb75d8b5d40bfe9c5c927b231c5b60599171a28552d41e1ea",
+      "benches/Cargo.toml": "c3e93934dbaa34ac09fb33e9bf9754193b340a483c0603c928a004f897f7f0a2",
+      "examples/Cargo.toml": "ba421ee3fce551e0285b13c88f6e8fd173196b5c7ad5eebc6dacf1cf746f43d3",
+      "stress-test/Cargo.toml": "e2483aa3d4ddd587726b3b70be297f7f5d97c67df0b17799325fc80638b00b26",
+      "tests-build/Cargo.toml": "32627ede95c45234a8b4bd083f87b5ea25bd459c73f5b61b727be4f27182bfe4",
+      "tests-integration/Cargo.toml": "244af243ecd00304593ed3b0947a488f06409d661c7beb9c2296bb9f2b416839",
+      "tokio-macros/Cargo.toml": "81a63a0b86deb0473a8e816bf8a8fad9b7c23ebf72e4009f85a897883b3ce4a4",
+      "tokio-stream/Cargo.toml": "6561df1ed83439c41fadf8eb564c521f964246cf5a386c27b57d31bfc75ea639",
+      "tokio-test/Cargo.toml": "d3d4dd6e27934ca6eeb8db27b375f4583fa5504793f04daa93d5054fe98600f4",
+      "tokio-util/Cargo.toml": "6f4c51f03fb9fffb74b6b4c1a799e67cac21e92a5acdbc79297cb8d15aea6792",
+      "tokio/Cargo.toml": "0f283bac386aa6204f152416424dae7db230bc93daac99980b583a0533179bce"
+    }
+  },
+  "part_b_cargo_metadata": {
+    "exit": 101,
+    "ok": false,
+    "stderr_tail": "error: the lock file /tmp/tokio-probe-ssdmiy_l/repo/Cargo.lock needs to be updated but --locked was passed to prevent this\nIf you want to try to generate the lock file without accessing the network, remove the --locked flag and use --offline instead.\n"
+  },
+  "part_c_disposable_lock_diff": {
+    "note": "regenerated lock is DIAGNOSTIC ONLY -- never used for qualification",
+    "structured_lock_diff": {
+      "added_count": 0,
+      "after_bytes": 37725,
+      "after_sha256": "742db2f6b55e0b675f89dbdd699d0f5ebeec0516156724ec0b2f6815a2e8fb97",
+      "before_bytes": 43466,
+      "before_sha256": "893e9f8cdda5729df8bb00b28adc2d0bd67a16324517062c1edc518c7c1bde8d",
+      "duplicate_versions_after": {
+        "bitflags": [
+          "1.3.2",
+          "2.10.0"
+        ],
+        "fragile": [
+          "1.2.2",
+          "2.0.1"
+        ],
+        "getrandom": [
+          "0.2.16",
+          "0.3.4"
+        ],
+        "mio": [
+          "0.7.14",
+          "0.8.11"
+        ],
+        "nix": [
+          "0.22.3",
+          "0.23.2"
+        ],
+        "rand": [
+          "0.8.5",
+          "0.9.2"
+        ],
+        "rand_chacha": [
+          "0.3.1",
+          "0.9.0"
+        ],
+        "rand_core": [
+          "0.6.4",
+          "0.9.3"
+        ],
+        "syn": [
+          "1.0.109",
+          "2.0.111"
+        ],
+        "windows-sys": [
+          "0.48.0",
+          "0.61.2"
+        ]
+      },
+      "duplicate_versions_before": {
+        "bitflags": [
+          "1.3.2",
+          "2.10.0"
+        ],
+        "fragile": [
+          "1.2.2",
+          "2.0.1"
+        ],
+        "getrandom": [
+          "0.2.16",
+          "0.3.4"
+        ],
+        "matchers": [
+          "0.0.1",
+          "0.2.0"
+        ],
+        "mio": [
+          "0.7.14",
+          "0.8.11"
+        ],
+        "nix": [
+          "0.22.3",
+          "0.23.2"
+        ],
+        "rand": [
+          "0.8.5",
+          "0.9.2"
+        ],
+        "rand_chacha": [
+          "0.3.1",
+          "0.9.0"
+        ],
+        "rand_core": [
+          "0.6.4",
+          "0.9.3"
+        ],
+        "regex-automata": [
+          "0.1.10",
+          "0.4.13"
+        ],
+        "regex-syntax": [
+          "0.6.29",
+          "0.8.8"
+        ],
+        "syn": [
+          "1.0.109",
+          "2.0.111"
+        ],
+        "tracing-log": [
+          "0.1.4",
+          "0.2.0"
+        ],
+        "tracing-subscriber": [
+          "0.2.25",
+          "0.3.22"
+        ],
+        "windows-sys": [
+          "0.48.0",
+          "0.61.2"
+        ]
+      },
+      "format_changed": false,
+      "format_version_after": 3,
+      "format_version_before": 3,
+      "keyed_by": "(name, version, source, checksum) multiset",
+      "package_count_after": 164,
+      "package_count_before": 186,
+      "removed_count": 22,
+      "tuples_added": [],
+      "tuples_removed": [
+        {
+          "checksum": "819e7219dbd41043ac279b19830f2efc897156490d7fd6ea916720117ee66311",
+          "count": 1,
+          "name": "android_system_properties",
+          "source": "registry+https://github.com/rust-lang/crates.io-index",
+          "version": "0.1.5"
+        },
+        {
+          "checksum": "d52a9bb7ec0cf484c551830a7ce27bd20d67eac647e1befb56b0be4ee39a55d2",
+          "count": 1,
+          "name": "ansi_term",
+          "source": "registry+https://github.com/rust-lang/crates.io-index",
+          "version": "0.12.1"
+        },
+        {
+          "checksum": "5dd9dc738b7a8311c7ade152424974d8115f2cdad61e8dab8dac9f2362298510",
+          "count": 1,
+          "name": "bumpalo",
+          "source": "registry+https://github.com/rust-lang/crates.io-index",
+          "version": "3.19.1"
+        },
+        {
+          "checksum": "145052bdd345b87320e369255277e3fb5152762ad123a901ef5c262dd38fe8d2",
+          "count": 1,
+          "name": "chrono",
+          "source": "registry+https://github.com/rust-lang/crates.io-index",
+          "version": "0.4.42"
+        },
+        {
+          "checksum": "773648b94d0e5d620f64f280777445740e61fe701025087ec8b57f45c791888b",
+          "count": 1,
+          "name": "core-foundation-sys",
+          "source": "registry+https://github.com/rust-lang/crates.io-index",
+          "version": "0.8.7"
+        },
+        {
+          "checksum": "33e57f83510bb73707521ebaffa789ec8caf86f9657cad665b092b581d40e9fb",
+          "count": 1,
+          "name": "iana-time-zone",
+          "source": "registry+https://github.com/rust-lang/crates.io-index",
+          "version": "0.1.64"
+        },
+        {
+          "checksum": "f31827a206f56af32e590ba56d5d2d085f558508192593743f16b2306495269f",
+          "count": 1,
+          "name": "iana-time-zone-haiku",
+          "source": "registry+https://github.com/rust-lang/crates.io-index",
+          "version": "0.1.2"
+        },
+        {
+          "checksum": "464a3709c7f55f1f721e5389aa6ea4e3bc6aba669353300af094b29ffbdde1d8",
+          "count": 1,
+          "name": "js-sys",
+          "source": "registry+https://github.com/rust-lang/crates.io-index",
+          "version": "0.3.83"
+        },
+        {
+          "checksum": "f099785f7595cc4b4553a174ce30dd7589ef93391ff414dbb67f62392b9e0ce1",
+          "count": 1,
+          "name": "matchers",
+          "source": "registry+https://github.com/rust-lang/crates.io-index",
+          "version": "0.0.1"
+        },
+        {
+          "checksum": "6c230d73fb8d8c1b9c0b3135c5142a8acee3a0558fb8db5cf1cb65f8d7862132",
+          "count": 1,
+          "name": "regex-automata",
+          "source": "registry+https://github.com/rust-lang/crates.io-index",
+          "version": "0.1.10"
+        },
+        {
+          "checksum": "f162c6dd7b008981e4d40210aca20b4bd0f9b60ca9271061b07f78537722f2e1",
+          "count": 1,
+          "name": "regex-syntax",
+          "source": "registry+https://github.com/rust-lang/crates.io-index",
+          "version": "0.6.29"
+        },
+        {
+          "checksum": "f751112709b4e791d8ce53e32c4ed2d353565a795ce84da2285393f41557bdf2",
+          "count": 1,
+          "name": "tracing-log",
+          "source": "registry+https://github.com/rust-lang/crates.io-index",
+          "version": "0.1.4"
+        },
+        {
+          "checksum": "0e0d2eaa99c3c2e41547cfa109e910a68ea03823cccad4a0525dcbc9b01e8c71",
+          "count": 1,
+          "name": "tracing-subscriber",
+          "source": "registry+https://github.com/rust-lang/crates.io-index",
+          "version": "0.2.25"
+        },
+        {
+          "checksum": "0d759f433fa64a2d763d1340820e46e111a7a5ab75f993d1852d70b03dbb80fd",
+          "count": 1,
+          "name": "wasm-bindgen",
+          "source": "registry+https://github.com/rust-lang/crates.io-index",
+          "version": "0.2.106"
+        },
+        {
+          "checksum": "48cb0d2638f8baedbc542ed444afc0644a29166f1595371af4fecf8ce1e7eeb3",
+          "count": 1,
+          "name": "wasm-bindgen-macro",
+          "source": "registry+https://github.com/rust-lang/crates.io-index",
+          "version": "0.2.106"
+        },
+        {
+          "checksum": "cefb59d5cd5f92d9dcf80e4683949f15ca4b511f4ac0a6e14d4e1ac60c6ecd40",
+          "count": 1,
+          "name": "wasm-bindgen-macro-support",
+          "source": "registry+https://github.com/rust-lang/crates.io-index",
+          "version": "0.2.106"
+        },
+        {
+          "checksum": "cbc538057e648b67f72a982e708d485b2efa771e1ac05fec311f9f63e5800db4",
+          "count": 1,
+          "name": "wasm-bindgen-shared",
+          "source": "registry+https://github.com/rust-lang/crates.io-index",
+          "version": "0.2.106"
+        },
+        {
+          "checksum": "b8e83a14d34d0623b51dce9581199302a221863196a1dde71a7663a4c2be9deb",
+          "count": 1,
+          "name": "windows-core",
+          "source": "registry+https://github.com/rust-lang/crates.io-index",
+          "version": "0.62.2"
+        },
+        {
+          "checksum": "053e2e040ab57b9dc951b72c264860db7eb3b0200ba345b4e4c3b14f67855ddf",
+          "count": 1,
+          "name": "windows-implement",
+          "source": "registry+https://github.com/rust-lang/crates.io-index",
+          "version": "0.60.2"
+        },
+        {
+          "checksum": "3f316c4a2570ba26bbec722032c4099d8c8bc095efccdc15688708623367e358",
+          "count": 1,
+          "name": "windows-interface",
+          "source": "registry+https://github.com/rust-lang/crates.io-index",
+          "version": "0.59.3"
+        },
+        {
+          "checksum": "7781fa89eaf60850ac3d2da7af8e5242a5ea78d1a11c49bf2910bb5a73853eb5",
+          "count": 1,
+          "name": "windows-result",
+          "source": "registry+https://github.com/rust-lang/crates.io-index",
+          "version": "0.4.1"
+        },
+        {
+          "checksum": "7837d08f69c77cf6b07689544538e017c1bfcf57e34b4c0ff58e6c2cd3b37091",
+          "count": 1,
+          "name": "windows-strings",
+          "source": "registry+https://github.com/rust-lang/crates.io-index",
+          "version": "0.5.1"
+        }
+      ]
+    },
+    "unlocked_install_exit": 0,
+    "unlocked_install_stderr_tail": "tmp/tokio-probe-ssdmiy_l/disposable/tokio-macros)\n   Compiling regex-automata v0.4.13\n   Compiling mio v0.8.11\n   Compiling parking_lot v0.11.2\n   Compiling getrandom v0.2.16\n   Compiling socket2 v0.4.10\n   Compiling num_cpus v1.17.0\n   Compiling signal-hook-registry v1.4.7\n   Compiling memoffset v0.6.5\n   Compiling futures-io v0.3.31\n   Compiling predicates-core v1.0.9\n   Compiling slab v0.4.11\n   Compiling pin-utils v0.1.0\n   Compiling fastrand v2.3.0\n   Compiling futures-task v0.3.31\n   Compiling bytes v1.11.0\n   Compiling futures-util v0.3.31\n   Compiling tempfile v3.23.0\n   Compiling tokio v1.15.0 (/tmp/tokio-probe-ssdmiy_l/disposable/tokio)\n   Compiling rand_core v0.6.4\n   Compiling async-stream-impl v0.3.6\n   Compiling regex v1.12.2\n   Compiling float-cmp v0.8.0\n   Compiling wait-timeout v0.2.1\n   Compiling quick-error v1.2.3\n   Compiling termtree v0.5.1\n   Compiling normalize-line-endings v0.3.0\n   Compiling fnv v1.0.7\n   Compiling difference v2.0.0\n   Compiling fragile v2.0.1\n   Compiling bit-vec v0.8.0\n   Compiling fragile v1.2.2\n   Compiling bit-set v0.8.0\n   Compiling futures-executor v0.3.31\n   Compiling predicates v1.0.8\n   Compiling rusty-fork v0.3.1\n   Compiling predicates-tree v1.0.12\n   Compiling async-stream v0.3.6\n   Compiling rand_chacha v0.3.1\n   Compiling mockall_derive v0.10.2\n   Compiling rand_xorshift v0.4.0\n   Compiling rand v0.9.2\n   Compiling rand_chacha v0.9.0\n   Compiling bitflags v1.3.2\n   Compiling downcast v0.10.0\n   Compiling tokio-stream v0.1.8 (/tmp/tokio-probe-ssdmiy_l/disposable/tokio-stream)\n   Compiling unarray v0.1.4\n   Compiling lazy_static v1.5.0\n   Compiling proptest v1.9.0\n   Compiling tokio-test v0.4.2 (/tmp/tokio-probe-ssdmiy_l/disposable/tokio-test)\n   Compiling nix v0.23.2\n   Compiling mockall v0.10.2\n   Compiling rand v0.8.5\n   Compiling futures v0.3.31\n    Finished `test` profile [unoptimized + debuginfo] target(s) in 20.44s\n  Executable tests/net_lookup_host.rs (target/debug/deps/net_lookup_host-23fe28482b1d59de)\n"
+  },
+  "part_d_upstream": {
+    "bundle_head": "f7bbbb2ccdf479001d6467c9e34af59e44a840f9",
+    "fixture_resolves_inside_checkout": true,
+    "generated_pre_install_matches_registry": true,
+    "identity": {
+      "base_commit": "553cc3b194df875cac8736473e1f01cf3e40a660",
+      "cargo_binary_identity": {
+        "command_v_cargo": "/home/runner/.cargo/bin/cargo",
+        "is_symlink": true,
+        "real_cargo_binary_sha256": "da77b17765651b7a4405178a21d3dab1fa39dddec927d37c0fd5663b7c8623de",
+        "realpath": "/home/runner/.cargo/bin/rustup",
+        "realpath_sha256": "4acc9acc76d5079515b46346a485974457b5a79893cfb01112423c89aeb5aa10",
+        "rustup_which_cargo": "/home/runner/.rustup/toolchains/1.83.0-x86_64-unknown-linux-gnu/bin/cargo",
+        "rustup_which_cargo_sha256": "da77b17765651b7a4405178a21d3dab1fa39dddec927d37c0fd5663b7c8623de",
+        "symlink_target": "rustup"
+      },
+      "cargo_config": {
+        ".cargo/config": null,
+        ".cargo/config.toml": null
+      },
+      "cargo_version_verbose": "cargo 1.83.0 (5ffbef321 2024-10-29)\nrelease: 1.83.0\ncommit-hash: 5ffbef3211a8c378857905775a15c5b32a174d3b\ncommit-date: 2024-10-29\nhost: x86_64-unknown-linux-gnu\nlibgit2: 1.8.1 (sys:0.19.0 vendored)\nlibcurl: 8.9.0-DEV (sys:0.4.74+curl-8.9.0 vendored ssl:OpenSSL/1.1.1w)\nssl: OpenSSL 1.1.1w  11 Sep 2023\nos: Ubuntu 24.4.0 (noble) [64-bit]\n",
+      "cwd": "/tmp/tokio-probe-ssdmiy_l/upstream_repo",
+      "effective_env": {
+        "CARGO_HOME": "/tmp/tokio-probe-ssdmiy_l/.home_d/.cargo",
+        "HOME": "/tmp/tokio-probe-ssdmiy_l/.home_d",
+        "PATH": "/opt/hostedtoolcache/Python/3.11.15/x64/bin:/opt/hostedtoolcache/Python/3.11.15/x64:/snap/bin:/home/runner/.local/bin:/opt/pipx_bin:/home/runner/.cargo/bin:/home/runner/.config/composer/vendor/bin:/usr/local/.ghcup/bin:/home/runner/.dotnet/tools:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin:/usr/games:/usr/local/games:/snap/bin",
+        "RUSTFLAGS": "-Awarnings",
+        "RUSTUP_HOME": "/home/runner/.rustup",
+        "RUSTUP_TOOLCHAIN": "1.83.0"
+      },
+      "failure_class": {
+        "class": "cargo_locked_resolution_refusal",
+        "locked_resolution_refusal": true,
+        "requested_lock_mutation": true,
+        "updating_crates_io_index": true
+      },
+      "fixture_evidence": {
+        "byte_identical": false,
+        "byte_length_delta": 1,
+        "diff_is_solely_trailing_newline": true,
+        "materialized_cargo_lock_bytes": 43466,
+        "materialized_cargo_lock_sha256": "893e9f8cdda5729df8bb00b28adc2d0bd67a16324517062c1edc518c7c1bde8d",
+        "materialized_extra_suffix": "\n",
+        "upstream_fixture_bytes": 43465,
+        "upstream_fixture_git_blob": "903110c1640b9c408631c89d642157b286bce642",
+        "upstream_fixture_path": "swebench/harness/constants/fixtures/tokio-rs__tokio-4384.Cargo.lock",
+        "upstream_fixture_sha256": "6f7401a1c6c2690bc5b48d54b1be4a87a443252febe89ccc74ac4e9e65f38dba"
+      },
+      "head": "553cc3b194df875cac8736473e1f01cf3e40a660",
+      "head_matches_base": true,
+      "install": {
+        "argv": [
+          "cargo",
+          "+1.83.0",
+          "test",
+          "--locked",
+          "--package",
+          "tokio",
+          "--test",
+          "net_lookup_host",
+          "--features",
+          "full",
+          "--no-fail-fast",
+          "--no-run"
+        ],
+        "command": "RUSTFLAGS=-Awarnings cargo test --locked --package tokio --test net_lookup_host --features full --no-fail-fast --no-run",
+        "exit": 101,
+        "stderr": "    Updating crates.io index\nerror: the lock file /tmp/tokio-probe-ssdmiy_l/upstream_repo/Cargo.lock needs to be updated but --locked was passed to prevent this\nIf you want to try to generate the lock file without accessing the network, remove the --locked flag and use --offline instead.\n",
+        "stderr_bytes": 289,
+        "stderr_sha256": "7a60dd029f5a1573eb931b606a6bb4f14ede1e1ec32202c44cb11f7b0c3e82ec",
+        "stdout": "",
+        "stdout_bytes": 0,
+        "stdout_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "timed_out": false
+      },
+      "rust_toolchain": {
+        "rust-toolchain": null,
+        "rust-toolchain.toml": null
+      },
+      "target_platform": "x86_64-unknown-linux-gnu",
+      "tracked_status_clean": true,
+      "workspace_manifests": {
+        "Cargo.toml": "aec2ec75eb5009eeb75d8b5d40bfe9c5c927b231c5b60599171a28552d41e1ea",
+        "benches/Cargo.toml": "c3e93934dbaa34ac09fb33e9bf9754193b340a483c0603c928a004f897f7f0a2",
+        "examples/Cargo.toml": "ba421ee3fce551e0285b13c88f6e8fd173196b5c7ad5eebc6dacf1cf746f43d3",
+        "stress-test/Cargo.toml": "e2483aa3d4ddd587726b3b70be297f7f5d97c67df0b17799325fc80638b00b26",
+        "tests-build/Cargo.toml": "32627ede95c45234a8b4bd083f87b5ea25bd459c73f5b61b727be4f27182bfe4",
+        "tests-integration/Cargo.toml": "244af243ecd00304593ed3b0947a488f06409d661c7beb9c2296bb9f2b416839",
+        "tokio-macros/Cargo.toml": "81a63a0b86deb0473a8e816bf8a8fad9b7c23ebf72e4009f85a897883b3ce4a4",
+        "tokio-stream/Cargo.toml": "6561df1ed83439c41fadf8eb564c521f964246cf5a386c27b57d31bfc75ea639",
+        "tokio-test/Cargo.toml": "d3d4dd6e27934ca6eeb8db27b375f4583fa5504793f04daa93d5054fe98600f4",
+        "tokio-util/Cargo.toml": "6f4c51f03fb9fffb74b6b4c1a799e67cac21e92a5acdbc79297cb8d15aea6792",
+        "tokio/Cargo.toml": "0f283bac386aa6204f152416424dae7db230bc93daac99980b583a0533179bce"
+      }
+    },
+    "rust_py_loaded_from_checkout": true,
+    "status": "upstream_install_ran"
+  },
+  "publisher_recipe": {
+    "file": "rust.py",
+    "git_blob_sha1": "068c7c2414edbcc14d42cca3bae96d27bdfb39f4",
+    "sha256": "1ad97f35f1202ef2a69c066b29d2edc5f552fd62db2230f38d2f7dd91a4a3da2",
+    "spec_dict": "TOKIO_SPECS",
+    "spec_key": "4384"
+  },
+  "purpose": "Symmetric N2-E vs upstream-source-checkout identity + failure evidence for the pinned tokio-4384 substrate; classification deferred to the parity verifier.",
+  "record_sha256": "sha256:7e9d7f56435d2286b2fd03ba5af0cb31a52d733a8a213b010014ce5730591f1d",
+  "record_type": "tokio-4384-publisher-recipe-consistency",
+  "record_version": "v1",
+  "registry_sha256": "sha256:8cdf9ca1cf9434f0210b144b22946065037fb485e36040eab580c256da324d96",
+  "rust_channel": "1.83.0",
+  "schema_version": "n2e-record-1"
+}

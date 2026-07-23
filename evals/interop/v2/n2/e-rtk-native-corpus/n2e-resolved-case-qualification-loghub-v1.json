@@ -1,0 +1,814 @@
+{
+  "acceptance_run": {
+    "artifact_bytes": 6125,
+    "artifact_sha256": "5fbcd0c011a32762aafa11ea318ab03a9e7c4bfdafd6df4d31d51421f0f6ab57",
+    "impl_commit": "1e4e869",
+    "run_attempt": "1",
+    "run_id": "29905861102",
+    "workflow": "qodec-n2e-loghub-acceptance"
+  },
+  "canonicalization_policy_id": "log-v1",
+  "case_entry_sha256": "sha256:e856d30bb34ff5a77c3ae2bf34a3a9230249d736ac40f32cc58277ccd12f7f29",
+  "case_id": "loghub::HDFS::log",
+  "case_qualification_pass": true,
+  "command_semantic_oracle_policy_id": "rtk-log-hdfs-oracle-v1",
+  "contract_generation": 1,
+  "dispatch_code_identity": {
+    "canonicalization_policy_id": "log-v1",
+    "dispatch_module_sha256": "db67978a5a8c6976ee6804cdd1f68331c20e99994035c91b75925b45ab570344",
+    "dispatch_policy_id": "n2e-qualification-dispatch-v2",
+    "oracle_module_sha256": "527db24ea782e2725392238de36dc3270576429a5f8e02dc0673b42f42587a72",
+    "oracle_policy_id": "rtk-log-hdfs-oracle-v1",
+    "registry_sha256": "8d6f6fdf11d9091d9d82014522d4561d2c8b092233188b70ce51c8949120dad3",
+    "rtk_source_identity_sha256": "e72549e7a8a18f0601386e90dcf57033c660b4f5b2462542158c7c2346489236"
+  },
+  "dispatch_policy_id": "n2e-qualification-dispatch-v2",
+  "evidence": {
+    "dir": "evidence/loghub/qualification"
+  },
+  "generated_by": "evals/interop/v2/n2/e-rtk-native-corpus/tools/build_n2e_loghub_dispatch_qualification.py",
+  "identities": {
+    "rtk_sha256": "41f316adf7b30a568208a0a4f824bffb266ecb6d01bd9de81bed58e1d469dfcf"
+  },
+  "manifest_generation": 3,
+  "manifest_sha256": "sha256:564d0da85ee71e31964b52f941f23b16baa7a3949b33425b5611fc78ee31ca78",
+  "mission": "N2-E",
+  "mission_title": "external RTK-native claim-aligned command corpus",
+  "promotion_state": "held (resolved-twelve not yet 12/12)",
+  "purpose": "Immutable per-case qualification for loghub::HDFS::log via the dispatch-v2 registry-bound path (NOT cq). Built from a fresh acceptance run; gated by the dispatch binding + recompute. Severity TOTALS only. Sets no promotion flag.",
+  "qualification_kind": "rtk_command_oracle",
+  "raw_capsule_summary": {
+    "ambiguous_lines": 0,
+    "first_last_occurrence": {
+      "E1": {
+        "first": {
+          "byte_end": 192182326,
+          "byte_start": 192182007,
+          "line": 1372608
+        },
+        "last": {
+          "byte_end": 1226015622,
+          "byte_start": 1226015303,
+          "line": 8763004
+        }
+      },
+      "E10": {
+        "first": {
+          "byte_end": 910145746,
+          "byte_start": 910145591,
+          "line": 6527067
+        },
+        "last": {
+          "byte_end": 910145746,
+          "byte_start": 910145591,
+          "line": 6527067
+        }
+      },
+      "E11": {
+        "first": {
+          "byte_end": 12758698,
+          "byte_start": 12758540,
+          "line": 91131
+        },
+        "last": {
+          "byte_end": 1370656410,
+          "byte_start": 1370656250,
+          "line": 9786816
+        }
+      },
+      "E12": {
+        "first": {
+          "byte_end": 648932007,
+          "byte_start": 648931855,
+          "line": 4672516
+        },
+        "last": {
+          "byte_end": 1230926917,
+          "byte_start": 1230926766,
+          "line": 8797656
+        }
+      },
+      "E13": {
+        "first": {
+          "byte_end": 4036964,
+          "byte_start": 4036813,
+          "line": 28753
+        },
+        "last": {
+          "byte_end": 1533321843,
+          "byte_start": 1533321690,
+          "line": 10936520
+        }
+      },
+      "E14": {
+        "first": {
+          "byte_end": 362160085,
+          "byte_start": 362159939,
+          "line": 2619859
+        },
+        "last": {
+          "byte_end": 653251042,
+          "byte_start": 653250897,
+          "line": 4702823
+        }
+      },
+      "E15": {
+        "first": {
+          "byte_end": 12758848,
+          "byte_start": 12758698,
+          "line": 91132
+        },
+        "last": {
+          "byte_end": 1370656562,
+          "byte_start": 1370656410,
+          "line": 9786817
+        }
+      },
+      "E16": {
+        "first": {
+          "byte_end": 209615744,
+          "byte_start": 209615593,
+          "line": 1496266
+        },
+        "last": {
+          "byte_end": 1226704574,
+          "byte_start": 1226704421,
+          "line": 8767863
+        }
+      },
+      "E17": {
+        "first": {
+          "byte_end": 110289100,
+          "byte_start": 110288947,
+          "line": 790830
+        },
+        "last": {
+          "byte_end": 1230931320,
+          "byte_start": 1230931167,
+          "line": 8797689
+        }
+      },
+      "E18": {
+        "first": {
+          "byte_end": 66577301,
+          "byte_start": 66577164,
+          "line": 474550
+        },
+        "last": {
+          "byte_end": 1564288507,
+          "byte_start": 1564288371,
+          "line": 11157915
+        }
+      },
+      "E19": {
+        "first": {
+          "byte_end": 39653712,
+          "byte_start": 39653524,
+          "line": 282830
+        },
+        "last": {
+          "byte_end": 1236873605,
+          "byte_start": 1236873417,
+          "line": 8839615
+        }
+      },
+      "E2": {
+        "first": {
+          "byte_end": 34769461,
+          "byte_start": 34769147,
+          "line": 248094
+        },
+        "last": {
+          "byte_end": 1230926766,
+          "byte_start": 1230926456,
+          "line": 8797655
+        }
+      },
+      "E20": {
+        "first": {
+          "byte_end": 1220381984,
+          "byte_start": 1220381837,
+          "line": 8723291
+        },
+        "last": {
+          "byte_end": 1224846506,
+          "byte_start": 1224846361,
+          "line": 8754758
+        }
+      },
+      "E21": {
+        "first": {
+          "byte_end": 1224463048,
+          "byte_start": 1224462899,
+          "line": 8752054
+        },
+        "last": {
+          "byte_end": 1226698317,
+          "byte_start": 1226698167,
+          "line": 8767816
+        }
+      },
+      "E22": {
+        "first": {
+          "byte_end": 1471,
+          "byte_start": 1313,
+          "line": 11
+        },
+        "last": {
+          "byte_end": 1536373177,
+          "byte_start": 1536373014,
+          "line": 10958281
+        }
+      },
+      "E23": {
+        "first": {
+          "byte_end": 912756891,
+          "byte_start": 912756753,
+          "line": 6545560
+        },
+        "last": {
+          "byte_end": 1224846643,
+          "byte_start": 1224846506,
+          "line": 8754759
+        }
+      },
+      "E24": {
+        "first": {
+          "byte_end": 34792062,
+          "byte_start": 34791923,
+          "line": 248254
+        },
+        "last": {
+          "byte_end": 1217082146,
+          "byte_start": 1217082006,
+          "line": 8700304
+        }
+      },
+      "E25": {
+        "first": {
+          "byte_end": 17371908,
+          "byte_start": 17371751,
+          "line": 124088
+        },
+        "last": {
+          "byte_end": 1256049642,
+          "byte_start": 1256049483,
+          "line": 8974796
+        }
+      },
+      "E26": {
+        "first": {
+          "byte_end": 17367545,
+          "byte_start": 17367413,
+          "line": 124053
+        },
+        "last": {
+          "byte_end": 1365559976,
+          "byte_start": 1365559841,
+          "line": 9750769
+        }
+      },
+      "E27": {
+        "first": {
+          "byte_end": 17367669,
+          "byte_start": 17367545,
+          "line": 124054
+        },
+        "last": {
+          "byte_end": 1365560103,
+          "byte_start": 1365559976,
+          "line": 9750770
+        }
+      },
+      "E28": {
+        "first": {
+          "byte_end": 66316194,
+          "byte_start": 66316059,
+          "line": 472647
+        },
+        "last": {
+          "byte_end": 1550453625,
+          "byte_start": 1550453489,
+          "line": 11061571
+        }
+      },
+      "E29": {
+        "first": {
+          "byte_end": 918915,
+          "byte_start": 918788,
+          "line": 6491
+        },
+        "last": {
+          "byte_end": 1365286052,
+          "byte_start": 1365285923,
+          "line": 9748836
+        }
+      },
+      "E3": {
+        "first": {
+          "byte_end": 34769767,
+          "byte_start": 34769461,
+          "line": 248095
+        },
+        "last": {
+          "byte_end": 1221584235,
+          "byte_start": 1221583932,
+          "line": 8731760
+        }
+      },
+      "E30": {
+        "first": {
+          "byte_end": 368377073,
+          "byte_start": 368376928,
+          "line": 2663133
+        },
+        "last": {
+          "byte_end": 1428730543,
+          "byte_start": 1428730399,
+          "line": 10198951
+        }
+      },
+      "E31": {
+        "first": {
+          "byte_end": 698,
+          "byte_start": 580,
+          "line": 5
+        },
+        "last": {
+          "byte_end": 1536371932,
+          "byte_start": 1536371812,
+          "line": 10958274
+        }
+      },
+      "E32": {
+        "first": {
+          "byte_end": 4304,
+          "byte_start": 4140,
+          "line": 31
+        },
+        "last": {
+          "byte_end": 1533983848,
+          "byte_start": 1533983704,
+          "line": 10941197
+        }
+      },
+      "E33": {
+        "first": {
+          "byte_end": 4140,
+          "byte_start": 3981,
+          "line": 30
+        },
+        "last": {
+          "byte_end": 1518599341,
+          "byte_start": 1518599183,
+          "line": 10832738
+        }
+      },
+      "E34": {
+        "first": {
+          "byte_end": 298,
+          "byte_start": 143,
+          "line": 2
+        },
+        "last": {
+          "byte_end": 1535659546,
+          "byte_start": 1535659370,
+          "line": 10953104
+        }
+      },
+      "E35": {
+        "first": {
+          "byte_end": 34769147,
+          "byte_start": 34768997,
+          "line": 248093
+        },
+        "last": {
+          "byte_end": 1230566398,
+          "byte_start": 1230566247,
+          "line": 8795117
+        }
+      },
+      "E36": {
+        "first": {
+          "byte_end": 10296418,
+          "byte_start": 10296309,
+          "line": 73503
+        },
+        "last": {
+          "byte_end": 1535506261,
+          "byte_start": 1535506151,
+          "line": 10951995
+        }
+      },
+      "E37": {
+        "first": {
+          "byte_end": 980091158,
+          "byte_start": 980091053,
+          "line": 7020174
+        },
+        "last": {
+          "byte_end": 1256049890,
+          "byte_start": 1256049786,
+          "line": 8974798
+        }
+      },
+      "E38": {
+        "first": {
+          "byte_end": 67507127,
+          "byte_start": 67506986,
+          "line": 481217
+        },
+        "last": {
+          "byte_end": 849819595,
+          "byte_start": 849819451,
+          "line": 6101385
+        }
+      },
+      "E39": {
+        "first": {
+          "byte_end": 2388,
+          "byte_start": 2232,
+          "line": 17
+        },
+        "last": {
+          "byte_end": 1534238408,
+          "byte_start": 1534238246,
+          "line": 10943007
+        }
+      },
+      "E4": {
+        "first": {
+          "byte_end": 16611662,
+          "byte_start": 16611350,
+          "line": 118652
+        },
+        "last": {
+          "byte_end": 1256047368,
+          "byte_start": 1256047055,
+          "line": 8974779
+        }
+      },
+      "E40": {
+        "first": {
+          "byte_end": 300631,
+          "byte_start": 300535,
+          "line": 2081
+        },
+        "last": {
+          "byte_end": 1565682217,
+          "byte_start": 1565682122,
+          "line": 11167740
+        }
+      },
+      "E41": {
+        "first": {
+          "byte_end": 941,
+          "byte_start": 816,
+          "line": 7
+        },
+        "last": {
+          "byte_end": 1536372064,
+          "byte_start": 1536371932,
+          "line": 10958275
+        }
+      },
+      "E42": {
+        "first": {
+          "byte_end": 143,
+          "byte_start": 0,
+          "line": 1
+        },
+        "last": {
+          "byte_end": 1535649342,
+          "byte_start": 1535649197,
+          "line": 10953030
+        }
+      },
+      "E43": {
+        "first": {
+          "byte_end": 3438,
+          "byte_start": 3301,
+          "line": 25
+        },
+        "last": {
+          "byte_end": 1534231717,
+          "byte_start": 1534231578,
+          "line": 10942956
+        }
+      },
+      "E44": {
+        "first": {
+          "byte_end": 10182934,
+          "byte_start": 10182789,
+          "line": 72691
+        },
+        "last": {
+          "byte_end": 1565667149,
+          "byte_start": 1565667006,
+          "line": 11167582
+        }
+      },
+      "E45": {
+        "first": {
+          "byte_end": 6550,
+          "byte_start": 6425,
+          "line": 47
+        },
+        "last": {
+          "byte_end": 1469086011,
+          "byte_start": 1469085888,
+          "line": 10483991
+        }
+      },
+      "E46": {
+        "first": {
+          "byte_end": 194499805,
+          "byte_start": 194499729,
+          "line": 1389056
+        },
+        "last": {
+          "byte_end": 1225160899,
+          "byte_start": 1225160821,
+          "line": 8756976
+        }
+      },
+      "E5": {
+        "first": {
+          "byte_end": 17351702,
+          "byte_start": 17351398,
+          "line": 123940
+        },
+        "last": {
+          "byte_end": 1265760686,
+          "byte_start": 1265760377,
+          "line": 9043326
+        }
+      },
+      "E6": {
+        "first": {
+          "byte_end": 192204046,
+          "byte_start": 192203735,
+          "line": 1372762
+        },
+        "last": {
+          "byte_end": 1365288048,
+          "byte_start": 1365287738,
+          "line": 9748850
+        }
+      },
+      "E7": {
+        "first": {
+          "byte_end": 648932378,
+          "byte_start": 648932127,
+          "line": 4672518
+        },
+        "last": {
+          "byte_end": 1230927286,
+          "byte_start": 1230927036,
+          "line": 8797658
+        }
+      },
+      "E8": {
+        "first": {
+          "byte_end": 67056830,
+          "byte_start": 67056623,
+          "line": 478016
+        },
+        "last": {
+          "byte_end": 1536373014,
+          "byte_start": 1536372806,
+          "line": 10958280
+        }
+      },
+      "E9": {
+        "first": {
+          "byte_end": 39649244,
+          "byte_start": 39649055,
+          "line": 282796
+        },
+        "last": {
+          "byte_end": 1109535829,
+          "byte_start": 1109535635,
+          "line": 7939434
+        }
+      }
+    },
+    "masking_cross_check": {
+      "authority": false,
+      "canon": "log-hdfs-masking-diagnostic-v1",
+      "distinct_masked": 48
+    },
+    "observed_event_ids": [
+      "E1",
+      "E10",
+      "E11",
+      "E12",
+      "E13",
+      "E14",
+      "E15",
+      "E16",
+      "E17",
+      "E18",
+      "E19",
+      "E2",
+      "E20",
+      "E21",
+      "E22",
+      "E23",
+      "E24",
+      "E25",
+      "E26",
+      "E27",
+      "E28",
+      "E29",
+      "E3",
+      "E30",
+      "E31",
+      "E32",
+      "E33",
+      "E34",
+      "E35",
+      "E36",
+      "E37",
+      "E38",
+      "E39",
+      "E4",
+      "E40",
+      "E41",
+      "E42",
+      "E43",
+      "E44",
+      "E45",
+      "E46",
+      "E5",
+      "E6",
+      "E7",
+      "E8",
+      "E9"
+    ],
+    "occurrence_counts_match_published": true,
+    "outcome": "parsed",
+    "published_occurrence_counts": {
+      "E1": 5,
+      "E10": 1,
+      "E11": 75,
+      "E12": 11,
+      "E13": 3226,
+      "E14": 4,
+      "E15": 75,
+      "E16": 10,
+      "E17": 11,
+      "E18": 5545,
+      "E19": 9,
+      "E2": 16,
+      "E20": 3,
+      "E21": 2,
+      "E22": 1719741,
+      "E23": 5,
+      "E24": 6,
+      "E25": 65,
+      "E26": 48,
+      "E27": 47,
+      "E28": 1396174,
+      "E29": 19,
+      "E3": 7,
+      "E30": 47,
+      "E31": 1706679,
+      "E32": 7002,
+      "E33": 165,
+      "E34": 575061,
+      "E35": 34,
+      "E36": 1464,
+      "E37": 10,
+      "E38": 356207,
+      "E39": 7097,
+      "E4": 22,
+      "E40": 120036,
+      "E41": 1706514,
+      "E42": 1723232,
+      "E43": 6937,
+      "E44": 1402047,
+      "E45": 428726,
+      "E46": 5,
+      "E5": 33,
+      "E6": 15,
+      "E7": 5,
+      "E8": 1288,
+      "E9": 9
+    },
+    "reference_sha256": "0a105b8dd2f8d3784faada4443c726e6e4aec76f9c8a14298d5e3b8295b4aa63",
+    "reference_template_count": 46,
+    "rtk_semantic_projection": {
+      "error": 5545,
+      "info": 10805922,
+      "other": 0,
+      "warn": 356273
+    },
+    "severity_counts": {
+      "INFO": 10805922,
+      "WARN": 361818
+    },
+    "streamed_occurrence_counts": {
+      "E1": 5,
+      "E10": 1,
+      "E11": 75,
+      "E12": 11,
+      "E13": 3226,
+      "E14": 4,
+      "E15": 75,
+      "E16": 10,
+      "E17": 11,
+      "E18": 5545,
+      "E19": 9,
+      "E2": 16,
+      "E20": 3,
+      "E21": 2,
+      "E22": 1719741,
+      "E23": 5,
+      "E24": 6,
+      "E25": 65,
+      "E26": 48,
+      "E27": 47,
+      "E28": 1396174,
+      "E29": 19,
+      "E3": 7,
+      "E30": 47,
+      "E31": 1706679,
+      "E32": 7002,
+      "E33": 165,
+      "E34": 575061,
+      "E35": 34,
+      "E36": 1464,
+      "E37": 10,
+      "E38": 356207,
+      "E39": 7097,
+      "E4": 22,
+      "E40": 120036,
+      "E41": 1706514,
+      "E42": 1723232,
+      "E43": 6937,
+      "E44": 1402047,
+      "E45": 428726,
+      "E46": 5,
+      "E5": 33,
+      "E6": 15,
+      "E7": 5,
+      "E8": 1288,
+      "E9": 9
+    },
+    "summary_sha256": "24557ddc2a41e21d9d1939a2a28db6ba55575f2f5522e75836c8f495e75d2f3c",
+    "total_lines": 11167740,
+    "unique_template_count": 46,
+    "unmatched_lines": 0
+  },
+  "re_derived_semantic_projection": {
+    "equivalence": {
+      "compared_fields": [
+        "total_errors",
+        "total_warnings",
+        "total_info"
+      ],
+      "equivalent": true,
+      "mismatches": [],
+      "note": "severity totals only; RTK reports no loghub EventIds or per-template counts"
+    },
+    "normative_axis": "severity TOTALS only (errors/warnings/info); unique counts never compared to the 46 published EventIds",
+    "raw_projection": {
+      "derivable": true,
+      "dropped": 0,
+      "outcome": "summary",
+      "total_errors": 5545,
+      "total_info": 10805922,
+      "total_warnings": 356273
+    },
+    "rtk_projection": {
+      "derivable": true,
+      "error_unique": 5010,
+      "outcome": "summary",
+      "total_errors": 5545,
+      "total_info": 10805922,
+      "total_warnings": 356273,
+      "warn_unique": 116839
+    }
+  },
+  "record_kind": "loghub_acceptance_qualification",
+  "record_sha256": "sha256:66c445d0ac3df39573d4531379a33967ffb7f076d895f518f0d60a2e57bcff5e",
+  "record_type": "n2e-resolved-case-qualification",
+  "record_version": "v1",
+  "resolved_canary_pass": false,
+  "rtk_output": {
+    "bytes": 1877,
+    "evidence_path": "evidence/loghub/qualification/rtk.stdout.bin",
+    "sha256": "cbf6d549fa8c7ae951beb688dba94708f53e57930b92d0bf1cbf6a140ed8015a"
+  },
+  "rtk_test_dialect_policy_id": null,
+  "same_input_proof": {
+    "input_member_sha256": "e8987f909b97ce975d65f773a4e1eae7aadab455a38db2aa29ed30ae8b96f166",
+    "member_unchanged_after": true,
+    "raw_stdout_equals_member": true,
+    "raw_stdout_sha256": "e8987f909b97ce975d65f773a4e1eae7aadab455a38db2aa29ed30ae8b96f166",
+    "rtk_read_same_member_path": true
+  },
+  "schema_version": "n2e-record-1",
+  "verdict_authority": "dispatch-v2 binding + recompute (producer records observations)"
+}

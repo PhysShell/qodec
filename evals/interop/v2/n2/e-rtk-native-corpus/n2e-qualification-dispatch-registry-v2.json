@@ -1,0 +1,26 @@
+{
+  "dispatch_policy_id": "n2e-qualification-dispatch-v2",
+  "entries": [
+    {
+      "allowed_case_ids": [
+        "loghub::HDFS::log"
+      ],
+      "canonicalization_policy_id": "log-v1",
+      "dispatch_policy_id": "n2e-qualification-dispatch-v2",
+      "oracle_module": "tools/n2e_rtk_log_hdfs_oracle.py",
+      "oracle_module_sha256": "527db24ea782e2725392238de36dc3270576429a5f8e02dc0673b42f42587a72",
+      "policy_id": "rtk-log-hdfs-oracle-v1",
+      "qualification_kind": "rtk_command_oracle",
+      "rtk_source_identity_sha256": "e72549e7a8a18f0601386e90dcf57033c660b4f5b2462542158c7c2346489236"
+    }
+  ],
+  "generated_by": "tools/build_n2e_dispatch_registry.py",
+  "generation": "n2e-qualification-dispatch-v2",
+  "mission": "N2-E",
+  "mission_title": "external RTK-native claim-aligned command corpus",
+  "purpose": "Immutable, checksum-pinned, CASE-SCOPED oracle registry for the n2e-qualification-dispatch-v2 generation. Exactly-one-match by (policy_id, case_id); NO family-level binding, NO module discovery, NO import path, NO generic-oracle fallback. Frozen after Loghub qualification; future command oracles enter via a NEW dispatch generation (v3, v4), never by editing this.",
+  "record_sha256": "sha256:c210056aee53a7503e55d460cce781102b56699e0bb0cf64accfc3e5c9b4f0ee",
+  "record_type": "n2e-qualification-dispatch-registry",
+  "record_version": "v1",
+  "schema_version": "n2e-record-1"
+}

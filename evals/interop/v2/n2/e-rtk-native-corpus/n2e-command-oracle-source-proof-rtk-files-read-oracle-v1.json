@@ -1,0 +1,69 @@
+{
+  "additional_source_identities": [
+    {
+      "bytes": 9208,
+      "content_sha256": "b9df701507e2224dae630e1d6e442eb01d4ba4eead8f1fee033030b7d2ce4e7f",
+      "git_blob_sha1": "141d55acf2c3e544e30280b595d0bc4f87d961e9",
+      "source_file": "src/cmds/system/read.rs",
+      "source_function": "run"
+    },
+    {
+      "bytes": 17935,
+      "content_sha256": "826153ac50701fdd76719521bf6d9c4f75045410c66518a40da9ba1339f1e7ac",
+      "git_blob_sha1": "90f89ade658c89ad7cd565dedfe3c436b61cdb8c",
+      "source_file": "src/core/filter.rs",
+      "source_function": "NoFilter::filter / get_filter / Language::from_extension"
+    },
+    {
+      "bytes": 1385,
+      "content_sha256": "446015732c47b0b726b10141e0e7460836067ad6a39d1633535544a1427485c4",
+      "git_blob_sha1": "b8b905b7b2a05f644834f59b66c12c8fe266c644",
+      "source_file": "src/core/guard.rs",
+      "source_function": "never_worse"
+    },
+    {
+      "bytes": 120082,
+      "content_sha256": "e55ee015ced8b33085b54d94d2611dda06ffe3f1a2644751deb3f9fae5264da2",
+      "git_blob_sha1": "1c85bb55f97bb44f7cd676dc3dd3b2b56437c80b",
+      "source_file": "src/main.rs",
+      "source_function": "Commands::Read (default_value=\"none\")"
+    }
+  ],
+  "generated_by": "evals/interop/v2/n2/e-rtk-native-corpus/tools/build_n2e_command_oracle_source_proof.py",
+  "manifest_binding": {
+    "manifest_generation": 3,
+    "manifest_sha256": "sha256:80a6decdddf8a57917fc395d773bd552db4803933de90e99f9cfa42d6b1b893e"
+  },
+  "mission": "N2-E",
+  "mission_title": "external RTK-native claim-aligned command corpus",
+  "no_family_level": "this oracle is proven for the listed case ids ONLY; one case does not establish family-level go::vet scope",
+  "oracle_policy_id": "rtk-files-read-oracle-v1",
+  "oracle_scope": "case_scoped",
+  "pinned_rtk_binary_identity": {
+    "bytes": 9200104,
+    "sha256": "41f316adf7b30a568208a0a4f824bffb266ecb6d01bd9de81bed58e1d469dfcf"
+  },
+  "proven_case_ids": [
+    "preactjs__preact-3345::files_search::read",
+    "projectlombok__lombok-3312::files_search::read"
+  ],
+  "purpose": "Source-identity + case-scope proof for rtk-files-read-oracle-v1. Pins the exact pinned RTK source function it was grounded in, the semantics-module identity, the pinned corpus RTK binary, and the case-scoped manifest binding. Sets no promotion flag.",
+  "record_sha256": "sha256:ecfb303fa61fe0c2783fb7dcfcc464321ce8f0ca3094f55efe26bb38dd7bf01e",
+  "record_type": "n2e-command-oracle-source-proof",
+  "record_version": "v1",
+  "rtk_source_identity": {
+    "bytes": 9208,
+    "commit": "5d32d0736f686b69d1e8b9dc45c007d4eb77a0a2",
+    "content_sha256": "b9df701507e2224dae630e1d6e442eb01d4ba4eead8f1fee033030b7d2ce4e7f",
+    "git_blob_sha1": "141d55acf2c3e544e30280b595d0bc4f87d961e9",
+    "source_file": "src/cmds/system/read.rs",
+    "source_function": "run"
+  },
+  "schema_version": "n2e-record-1",
+  "semantics_module": {
+    "bytes": 7050,
+    "declared_oracle_id": "rtk-files-read-oracle-v1",
+    "path": "tools/n2e_rtk_files_read_oracle.py",
+    "sha256": "1885ae366c523009b451af83c77a6be91d40e223f0fa994aebdcf6e9ef33b2c0"
+  }
+}

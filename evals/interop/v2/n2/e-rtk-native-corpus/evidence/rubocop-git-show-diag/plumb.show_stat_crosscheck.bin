@@ -1,0 +1,2 @@
+ spec/rubocop/cop/style/redundant_line_continuation_spec.rb | 16 +++++++++++++++-
+ 1 file changed, 15 insertions(+), 1 deletion(-)

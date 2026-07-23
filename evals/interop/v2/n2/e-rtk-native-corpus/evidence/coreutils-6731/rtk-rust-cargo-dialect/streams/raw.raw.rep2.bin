@@ -1,0 +1,319 @@
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 78 filtered out; finished in 0.00s
+
+
+running 10 tests
+test test_echo::test_escape_backslash ... ok
+test test_env::tests_split_iterator::split_trailing_backslash ... ok
+test test_hashsum::test_check_no_backslash_no_space ... ok
+test test_paste::test_delimiter_list_ending_with_escaped_backslash ... ok
+test test_paste::test_delimiter_list_ending_with_unescaped_backslash ... ok
+test test_tr::test_interpret_backslash_at_eol_literally ... ok
+test test_tr::test_interpret_backslash_escapes ... ok
+test test_tr::test_interpret_unrecognized_backslash_escape_as_character ... ok
+test test_tr::test_trailing_backslash ... ok
+test test_tr::test_unescaped_backslash_warning_false_positive ... ok
+
+test result: ok. 10 passed; 0 failed; 0 ignored; 0 measured; 3127 filtered out; finished in 0.05s
+
+   Compiling cfg-if v1.0.0
+   Compiling libc v0.2.159
+   Compiling proc-macro2 v1.0.86
+   Compiling unicode-ident v1.0.5
+   Compiling version_check v0.9.4
+   Compiling quote v1.0.37
+   Compiling syn v2.0.60
+   Compiling memchr v2.7.4
+   Compiling typenum v1.15.0
+   Compiling generic-array v0.14.6
+   Compiling bitflags v1.3.2
+   Compiling bitflags v2.6.0
+   Compiling io-lifetimes v1.0.11
+   Compiling rustix v0.37.26
+   Compiling once_cell v1.20.0
+   Compiling regex-syntax v0.8.2
+   Compiling shlex v1.3.0
+   Compiling cc v1.1.13
+   Compiling linux-raw-sys v0.3.8
+   Compiling block-buffer v0.10.3
+   Compiling crypto-common v0.1.6
+   Compiling utf8parse v0.2.1
+   Compiling unicode-width v0.1.13
+   Compiling rustix v0.38.31
+   Compiling anstyle-parse v0.2.0
+   Compiling digest v0.10.7
+   Compiling terminal_size v0.2.6
+   Compiling aho-corasick v1.1.3
+   Compiling colorchoice v1.0.0
+   Compiling anstyle-query v1.0.0
+   Compiling anstyle v1.0.0
+   Compiling linux-raw-sys v0.4.12
+   Compiling anstream v0.5.0
+   Compiling strsim v0.10.0
+   Compiling cfg_aliases v0.2.1
+   Compiling syn v1.0.109
+   Compiling clap_lex v0.5.0
+   Compiling clap_builder v4.4.2
+   Compiling nix v0.29.0
+   Compiling regex-automata v0.4.4
+   Compiling either v1.8.0
+   Compiling clap v4.4.2
+   Compiling blake3 v1.5.4
+   Compiling data-encoding v2.6.0
+   Compiling powerfmt v0.2.0
+   Compiling arrayvec v0.7.4
+   Compiling glob v0.3.1
+   Compiling time-core v0.1.2
+   Compiling num-conv v0.1.0
+   Compiling same-file v1.0.6
+   Compiling constant_time_eq v0.3.0
+   Compiling cpufeatures v0.2.5
+   Compiling thiserror v1.0.64
+   Compiling arrayref v0.3.6
+   Compiling hex v0.4.3
+   Compiling walkdir v2.5.0
+   Compiling time-macros v0.2.18
+   Compiling deranged v0.3.11
+   Compiling data-encoding-macro-internal v0.1.13
+   Compiling regex v1.10.6
+   Compiling thiserror-impl v1.0.64
+   Compiling socket2 v0.5.3
+   Compiling itoa v1.0.4
+   Compiling number_prefix v0.4.0
+   Compiling num_threads v0.1.6
+   Compiling keccak v0.1.4
+   Compiling sha3 v0.10.8
+   Compiling uucore_procs v0.0.27 (/home/runner/work/_temp/n2e-fixedwork/repo/src/uucore_procs)
+   Compiling time v0.3.36
+   Compiling data-encoding-macro v0.1.15
+   Compiling dns-lookup v2.0.4
+   Compiling blake2b_simd v1.0.2
+   Compiling sha2 v0.10.8
+   Compiling sha1 v0.10.6
+   Compiling itertools v0.13.0
+   Compiling xattr v1.3.1
+   Compiling sm3 v0.4.2
+   Compiling md-5 v0.10.6
+   Compiling os_display v0.1.3
+   Compiling z85 v3.0.5
+   Compiling dunce v1.0.5
+   Compiling wild v2.2.1
+   Compiling uucore v0.0.27 (/home/runner/work/_temp/n2e-fixedwork/repo/src/uucore)
+   Compiling autocfg v1.1.0
+   Compiling num-traits v0.2.19
+   Compiling getrandom v0.2.9
+   Compiling rand_core v0.6.4
+   Compiling ppv-lite86 v0.2.17
+   Compiling rand_chacha v0.3.1
+   Compiling rand v0.8.5
+   Compiling crossbeam-utils v0.8.19
+   Compiling ahash v0.8.11
+   Compiling iana-time-zone v0.1.53
+   Compiling crunchy v0.2.2
+   Compiling chrono v0.4.38
+   Compiling tiny-keccak v2.0.2
+   Compiling zerocopy v0.7.34
+   Compiling num-integer v0.1.46
+   Compiling allocator-api2 v0.2.18
+   Compiling siphasher v0.3.10
+   Compiling hashbrown v0.14.3
+   Compiling num-bigint v0.4.6
+   Compiling futures-core v0.3.28
+   Compiling signal-hook v0.3.17
+   Compiling semver v1.0.14
+   Compiling log v0.4.20
+   Compiling mio v0.8.11
+   Compiling const-random-macro v0.1.16
+   Compiling slab v0.4.7
+   Compiling lock_api v0.4.9
+   Compiling signal-hook-registry v1.4.1
+   Compiling portable-atomic v1.6.0
+   Compiling radium v0.7.0
+   Compiling futures-task v0.3.28
+   Compiling lazy_static v1.4.0
+   Compiling smallvec v1.13.2
+   Compiling minimal-lexical v0.2.1
+   Compiling pkg-config v0.3.26
+   Compiling parking_lot_core v0.9.10
+   Compiling futures-channel v0.3.28
+   Compiling onig_sys v69.8.1
+   Compiling nom v7.1.3
+   Compiling const-random v0.1.16
+   Compiling phf_shared v0.11.2
+   Compiling crossbeam-epoch v0.9.17
+   Compiling ansi-width v0.1.0
+   Compiling filetime v0.2.25
+   Compiling futures-util v0.3.28
+   Compiling scopeguard v1.2.0
+   Compiling equivalent v1.0.1
+   Compiling libm v0.2.7
+   Compiling nu-ansi-term v0.50.0
+   Compiling rayon-core v1.12.1
+   Compiling tap v1.0.1
+   Compiling futures-sink v0.3.28
+   Compiling wyz v0.5.1
+   Compiling lscolors v0.19.0
+   Compiling indexmap v2.2.6
+   Compiling uutils_term_grid v0.6.0
+   Compiling crossbeam-deque v0.8.4
+   Compiling phf_generator v0.11.1
+   Compiling rustc_version v0.4.0
+   Compiling dlv-list v0.5.0
+   Compiling console v0.15.8
+   Compiling bigdecimal v0.4.5
+   Compiling terminal_size v0.4.0
+   Compiling futures-macro v0.3.28
+   Compiling inotify-sys v0.1.5
+   Compiling hostname v0.4.0
+   Compiling funty v2.0.0
+   Compiling fastrand v2.0.1
+   Compiling fundu-core v0.3.1
+   Compiling futures-io v0.3.28
+   Compiling serde v1.0.210
+   Compiling winnow v0.5.40
+   Compiling toml_datetime v0.6.6
+   Compiling pin-project-lite v0.2.9
+   Compiling pin-utils v0.1.0
+   Compiling toml_edit v0.21.1
+   Compiling fundu v2.0.1
+   Compiling tempfile v3.12.0
+   Compiling bitvec v1.0.1
+   Compiling uu_ls v0.0.27 (/home/runner/work/_temp/n2e-fixedwork/repo/src/uu/ls)
+   Compiling inotify v0.9.6
+   Compiling indicatif v0.17.8
+   Compiling parking_lot v0.12.1
+   Compiling ordered-multimap v0.7.3
+   Compiling rstest_macros v0.22.0
+   Compiling phf_codegen v0.11.2
+   Compiling signal-hook-mio v0.2.3
+   Compiling parse_datetime v0.6.0
+   Compiling num-modular v0.5.1
+   Compiling lru v0.12.3
+   Compiling crossbeam-channel v0.5.10
+   Compiling uu_base32 v0.0.27 (/home/runner/work/_temp/n2e-fixedwork/repo/src/uu/base32)
+   Compiling serde_derive v1.0.210
+   Compiling quick-error v2.0.1
+   Compiling trim-in-place v0.1.7
+   Compiling compare v0.1.0
+   Compiling binary-heap-plus v0.5.0
+   Compiling rust-ini v0.21.1
+   Compiling notify v6.0.1
+   Compiling num-prime v0.4.4
+   Compiling crossterm v0.27.0
+   Compiling rayon v1.10.0
+   Compiling coreutils v0.0.27 (/home/runner/work/_temp/n2e-fixedwork/repo)
+   Compiling onig v6.4.0
+   Compiling proc-macro-crate v3.1.0
+   Compiling futures-executor v0.3.28
+   Compiling ctrlc v3.4.5
+   Compiling bstr v1.10.0
+   Compiling memmap2 v0.9.5
+   Compiling half v2.4.1
+   Compiling gcd v2.3.0
+   Compiling self_cell v1.0.4
+   Compiling smawk v0.3.1
+   Compiling rlimit v0.10.2
+   Compiling procfs v0.16.0
+   Compiling unicode-segmentation v1.12.0
+   Compiling byteorder v1.5.0
+   Compiling roff v0.2.1
+   Compiling bytecount v0.6.8
+   Compiling unicode-linebreak v0.1.5
+   Compiling fs_extra v1.3.0
+   Compiling fnv v1.0.7
+   Compiling relative-path v1.8.0
+   Compiling uu_sort v0.0.27 (/home/runner/work/_temp/n2e-fixedwork/repo/src/uu/sort)
+   Compiling uu_mv v0.0.27 (/home/runner/work/_temp/n2e-fixedwork/repo/src/uu/mv)
+   Compiling textwrap v0.16.1
+   Compiling uu_wc v0.0.27 (/home/runner/work/_temp/n2e-fixedwork/repo/src/uu/wc)
+   Compiling clap_mangen v0.2.9
+   Compiling uu_od v0.0.27 (/home/runner/work/_temp/n2e-fixedwork/repo/src/uu/od)
+   Compiling uu_more v0.0.27 (/home/runner/work/_temp/n2e-fixedwork/repo/src/uu/more)
+   Compiling uu_dd v0.0.27 (/home/runner/work/_temp/n2e-fixedwork/repo/src/uu/dd)
+   Compiling uu_tac v0.0.27 (/home/runner/work/_temp/n2e-fixedwork/repo/src/uu/tac)
+   Compiling uu_cut v0.0.27 (/home/runner/work/_temp/n2e-fixedwork/repo/src/uu/cut)
+   Compiling phf v0.11.2
+   Compiling futures v0.3.28
+   Compiling uu_expr v0.0.27 (/home/runner/work/_temp/n2e-fixedwork/repo/src/uu/expr)
+   Compiling uu_seq v0.0.27 (/home/runner/work/_temp/n2e-fixedwork/repo/src/uu/seq)
+   Compiling uu_factor v0.0.27 (/home/runner/work/_temp/n2e-fixedwork/repo/src/uu/factor)
+   Compiling uu_tail v0.0.27 (/home/runner/work/_temp/n2e-fixedwork/repo/src/uu/tail)
+   Compiling uu_env v0.0.27 (/home/runner/work/_temp/n2e-fixedwork/repo/src/uu/env)
+   Compiling uu_cp v0.0.27 (/home/runner/work/_temp/n2e-fixedwork/repo/src/uu/cp)
+   Compiling uu_pr v0.0.27 (/home/runner/work/_temp/n2e-fixedwork/repo/src/uu/pr)
+   Compiling uu_basenc v0.0.27 (/home/runner/work/_temp/n2e-fixedwork/repo/src/uu/basenc)
+   Compiling uu_base64 v0.0.27 (/home/runner/work/_temp/n2e-fixedwork/repo/src/uu/base64)
+   Compiling uu_date v0.0.27 (/home/runner/work/_temp/n2e-fixedwork/repo/src/uu/date)
+   Compiling uu_touch v0.0.27 (/home/runner/work/_temp/n2e-fixedwork/repo/src/uu/touch)
+   Compiling uu_dir v0.0.27 (/home/runner/work/_temp/n2e-fixedwork/repo/src/uu/dir)
+   Compiling uu_vdir v0.0.27 (/home/runner/work/_temp/n2e-fixedwork/repo/src/uu/vdir)
+   Compiling uu_mktemp v0.0.27 (/home/runner/work/_temp/n2e-fixedwork/repo/src/uu/mktemp)
+   Compiling uu_sleep v0.0.27 (/home/runner/work/_temp/n2e-fixedwork/repo/src/uu/sleep)
+   Compiling uu_tr v0.0.27 (/home/runner/work/_temp/n2e-fixedwork/repo/src/uu/tr)
+   Compiling uu_du v0.0.27 (/home/runner/work/_temp/n2e-fixedwork/repo/src/uu/du)
+   Compiling uu_shred v0.0.27 (/home/runner/work/_temp/n2e-fixedwork/repo/src/uu/shred)
+   Compiling uu_shuf v0.0.27 (/home/runner/work/_temp/n2e-fixedwork/repo/src/uu/shuf)
+   Compiling uu_echo v0.0.27 (/home/runner/work/_temp/n2e-fixedwork/repo/src/uu/echo)
+   Compiling uu_readlink v0.0.27 (/home/runner/work/_temp/n2e-fixedwork/repo/src/uu/readlink)
+   Compiling uu_hashsum v0.0.27 (/home/runner/work/_temp/n2e-fixedwork/repo/src/uu/hashsum)
+   Compiling uu_rm v0.0.27 (/home/runner/work/_temp/n2e-fixedwork/repo/src/uu/rm)
+   Compiling uu_ln v0.0.27 (/home/runner/work/_temp/n2e-fixedwork/repo/src/uu/ln)
+   Compiling uu_csplit v0.0.27 (/home/runner/work/_temp/n2e-fixedwork/repo/src/uu/csplit)
+   Compiling uu_head v0.0.27 (/home/runner/work/_temp/n2e-fixedwork/repo/src/uu/head)
+   Compiling uu_comm v0.0.27 (/home/runner/work/_temp/n2e-fixedwork/repo/src/uu/comm)
+   Compiling uu_df v0.0.27 (/home/runner/work/_temp/n2e-fixedwork/repo/src/uu/df)
+   Compiling uu_expand v0.0.27 (/home/runner/work/_temp/n2e-fixedwork/repo/src/uu/expand)
+   Compiling uu_realpath v0.0.27 (/home/runner/work/_temp/n2e-fixedwork/repo/src/uu/realpath)
+   Compiling uu_false v0.0.27 (/home/runner/work/_temp/n2e-fixedwork/repo/src/uu/false)
+   Compiling uu_dirname v0.0.27 (/home/runner/work/_temp/n2e-fixedwork/repo/src/uu/dirname)
+   Compiling uu_numfmt v0.0.27 (/home/runner/work/_temp/n2e-fixedwork/repo/src/uu/numfmt)
+   Compiling uu_tsort v0.0.27 (/home/runner/work/_temp/n2e-fixedwork/repo/src/uu/tsort)
+   Compiling uu_sum v0.0.27 (/home/runner/work/_temp/n2e-fixedwork/repo/src/uu/sum)
+   Compiling uu_uniq v0.0.27 (/home/runner/work/_temp/n2e-fixedwork/repo/src/uu/uniq)
+   Compiling uu_join v0.0.27 (/home/runner/work/_temp/n2e-fixedwork/repo/src/uu/join)
+   Compiling uu_true v0.0.27 (/home/runner/work/_temp/n2e-fixedwork/repo/src/uu/true)
+   Compiling uu_basename v0.0.27 (/home/runner/work/_temp/n2e-fixedwork/repo/src/uu/basename)
+   Compiling uu_unexpand v0.0.27 (/home/runner/work/_temp/n2e-fixedwork/repo/src/uu/unexpand)
+   Compiling uu_truncate v0.0.27 (/home/runner/work/_temp/n2e-fixedwork/repo/src/uu/truncate)
+   Compiling uu_printf v0.0.27 (/home/runner/work/_temp/n2e-fixedwork/repo/src/uu/printf)
+   Compiling uu_rmdir v0.0.27 (/home/runner/work/_temp/n2e-fixedwork/repo/src/uu/rmdir)
+   Compiling uu_split v0.0.27 (/home/runner/work/_temp/n2e-fixedwork/repo/src/uu/split)
+   Compiling uu_mkdir v0.0.27 (/home/runner/work/_temp/n2e-fixedwork/repo/src/uu/mkdir)
+   Compiling uu_pwd v0.0.27 (/home/runner/work/_temp/n2e-fixedwork/repo/src/uu/pwd)
+   Compiling uu_yes v0.0.27 (/home/runner/work/_temp/n2e-fixedwork/repo/src/uu/yes)
+   Compiling uu_paste v0.0.27 (/home/runner/work/_temp/n2e-fixedwork/repo/src/uu/paste)
+   Compiling uu_cksum v0.0.27 (/home/runner/work/_temp/n2e-fixedwork/repo/src/uu/cksum)
+   Compiling uu_link v0.0.27 (/home/runner/work/_temp/n2e-fixedwork/repo/src/uu/link)
+   Compiling uu_printenv v0.0.27 (/home/runner/work/_temp/n2e-fixedwork/repo/src/uu/printenv)
+   Compiling uu_fmt v0.0.27 (/home/runner/work/_temp/n2e-fixedwork/repo/src/uu/fmt)
+   Compiling uu_dircolors v0.0.27 (/home/runner/work/_temp/n2e-fixedwork/repo/src/uu/dircolors)
+   Compiling uu_unlink v0.0.27 (/home/runner/work/_temp/n2e-fixedwork/repo/src/uu/unlink)
+   Compiling uu_ptx v0.0.27 (/home/runner/work/_temp/n2e-fixedwork/repo/src/uu/ptx)
+   Compiling uu_tee v0.0.27 (/home/runner/work/_temp/n2e-fixedwork/repo/src/uu/tee)
+   Compiling uu_cat v0.0.27 (/home/runner/work/_temp/n2e-fixedwork/repo/src/uu/cat)
+   Compiling uu_nl v0.0.27 (/home/runner/work/_temp/n2e-fixedwork/repo/src/uu/nl)
+   Compiling uu_fold v0.0.27 (/home/runner/work/_temp/n2e-fixedwork/repo/src/uu/fold)
+   Compiling uu_test v0.0.27 (/home/runner/work/_temp/n2e-fixedwork/repo/src/uu/test)
+   Compiling procfs-core v0.16.0
+   Compiling clap_complete v4.4.0
+   Compiling yansi v1.0.1
+   Compiling futures-timer v3.0.2
+   Compiling diff v0.1.13
+   Compiling pretty_assertions v1.4.1
+   Compiling rstest v0.22.0
+   Compiling serde-big-array v0.5.1
+   Compiling bincode v1.3.3
+   Compiling rand_pcg v0.3.1
+   Compiling unindent v0.2.3
+   Compiling hex-literal v0.4.1
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 2m 34s
+     Running unittests src/bin/coreutils.rs (target/debug/deps/coreutils-d4097ac90cb9cbd5)
+     Running tests/test_util_name.rs (target/debug/deps/test_util_name-a9c6f48e4a525f99)
+     Running tests/tests.rs (target/debug/deps/tests-4ca65ddf13215667)

@@ -1,0 +1,114 @@
+{
+  "generated_by": "evals/interop/v2/n2/e-rtk-native-corpus/tools/build_n2e_substrate_identity.py",
+  "locked_inputs": [
+    {
+      "flake_lock_node": "crane",
+      "locked_nar_hash": "sha256-SlXKwIRIhrOSAcTjCB3ftPLzJWZStQIPS7J1FlZPnKk=",
+      "override_target": "crane",
+      "owner": "ipetkov",
+      "reconstruction_nar_hash": "sha256-SlXKwIRIhrOSAcTjCB3ftPLzJWZStQIPS7J1FlZPnKk=",
+      "repo": "crane",
+      "rev": "469fd08d0bcf6926321fa973c6777fbc87785dd7"
+    },
+    {
+      "flake_lock_node": "flake-utils",
+      "locked_nar_hash": "sha256-l0KFg5HjrsfsO/JpG+r7fRrqm12kzFHyUHqHCVpMMbI=",
+      "override_target": "flake-utils",
+      "owner": "numtide",
+      "reconstruction_nar_hash": "sha256-l0KFg5HjrsfsO/JpG+r7fRrqm12kzFHyUHqHCVpMMbI=",
+      "repo": "flake-utils",
+      "rev": "11707dc2f618dd54ca8739b309ec4fc024de578b"
+    },
+    {
+      "flake_lock_node": "nixpkgs",
+      "locked_nar_hash": "sha256-16KkgfdYqjaeRGBaYsNrhPRRENs0qzkQVUooNHtoy2w=",
+      "override_target": "nixpkgs",
+      "owner": "NixOS",
+      "reconstruction_nar_hash": "sha256-16KkgfdYqjaeRGBaYsNrhPRRENs0qzkQVUooNHtoy2w=",
+      "repo": "nixpkgs",
+      "rev": "ac62194c3917d5f474c1a844b6fd6da2db95077d"
+    },
+    {
+      "flake_lock_node": "rtk-src",
+      "locked_nar_hash": "sha256-kPNJUq1z/a46jVnX3Lm3WstXXg/C5myDqWPZzXjZl3o=",
+      "override_target": "rtk-src",
+      "owner": "rtk-ai",
+      "reconstruction_nar_hash": "sha256-kPNJUq1z/a46jVnX3Lm3WstXXg/C5myDqWPZzXjZl3o=",
+      "repo": "rtk",
+      "rev": "5d32d0736f686b69d1e8b9dc45c007d4eb77a0a2"
+    },
+    {
+      "flake_lock_node": "rust-overlay",
+      "locked_nar_hash": "sha256-HsaK9yDDypMB2TPxAYz0mPKtmYhgNwFQa72b3Ko6kRE=",
+      "override_target": "rust-overlay",
+      "owner": "oxalica",
+      "reconstruction_nar_hash": "sha256-HsaK9yDDypMB2TPxAYz0mPKtmYhgNwFQa72b3Ko6kRE=",
+      "repo": "rust-overlay",
+      "rev": "e3fa5cf86b93914b8f312b2a1ca14fbb139c655c"
+    },
+    {
+      "flake_lock_node": "systems",
+      "locked_nar_hash": "sha256-Vy1rq5AaRuLzOxct8nz4T6wlgyUR7zLU309k9mBC768=",
+      "override_target": "flake-utils/systems",
+      "owner": "nix-systems",
+      "reconstruction_nar_hash": "sha256-Vy1rq5AaRuLzOxct8nz4T6wlgyUR7zLU309k9mBC768=",
+      "repo": "default",
+      "rev": "da67096a3b9bf56a91d16901293e51ba5b49a27e"
+    }
+  ],
+  "mission": "N2-E",
+  "mission_title": "external RTK-native claim-aligned command corpus",
+  "nix": {
+    "experimental_features": [
+      "nix-command",
+      "flakes"
+    ],
+    "sandbox": true,
+    "sandbox_rationale": "sandbox=true builds in the deterministic /build path; sandbox=false leaks a randomized /nix/var/nix/builds path into the Rust binary and does NOT reproduce the pinned SHA-256.",
+    "version": "2.35.1"
+  },
+  "purpose": "Freeze the identity of the mandated N2-E build substrate: the pinned RTK source commit and reproduced binary SHA-256, QODEC output identity, the six locked flake inputs (NAR hashes from flake.lock), the git-transport bootstrap recipe, and Nix/sandbox configuration.",
+  "qodec": {
+    "flake_output": ".#qodec",
+    "meter": "o200k_base",
+    "meter_impl": "tiktoken-rs (compiled into the qodec derivation)",
+    "store_path_observed": "/nix/store/03phj9h9piyydgnibqagwx8hmppz30wg-qodec-0.1.0"
+  },
+  "record_sha256": "sha256:5d79d9b6ce32e72c090b677745c9c84d52fd5527319b087e0438ca75889dc2fe",
+  "record_type": "n2e-substrate-identity",
+  "record_version": "v1",
+  "rtk": {
+    "binary_sha256": "41f316adf7b30a568208a0a4f824bffb266ecb6d01bd9de81bed58e1d469dfcf",
+    "derivation_observed": "/nix/store/yqwn6yxpkfbhpc3bz8f530l6d67s7wxv-rtk-pinned-0.42.4.drv",
+    "flake_output": ".#rtk-pinned",
+    "identity_anchor": "binary_sha256 (reproduced bit-for-bit under the Nix sandbox)",
+    "not_a_release_binary": true,
+    "source_commit": "5d32d0736f686b69d1e8b9dc45c007d4eb77a0a2",
+    "store_path_observed": "/nix/store/5ldj578ia4kjqb1m1db1zhmwgfk9x8rb-rtk-pinned-0.42.4",
+    "version": "0.42.4"
+  },
+  "schema_version": "n2e-record-1",
+  "transport": {
+    "compliance_note": "Transport-only deviation. The output binary is bit-identical to the mission-pinned RTK SHA-256, which is the objective identity arbiter.",
+    "gated": [
+      "github.com (web/archive)",
+      "codeload.github.com",
+      "api.github.com"
+    ],
+    "gated_reason": "organization egress policy (cross-owner GitHub not enabled for session)",
+    "gated_status": 403,
+    "method": "git fetch --depth 1 <rev>; git archive FETCH_HEAD | tar -x; nix build with --override-input path:<tree> for each locked input; flake.lock and pinned source identities are unchanged.",
+    "permitted": [
+      "git smart-HTTP (git-upload-pack)",
+      "raw.githubusercontent.com"
+    ],
+    "recipe_script": "evals/interop/v2/n2/e-rtk-native-corpus/scripts/bootstrap_substrate.sh"
+  },
+  "verification_commands": [
+    "git fetch --depth 1 https://github.com/<owner>/<repo>.git <rev>",
+    "git archive --format=tar FETCH_HEAD | tar -x -C tree/",
+    "nix hash path --sri tree/   # == flake.lock narHash",
+    "nix build .#rtk-pinned --sandbox --no-write-lock-file <transport-overrides>",
+    "sha256sum result/bin/rtk    # == 41f316ad..."
+  ]
+}

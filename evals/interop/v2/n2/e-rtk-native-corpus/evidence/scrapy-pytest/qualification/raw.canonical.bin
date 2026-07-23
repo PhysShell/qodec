@@ -1,0 +1,28 @@
+================================================= test session starts ==================================================
+platform linux -- Python 3.8.18, pytest-8.3.5, pluggy-1.5.0
+rootdir: /home/runner/work/_temp/n2e-fixedwork
+configfile: pytest.ini
+collected 6 items
+
+tests/test_mail.py ......                                                                                        [100%]
+
+=================================================== warnings summary ===================================================
+../n2e-caseq-b0lyc1k9/.venv/lib/python3.8/site-packages/_pytest/config/__init__.py:1441
+  /home/runner/work/_temp/n2e-caseq-b0lyc1k9/.venv/lib/python3.8/site-packages/_pytest/config/__init__.py:1441: PytestConfigWarning: Unknown config option: twisted
+  
+    self._warn_or_fail_if_strict(f"Unknown config option: {key}\n")
+
+scrapy/utils/python.py:201
+  /home/runner/work/_temp/n2e-fixedwork/scrapy/utils/python.py:201: DeprecationWarning: inspect.getargspec() is deprecated since Python 3.0, use inspect.signature() or inspect.getfullargspec()
+    func_args, _, _, _ = inspect.getargspec(func)
+
+scrapy/item.py:8
+  /home/runner/work/_temp/n2e-fixedwork/scrapy/item.py:8: DeprecationWarning: Using or importing the ABCs from 'collections' instead of from 'collections.abc' is deprecated since Python 3.3, and in 3.10 it will stop working
+    from collections import MutableMapping
+
+../n2e-caseq-b0lyc1k9/.venv/lib/python3.8/site-packages/OpenSSL/SSL.py:16
+  /home/runner/work/_temp/n2e-caseq-b0lyc1k9/.venv/lib/python3.8/site-packages/OpenSSL/SSL.py:16: CryptographyDeprecationWarning: Python 3.8 is no longer supported by the Python core team and support for it is deprecated in cryptography. The next release of cryptography will remove support for Python 3.8.
+    from cryptography import x509
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+============================================ 6 passed, 4 warnings in <dur> =============================================

@@ -1,0 +1,163 @@
+{
+  "generated_by": "evals/interop/v2/n2/e-rtk-native-corpus/tools/acquire_n2e_source_pins.py",
+  "git_repos": [
+    {
+      "commit": "11c5f1eea954a42132cfd06bf257766a7963e0fd",
+      "kind": "git_repo",
+      "repository": "soarsmu/BugsInPy",
+      "source_id": "bugsinpy",
+      "transport": "git-smart-http"
+    }
+  ],
+  "hf_datasets": [
+    {
+      "dataset_id": "SWE-bench/SWE-bench_Multilingual",
+      "kind": "huggingface_dataset",
+      "revision": "2b7aced941b4873e9cad3e76abbae93f481d1beb",
+      "source_id": "swe-bench-multilingual",
+      "source_url": "https://huggingface.co/datasets/SWE-bench/SWE-bench_Multilingual"
+    }
+  ],
+  "mission": "N2-E",
+  "mission_title": "external RTK-native claim-aligned command corpus",
+  "oci_images": [
+    {
+      "child_digest": "sha256:f3f63bb87d581c0e7b47f900dd82165b71040e1758d3c29e915e2b18da9baf63",
+      "index_digest": "sha256:f3f63bb87d581c0e7b47f900dd82165b71040e1758d3c29e915e2b18da9baf63",
+      "kind": "oci_image",
+      "media_type": "application/vnd.docker.distribution.manifest.v2+json",
+      "platform": "linux/amd64",
+      "registry": "registry-1.docker.io",
+      "repository": "swebench/sweb.eval.x86_64.astropy_1776_astropy-12907",
+      "source_id": "swe-bench-eval-image-sample"
+    },
+    {
+      "child_digest": "sha256:395033a36458e5312f5bce401452efe6606705fc8b9a574611af6436ac3ff632",
+      "index_digest": "sha256:c1e88455c85225310bbea54816e9c3f4b5295815e6dbf80c34d40afc6df28275",
+      "kind": "oci_image",
+      "media_type": "application/vnd.oci.image.manifest.v1+json",
+      "platform": "linux/amd64",
+      "registry": "registry-1.docker.io",
+      "repository": "library/redis",
+      "source_id": "container-redis"
+    },
+    {
+      "child_digest": "sha256:679a5fd058f6ca754a561846fe27927e408074431d63556e8fc588fc38be6901",
+      "index_digest": "sha256:814a8e88df978ade80e584cc5b333144b9372a8e3c98872d07137dbf3b44d0e4",
+      "kind": "oci_image",
+      "media_type": "application/vnd.oci.image.manifest.v1+json",
+      "platform": "linux/amd64",
+      "registry": "registry-1.docker.io",
+      "repository": "library/nginx",
+      "source_id": "container-nginx"
+    },
+    {
+      "child_digest": "sha256:7a3ebe5bfd1a4a19797d20b0c0bb39d44393e9a03fd852c0865b0f540d868df0",
+      "index_digest": "sha256:9532d8c39891ca2ecde4d30d7710e01fb739c87a8b9299685c63704296b16028",
+      "kind": "oci_image",
+      "media_type": "application/vnd.oci.image.manifest.v1+json",
+      "platform": "linux/amd64",
+      "registry": "registry-1.docker.io",
+      "repository": "library/busybox",
+      "source_id": "container-busybox"
+    },
+    {
+      "child_digest": "sha256:5d706d5aa3ad311722f373fdc09e6a22b454bec70d34d9786383983fd83c5e46",
+      "index_digest": "sha256:7e5df973a74872482e320dcbdeb055e178d6f42de0558b083892c50cda833c96",
+      "kind": "oci_image",
+      "media_type": "application/vnd.oci.image.manifest.v1+json",
+      "platform": "linux/amd64",
+      "registry": "registry-1.docker.io",
+      "repository": "library/postgres",
+      "source_id": "container-postgres"
+    }
+  ],
+  "purpose": "Explicit immutable source pins (\u00a72 acquisition). Normative fields only; no mutable discovery metadata.",
+  "record_sha256": "sha256:9752ed04d593de04a05011b82f777c872a489962cf9b3ae366c98a89ceeaaa8a",
+  "record_type": "n2e-source-pins",
+  "record_version": "v1",
+  "schema_version": "n2e-record-1",
+  "zenodo_records": [
+    {
+      "concept_doi": "10.5281/zenodo.8275860",
+      "files": [
+        {
+          "checksum": "md5:0c52d166e5ee118b2d19d8a57cd2d0b4",
+          "key": "Apache.zip",
+          "size": 578629
+        },
+        {
+          "checksum": "md5:521ee643375bb6e9d0dd88636ff7ece1",
+          "key": "BGL.zip",
+          "size": 86118141
+        },
+        {
+          "checksum": "md5:f23880dd4938379a535ab71a8d27a798",
+          "key": "HDFS.zip",
+          "size": 321944794
+        },
+        {
+          "checksum": "md5:07d035b50ede61f7850e0453e43f85bb",
+          "key": "HPC.zip",
+          "size": 4792408
+        },
+        {
+          "checksum": "md5:e8d413f0ea3f3e90956f185da9d635a8",
+          "key": "Hadoop.zip",
+          "size": 4263949
+        },
+        {
+          "checksum": "md5:6b90126e1c78591454aef10ecc1da098",
+          "key": "HealthApp.zip",
+          "size": 3960708
+        },
+        {
+          "checksum": "md5:a1a1db599519eb6b12b3368f37d274f7",
+          "key": "Linux.zip",
+          "size": 428410
+        },
+        {
+          "checksum": "md5:e5b392e013be0f10a55b5b009f4b9c9d",
+          "key": "Mac.zip",
+          "size": 3017741
+        },
+        {
+          "checksum": "md5:fef920579c366462ea7d341af8f533d8",
+          "key": "OpenSSH.zip",
+          "size": 8166947
+        },
+        {
+          "checksum": "md5:707faeedf8b1b9f920c073114139a023",
+          "key": "OpenStack.zip",
+          "size": 7387614
+        },
+        {
+          "checksum": "md5:2e4b67dc68c3a4f1c18e267c341c52a2",
+          "key": "Proxifier.zip",
+          "size": 380635
+        },
+        {
+          "checksum": "md5:ca0ef9c6e8ece0df602793bd302e03a6",
+          "key": "Spark.zip",
+          "size": 230699188
+        },
+        {
+          "checksum": "md5:a8d365d003845c3bef61661375513910",
+          "key": "Thunderbird.zip",
+          "size": 293018641
+        },
+        {
+          "checksum": "md5:e696a94a9b703eb3fd93a2c78e3050ed",
+          "key": "Zookeeper.zip",
+          "size": 870580
+        }
+      ],
+      "kind": "zenodo_record",
+      "license": "cc-by-4.0",
+      "record_id": "8275861",
+      "source_id": "loghub-2.0",
+      "title": "Loghub-2.0: a collection of large-scale datasets for log parsing",
+      "version_doi": "10.5281/zenodo.8275861"
+    }
+  ]
+}

@@ -1,0 +1,61 @@
+{
+  "daemon": {
+    "data_root": "/var/lib/docker",
+    "expected_arch": "x86_64",
+    "expected_os_type": "linux",
+    "expected_server_version": "27.5.1",
+    "fresh_empty_data_root": true,
+    "host_docker_socket_mounted": false,
+    "image_digest": "docker@sha256:aa3df78ecf320f5fafdce71c659f1629e96e9de0968305fe1de670e0ca9176ce",
+    "image_ref_tag": "docker:27-dind",
+    "independent_daemon_per_arm": true,
+    "kind": "docker-in-docker",
+    "network_denied_measurement": true,
+    "preloaded_images": 0,
+    "storage_driver": "vfs"
+  },
+  "determinant_notes": "The host Docker CLIENT is captured per-run (it measures both arms identically) and frozen into the acceptance record; the DAEMON (DinD digest) is the pinned authority. The displayed size (e.g. 46.7MB) is presentation only; content identity is the config Id + RepoDigests from inspect.",
+  "generated_by": "tools/(inline) redis-docker-images-execution-v1",
+  "image": {
+    "case_tag": "redis:n2e",
+    "child_digest": "sha256:395033a36458e5312f5bce401452efe6606705fc8b9a574611af6436ac3ff632",
+    "expected_arch": "amd64",
+    "expected_config_id": "sha256:87b460005bd3a6621dabf2855ec42bf96b1b6d044b6109bd9736128ab178ddec",
+    "expected_os": "linux",
+    "expected_repo_digest": "redis@sha256:c1e88455c85225310bbea54816e9c3f4b5295815e6dbf80c34d40afc6df28275",
+    "index_digest": "sha256:c1e88455c85225310bbea54816e9c3f4b5295815e6dbf80c34d40afc6df28275",
+    "inventory_after_exactly": [
+      "87b460005bd3"
+    ],
+    "inventory_before_count": 0,
+    "platform": "linux/amd64",
+    "repository": "library/redis"
+  },
+  "measurement": {
+    "environment": {
+      "LANG": "C.UTF-8",
+      "LC_ALL": "C.UTF-8",
+      "TZ": "UTC"
+    },
+    "host_client_identical_across_arms": true,
+    "output_mode_required": "compact",
+    "raw_argv": [
+      "docker",
+      "images"
+    ],
+    "reps": 3,
+    "rtk_argv": [
+      "rtk",
+      "docker",
+      "images"
+    ]
+  },
+  "mission": "N2-E",
+  "mission_title": "external RTK-native claim-aligned command corpus",
+  "policy_id": "redis-docker-images-execution-v1",
+  "purpose": "Pins the isolated-daemon + immutable-image determinants under which `docker images` / `rtk docker images` are measured for container::redis::docker::images. The runner's host Docker is a LAUNCHER only; the AUTHORITY is a pinned Docker-in-Docker daemon (by digest) with a fresh empty data-root, pinned storage driver, no host socket, no preloaded images. RAW and RTK are measured on TWO independent such daemons, each provisioned to EXACTLY the pinned redis image. Image IDENTITY (config Id + RepoDigests + platform) is proven from docker image inspect -- RTK never reports it. Sets no promotion flag.",
+  "record_sha256": "sha256:358dc9ffaf022a2f783cea77a736ac6319b2adb75c405fbec76907fedaa0ddda",
+  "record_type": "n2e-redis-docker-images-execution-policy",
+  "record_version": "v1",
+  "schema_version": "n2e-record-1"
+}

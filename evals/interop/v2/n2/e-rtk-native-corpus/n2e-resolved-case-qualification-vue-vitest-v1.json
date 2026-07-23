@@ -1,0 +1,94 @@
+{
+  "acceptance_run": {
+    "artifact_bytes": 19158,
+    "artifact_sha256": "558bb4d856d0be651c2e1f4a49c026d1496cabc195bcee793719366ba022bb21",
+    "impl_commit": "006ee65",
+    "run_attempt": "1",
+    "run_id": "29867162781",
+    "workflow": "qodec-n2e-case-qualification"
+  },
+  "canonicalization_policy_id": "vitest-v1",
+  "captured_stream_digests": {
+    "raw.canonical": {
+      "bytes": 9789,
+      "sha256": "5e4b47936b20134d8488af698fb47aa6f08637cb9b62c259c12fee125996022c"
+    },
+    "rtk.canonical": {
+      "bytes": 9789,
+      "sha256": "5e4b47936b20134d8488af698fb47aa6f08637cb9b62c259c12fee125996022c"
+    }
+  },
+  "case_id": "vuejs__core-11589::js_ts::test::buggy",
+  "case_qualification_pass": true,
+  "command_semantic_oracle_policy_id": null,
+  "contract_generation": 1,
+  "evidence": {
+    "dir": "evidence/vue-vitest/qualification"
+  },
+  "frozen_code_identity": {
+    "canonicalization_policy_definition_sha256": "ee6865c843c0f7f25feb1f15e7dad0a98b555b0a4e7d54362f9c92b37551ecdc",
+    "canonicalization_policy_id": "vitest-v1",
+    "recompute_module_sha256": "85ca574c940e7edf9997f9b7ca9bf7ff12b0bccd9309469bf6dd9ac62acd603b",
+    "semantics_module": {
+      "path": "tools/n2e_rtk_js_vitest_dialect.py",
+      "sha256": "b9eea1f4cf35f5b1ce06ac0aa3f95e30146dc50da78c86f333c86bce425d69d0"
+    },
+    "verifier_module_sha256": "9a82b1d9e18fa5930c7285c1390ef689fc83a372c86f1eb59a13d061de3a7e43"
+  },
+  "generated_by": "evals/interop/v2/n2/e-rtk-native-corpus/tools/build_n2e_resolved_case_qualification.py",
+  "identities": {
+    "rtk_bytes": 9200104,
+    "rtk_sha256": "41f316adf7b30a568208a0a4f824bffb266ecb6d01bd9de81bed58e1d469dfcf"
+  },
+  "manifest_generation": 2,
+  "manifest_sha256": "sha256:2e05cb53ae79231d6dccffb9e677c05ddeadf57e9b6ae9adf45cef71a907c51c",
+  "mission": "N2-E",
+  "mission_title": "external RTK-native claim-aligned command corpus",
+  "promotion_state": "held (resolved-twelve not yet 12/12)",
+  "purpose": "Immutable per-case qualification for vuejs__core-11589::js_ts::test::buggy. Built from a real acceptance run, gated by the independent verifier + aggregator recomputation. Sets no promotion flag.",
+  "qualification_kind": "rtk_test_dialect",
+  "raw_arm": {
+    "deterministic": true
+  },
+  "re_derived_semantic_projection": {
+    "equivalence": {
+      "equivalent": true,
+      "mismatches": [],
+      "same_tier": true
+    },
+    "raw_projection": {
+      "failed": 1,
+      "failing_ids": [
+        "FAIL  packages/runtime-core/__tests__/apiWatch.spec.ts > api: watch > should be executed correctly"
+      ],
+      "outcome": "failure",
+      "passed": 78,
+      "terminal_summary_present": true,
+      "tier": 2,
+      "total": 79,
+      "truncated": false
+    },
+    "rtk_projection": {
+      "failed": 1,
+      "failing_ids": [
+        "FAIL  packages/runtime-core/__tests__/apiWatch.spec.ts > api: watch > should be executed correctly"
+      ],
+      "outcome": "failure",
+      "passed": 78,
+      "terminal_summary_present": true,
+      "tier": 2,
+      "total": 79,
+      "truncated": false
+    }
+  },
+  "record_sha256": "sha256:f7defc8788b2798b8ca44a83b39f8db47819624f593601ea33c346d69eff7422",
+  "record_type": "n2e-resolved-case-qualification",
+  "record_version": "v1",
+  "resolved_canary_pass": false,
+  "rtk_arm": {
+    "deterministic": true
+  },
+  "rtk_test_dialect_policy_id": "rtk-js-vitest-summary-v1",
+  "schema_version": "n2e-record-1",
+  "verdict_authority": "independent case verifier + aggregator recomputation (producer records observations)"
+}

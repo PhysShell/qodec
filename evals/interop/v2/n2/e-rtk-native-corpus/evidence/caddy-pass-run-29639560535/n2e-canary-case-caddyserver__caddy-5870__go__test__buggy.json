@@ -1,0 +1,633 @@
+{
+  "acceptance_note": "RTK savings reporting-only; never a gate (\u00a715/\u00a719).",
+  "acquisition": {
+    "applied_patches": [
+      {
+        "apply_exit": 0,
+        "apply_stderr": "",
+        "name": "test_patch",
+        "sha256": "b26b8b0bf1a968e75e592873233bde0f3e0f54f041fc51fb3042e6d52ef803e1"
+      }
+    ],
+    "base_commit": "fae195ac7eb9f4b0e9436384cd0529a11355e367",
+    "environment_identity": {
+      "acquisition_order": {
+        "applied_patches": [
+          {
+            "apply_exit": 0,
+            "apply_stderr": "",
+            "name": "test_patch",
+            "sha256": "b26b8b0bf1a968e75e592873233bde0f3e0f54f041fc51fb3042e6d52ef803e1"
+          }
+        ],
+        "base_commit": "fae195ac7eb9f4b0e9436384cd0529a11355e367",
+        "boundaries": [
+          {
+            "label": "base",
+            "protected": {
+              "go.mod": "290f66b6e2567af51ab1a38581c107681ce2e938cdf930a91bfa7a480d0937fa",
+              "go.sum": "ce7fc38b74b755b57a9f5e770b5d5a6b89d4514d64b5991f8c8ca663af5c3fba"
+            },
+            "tracked_status": [],
+            "worktree_diff_bytes": 0,
+            "worktree_diff_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+          },
+          {
+            "label": "pre_install",
+            "protected": {
+              "go.mod": "290f66b6e2567af51ab1a38581c107681ce2e938cdf930a91bfa7a480d0937fa",
+              "go.sum": "ce7fc38b74b755b57a9f5e770b5d5a6b89d4514d64b5991f8c8ca663af5c3fba"
+            },
+            "tracked_status": [],
+            "worktree_diff_bytes": 0,
+            "worktree_diff_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+          },
+          {
+            "label": "install_warm",
+            "protected": {
+              "go.mod": "290f66b6e2567af51ab1a38581c107681ce2e938cdf930a91bfa7a480d0937fa",
+              "go.sum": "ce7fc38b74b755b57a9f5e770b5d5a6b89d4514d64b5991f8c8ca663af5c3fba"
+            },
+            "tracked_status": [],
+            "worktree_diff_bytes": 0,
+            "worktree_diff_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+          },
+          {
+            "base_commit": "fae195ac7eb9f4b0e9436384cd0529a11355e367",
+            "gold_files": [],
+            "label": "test_files_reset",
+            "protected": {
+              "go.mod": "290f66b6e2567af51ab1a38581c107681ce2e938cdf930a91bfa7a480d0937fa",
+              "go.sum": "ce7fc38b74b755b57a9f5e770b5d5a6b89d4514d64b5991f8c8ca663af5c3fba"
+            },
+            "reset_failed": [],
+            "reset_from_commit": "fae195ac7eb9f4b0e9436384cd0529a11355e367",
+            "reset_paths": [
+              "admin_test.go"
+            ],
+            "test_patch_files": [
+              "admin_test.go"
+            ],
+            "test_patch_files_existing_at_base": [
+              "admin_test.go"
+            ],
+            "tracked_status": [],
+            "worktree_diff_bytes": 0,
+            "worktree_diff_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+          },
+          {
+            "applied": true,
+            "label": "test_patch",
+            "patch_sha256": "b26b8b0bf1a968e75e592873233bde0f3e0f54f041fc51fb3042e6d52ef803e1",
+            "protected": {
+              "go.mod": "290f66b6e2567af51ab1a38581c107681ce2e938cdf930a91bfa7a480d0937fa",
+              "go.sum": "ce7fc38b74b755b57a9f5e770b5d5a6b89d4514d64b5991f8c8ca663af5c3fba"
+            },
+            "tracked_status": [
+              " M admin_test.go"
+            ],
+            "worktree_diff_bytes": 493,
+            "worktree_diff_sha256": "4b80980e11414434131b6827f231eb70e033f8428b3ef757897dea7ce4e5f7ad"
+          }
+        ],
+        "canonical_sequence": [
+          "base",
+          "pre_install",
+          "install_warm",
+          "test_files_reset",
+          "test_patch"
+        ],
+        "gold_applied": false,
+        "gold_files": [],
+        "install": {
+          "locked": false,
+          "ran": true,
+          "steps": [
+            {
+              "cmd": [
+                "go",
+                "test",
+                "-c",
+                ".",
+                "-run",
+                "TestUnsyncedConfigAccess"
+              ],
+              "effective_cmd": [
+                "go",
+                "test",
+                "-c",
+                ".",
+                "-run",
+                "TestUnsyncedConfigAccess"
+              ],
+              "exit": 0,
+              "locked": false
+            }
+          ]
+        },
+        "invariant": "publisher --locked install runs on the pristine manifest; gold patch applied only afterwards; the test_patch-owned files are reset to base_commit (discarding gold edits to them) BEFORE test_patch, then measured.",
+        "policy_id": "publisher-acquisition-order-v1",
+        "snapshot_variant": "buggy",
+        "test_applied": true,
+        "test_files_reset": {
+          "existing_at_base": [
+            "admin_test.go"
+          ],
+          "reset_failed": [],
+          "reset_from_commit": "fae195ac7eb9f4b0e9436384cd0529a11355e367",
+          "reset_paths": [
+            "admin_test.go"
+          ]
+        },
+        "test_patch_files": [
+          "admin_test.go"
+        ]
+      },
+      "construction": {
+        "baseline_tracked_status": [
+          " M admin_test.go"
+        ],
+        "pre_install": [],
+        "publisher_recipe": "SPECS_CADDY[5870]"
+      },
+      "dependencies": {
+        "after_acquisition": {
+          "go.mod": "290f66b6e2567af51ab1a38581c107681ce2e938cdf930a91bfa7a480d0937fa",
+          "go.sum": "ce7fc38b74b755b57a9f5e770b5d5a6b89d4514d64b5991f8c8ca663af5c3fba"
+        },
+        "after_install_warm": {
+          "go.mod": "290f66b6e2567af51ab1a38581c107681ce2e938cdf930a91bfa7a480d0937fa",
+          "go.sum": "ce7fc38b74b755b57a9f5e770b5d5a6b89d4514d64b5991f8c8ca663af5c3fba"
+        },
+        "committed_mutated": [],
+        "mutation_guard_ok": true,
+        "pristine_pre_install": {
+          "go.mod": "290f66b6e2567af51ab1a38581c107681ce2e938cdf930a91bfa7a480d0937fa",
+          "go.sum": "ce7fc38b74b755b57a9f5e770b5d5a6b89d4514d64b5991f8c8ca663af5c3fba"
+        },
+        "protected_files": [
+          "go.mod",
+          "go.sum"
+        ]
+      },
+      "platform": {
+        "GOARCH": "amd64",
+        "GOOS": "linux",
+        "machine": "x86_64",
+        "system": "Linux",
+        "uname": "Linux-6.17.0-1020-azure-x86_64-with-glibc2.39"
+      },
+      "publisher": {
+        "case_id": "caddyserver__caddy-5870::go::test::buggy",
+        "install": [
+          "go test -c . -run \"TestUnsyncedConfigAccess\""
+        ],
+        "recipe_spec": "SPECS_CADDY[5870]",
+        "registry_sha256": "sha256:8cdf9ca1cf9434f0210b144b22946065037fb485e36040eab580c256da324d96",
+        "source": {
+          "file": "go.py",
+          "git_blob_sha1": "67e5e8ac31aa005c6516bc7b207bafc2f2fbe9a2",
+          "sha256": "fe81b00a47fd44f31ee3e3acd317fca49523ef96364ec6fb7c9d2832a2fc5305",
+          "spec_dict": "SPECS_CADDY",
+          "spec_key": "5870"
+        },
+        "test_cmd": [
+          "go test -v . -run \"TestUnsyncedConfigAccess\""
+        ],
+        "toolchain": {
+          "docker_specs": {
+            "go_version": "1.23.8"
+          },
+          "kind": "go",
+          "version": "1.23.8"
+        }
+      },
+      "toolchain": {
+        "go": {
+          "path": "/usr/local/go/bin/go",
+          "present": true,
+          "sha256": "0cdc4480040b5ef62eb17ba283ab92eca991794a937620604a2b5772201c2b59",
+          "version": "go version go1.23.8 linux/amd64"
+        }
+      },
+      "toolchain_pin": {
+        "docker_specs": {
+          "go_version": "1.23.8"
+        },
+        "kind": "go",
+        "version": "1.23.8"
+      },
+      "warm_commands": [
+        {
+          "cmd": [
+            "go",
+            "test",
+            "-c",
+            ".",
+            "-run",
+            "TestUnsyncedConfigAccess"
+          ],
+          "exit": 0,
+          "kind": "install"
+        }
+      ]
+    },
+    "home_local": true,
+    "identity_verified": true,
+    "instance_id": "caddyserver__caddy-5870",
+    "jvm_proof_class": null,
+    "offline_env": {
+      "GOFLAGS": "-mod=readonly",
+      "GOPATH": "/home/runner/work/_temp/n2e-case-tz0pipmt/.home/go",
+      "GOPROXY": "off"
+    },
+    "phase_a_scenario_ingestion_defect": {
+      "frozen_original_argv": [
+        "go",
+        "test",
+        "./..."
+      ],
+      "publisher_recipe": "SPECS_CADDY[5870]",
+      "publisher_source": {
+        "file": "go.py",
+        "git_blob_sha1": "67e5e8ac31aa005c6516bc7b207bafc2f2fbe9a2",
+        "sha256": "fe81b00a47fd44f31ee3e3acd317fca49523ef96364ec6fb7c9d2832a2fc5305",
+        "spec_dict": "SPECS_CADDY",
+        "spec_key": "5870"
+      },
+      "publisher_test_argv": [
+        "go",
+        "test",
+        "-v",
+        ".",
+        "-run",
+        "TestUnsyncedConfigAccess"
+      ],
+      "resolution": "publisher recipe is normative; effective command derived from n2e-publisher-env-registry-v1.json, not the frozen argv",
+      "typed_defect": "SCENARIO_INGESTION_WRONG_WORKLOAD"
+    },
+    "policy": "caddy-go-test-v1",
+    "pristine_checkout_protected": {
+      "go.mod": "290f66b6e2567af51ab1a38581c107681ce2e938cdf930a91bfa7a480d0937fa",
+      "go.sum": "ce7fc38b74b755b57a9f5e770b5d5a6b89d4514d64b5991f8c8ca663af5c3fba"
+    },
+    "publisher_case_id": "caddyserver__caddy-5870::go::test::buggy",
+    "publisher_recipe": "SPECS_CADDY[5870]",
+    "repository": "caddyserver/caddy",
+    "resolved_raw_argv": [
+      "go",
+      "test",
+      "-v",
+      ".",
+      "-run",
+      "TestUnsyncedConfigAccess"
+    ],
+    "resolved_rtk_argv": [
+      "rtk",
+      "go",
+      "test",
+      "-v",
+      ".",
+      "-run",
+      "TestUnsyncedConfigAccess"
+    ],
+    "warm": {
+      "instance_id": "caddyserver__caddy-5870",
+      "ok": true,
+      "publisher_recipe": "SPECS_CADDY[5870]",
+      "steps": [
+        {
+          "cmd": [
+            "go",
+            "test",
+            "-c",
+            ".",
+            "-run",
+            "TestUnsyncedConfigAccess"
+          ],
+          "exit": 0,
+          "kind": "install",
+          "tail": "golang v1.15.1\ngo: downloading github.com/quic-go/quic-go v0.39.0\ngo: downloading go.uber.org/zap v1.25.0\ngo: downloading golang.org/x/sys v0.13.0\ngo: downloading golang.org/x/term v0.13.0\ngo: downloading github.com/beorn7/perks v1.0.1\ngo: downloading github.com/cespare/xxhash/v2 v2.2.0\ngo: downloading github.com/prometheus/client_model v0.4.0\ngo: downloading github.com/cespare/xxhash v1.1.0\ngo: downloading github.com/prometheus/common v0.42.0\ngo: downloading github.com/prometheus/procfs v0.9.0\ngo: downloading google.golang.org/protobuf v1.31.0\ngo: downloading github.com/klauspost/cpuid/v2 v2.2.5\ngo: downloading github.com/libdns/libdns v0.2.1\ngo: downloading github.com/mholt/acmez v1.2.0\ngo: downloading github.com/miekg/dns v1.1.55\ngo: downloading github.com/zeebo/blake3 v0.2.3\ngo: downloading golang.org/x/crypto v0.14.0\ngo: downloading golang.org/x/net v0.17.0\ngo: downloading go.uber.org/multierr v1.11.0\ngo: downloading github.com/quic-go/qpack v0.4.0\ngo: downloading golang.org/x/exp v0.0.0-20230310171629-522b1b587ee0\ngo: downloading github.com/golang/protobuf v1.5.3\ngo: downloading github.com/matttproud/golang_protobuf_extensions v1.0.4\ngo: downloading golang.org/x/text v0.13.0\n"
+        }
+      ]
+    },
+    "workdir": "repo"
+  },
+  "canonicalization_policy": "caddy-go-test-v1",
+  "case_id": "caddyserver__caddy-5870::go::test::buggy",
+  "command_family": "go",
+  "command_subfamily": "test",
+  "generated_by": "tools/run_canary_case.py",
+  "isolation": {
+    "denial_probe": {
+      "denied": true,
+      "output": "DENIED 101"
+    },
+    "method": "sudo-unshare-n"
+  },
+  "mission": "N2-E",
+  "mission_title": "external RTK-native claim-aligned command corpus",
+  "raw_arm": {
+    "canonical_deterministic": true,
+    "canonical_sha256": "155467334fb1ee678dfb5dd81945fc05b5f2b89d4f80f91a8cd5c33e2de9e015",
+    "canonicalization_policy": "caddy-go-test-v1",
+    "exit_code": 1,
+    "exit_code_stable": true,
+    "nondeterminism_sample": null,
+    "o200k_tokens": 63,
+    "per_rep_execution_proof": null,
+    "primary_evidence_files": [
+      {
+        "bytes": 206,
+        "case_id": "caddyserver__caddy-5870::go::test::buggy",
+        "compression": "zlib",
+        "file": "raw.rep0.zst",
+        "policy_id": "caddy-go-test-v1",
+        "rep": 0,
+        "role": "raw",
+        "sha256": "155467334fb1ee678dfb5dd81945fc05b5f2b89d4f80f91a8cd5c33e2de9e015"
+      },
+      {
+        "bytes": 206,
+        "case_id": "caddyserver__caddy-5870::go::test::buggy",
+        "compression": "zlib",
+        "file": "raw.rep1.zst",
+        "policy_id": "caddy-go-test-v1",
+        "rep": 1,
+        "role": "raw",
+        "sha256": "155467334fb1ee678dfb5dd81945fc05b5f2b89d4f80f91a8cd5c33e2de9e015"
+      },
+      {
+        "bytes": 206,
+        "case_id": "caddyserver__caddy-5870::go::test::buggy",
+        "compression": "zlib",
+        "file": "raw.rep2.zst",
+        "policy_id": "caddy-go-test-v1",
+        "rep": 2,
+        "role": "raw",
+        "sha256": "155467334fb1ee678dfb5dd81945fc05b5f2b89d4f80f91a8cd5c33e2de9e015"
+      }
+    ],
+    "raw_capture_hashes": [
+      "ec64c58ffa7d1b9a7808ebc488e692f201122723cf512182ee51638585b40398",
+      "ec64c58ffa7d1b9a7808ebc488e692f201122723cf512182ee51638585b40398",
+      "ec64c58ffa7d1b9a7808ebc488e692f201122723cf512182ee51638585b40398"
+    ],
+    "reps_completed": 3,
+    "rtk_envelope_policy": null,
+    "rtk_sidecar_proof": null,
+    "runs": [
+      {
+        "canonical_bytes": 206,
+        "canonical_sha256": "155467334fb1ee678dfb5dd81945fc05b5f2b89d4f80f91a8cd5c33e2de9e015",
+        "exit_code": 1,
+        "raw_combined_sha256": "ec64c58ffa7d1b9a7808ebc488e692f201122723cf512182ee51638585b40398"
+      },
+      {
+        "canonical_bytes": 206,
+        "canonical_sha256": "155467334fb1ee678dfb5dd81945fc05b5f2b89d4f80f91a8cd5c33e2de9e015",
+        "exit_code": 1,
+        "raw_combined_sha256": "ec64c58ffa7d1b9a7808ebc488e692f201122723cf512182ee51638585b40398"
+      },
+      {
+        "canonical_bytes": 206,
+        "canonical_sha256": "155467334fb1ee678dfb5dd81945fc05b5f2b89d4f80f91a8cd5c33e2de9e015",
+        "exit_code": 1,
+        "raw_combined_sha256": "ec64c58ffa7d1b9a7808ebc488e692f201122723cf512182ee51638585b40398"
+      }
+    ],
+    "target_execution_ok": null,
+    "timed_out": false
+  },
+  "raw_semantic_oracle": {
+    "evidence": {
+      "declared": "failing",
+      "exit": 1,
+      "observed_failing": [
+        "TestUnsyncedConfigAccess"
+      ],
+      "reached_framework": true,
+      "required_targets": [
+        "TestUnsyncedConfigAccess"
+      ],
+      "summary": {
+        "failed": 1,
+        "failing_ids": [
+          "TestUnsyncedConfigAccess"
+        ],
+        "passed": 0
+      },
+      "targets_covered": true
+    },
+    "oracle": "test_outcome",
+    "verdict": true
+  },
+  "record_sha256": "sha256:838bfb5f61f973e3376d5497ad092a156e2020372ac13e2411e150af19dfc623",
+  "record_type": "n2e-canary-case",
+  "record_version": "v1",
+  "rejection_reasons": null,
+  "rtk_arm": {
+    "canonical_deterministic": true,
+    "canonical_sha256": "5fe2bc3fd6687db3258878683b46fbca171b316381ba81a1c766bc8532bba6fe",
+    "canonicalization_policy": "caddy-go-test-v1",
+    "exit_code": 1,
+    "exit_code_stable": true,
+    "nondeterminism_sample": null,
+    "o200k_tokens": 78,
+    "per_rep_execution_proof": null,
+    "primary_evidence_files": [
+      {
+        "bytes": 232,
+        "case_id": "caddyserver__caddy-5870::go::test::buggy",
+        "compression": "zlib",
+        "file": "rtk.rep0.zst",
+        "policy_id": "caddy-go-test-v1",
+        "rep": 0,
+        "role": "rtk",
+        "sha256": "5fe2bc3fd6687db3258878683b46fbca171b316381ba81a1c766bc8532bba6fe"
+      },
+      {
+        "bytes": 232,
+        "case_id": "caddyserver__caddy-5870::go::test::buggy",
+        "compression": "zlib",
+        "file": "rtk.rep1.zst",
+        "policy_id": "caddy-go-test-v1",
+        "rep": 1,
+        "role": "rtk",
+        "sha256": "5fe2bc3fd6687db3258878683b46fbca171b316381ba81a1c766bc8532bba6fe"
+      },
+      {
+        "bytes": 232,
+        "case_id": "caddyserver__caddy-5870::go::test::buggy",
+        "compression": "zlib",
+        "file": "rtk.rep2.zst",
+        "policy_id": "caddy-go-test-v1",
+        "rep": 2,
+        "role": "rtk",
+        "sha256": "5fe2bc3fd6687db3258878683b46fbca171b316381ba81a1c766bc8532bba6fe"
+      }
+    ],
+    "raw_capture_hashes": [
+      "7e1da2df198db5fbf3fdb002f10809abe08b2bf9f1058f0ee7bc3d55852af5ae",
+      "7e1da2df198db5fbf3fdb002f10809abe08b2bf9f1058f0ee7bc3d55852af5ae",
+      "a0f99a901a433e18d49fc2dacb2001d5455fb0e32f5017aad9d77c1cc7ad9543"
+    ],
+    "reps_completed": 3,
+    "rtk_envelope_policy": "rtk-envelope-v1",
+    "rtk_sidecar_proof": {
+      "identity_only_in_unmeasured_sidecar": false,
+      "reps": [
+        {
+          "measured_failing_ids": [
+            "TestUnsyncedConfigAccess"
+          ],
+          "measured_parsed_summary": {
+            "aggregate_summary_conflict": false,
+            "aggregate_summary_present": true,
+            "dialect": "rtk-go-test-summary-v1",
+            "failed": 1,
+            "failing_ids": [
+              "TestUnsyncedConfigAccess"
+            ],
+            "packages": 1,
+            "passed": 0,
+            "skipped": 0
+          },
+          "required_ids": [
+            "TestUnsyncedConfigAccess"
+          ],
+          "required_missing_from_measured": [],
+          "required_parsed_failing_in_sidecar": [],
+          "semantic_loss_ids_this_rep": [],
+          "sidecar_bytes": null,
+          "sidecar_failing_ids": [],
+          "sidecar_parsed_summary": null,
+          "sidecar_read": false,
+          "sidecar_sha256": null,
+          "tee_pointer": "~/.local/share/rtk/tee/1784368656_go_test.log",
+          "tee_pointer_present": true
+        },
+        {
+          "measured_failing_ids": [
+            "TestUnsyncedConfigAccess"
+          ],
+          "measured_parsed_summary": {
+            "aggregate_summary_conflict": false,
+            "aggregate_summary_present": true,
+            "dialect": "rtk-go-test-summary-v1",
+            "failed": 1,
+            "failing_ids": [
+              "TestUnsyncedConfigAccess"
+            ],
+            "packages": 1,
+            "passed": 0,
+            "skipped": 0
+          },
+          "required_ids": [
+            "TestUnsyncedConfigAccess"
+          ],
+          "required_missing_from_measured": [],
+          "required_parsed_failing_in_sidecar": [],
+          "semantic_loss_ids_this_rep": [],
+          "sidecar_bytes": null,
+          "sidecar_failing_ids": [],
+          "sidecar_parsed_summary": null,
+          "sidecar_read": false,
+          "sidecar_sha256": null,
+          "tee_pointer": "~/.local/share/rtk/tee/1784368656_go_test.log",
+          "tee_pointer_present": true
+        },
+        {
+          "measured_failing_ids": [
+            "TestUnsyncedConfigAccess"
+          ],
+          "measured_parsed_summary": {
+            "aggregate_summary_conflict": false,
+            "aggregate_summary_present": true,
+            "dialect": "rtk-go-test-summary-v1",
+            "failed": 1,
+            "failing_ids": [
+              "TestUnsyncedConfigAccess"
+            ],
+            "packages": 1,
+            "passed": 0,
+            "skipped": 0
+          },
+          "required_ids": [
+            "TestUnsyncedConfigAccess"
+          ],
+          "required_missing_from_measured": [],
+          "required_parsed_failing_in_sidecar": [],
+          "semantic_loss_ids_this_rep": [],
+          "sidecar_bytes": null,
+          "sidecar_failing_ids": [],
+          "sidecar_parsed_summary": null,
+          "sidecar_read": false,
+          "sidecar_sha256": null,
+          "tee_pointer": "~/.local/share/rtk/tee/1784368657_go_test.log",
+          "tee_pointer_present": true
+        }
+      ],
+      "required_ids": [
+        "TestUnsyncedConfigAccess"
+      ],
+      "semantic_loss_confirmed": false
+    },
+    "runs": [
+      {
+        "canonical_bytes": 232,
+        "canonical_sha256": "5fe2bc3fd6687db3258878683b46fbca171b316381ba81a1c766bc8532bba6fe",
+        "exit_code": 1,
+        "raw_combined_sha256": "7e1da2df198db5fbf3fdb002f10809abe08b2bf9f1058f0ee7bc3d55852af5ae"
+      },
+      {
+        "canonical_bytes": 232,
+        "canonical_sha256": "5fe2bc3fd6687db3258878683b46fbca171b316381ba81a1c766bc8532bba6fe",
+        "exit_code": 1,
+        "raw_combined_sha256": "7e1da2df198db5fbf3fdb002f10809abe08b2bf9f1058f0ee7bc3d55852af5ae"
+      },
+      {
+        "canonical_bytes": 232,
+        "canonical_sha256": "5fe2bc3fd6687db3258878683b46fbca171b316381ba81a1c766bc8532bba6fe",
+        "exit_code": 1,
+        "raw_combined_sha256": "a0f99a901a433e18d49fc2dacb2001d5455fb0e32f5017aad9d77c1cc7ad9543"
+      }
+    ],
+    "target_execution_ok": null,
+    "timed_out": false
+  },
+  "rtk_binary_sha256": "41f316adf7b30a568208a0a4f824bffb266ecb6d01bd9de81bed58e1d469dfcf",
+  "rtk_savings_pct_reporting_only": -23.81,
+  "rtk_semantic_oracle": {
+    "evidence": {
+      "compared": "normalized_semantic_events",
+      "count_ok": true,
+      "ids_ok": true,
+      "raw": {
+        "failed": 1,
+        "failing_ids": [
+          "TestUnsyncedConfigAccess"
+        ],
+        "passed": 0
+      },
+      "raw_dialect": "go-test-native-v1",
+      "rtk": {
+        "aggregate_summary_conflict": false,
+        "aggregate_summary_present": true,
+        "dialect": "rtk-go-test-summary-v1",
+        "failed": 1,
+        "failing_ids": [
+          "TestUnsyncedConfigAccess"
+        ],
+        "packages": 1,
+        "passed": 0,
+        "skipped": 0
+      },
+      "rtk_dialect": "rtk-go-test-summary-v1"
+    },
+    "oracle": "test_agreement",
+    "verdict": true
+  },
+  "schema_version": "n2e-record-1",
+  "status": "PASS"
+}

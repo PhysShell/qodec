@@ -1,0 +1,299 @@
+{
+  "classification_vocabulary": [
+    "ACCEPTED_PRIMARY",
+    "ACCEPTED_RESERVE",
+    "REJECTED",
+    "DEFERRED"
+  ],
+  "generated_by": "evals/interop/v2/n2/e-rtk-native-corpus/tools/build_n2e_source_registry.py",
+  "mission": "N2-E",
+  "mission_title": "external RTK-native claim-aligned command corpus",
+  "pins_record": "n2e-source-pins-v1.json",
+  "pins_sha256": "sha256:a7afff27137c5f55ac4f50d41f72cfc24a7b73b42196f7ba207ccda5f980724b",
+  "purpose": "External source registry (\u00a72), built deterministically and offline from the committed immutable pins (n2e-source-pins-v1.json). Rebuilds byte-identically regardless of upstream movement. Incomplete acquisitions are DEFERRED with typed reasons and never carry fabricated hashes.",
+  "record_sha256": "sha256:bf0d6a8d7265b79f738a3a6a5d52b7216e47073838fc31698522d2c2be082f77",
+  "record_type": "n2e-source-registry",
+  "record_version": "v1",
+  "schema_version": "n2e-record-1",
+  "source_count": 15,
+  "sources": [
+    {
+      "classification": "ACCEPTED_PRIMARY",
+      "identity": {
+        "dataset_id": "SWE-bench/SWE-bench_Multilingual",
+        "immutable_revision": "2b7aced941b4873e9cad3e76abbae93f481d1beb",
+        "kind": "huggingface_dataset",
+        "source_url": "https://huggingface.co/datasets/SWE-bench/SWE-bench_Multilingual"
+      },
+      "license_note": "per-instance upstream repository licenses; dataset card on HF.",
+      "primary_for": [
+        "rust_cargo",
+        "go",
+        "js_ts",
+        "jvm"
+      ],
+      "source_id": "swe-bench-multilingual",
+      "spec_section": "2.2",
+      "typed_reason": "immutable HF revision pinned; reproducible per-instance Docker environments; native RTK ecosystems (Rust/Go/JS/TS/Java)."
+    },
+    {
+      "classification": "ACCEPTED_PRIMARY",
+      "identity": {
+        "child_digest": "sha256:f3f63bb87d581c0e7b47f900dd82165b71040e1758d3c29e915e2b18da9baf63",
+        "index_digest": "sha256:f3f63bb87d581c0e7b47f900dd82165b71040e1758d3c29e915e2b18da9baf63",
+        "kind": "oci_image",
+        "media_type": "application/vnd.docker.distribution.manifest.v2+json",
+        "platform": "linux/amd64",
+        "registry": "registry-1.docker.io",
+        "repository": "swebench/sweb.eval.x86_64.astropy_1776_astropy-12907"
+      },
+      "license_note": "image derived from upstream project + SWE-bench harness.",
+      "primary_for": [],
+      "source_id": "swe-bench-eval-image-sample",
+      "spec_section": "2.2",
+      "typed_reason": "real SWE-bench eval image pinned by immutable manifest digest; validates the per-instance OCI-by-digest lock path the corpus relies on."
+    },
+    {
+      "classification": "ACCEPTED_PRIMARY",
+      "identity": {
+        "child_digest": "sha256:395033a36458e5312f5bce401452efe6606705fc8b9a574611af6436ac3ff632",
+        "index_digest": "sha256:c1e88455c85225310bbea54816e9c3f4b5295815e6dbf80c34d40afc6df28275",
+        "kind": "oci_image",
+        "media_type": "application/vnd.oci.image.manifest.v1+json",
+        "platform": "linux/amd64",
+        "registry": "registry-1.docker.io",
+        "repository": "library/redis"
+      },
+      "license_note": "upstream official image license.",
+      "primary_for": [
+        "containers"
+      ],
+      "source_id": "container-redis",
+      "spec_section": "6.9",
+      "typed_reason": "local disposable container image pinned by immutable manifest digest; run locally on the session daemon for docker ps/images/logs states (\u00a76.9)."
+    },
+    {
+      "classification": "ACCEPTED_PRIMARY",
+      "identity": {
+        "child_digest": "sha256:679a5fd058f6ca754a561846fe27927e408074431d63556e8fc588fc38be6901",
+        "index_digest": "sha256:814a8e88df978ade80e584cc5b333144b9372a8e3c98872d07137dbf3b44d0e4",
+        "kind": "oci_image",
+        "media_type": "application/vnd.oci.image.manifest.v1+json",
+        "platform": "linux/amd64",
+        "registry": "registry-1.docker.io",
+        "repository": "library/nginx"
+      },
+      "license_note": "upstream official image license.",
+      "primary_for": [
+        "containers"
+      ],
+      "source_id": "container-nginx",
+      "spec_section": "6.9",
+      "typed_reason": "local disposable container image pinned by immutable manifest digest; run locally on the session daemon for docker ps/images/logs states (\u00a76.9)."
+    },
+    {
+      "classification": "ACCEPTED_PRIMARY",
+      "identity": {
+        "child_digest": "sha256:7a3ebe5bfd1a4a19797d20b0c0bb39d44393e9a03fd852c0865b0f540d868df0",
+        "index_digest": "sha256:9532d8c39891ca2ecde4d30d7710e01fb739c87a8b9299685c63704296b16028",
+        "kind": "oci_image",
+        "media_type": "application/vnd.oci.image.manifest.v1+json",
+        "platform": "linux/amd64",
+        "registry": "registry-1.docker.io",
+        "repository": "library/busybox"
+      },
+      "license_note": "upstream official image license.",
+      "primary_for": [
+        "containers"
+      ],
+      "source_id": "container-busybox",
+      "spec_section": "6.9",
+      "typed_reason": "local disposable container image pinned by immutable manifest digest; run locally on the session daemon for docker ps/images/logs states (\u00a76.9)."
+    },
+    {
+      "classification": "ACCEPTED_PRIMARY",
+      "identity": {
+        "child_digest": "sha256:5d706d5aa3ad311722f373fdc09e6a22b454bec70d34d9786383983fd83c5e46",
+        "index_digest": "sha256:7e5df973a74872482e320dcbdeb055e178d6f42de0558b083892c50cda833c96",
+        "kind": "oci_image",
+        "media_type": "application/vnd.oci.image.manifest.v1+json",
+        "platform": "linux/amd64",
+        "registry": "registry-1.docker.io",
+        "repository": "library/postgres"
+      },
+      "license_note": "upstream official image license.",
+      "primary_for": [
+        "containers"
+      ],
+      "source_id": "container-postgres",
+      "spec_section": "6.9",
+      "typed_reason": "local disposable container image pinned by immutable manifest digest; run locally on the session daemon for docker ps/images/logs states (\u00a76.9)."
+    },
+    {
+      "classification": "ACCEPTED_PRIMARY",
+      "identity": {
+        "concept_doi": "10.5281/zenodo.8275860",
+        "files": [
+          {
+            "checksum": "md5:0c52d166e5ee118b2d19d8a57cd2d0b4",
+            "key": "Apache.zip",
+            "size": 578629
+          },
+          {
+            "checksum": "md5:521ee643375bb6e9d0dd88636ff7ece1",
+            "key": "BGL.zip",
+            "size": 86118141
+          },
+          {
+            "checksum": "md5:f23880dd4938379a535ab71a8d27a798",
+            "key": "HDFS.zip",
+            "size": 321944794
+          },
+          {
+            "checksum": "md5:07d035b50ede61f7850e0453e43f85bb",
+            "key": "HPC.zip",
+            "size": 4792408
+          },
+          {
+            "checksum": "md5:e8d413f0ea3f3e90956f185da9d635a8",
+            "key": "Hadoop.zip",
+            "size": 4263949
+          },
+          {
+            "checksum": "md5:6b90126e1c78591454aef10ecc1da098",
+            "key": "HealthApp.zip",
+            "size": 3960708
+          },
+          {
+            "checksum": "md5:a1a1db599519eb6b12b3368f37d274f7",
+            "key": "Linux.zip",
+            "size": 428410
+          },
+          {
+            "checksum": "md5:e5b392e013be0f10a55b5b009f4b9c9d",
+            "key": "Mac.zip",
+            "size": 3017741
+          },
+          {
+            "checksum": "md5:fef920579c366462ea7d341af8f533d8",
+            "key": "OpenSSH.zip",
+            "size": 8166947
+          },
+          {
+            "checksum": "md5:707faeedf8b1b9f920c073114139a023",
+            "key": "OpenStack.zip",
+            "size": 7387614
+          },
+          {
+            "checksum": "md5:2e4b67dc68c3a4f1c18e267c341c52a2",
+            "key": "Proxifier.zip",
+            "size": 380635
+          },
+          {
+            "checksum": "md5:ca0ef9c6e8ece0df602793bd302e03a6",
+            "key": "Spark.zip",
+            "size": 230699188
+          },
+          {
+            "checksum": "md5:a8d365d003845c3bef61661375513910",
+            "key": "Thunderbird.zip",
+            "size": 293018641
+          },
+          {
+            "checksum": "md5:e696a94a9b703eb3fd93a2c78e3050ed",
+            "key": "Zookeeper.zip",
+            "size": 870580
+          }
+        ],
+        "kind": "zenodo_record",
+        "license": "cc-by-4.0",
+        "record_id": "8275861",
+        "title": "Loghub-2.0: a collection of large-scale datasets for log parsing",
+        "version_doi": "10.5281/zenodo.8275861"
+      },
+      "license_note": "cc-by-4.0",
+      "primary_for": [
+        "logs",
+        "files_search"
+      ],
+      "source_id": "loghub-2.0",
+      "spec_section": "2.5",
+      "typed_reason": "immutable Zenodo version record with publisher file checksums; static log files for deterministic slices."
+    },
+    {
+      "classification": "DEFERRED",
+      "image_namespace": "docker.io/bugswarm/images",
+      "intended_primary_for": [
+        "jvm",
+        "python"
+      ],
+      "license_note": "BugSwarm project license (to be recorded at enumeration).",
+      "metadata_source": "https://raw.githubusercontent.com/BugSwarm/BugSwarm/master/",
+      "source_id": "bugswarm-1.3.1",
+      "spec_section": "2.1",
+      "typed_reason": "reachable (metadata via raw.githubusercontent, images on docker.io resolvable via the OCI resolver), but per-artifact reproducible-image digest enumeration and reproducible-only filtering not completed; no per-artifact hashes are recorded until resolved. Required only if SWE-bench Multilingual cannot fill the Maven/Gradle quota."
+    },
+    {
+      "classification": "DEFERRED",
+      "intended_primary_for": [
+        "containers"
+      ],
+      "license_note": "Terminal-Bench task license (to be recorded at enumeration).",
+      "source_id": "terminal-bench-2.0",
+      "spec_section": "2.6",
+      "typed_reason": "environment-only use (no agent, no task success). Task image OCI digests resolvable via the resolver, but the exact task-id -> image-digest table is not enumerated yet; required to populate the mandatory container stratum if no accepted source provides local disposable containers."
+    },
+    {
+      "classification": "ACCEPTED_RESERVE",
+      "license_note": "BugsJS project license (to be recorded at selection).",
+      "metadata_source": "https://raw.githubusercontent.com/BugsJS/",
+      "reserve_for": [
+        "js_ts"
+      ],
+      "source_id": "bugsjs",
+      "spec_section": "2.3",
+      "typed_reason": "independent JS/Mocha stratum; framework repo + metadata reachable via raw.githubusercontent. Reserve behind SWE-bench Multilingual JS/TS."
+    },
+    {
+      "classification": "ACCEPTED_PRIMARY",
+      "identity": {
+        "bugs_manifest": "n2e-bugsinpy-bugs-v1.json",
+        "commit": "11c5f1eea954a42132cfd06bf257766a7963e0fd",
+        "kind": "git_repo",
+        "repository": "soarsmu/BugsInPy",
+        "transport": "git-smart-http"
+      },
+      "license_note": "BugsInPy project license (recorded at bug-manifest acquisition).",
+      "primary_for": [
+        "python"
+      ],
+      "source_id": "bugsinpy",
+      "spec_section": "2.4",
+      "typed_reason": "SWE-bench Multilingual has no Python; BugsInPy is the Python/pytest primary source. Pinned by exact commit over the git transport; per-bug metadata manifest committed (n2e-bugsinpy-bugs-v1.json)."
+    },
+    {
+      "classification": "DEFERRED",
+      "source_id": "gobench",
+      "spec_section": "2.7",
+      "typed_reason": "reserve only; concurrency failures may be flaky; not needed while SWE-bench Multilingual supplies reproducible Go."
+    },
+    {
+      "classification": "DEFERRED",
+      "source_id": "panic4r",
+      "spec_section": "2.7",
+      "typed_reason": "research candidate only; no independently verified durable executable artifact source confirmed."
+    },
+    {
+      "classification": "DEFERRED",
+      "source_id": "defects4j",
+      "spec_section": "2.7",
+      "typed_reason": "reserve Java source if BugSwarm cannot fill a declared Maven/Gradle stratum."
+    },
+    {
+      "classification": "DEFERRED",
+      "source_id": "gitbug-java",
+      "spec_section": "2.7",
+      "typed_reason": "reserve source for later freshness expansion."
+    }
+  ]
+}

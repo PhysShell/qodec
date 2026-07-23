@@ -1,0 +1,86 @@
+{
+  "acceptance_run": {
+    "artifact_bytes": 28168,
+    "artifact_sha256": "b8f42a1a7c568f7cdaeb9c4aa3323ae778e027abdce0321ff7db0625c7079ad3",
+    "impl_commit": "9ef8091",
+    "run_attempt": "1",
+    "run_id": "29860641425",
+    "workflow": "qodec-n2e-case-qualification"
+  },
+  "canonicalization_policy_id": "files-v1",
+  "captured_stream_digests": {
+    "raw.canonical": {
+      "bytes": 14778,
+      "sha256": "250227d1308d08458d2e460411f6fe934b57f704d2d7a54c3a6f46c958ed8fdb"
+    },
+    "rtk.canonical": {
+      "bytes": 14778,
+      "sha256": "250227d1308d08458d2e460411f6fe934b57f704d2d7a54c3a6f46c958ed8fdb"
+    }
+  },
+  "case_id": "preactjs__preact-3345::files_search::read",
+  "case_qualification_pass": true,
+  "command_semantic_oracle_policy_id": "rtk-files-read-oracle-v1",
+  "contract_generation": 1,
+  "evidence": {
+    "dir": "evidence/preact-read/qualification"
+  },
+  "frozen_code_identity": {
+    "canonicalization_policy_definition_sha256": "d89bb3cd60c86796e9d17e9f29209e8f4c80196c89ce654d19e5b80ba4f37eb9",
+    "canonicalization_policy_id": "files-v1",
+    "recompute_module_sha256": "85ca574c940e7edf9997f9b7ca9bf7ff12b0bccd9309469bf6dd9ac62acd603b",
+    "semantics_module": {
+      "path": "tools/n2e_rtk_files_read_oracle.py",
+      "sha256": "1885ae366c523009b451af83c77a6be91d40e223f0fa994aebdcf6e9ef33b2c0"
+    },
+    "verifier_module_sha256": "9a82b1d9e18fa5930c7285c1390ef689fc83a372c86f1eb59a13d061de3a7e43"
+  },
+  "generated_by": "evals/interop/v2/n2/e-rtk-native-corpus/tools/build_n2e_resolved_case_qualification.py",
+  "identities": {
+    "rtk_bytes": 9200104,
+    "rtk_sha256": "41f316adf7b30a568208a0a4f824bffb266ecb6d01bd9de81bed58e1d469dfcf"
+  },
+  "manifest_generation": 2,
+  "manifest_sha256": "sha256:2e05cb53ae79231d6dccffb9e677c05ddeadf57e9b6ae9adf45cef71a907c51c",
+  "mission": "N2-E",
+  "mission_title": "external RTK-native claim-aligned command corpus",
+  "promotion_state": "held (resolved-twelve not yet 12/12)",
+  "purpose": "Immutable per-case qualification for preactjs__preact-3345::files_search::read. Built from a real acceptance run, gated by the independent verifier + aggregator recomputation. Sets no promotion flag.",
+  "qualification_kind": "rtk_command_oracle",
+  "raw_arm": {
+    "deterministic": true
+  },
+  "re_derived_semantic_projection": {
+    "equivalence": {
+      "equivalent": true,
+      "mismatches": [],
+      "retained_line_coverage": 1.0
+    },
+    "raw_projection": {
+      "byte_count": 14778,
+      "content_sha256": "250227d1308d08458d2e460411f6fe934b57f704d2d7a54c3a6f46c958ed8fdb",
+      "nonblank_line_count": 142,
+      "nonblank_sha256": "ab46b9f570f83a9cf7d9dc12ef1c80cecb85ae0e3616d621d451db872b99ff35",
+      "outcome": "text",
+      "trailing_newline": true
+    },
+    "rtk_projection": {
+      "byte_count": 14778,
+      "content_sha256": "250227d1308d08458d2e460411f6fe934b57f704d2d7a54c3a6f46c958ed8fdb",
+      "nonblank_line_count": 142,
+      "nonblank_sha256": "ab46b9f570f83a9cf7d9dc12ef1c80cecb85ae0e3616d621d451db872b99ff35",
+      "outcome": "text",
+      "trailing_newline": true
+    }
+  },
+  "record_sha256": "sha256:1f01396fa8612111e5900c00e0099f45592b507e326d9dd0d73acf5a942e4baf",
+  "record_type": "n2e-resolved-case-qualification",
+  "record_version": "v1",
+  "resolved_canary_pass": false,
+  "rtk_arm": {
+    "deterministic": true
+  },
+  "rtk_test_dialect_policy_id": null,
+  "schema_version": "n2e-record-1",
+  "verdict_authority": "independent case verifier + aggregator recomputation (producer records observations)"
+}

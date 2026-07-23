@@ -1,0 +1,46 @@
+{
+  "base_execution_contract_sha256": "sha256:e7cff3ea7a0e2fb914b589c0679502016910dd48eccdd4a7b1de37988749d899",
+  "generated_by": "evals/interop/v2/n2/e-rtk-native-corpus/tools/build_n2e_resolved_overlays.py",
+  "materializes_dependency_environment_identity_ref": {
+    "protected_files": [
+      "Cargo.lock",
+      "Cargo.toml"
+    ],
+    "where": "focused coreutils diagnostic: acquisition.environment_identity.dependencies"
+  },
+  "mission": "N2-E",
+  "mission_title": "external RTK-native claim-aligned command corpus",
+  "overlay_dependency_snapshot_count": 1,
+  "overlay_dependency_snapshots": [
+    {
+      "cargo_lock_bytes": 85805,
+      "cargo_lock_scope": "full cross-platform resolution",
+      "cargo_lock_sha256": "41431472c49bb49b4f05c216be2547abd8d642dad9a16173e13c66c204b8f388",
+      "case_id": "uutils__coreutils-6731::rust_cargo::test::fixed",
+      "frozen_evidence": {
+        "cargo_lock": "evidence/coreutils-6731/resolved-dependency-snapshot/Cargo.lock",
+        "resolved_graph": "evidence/coreutils-6731/resolved-dependency-snapshot/resolved-graph.json"
+      },
+      "full_packages_metadata_sha256": "bb643992f7918ccb1bbb7d1125ec779497f14a09d5dced061cee1d17114ab864",
+      "host_resolve_graph_sha256": "259ce603ece32a658c582950c8437c4bbedddf9aaed5177e75d64f7f04fd54a5",
+      "host_resolved_package_count": 346,
+      "measurement_model": "B_frozen_resolved_dependency_snapshot",
+      "provenance": {
+        "artifact_sha256": "213563f991967c20365f076740b1278838bb1b07de3dcb546186cad6d6c61a6d",
+        "eligibility_source": "corrected normative verifier replay (tools/verify_coreutils_diagnostic.py @ c43b9c5): normative_evidence_eligible=True. DESCRIPTIVE ONLY -- the loader never derives eligibility from provenance.",
+        "producer_implementation": "c43b9c5",
+        "run_id": "29654373144",
+        "verifier_implementation": "c43b9c5"
+      }
+    }
+  ],
+  "overlay_kind": "resolved_environment",
+  "purpose": "Resolved-scope overlay for the coreutils-6731 replacement; frozen base is never modified. Effective contract = frozen base + verified replacement overlay.",
+  "record_sha256": "sha256:40ce05b400ef706aeef0ce0e6c28385818b6b19b11b1f105bb17e27c5edc9c55",
+  "record_type": "n2e-resolved-dependency-snapshot-overlay",
+  "record_version": "v1",
+  "replaces": "tokio-rs__tokio-4384::rust_cargo::test::fixed",
+  "resolved_case_id": "uutils__coreutils-6731::rust_cargo::test::fixed",
+  "resolved_membership_sha256": "sha256:d3bdb6637d391c0eabba008abd6b03385267486e6c0ccea99fd574f190fcf69f",
+  "schema_version": "n2e-record-1"
+}

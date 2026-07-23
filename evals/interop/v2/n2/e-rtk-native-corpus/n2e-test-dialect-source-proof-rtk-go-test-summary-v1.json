@@ -1,0 +1,37 @@
+{
+  "dialect_policy_id": "rtk-go-test-summary-v1",
+  "dialect_scope": "case_scoped",
+  "generated_by": "evals/interop/v2/n2/e-rtk-native-corpus/tools/build_n2e_test_dialect_source_proof.py",
+  "manifest_binding": {
+    "manifest_generation": 3,
+    "manifest_sha256": "sha256:80a6decdddf8a57917fc395d773bd552db4803933de90e99f9cfa42d6b1b893e"
+  },
+  "mission": "N2-E",
+  "mission_title": "external RTK-native claim-aligned command corpus",
+  "no_family_level": "this dialect is proven for the listed case ids ONLY; one case does not establish family-level test-dialect scope",
+  "pinned_rtk_binary_identity": {
+    "bytes": 9200104,
+    "sha256": "41f316adf7b30a568208a0a4f824bffb266ecb6d01bd9de81bed58e1d469dfcf"
+  },
+  "proven_case_ids": [
+    "caddyserver__caddy-5870::go::test::buggy"
+  ],
+  "purpose": "Source-identity + case-scope proof for rtk-go-test-summary-v1. Pins the exact pinned RTK source it was grounded in, the semantics-module identity, the pinned corpus RTK binary, and the case-scoped manifest binding. Sets no promotion flag.",
+  "record_sha256": "sha256:e4191b29d83518c7301d080eb3356744b1fbd45b30dfc49767465cb8c2b43c0b",
+  "record_type": "n2e-test-dialect-source-proof",
+  "record_version": "v1",
+  "rtk_source_identity": {
+    "bytes": 40478,
+    "commit": "5d32d0736f686b69d1e8b9dc45c007d4eb77a0a2",
+    "content_sha256": "502a3c1dde1ddc65e1d8ecb078e9e8e3538efddf4ac54963dc52c30c5901c5b7",
+    "git_blob_sha1": "d35399bbccb3635d02c0d70ad4b75f769f86fc87",
+    "source_file": "src/cmds/go/go_cmd.rs"
+  },
+  "schema_version": "n2e-record-1",
+  "semantics_module": {
+    "bytes": 8684,
+    "declared_dialect_id": "rtk-go-test-summary-v1",
+    "path": "tools/n2e_rtk_go_test_dialect.py",
+    "sha256": "238963ff1b410c7f2444338f10517ffa1ec9b05400b010902de8bd941fce6c5b"
+  }
+}

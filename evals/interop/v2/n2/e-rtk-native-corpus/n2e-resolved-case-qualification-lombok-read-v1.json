@@ -1,0 +1,86 @@
+{
+  "acceptance_run": {
+    "artifact_bytes": 7343,
+    "artifact_sha256": "fae3114a6cdff9773bad15c7424267ee12da2ebd1764f4b2029d6e824b23108a",
+    "impl_commit": "55cede3",
+    "run_attempt": "1",
+    "run_id": "29862312734",
+    "workflow": "qodec-n2e-case-qualification"
+  },
+  "canonicalization_policy_id": "files-v1",
+  "captured_stream_digests": {
+    "raw.canonical": {
+      "bytes": 1050,
+      "sha256": "ff7775d334bb3990fc991ca2e4f4a7c21f865d33291ecb30c891123456976fa0"
+    },
+    "rtk.canonical": {
+      "bytes": 1050,
+      "sha256": "ff7775d334bb3990fc991ca2e4f4a7c21f865d33291ecb30c891123456976fa0"
+    }
+  },
+  "case_id": "projectlombok__lombok-3312::files_search::read",
+  "case_qualification_pass": true,
+  "command_semantic_oracle_policy_id": "rtk-files-read-oracle-v1",
+  "contract_generation": 1,
+  "evidence": {
+    "dir": "evidence/lombok-read/qualification"
+  },
+  "frozen_code_identity": {
+    "canonicalization_policy_definition_sha256": "d89bb3cd60c86796e9d17e9f29209e8f4c80196c89ce654d19e5b80ba4f37eb9",
+    "canonicalization_policy_id": "files-v1",
+    "recompute_module_sha256": "85ca574c940e7edf9997f9b7ca9bf7ff12b0bccd9309469bf6dd9ac62acd603b",
+    "semantics_module": {
+      "path": "tools/n2e_rtk_files_read_oracle.py",
+      "sha256": "1885ae366c523009b451af83c77a6be91d40e223f0fa994aebdcf6e9ef33b2c0"
+    },
+    "verifier_module_sha256": "9a82b1d9e18fa5930c7285c1390ef689fc83a372c86f1eb59a13d061de3a7e43"
+  },
+  "generated_by": "evals/interop/v2/n2/e-rtk-native-corpus/tools/build_n2e_resolved_case_qualification.py",
+  "identities": {
+    "rtk_bytes": 9200104,
+    "rtk_sha256": "41f316adf7b30a568208a0a4f824bffb266ecb6d01bd9de81bed58e1d469dfcf"
+  },
+  "manifest_generation": 2,
+  "manifest_sha256": "sha256:2e05cb53ae79231d6dccffb9e677c05ddeadf57e9b6ae9adf45cef71a907c51c",
+  "mission": "N2-E",
+  "mission_title": "external RTK-native claim-aligned command corpus",
+  "promotion_state": "held (resolved-twelve not yet 12/12)",
+  "purpose": "Immutable per-case qualification for projectlombok__lombok-3312::files_search::read. Built from a real acceptance run, gated by the independent verifier + aggregator recomputation. Sets no promotion flag.",
+  "qualification_kind": "rtk_command_oracle",
+  "raw_arm": {
+    "deterministic": true
+  },
+  "re_derived_semantic_projection": {
+    "equivalence": {
+      "equivalent": true,
+      "mismatches": [],
+      "retained_line_coverage": 1.0
+    },
+    "raw_projection": {
+      "byte_count": 1050,
+      "content_sha256": "ff7775d334bb3990fc991ca2e4f4a7c21f865d33291ecb30c891123456976fa0",
+      "nonblank_line_count": 13,
+      "nonblank_sha256": "e402e1b338b10498356e0cb961ce8e905f2a4d2de64b56d706438afa81dc3dff",
+      "outcome": "text",
+      "trailing_newline": true
+    },
+    "rtk_projection": {
+      "byte_count": 1050,
+      "content_sha256": "ff7775d334bb3990fc991ca2e4f4a7c21f865d33291ecb30c891123456976fa0",
+      "nonblank_line_count": 13,
+      "nonblank_sha256": "e402e1b338b10498356e0cb961ce8e905f2a4d2de64b56d706438afa81dc3dff",
+      "outcome": "text",
+      "trailing_newline": true
+    }
+  },
+  "record_sha256": "sha256:58f25bc9a76ee56d50da10df03d7e087126bbe25e18b4a2065466c1924ff0c0f",
+  "record_type": "n2e-resolved-case-qualification",
+  "record_version": "v1",
+  "resolved_canary_pass": false,
+  "rtk_arm": {
+    "deterministic": true
+  },
+  "rtk_test_dialect_policy_id": null,
+  "schema_version": "n2e-record-1",
+  "verdict_authority": "independent case verifier + aggregator recomputation (producer records observations)"
+}

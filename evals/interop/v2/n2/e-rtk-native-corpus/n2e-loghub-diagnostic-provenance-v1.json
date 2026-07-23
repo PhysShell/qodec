@@ -1,0 +1,72 @@
+{
+  "barred_from_qualification": true,
+  "case_id": "loghub::HDFS::log",
+  "diagnostic_run": {
+    "impl_commit": "2c1a523",
+    "run_id": "29900168290",
+    "workflow": "qodec-n2e-loghub-diagnostic"
+  },
+  "generated_by": "tools/probe_loghub_diagnostic.py (run 29900168290) -> frozen provenance",
+  "input_member": {
+    "line_count": 11167740,
+    "sha256": "e8987f909b97ce975d65f773a4e1eae7aadab455a38db2aa29ed30ae8b96f166",
+    "uncompressed_bytes": 1565682217
+  },
+  "mission": "N2-E",
+  "mission_title": "external RTK-native claim-aligned command corpus",
+  "note": "RTK's substring categorization moved 5545 WARN-level lines (message contains 'error') into the error bucket; the source-grounded rtk_categorize reproduces RTK's totals exactly. Published Loghub set remains the RAW capsule identity authority; the RTK oracle proves severity totals only.",
+  "purpose": "Frozen provenance of the DIAGNOSTIC-ONLY capture that validated rtk-log-hdfs-oracle-v1 against the real rtk log output on the pinned full HDFS stream. Barred from qualification; moves no gate. Anchors the oracle freeze (step 5) to the real observed output.",
+  "raw_capsule": {
+    "ambiguous_lines": 0,
+    "occurrence_counts_match_published": true,
+    "outcome": "parsed",
+    "rtk_semantic_projection": {
+      "error": 5545,
+      "info": 10805922,
+      "other": 0,
+      "warn": 356273
+    },
+    "severity_counts_by_level": {
+      "INFO": 10805922,
+      "WARN": 361818
+    },
+    "unique_template_count": 46,
+    "unmatched_lines": 0
+  },
+  "record_kind": "loghub_diagnostic_capture",
+  "record_sha256": "sha256:04a840c895534e6ddda7d5faf31a237b7a543424f206a3656c0d10e7cfe5f52b",
+  "record_type": "n2e-loghub-diagnostic-provenance",
+  "record_version": "v1",
+  "rtk_output": {
+    "bytes": 1877,
+    "fixture_path": "evidence/loghub-diag/rtk-log-summary.real.txt",
+    "parsed_severity_projection": {
+      "derivable": true,
+      "error_unique": 5010,
+      "outcome": "summary",
+      "total_errors": 5545,
+      "total_info": 10805922,
+      "total_warnings": 356273,
+      "warn_unique": 116839
+    },
+    "sha256": "02a1e023f3008c99b9f1cda07f075cc0a6034dc097b6f8f5d1728cf68a38c4d9"
+  },
+  "same_input_proof": {
+    "input_member_sha256": "e8987f909b97ce975d65f773a4e1eae7aadab455a38db2aa29ed30ae8b96f166",
+    "member_unchanged_after": true,
+    "raw_stdout_equals_member": true,
+    "raw_stdout_sha256": "e8987f909b97ce975d65f773a4e1eae7aadab455a38db2aa29ed30ae8b96f166",
+    "rtk_read_same_member_path": true
+  },
+  "schema_version": "n2e-record-1",
+  "severity_equivalence": {
+    "compared_fields": [
+      "total_errors",
+      "total_warnings",
+      "total_info"
+    ],
+    "equivalent": true,
+    "mismatches": [],
+    "note": "severity totals only; RTK reports no loghub EventIds or per-template counts"
+  }
+}

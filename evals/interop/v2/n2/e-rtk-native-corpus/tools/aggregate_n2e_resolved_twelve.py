@@ -1,0 +1,364 @@
+#!/usr/bin/env python3
+"""Promotion P5.4: the resolved-twelve aggregator -- the sole authority over resolved_canary_pass.
+
+It NEVER trusts a producer-declared PASS. It loads the frozen twelve-case manifest, requires EXACTLY
+one qualification record per listed case, binds every record to the manifest generation + declared
+policy, rejects barred provenance / duplicate records / cross-case identity reuse / non-unique
+acceptance runs, and INDEPENDENTLY RE-DERIVES each verdict through that case's materialized
+recompute path. resolved_canary_pass becomes true ONLY when it counts twelve independently-derived
+PASSes over twelve unique acceptance runs; any lower count holds it false.
+
+Honesty constraint: a case can be counted only if its recompute path is materialized. Today only
+coreutils-6731 has one (the frozen P1-P4 loader recomputation); the other eleven have no recompute
+registered until their P5.2 dialect + P5.3 acceptance land, so a record for them cannot yet be
+derived to PASS -- the aggregator holds. This is the current staged state: 1/12, held.
+
+The pure core is aggregate(roster, records, recompute); aggregate_from_disk() wires the frozen
+manifest + on-disk records + the production recompute registry.
+"""
+from __future__ import annotations
+
+import sys
+from pathlib import Path
+
+HERE = Path(__file__).resolve().parent
+N2E_DIR = HERE.parent
+sys.path.insert(0, str(HERE))
+import n2e_common as c  # noqa: E402
+import n2e_resolved_loader as L  # noqa: E402
+import n2e_manifest_binding as mb  # noqa: E402
+import n2e_qualification_dispatch as disp  # noqa: E402
+import n2e_qualification_dispatch_v3 as disp3  # noqa: E402
+import n2e_qualification_dispatch_v4 as disp4  # noqa: E402
+import n2e_qualification_dispatch_v5 as disp5  # noqa: E402
+
+# dispatch-generation router: a case's dispatch_policy_id selects EXACTLY one immutable generation.
+# v2 froze after Loghub; v3 is case-scoped to the rubocop merge oracle; v4 to the php-cs-fixer
+# commit-identity oracle; v5 to the redis docker-images oracle. Each generation's module is
+# BYTE-PINNED by its frozen records' dispatch_code_identity, so the router references each module's
+# exact functions (never mutates a module to add generic aliases).
+_DISPATCH_MODULES = {
+    disp.DISPATCH_POLICY_ID: {"bind": disp.bind_dispatch_v2, "recompute": disp.recompute_dispatch_v2,
+                              "err": disp.DispatchError},
+    disp3.DISPATCH_POLICY_ID: {"bind": disp3.bind_dispatch_v3, "recompute": disp3.recompute_dispatch_v3,
+                               "err": disp3.DispatchError},
+    disp4.DISPATCH_POLICY_ID: {"bind": disp4.bind_dispatch_v4, "recompute": disp4.recompute_dispatch_v4,
+                               "err": disp4.DispatchError},
+    disp5.DISPATCH_POLICY_ID: {"bind": disp5.bind_dispatch_v5, "recompute": disp5.recompute_dispatch_v5,
+                               "err": disp5.DispatchError},
+}
+import verify_n2e_resolved_twelve_manifest as VM  # noqa: E402
+
+
+class AggregateError(Exception):
+    pass
+
+
+# roster entry keys the aggregator binds each record to. dispatch_policy_id is the ROUTING axis: the
+# aggregator selects the path (versioned registry-bound dispatch vs frozen cq) from it and nothing else.
+_BIND_KEYS = ("expected_qualification_record_type", "canonicalization_policy_id",
+              "rtk_test_dialect_policy_id", "command_semantic_oracle_policy_id",
+              "qualification_kind", "contract_generation", "dispatch_policy_id")
+
+
+def _check_kind_dispatch(cid: str, rec: dict, entry: dict) -> None:
+    """The record must declare the manifest's qualification_kind and carry the SAME single active
+    policy id. A test-dialect record presented for a command-oracle case (or vice versa), or one
+    naming a different dialect/oracle than the manifest, is a wrong dispatch -> reject."""
+    kind = entry["qualification_kind"]
+    if rec.get("qualification_kind") != kind:
+        raise AggregateError(f"{cid}: record qualification_kind {rec.get('qualification_kind')!r} "
+                             f"!= manifest {kind!r} (wrong dispatch)")
+    if kind == "rtk_test_dialect":
+        if rec.get("rtk_test_dialect_policy_id") != entry["rtk_test_dialect_policy_id"]:
+            raise AggregateError(f"{cid}: bound dialect != manifest")
+        if rec.get("command_semantic_oracle_policy_id") is not None:
+            raise AggregateError(f"{cid}: test-dialect record must not carry a command oracle")
+    elif kind == "rtk_command_oracle":
+        if rec.get("command_semantic_oracle_policy_id") != entry["command_semantic_oracle_policy_id"]:
+            raise AggregateError(f"{cid}: bound command oracle != manifest")
+        if rec.get("rtk_test_dialect_policy_id") is not None:
+            raise AggregateError(f"{cid}: command-oracle record must not carry a test dialect")
+    else:
+        raise AggregateError(f"{cid}: unknown manifest qualification_kind {kind!r}")
+
+
+def _recompute_coreutils(rec: dict, entry: dict) -> bool:
+    """The materialized coreutils recompute path: the frozen P4 loader recomputation from the
+    committed canonical streams. Returns the INDEPENDENTLY derived verdict (not the record's claim)."""
+    return L.validate_coreutils_qualification(
+        rec, c.sha256_json_file(L.RESOLVED_MEMBERSHIP), c.sha256_json_file(L.OV_CONTRACT),
+        c.sha256_json_file(L.BINID), c.sha256_json_file(L.DIALECT), L.QUALIFICATION_DIR)
+
+
+def _bind_coreutils(rec: dict, entry: dict) -> None:
+    """The frozen P4 record predates the two-mode manifest; it binds transitively through the gen-3
+    contract + resolved-membership hashes the manifest pins, and its (implicit) rtk_test_dialect kind
+    is cross-checked against the manifest classification via the record's bound_dialect_policy_id."""
+    b = entry["manifest_binding"]
+    if rec.get("contract_generation3_sha256") != b["resolved_execution_contract_sha256"]:
+        raise AggregateError(f"{entry['case_id']}: contract_generation3_sha256 != manifest's gen-3 contract")
+    if rec.get("resolved_membership_sha256") != b["resolved_membership_sha256"]:
+        raise AggregateError(f"{entry['case_id']}: resolved_membership_sha256 != manifest's membership")
+    if entry["qualification_kind"] != "rtk_test_dialect":
+        raise AggregateError(f"{entry['case_id']}: manifest kind != rtk_test_dialect for coreutils")
+    if rec.get("bound_dialect_policy_id") != entry["rtk_test_dialect_policy_id"]:
+        raise AggregateError(f"{entry['case_id']}: bound_dialect_policy_id != manifest dialect")
+
+
+def _verify_case_binding(rec: dict, entry: dict) -> None:
+    """gen-3 per-case binding. A forward record binds to its case by the CASE-LOCAL case_entry_sha256
+    (independently recomputed into the roster entry), NOT the whole-manifest SHA. Two accepted forms:
+
+      * gen-3 NATIVE record: carries case_entry_sha256; it must equal the recomputed gen-3 entry.
+      * LEGACY gen-2 record (frozen, no case_entry_sha256): accepted ONLY through a valid
+        one-directional gen2->gen3 migration bridge that (a) is for THIS gen-3 root, (b) matches the
+        record's own gen-2 manifest binding, and (c) carries this case forward to the SAME recomputed
+        gen-3 case_entry_sha256. The stale whole-manifest binding is NEVER normative on its own."""
+    cid = entry["case_id"]
+    want = entry["case_entry_sha256"]
+    if rec.get("case_entry_sha256") is not None:
+        if rec["case_entry_sha256"] != want:
+            raise AggregateError(f"{cid}: record case_entry_sha256 != gen-3 manifest entry hash")
+        return
+    # legacy gen-2 record: bridge-mediated carry-forward is the ONLY acceptance path
+    bridge = (entry["manifest_binding"] or {}).get("migration_bridge")
+    if not bridge:
+        raise AggregateError(f"{cid}: legacy record (no case_entry_sha256) requires a migration bridge")
+    if bridge.get("record_type") != "n2e-manifest-gen2-to-gen3-binding-migration":
+        raise AggregateError(f"{cid}: migration bridge wrong record_type")
+    if (bridge.get("gen3") or {}).get("manifest_sha256") != entry["manifest_binding"]["manifest_sha256"]:
+        raise AggregateError(f"{cid}: migration bridge gen3 manifest sha != current manifest root")
+    g2 = bridge.get("gen2") or {}
+    if rec.get("manifest_sha256") != g2.get("manifest_sha256"):
+        raise AggregateError(f"{cid}: legacy record manifest_sha256 != bridge gen-2 manifest")
+    if rec.get("manifest_generation") != g2.get("manifest_generation"):
+        raise AggregateError(f"{cid}: legacy record manifest_generation != bridge gen-2 generation")
+    cf = next((x for x in (bridge.get("case_carry_forward") or []) if x.get("case_id") == cid), None)
+    if cf is None or not cf.get("carried_forward"):
+        raise AggregateError(f"{cid}: migration bridge does not carry this case forward")
+    if cf.get("gen3_case_entry_sha256") != want:
+        raise AggregateError(f"{cid}: bridge gen3 case_entry_sha256 != recomputed gen-3 entry hash")
+
+
+def _bind_case_generation(rec: dict, entry: dict) -> None:
+    """gen-3: forward records bind CASE-LOCALLY (case_entry_sha256), directly for a native gen-3 record
+    or through the migration bridge for a frozen legacy gen-2 record, and must dispatch to the
+    manifest's qualification_kind with the matching single active policy id."""
+    _verify_case_binding(rec, entry)
+    _check_kind_dispatch(entry["case_id"], rec, entry)
+
+
+def _recompute_resolved_case(rec: dict, entry: dict) -> bool:
+    """Materialized recompute for a forward per-case qualification record. Dispatches by
+    qualification_kind: rtk_test_dialect re-parses through the proven dialect (P5.2A);
+    rtk_command_oracle through the proven command oracle (P5.2B). Evidence dir pinned in the record."""
+    import n2e_resolved_case_qualification as cq
+    kind = entry.get("qualification_kind")
+    if kind not in ("rtk_test_dialect", "rtk_command_oracle"):
+        raise AggregateError(f"{entry['case_id']}: no materialized recompute for kind {kind!r}")
+    ev = Path((rec.get("evidence") or {}).get("dir") or "")
+    if not ev.is_absolute():
+        ev = N2E_DIR / ev
+    return cq.recompute_case_verdict(rec, entry, ev)
+
+
+# production registries keyed by expected_qualification_record_type. ONLY materialized paths appear;
+# a case counts only when its recompute path exists (test dialects via P5.2A; command oracles P5.2B).
+PRODUCTION_RECOMPUTE = {"n2e-coreutils-qualification": _recompute_coreutils,
+                        "n2e-resolved-case-qualification": _recompute_resolved_case}
+PRODUCTION_BIND = {"n2e-coreutils-qualification": _bind_coreutils,
+                   "n2e-resolved-case-qualification": _bind_case_generation}
+
+
+def _one(records, case_id):
+    """Return the single record for case_id, or None if absent; raise on duplicates."""
+    got = records.get(case_id)
+    if got is None:
+        return None
+    if isinstance(got, list):
+        if len(got) != 1:
+            raise AggregateError(f"{case_id}: expected exactly one qualification record, got {len(got)}")
+        return got[0]
+    return got
+
+
+def aggregate(roster: list, records: dict, recompute: dict, bind: dict) -> dict:
+    """Pure aggregate over a verified twelve-case roster + a case_id->record(s) map + recompute/bind
+    registries. Derives resolved_canary_pass fail-closed. Never trusts a producer PASS string."""
+    if len(roster) != 12:
+        raise AggregateError(f"roster is not twelve ({len(roster)})")
+    roster_ids = [e["case_id"] for e in roster]
+    if len(set(roster_ids)) != 12:
+        raise AggregateError("duplicate case ids in roster")
+
+    per_case, run_keys, artifact_keys, passes = {}, {}, {}, 0
+    for entry in roster:
+        cid = entry["case_id"]
+        rec = _one(records, cid)
+        if rec is None:
+            per_case[cid] = {"present": False, "derived_pass": False}
+            continue
+
+        # ---- the record must be for THIS case, of the manifest-declared type ----
+        if rec.get("case_id") != cid and cid not in [q.get("case_id") for q in (rec.get("qualifications") or [])]:
+            raise AggregateError(f"{cid}: record does not bind this case")
+        etype = entry["expected_qualification_record_type"]
+        if rec.get("record_type") != etype:
+            raise AggregateError(f"{cid}: record_type {rec.get('record_type')!r} "
+                                 f"!= manifest-declared {etype!r}")
+        # ---- routing axis: the path is chosen ONLY from the manifest entry's dispatch_policy_id.
+        # present -> versioned registry-bound dispatch layer (NOT the frozen cq); absent -> legacy cq
+        # path. The two are STRICTLY separated: a manifest entry names exactly one, and a record built
+        # for the wrong one is fail-closed (dispatch identity vs cq frozen identity are mutually
+        # exclusive). No plugin discovery, no import path from the artifact, no generic-oracle fallback.
+        disp_pid = entry.get("dispatch_policy_id")
+        dm = _DISPATCH_MODULES.get(disp_pid) if disp_pid is not None else None
+        if disp_pid is not None:
+            if dm is None:
+                raise AggregateError(f"{cid}: unknown dispatch_policy_id {disp_pid!r} "
+                                     f"(no such dispatch generation registered)")
+            # gen-3 case-local binding (which case + kind dispatch), THEN the dispatch identity binding
+            # (exactly-one registry match, mutual exclusion vs a cq frozen_code_identity, drift, and no
+            # dynamic import path smuggled in the artifact). A dispatch-layer rejection surfaces as an
+            # AggregateError (the aggregator's single failure mode). The GENERATION is selected from the
+            # manifest entry's dispatch_policy_id -- v2 (Loghub) / v3 (rubocop merge) / future.
+            _bind_case_generation(rec, entry)
+            try:
+                dm["bind"](rec, entry)
+            except dm["err"] as e:
+                raise AggregateError(f"{cid}: {disp_pid} binding rejected: {e}")
+        else:
+            # a dispatch record must NEVER be laundered through cq. Routing is by the manifest entry, but
+            # guard here too: a record carrying a dispatch_code_identity on a non-dispatch entry is barred.
+            if rec.get("dispatch_code_identity") is not None:
+                raise AggregateError(f"{cid}: record carries dispatch_code_identity but manifest entry "
+                                     f"is not routed to a dispatch layer")
+            bind_fn = bind.get(etype)
+            if bind_fn is None:
+                raise AggregateError(f"{cid}: no manifest-binding check for {etype!r}")
+            bind_fn(rec, entry)
+        # declared policy binding (wrong dialect/canon/contract-generation -> reject) -- both paths
+        for k in ("canonicalization_policy_id", "rtk_test_dialect_policy_id", "contract_generation"):
+            if k in rec and rec.get(k) != entry.get(k):
+                raise AggregateError(f"{cid}: bound {k} {rec.get(k)!r} != manifest {entry.get(k)!r}")
+
+        # ---- acceptance-run identity: present, not barred, and GLOBALLY UNIQUE across the twelve ----
+        run = rec.get("acceptance_run") or {}
+        for f in ("workflow", "run_id", "run_attempt", "impl_commit", "artifact_sha256", "artifact_bytes"):
+            if run.get(f) in (None, ""):
+                raise AggregateError(f"{cid}: acceptance_run.{f} missing")
+        if run["run_id"] in L.BARRED_DIAGNOSTIC_RUNS or run["impl_commit"] in L.BARRED_DIAGNOSTIC_IMPLS:
+            raise AggregateError(f"{cid}: acceptance_run names a barred diagnostic run/impl")
+        rk = (run["run_id"], run["run_attempt"])
+        if rk in run_keys:
+            raise AggregateError(f"{cid}: acceptance run {rk} reused from {run_keys[rk]} "
+                                 f"(twelve records must span twelve unique runs)")
+        run_keys[rk] = cid
+        ak = run["artifact_sha256"]
+        if ak in artifact_keys:
+            raise AggregateError(f"{cid}: artifact digest reused from {artifact_keys[ak]} (cross-case)")
+        artifact_keys[ak] = cid
+
+        # ---- INDEPENDENT recomputation through the case's materialized path (dispatch or legacy) ----
+        if disp_pid is not None:
+            try:
+                derived = bool(dm["recompute"](rec, entry))
+            except dm["err"] as e:
+                raise AggregateError(f"{cid}: {disp_pid} recompute rejected: {e}")
+        else:
+            fn = recompute.get(entry["expected_qualification_record_type"])
+            if fn is None:
+                raise AggregateError(f"{cid}: no materialized recompute path for "
+                                     f"{entry['expected_qualification_record_type']!r} -- cannot derive PASS")
+            derived = bool(fn(rec, entry))
+        # the aggregator's derivation is authoritative; a producer PASS that disagrees is rejected
+        claimed = rec.get("case_qualification_pass",
+                          rec.get("coreutils_qualification_pass"))
+        if claimed is not True:
+            raise AggregateError(f"{cid}: record does not claim PASS")
+        if claimed != derived:
+            raise AggregateError(f"{cid}: producer PASS {claimed} != aggregator recomputation {derived}")
+        if not derived:
+            raise AggregateError(f"{cid}: aggregator recomputation is FAIL")
+        per_case[cid] = {"present": True, "derived_pass": True, "acceptance_run": rk}
+        passes += 1
+
+    twelve = passes == 12
+    return {
+        "cardinality": 12,
+        "derived_pass_count": passes,
+        "unique_acceptance_runs": len(run_keys),
+        "twelve_independently_derived": twelve,
+        "per_case": per_case,
+        # THE sole promotion output; false unless all twelve are independently derived
+        "resolved_canary_pass": twelve,
+    }
+
+
+def _roster_from_manifest(man: dict, man_path: Path) -> list:
+    VM.verify_manifest(man)  # fail-closed: exactly the frozen twelve, in order
+    # the migration bridge (if any) is the ONLY thing that lets a frozen legacy gen-2 record bind under
+    # this gen-3 root; loaded once and self-hash-checked here.
+    bridge = None
+    if L.MIGRATION_BRIDGE.is_file():
+        bridge = c.load_record(L.MIGRATION_BRIDGE)
+        ok, msg = c.verify_self_hash(bridge)
+        if not ok:
+            raise AggregateError(f"migration bridge self-hash: {msg}")
+    binding = {
+        "manifest_generation": man["manifest_generation"],
+        "manifest_sha256": c.sha256_json_file(man_path),
+        "resolved_execution_contract_sha256": man["resolved_execution_contract_sha256"],
+        "resolved_membership_sha256": man["resolved_membership_sha256"],
+        "migration_bridge": bridge}
+    # independent re-derivation of each case's case-local binding hash from the gen-3 sources -- the
+    # manifest's stored case_entry_sha256 is NEVER trusted; a value its own inputs do not produce fails.
+    contract = c.load_record(L.CONTRACT)
+    overlay = c.load_record(L.OV_CONTRACT)
+    roster = []
+    for x in man["cases"]:
+        cid = x["case_id"]
+        ce = mb.contract_entry_for(cid, contract)
+        oe = mb.overlay_entry_for(cid, overlay)
+        recomputed = mb.case_entry_sha256(x, ce, oe)
+        if recomputed != x.get("case_entry_sha256"):
+            raise AggregateError(f"{cid}: manifest case_entry_sha256 != independent re-derivation")
+        roster.append({**{k: x.get(k) for k in _BIND_KEYS}, "case_id": cid,
+                       "manifest_generation": man["manifest_generation"],
+                       "case_entry_sha256": recomputed,
+                       "manifest_binding": binding})
+    return roster
+
+
+def aggregate_from_disk() -> dict:
+    man_path = N2E_DIR / "n2e-resolved-twelve-manifest-v1.json"
+    man = c.load_record(man_path)
+    roster = _roster_from_manifest(man, man_path)
+    records = {}
+    # only materialized records are loaded; still-pending cases are legitimately absent.
+    # coreutils: the frozen P4 record.
+    if L.QUALIFICATION.is_file():
+        records[L.REPLACEMENT_CASE_ID] = c.load_record(L.QUALIFICATION)
+    # forward per-case qualification records (n2e-resolved-case-qualification-<name>-v1.json)
+    for p in sorted(N2E_DIR.glob("n2e-resolved-case-qualification-*.json")):
+        rec = c.load_record(p)
+        cid = rec.get("case_id")
+        if cid in records:
+            raise AggregateError(f"duplicate qualification record for {cid} ({p.name})")
+        records[cid] = rec
+    return aggregate(roster, records, PRODUCTION_RECOMPUTE, PRODUCTION_BIND)
+
+
+def main() -> int:
+    r = aggregate_from_disk()
+    print(f"resolved-twelve-aggregate: {r['derived_pass_count']}/12 independently derived "
+          f"(unique runs={r['unique_acceptance_runs']}) -> resolved_canary_pass={r['resolved_canary_pass']}")
+    for cid, s in r["per_case"].items():
+        print(f"  {'PASS' if s['derived_pass'] else 'ABSENT/HELD'}  {cid}")
+    # exit 0 always: this is a status report, not a gate. Promotion is a separate, explicit step.
+    return 0
+
+
+if __name__ == "__main__":
+    raise SystemExit(main())

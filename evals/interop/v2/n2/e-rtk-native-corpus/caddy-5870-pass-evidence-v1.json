@@ -1,0 +1,58 @@
+{
+  "case_id": "caddyserver__caddy-5870::go::test::buggy",
+  "checks": {
+    "counts_agree": true,
+    "ids_agree": true,
+    "raw_dialect_is_native": true,
+    "raw_failing_target_present": true,
+    "raw_oracle_true": true,
+    "rtk_aggregate_summary_present": true,
+    "rtk_dialect_is_strict": true,
+    "rtk_no_summary_conflict": true,
+    "rtk_oracle_true": true,
+    "rtk_preserves_required_identity": true
+  },
+  "generated_by": "evals/interop/v2/n2/e-rtk-native-corpus/tools/build_n2e_caddy_pass_evidence.py",
+  "mission": "N2-E",
+  "mission_title": "external RTK-native claim-aligned command corpus",
+  "no_rejection_ledger_entry": true,
+  "outcome": "PASS",
+  "pass_confirmed": true,
+  "preserved_case_internal_sha256": "sha256:838bfb5f61f973e3376d5497ad092a156e2020372ac13e2411e150af19dfc623",
+  "preserved_case_record": "evidence/caddy-pass-run-29639560535/n2e-canary-case-caddyserver__caddy-5870__go__test__buggy.json",
+  "preserved_case_record_sha256": "sha256:80f41dcfdea111ff23b11e74a5e2bb05246bda142134cf5fe68798721118341b",
+  "probe_provenance": {
+    "artifact_id": "8428319361",
+    "artifact_zip_sha256": "sha256:48a030a84485787897643a8bd7c1e81043c2ed1822a2d138c88a4ecd4c3087c6",
+    "implementation_sha": "9865af4ce8558e8609eaf2008da1f98f739b9484",
+    "run_id": "29639560535",
+    "trigger_head_sha": "f29e958e40a357891fe27e17d7d2fc2ae3660a26",
+    "workflow": "qodec-n2e-corpus-canary"
+  },
+  "purpose": "Preserved caddy PASS re-judgment under the strict rtk-go-test-summary-v1 grammar; RTK measured stream preserves the RAW failing identity. No rejection-ledger entry.",
+  "raw_canonical_sha256": [
+    "155467334fb1ee678dfb5dd81945fc05b5f2b89d4f80f91a8cd5c33e2de9e015",
+    "155467334fb1ee678dfb5dd81945fc05b5f2b89d4f80f91a8cd5c33e2de9e015",
+    "155467334fb1ee678dfb5dd81945fc05b5f2b89d4f80f91a8cd5c33e2de9e015"
+  ],
+  "raw_dialect": "go-test-native-v1",
+  "raw_failing_ids": [
+    "TestUnsyncedConfigAccess"
+  ],
+  "record_sha256": "sha256:64446ea47345663372581fe6262adadc31527a086e8b0407f121b84bf656d90f",
+  "record_type": "n2e-caddy-pass-evidence",
+  "record_version": "v1",
+  "required_failing_identity": "TestUnsyncedConfigAccess",
+  "rtk_canonical_sha256": [
+    "5fe2bc3fd6687db3258878683b46fbca171b316381ba81a1c766bc8532bba6fe",
+    "5fe2bc3fd6687db3258878683b46fbca171b316381ba81a1c766bc8532bba6fe",
+    "5fe2bc3fd6687db3258878683b46fbca171b316381ba81a1c766bc8532bba6fe"
+  ],
+  "rtk_dialect": "rtk-go-test-summary-v1",
+  "rtk_failing_ids": [
+    "TestUnsyncedConfigAccess"
+  ],
+  "schema_version": "n2e-record-1",
+  "withdrawal_basis": "HARNESS_DEFECT_ORACLE_UNRECOGNIZED_RTK_TEST_GRAMMAR",
+  "withdrawn_disqualification": "DISQUALIFIED_RTK_SEMANTIC_LOSS"
+}

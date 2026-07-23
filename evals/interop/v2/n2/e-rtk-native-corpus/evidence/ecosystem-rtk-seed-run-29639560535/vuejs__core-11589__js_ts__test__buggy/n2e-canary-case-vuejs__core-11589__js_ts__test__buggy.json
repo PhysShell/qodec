@@ -1,0 +1,630 @@
+{
+  "acceptance_note": "RTK savings reporting-only; never a gate (\u00a715/\u00a719).",
+  "acquisition": {
+    "applied_patches": [
+      {
+        "apply_exit": 0,
+        "apply_stderr": "",
+        "name": "test_patch",
+        "sha256": "f9919ea790661d579fe600d5f47b99b00509371ea874d7c6960877d2b4025acb"
+      }
+    ],
+    "base_commit": "3653bc0f45d6fedf84e29b64ca52584359c383c0",
+    "environment_identity": {
+      "acquisition_order": {
+        "applied_patches": [
+          {
+            "apply_exit": 0,
+            "apply_stderr": "",
+            "name": "test_patch",
+            "sha256": "f9919ea790661d579fe600d5f47b99b00509371ea874d7c6960877d2b4025acb"
+          }
+        ],
+        "base_commit": "3653bc0f45d6fedf84e29b64ca52584359c383c0",
+        "boundaries": [
+          {
+            "label": "base",
+            "protected": {
+              "package-lock.json": null,
+              "package.json": "cb876ea63fec7cb63ca1f93e9dde3e7e8f017f1e8ebf4fe6797bd71d237b5d5a",
+              "pnpm-lock.yaml": "c774ea25773ca227dd045ce051cd839b49bb56191bf22a06badf67dc19cb2fd7",
+              "yarn.lock": null
+            },
+            "tracked_status": [],
+            "worktree_diff_bytes": 0,
+            "worktree_diff_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+          },
+          {
+            "label": "pre_install",
+            "protected": {
+              "package-lock.json": null,
+              "package.json": "cb876ea63fec7cb63ca1f93e9dde3e7e8f017f1e8ebf4fe6797bd71d237b5d5a",
+              "pnpm-lock.yaml": "c774ea25773ca227dd045ce051cd839b49bb56191bf22a06badf67dc19cb2fd7",
+              "yarn.lock": null
+            },
+            "tracked_status": [],
+            "worktree_diff_bytes": 0,
+            "worktree_diff_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+          },
+          {
+            "label": "install_warm",
+            "protected": {
+              "package-lock.json": null,
+              "package.json": "cb876ea63fec7cb63ca1f93e9dde3e7e8f017f1e8ebf4fe6797bd71d237b5d5a",
+              "pnpm-lock.yaml": "c774ea25773ca227dd045ce051cd839b49bb56191bf22a06badf67dc19cb2fd7",
+              "yarn.lock": null
+            },
+            "tracked_status": [],
+            "worktree_diff_bytes": 0,
+            "worktree_diff_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+          },
+          {
+            "base_commit": "3653bc0f45d6fedf84e29b64ca52584359c383c0",
+            "gold_files": [],
+            "label": "test_files_reset",
+            "protected": {
+              "package-lock.json": null,
+              "package.json": "cb876ea63fec7cb63ca1f93e9dde3e7e8f017f1e8ebf4fe6797bd71d237b5d5a",
+              "pnpm-lock.yaml": "c774ea25773ca227dd045ce051cd839b49bb56191bf22a06badf67dc19cb2fd7",
+              "yarn.lock": null
+            },
+            "reset_failed": [],
+            "reset_from_commit": "3653bc0f45d6fedf84e29b64ca52584359c383c0",
+            "reset_paths": [
+              "packages/runtime-core/__tests__/apiWatch.spec.ts"
+            ],
+            "test_patch_files": [
+              "packages/runtime-core/__tests__/apiWatch.spec.ts"
+            ],
+            "test_patch_files_existing_at_base": [
+              "packages/runtime-core/__tests__/apiWatch.spec.ts"
+            ],
+            "tracked_status": [],
+            "worktree_diff_bytes": 0,
+            "worktree_diff_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+          },
+          {
+            "applied": true,
+            "label": "test_patch",
+            "patch_sha256": "f9919ea790661d579fe600d5f47b99b00509371ea874d7c6960877d2b4025acb",
+            "protected": {
+              "package-lock.json": null,
+              "package.json": "cb876ea63fec7cb63ca1f93e9dde3e7e8f017f1e8ebf4fe6797bd71d237b5d5a",
+              "pnpm-lock.yaml": "c774ea25773ca227dd045ce051cd839b49bb56191bf22a06badf67dc19cb2fd7",
+              "yarn.lock": null
+            },
+            "tracked_status": [
+              " M packages/runtime-core/__tests__/apiWatch.spec.ts"
+            ],
+            "worktree_diff_bytes": 744,
+            "worktree_diff_sha256": "25190c6edf4a2a22b5deada3763fa483db9bcfcefd73f98498e703239f083e7d"
+          }
+        ],
+        "canonical_sequence": [
+          "base",
+          "pre_install",
+          "install_warm",
+          "test_files_reset",
+          "test_patch"
+        ],
+        "gold_applied": false,
+        "gold_files": [],
+        "install": {
+          "locked": false,
+          "ran": true,
+          "steps": [
+            {
+              "cmd": [
+                "pnpm",
+                "i"
+              ],
+              "effective_cmd": [
+                "pnpm",
+                "i"
+              ],
+              "exit": 0,
+              "locked": false
+            }
+          ]
+        },
+        "invariant": "publisher --locked install runs on the pristine manifest; gold patch applied only afterwards; the test_patch-owned files are reset to base_commit (discarding gold edits to them) BEFORE test_patch, then measured.",
+        "policy_id": "publisher-acquisition-order-v1",
+        "snapshot_variant": "buggy",
+        "test_applied": true,
+        "test_files_reset": {
+          "existing_at_base": [
+            "packages/runtime-core/__tests__/apiWatch.spec.ts"
+          ],
+          "reset_failed": [],
+          "reset_from_commit": "3653bc0f45d6fedf84e29b64ca52584359c383c0",
+          "reset_paths": [
+            "packages/runtime-core/__tests__/apiWatch.spec.ts"
+          ]
+        },
+        "test_patch_files": [
+          "packages/runtime-core/__tests__/apiWatch.spec.ts"
+        ]
+      },
+      "construction": {
+        "baseline_tracked_status": [
+          " M packages/runtime-core/__tests__/apiWatch.spec.ts"
+        ],
+        "pre_install": [],
+        "publisher_recipe": "SPECS_VUEJS[11589]"
+      },
+      "dependencies": {
+        "after_acquisition": {
+          "package-lock.json": null,
+          "package.json": "cb876ea63fec7cb63ca1f93e9dde3e7e8f017f1e8ebf4fe6797bd71d237b5d5a",
+          "pnpm-lock.yaml": "c774ea25773ca227dd045ce051cd839b49bb56191bf22a06badf67dc19cb2fd7",
+          "yarn.lock": null
+        },
+        "after_install_warm": {
+          "package-lock.json": null,
+          "package.json": "cb876ea63fec7cb63ca1f93e9dde3e7e8f017f1e8ebf4fe6797bd71d237b5d5a",
+          "pnpm-lock.yaml": "c774ea25773ca227dd045ce051cd839b49bb56191bf22a06badf67dc19cb2fd7",
+          "yarn.lock": null
+        },
+        "committed_mutated": [],
+        "mutation_guard_ok": true,
+        "pristine_pre_install": {
+          "package-lock.json": null,
+          "package.json": "cb876ea63fec7cb63ca1f93e9dde3e7e8f017f1e8ebf4fe6797bd71d237b5d5a",
+          "pnpm-lock.yaml": "c774ea25773ca227dd045ce051cd839b49bb56191bf22a06badf67dc19cb2fd7",
+          "yarn.lock": null
+        },
+        "protected_files": [
+          "package.json",
+          "pnpm-lock.yaml",
+          "package-lock.json",
+          "yarn.lock"
+        ]
+      },
+      "platform": {
+        "machine": "x86_64",
+        "system": "Linux",
+        "uname": "Linux-6.17.0-1020-azure-x86_64-with-glibc2.39"
+      },
+      "publisher": {
+        "case_id": "vuejs__core-11589::js_ts::test::buggy",
+        "install": [
+          "pnpm i"
+        ],
+        "recipe_spec": "SPECS_VUEJS[11589]",
+        "registry_sha256": "sha256:8cdf9ca1cf9434f0210b144b22946065037fb485e36040eab580c256da324d96",
+        "source": {
+          "file": "javascript.py",
+          "git_blob_sha1": "714a27841daaa584529f50c2efc39d974d933f64",
+          "sha256": "d8c68d79e1e01854ce8cc70c45df88cd1153cf2f213949131553bf14ca9886f5",
+          "spec_dict": "SPECS_VUEJS",
+          "spec_key": "11589"
+        },
+        "test_cmd": [
+          "pnpm run test packages/runtime-core/__tests__/apiWatch.spec.ts --no-watch --reporter=verbose"
+        ],
+        "toolchain": {
+          "docker_specs": {
+            "_variant": "js_2",
+            "node_version": "20"
+          },
+          "kind": "node",
+          "package_manager": "pnpm",
+          "version": "20"
+        }
+      },
+      "toolchain": {
+        "corepack": {
+          "path": "/usr/local/bin/corepack",
+          "present": true,
+          "sha256": "3655bc798f300951f2070fee411b337d626b0c3ae80c2d24c46ccac4595d4bf9",
+          "version": "0.34.6"
+        },
+        "node": {
+          "path": "/usr/local/bin/node",
+          "present": true,
+          "sha256": "6295488653f0d93b0a157841746fef7e72cc4328cfb60c4bbe0ca2668a836ffd",
+          "version": "v20.20.2"
+        },
+        "pnpm": {
+          "path": "/usr/local/bin/pnpm",
+          "present": true,
+          "sha256": "7c2a67995976b5b592b611d8b236e3b0633bd654fb49aedd96c6eb7ce04c9cbb",
+          "version": "9.7.0"
+        }
+      },
+      "toolchain_pin": {
+        "docker_specs": {
+          "_variant": "js_2",
+          "node_version": "20"
+        },
+        "kind": "node",
+        "package_manager": "pnpm",
+        "version": "20"
+      },
+      "warm_commands": [
+        {
+          "cmd": [
+            "pnpm",
+            "i"
+          ],
+          "exit": 0,
+          "kind": "install"
+        }
+      ]
+    },
+    "home_local": true,
+    "identity_verified": true,
+    "instance_id": "vuejs__core-11589",
+    "jvm_proof_class": null,
+    "offline_env": {
+      "CI": "1"
+    },
+    "phase_a_scenario_ingestion_defect": {
+      "frozen_original_argv": [
+        "npm",
+        "test"
+      ],
+      "publisher_recipe": "SPECS_VUEJS[11589]",
+      "publisher_source": {
+        "file": "javascript.py",
+        "git_blob_sha1": "714a27841daaa584529f50c2efc39d974d933f64",
+        "sha256": "d8c68d79e1e01854ce8cc70c45df88cd1153cf2f213949131553bf14ca9886f5",
+        "spec_dict": "SPECS_VUEJS",
+        "spec_key": "11589"
+      },
+      "publisher_test_argv": [
+        "pnpm",
+        "run",
+        "test",
+        "packages/runtime-core/__tests__/apiWatch.spec.ts",
+        "--no-watch",
+        "--reporter=verbose"
+      ],
+      "resolution": "publisher recipe is normative; effective command derived from n2e-publisher-env-registry-v1.json, not the frozen argv",
+      "typed_defect": "SCENARIO_INGESTION_WRONG_WORKLOAD"
+    },
+    "policy": "vitest-v1",
+    "pristine_checkout_protected": {
+      "package-lock.json": null,
+      "package.json": "cb876ea63fec7cb63ca1f93e9dde3e7e8f017f1e8ebf4fe6797bd71d237b5d5a",
+      "pnpm-lock.yaml": "c774ea25773ca227dd045ce051cd839b49bb56191bf22a06badf67dc19cb2fd7",
+      "yarn.lock": null
+    },
+    "publisher_case_id": "vuejs__core-11589::js_ts::test::buggy",
+    "publisher_recipe": "SPECS_VUEJS[11589]",
+    "repository": "vuejs/core",
+    "resolved_raw_argv": [
+      "pnpm",
+      "run",
+      "test",
+      "packages/runtime-core/__tests__/apiWatch.spec.ts",
+      "--no-watch",
+      "--reporter=verbose"
+    ],
+    "resolved_rtk_argv": [
+      "rtk",
+      "pnpm",
+      "run",
+      "test",
+      "packages/runtime-core/__tests__/apiWatch.spec.ts",
+      "--no-watch",
+      "--reporter=verbose"
+    ],
+    "warm": {
+      "instance_id": "vuejs__core-11589",
+      "ok": true,
+      "publisher_recipe": "SPECS_VUEJS[11589]",
+      "steps": [
+        {
+          "cmd": [
+            "pnpm",
+            "i"
+          ],
+          "exit": 0,
+          "kind": "install",
+          "tail": "types/node 20.14.15\n+ @types/semver 7.5.8\n+ @types/serve-handler 6.1.4\n+ @vitest/coverage-istanbul 2.0.5\n+ @vue/consolidate 1.0.0\n+ conventional-changelog-cli 5.0.0\n+ enquirer 2.4.1\n+ esbuild 0.23.0\n+ esbuild-plugin-polyfill-node 0.3.0\n+ eslint 9.9.0\n+ eslint-plugin-import-x 3.1.0\n+ eslint-plugin-vitest 0.5.4\n+ estree-walker 2.0.2\n+ jsdom 24.1.1\n+ lint-staged 15.2.8\n+ lodash 4.17.21\n+ magic-string 0.30.11\n+ markdown-table 3.0.3\n+ marked 13.0.3\n+ npm-run-all2 6.2.2\n+ picocolors 1.0.1\n+ prettier 3.3.3\n+ pretty-bytes 6.1.1\n+ pug 3.0.3\n+ puppeteer 23.0.2\n+ rimraf 6.0.1\n+ rollup 4.20.0\n+ rollup-plugin-dts 6.1.1\n+ rollup-plugin-esbuild 6.1.1\n+ rollup-plugin-polyfill-node 0.13.0\n+ semver 7.6.3\n+ serve 14.2.3\n+ serve-handler 6.1.5\n+ simple-git-hooks 2.11.1\n+ todomvc-app-css 2.4.3\n+ tslib 2.6.3\n+ tsx 4.17.0\n+ typescript 5.5.4\n+ typescript-eslint 8.0.1\n+ vite 5.4.0\n+ vitest 2.0.5\n\n. postinstall$ simple-git-hooks\n. postinstall: [INFO] Successfully set the pre-commit with command: pnpm lint-staged && pnpm check\n. postinstall: [INFO] Successfully set the commit-msg with command: node scripts/verify-commit.js\n. postinstall: [INFO] Successfully set all git hooks\n. postinstall: Done\nDone in 11.4s\n! Corepack is about to download https://registry.npmjs.org/pnpm/-/pnpm-9.7.0.tgz\n"
+        }
+      ]
+    },
+    "workdir": "repo"
+  },
+  "canonicalization_policy": "vitest-v1",
+  "case_id": "vuejs__core-11589::js_ts::test::buggy",
+  "command_family": "js_ts",
+  "command_subfamily": "test",
+  "generated_by": "tools/run_canary_case.py",
+  "isolation": {
+    "denial_probe": {
+      "denied": true,
+      "output": "DENIED 101"
+    },
+    "method": "sudo-unshare-n"
+  },
+  "mission": "N2-E",
+  "mission_title": "external RTK-native claim-aligned command corpus",
+  "raw_arm": {
+    "canonical_deterministic": true,
+    "canonical_sha256": "5e4b47936b20134d8488af698fb47aa6f08637cb9b62c259c12fee125996022c",
+    "canonicalization_policy": "vitest-v1",
+    "exit_code": 1,
+    "exit_code_stable": true,
+    "nondeterminism_sample": null,
+    "o200k_tokens": 2318,
+    "per_rep_execution_proof": null,
+    "primary_evidence_files": [
+      {
+        "bytes": 9789,
+        "case_id": "vuejs__core-11589::js_ts::test::buggy",
+        "compression": "zlib",
+        "file": "raw.rep0.zst",
+        "policy_id": "vitest-v1",
+        "rep": 0,
+        "role": "raw",
+        "sha256": "5e4b47936b20134d8488af698fb47aa6f08637cb9b62c259c12fee125996022c"
+      },
+      {
+        "bytes": 9789,
+        "case_id": "vuejs__core-11589::js_ts::test::buggy",
+        "compression": "zlib",
+        "file": "raw.rep1.zst",
+        "policy_id": "vitest-v1",
+        "rep": 1,
+        "role": "raw",
+        "sha256": "5e4b47936b20134d8488af698fb47aa6f08637cb9b62c259c12fee125996022c"
+      },
+      {
+        "bytes": 9789,
+        "case_id": "vuejs__core-11589::js_ts::test::buggy",
+        "compression": "zlib",
+        "file": "raw.rep2.zst",
+        "policy_id": "vitest-v1",
+        "rep": 2,
+        "role": "raw",
+        "sha256": "5e4b47936b20134d8488af698fb47aa6f08637cb9b62c259c12fee125996022c"
+      }
+    ],
+    "raw_capture_hashes": [
+      "3c07175e5ac6626b63951ebe414d7d01202529ae224f4ba66f79d25e18ac8ae7",
+      "5812ecabe020dd2ce3688b009f7c4cf1d2832fa7955a8f9046700f8c6e2838a2",
+      "298bfc664a497f212e7b5bffa99b161705dcd093ed7680368560ab83687a6733"
+    ],
+    "reps_completed": 3,
+    "rtk_envelope_policy": null,
+    "rtk_sidecar_proof": null,
+    "runs": [
+      {
+        "canonical_bytes": 9789,
+        "canonical_sha256": "5e4b47936b20134d8488af698fb47aa6f08637cb9b62c259c12fee125996022c",
+        "exit_code": 1,
+        "raw_combined_sha256": "3c07175e5ac6626b63951ebe414d7d01202529ae224f4ba66f79d25e18ac8ae7"
+      },
+      {
+        "canonical_bytes": 9789,
+        "canonical_sha256": "5e4b47936b20134d8488af698fb47aa6f08637cb9b62c259c12fee125996022c",
+        "exit_code": 1,
+        "raw_combined_sha256": "5812ecabe020dd2ce3688b009f7c4cf1d2832fa7955a8f9046700f8c6e2838a2"
+      },
+      {
+        "canonical_bytes": 9789,
+        "canonical_sha256": "5e4b47936b20134d8488af698fb47aa6f08637cb9b62c259c12fee125996022c",
+        "exit_code": 1,
+        "raw_combined_sha256": "298bfc664a497f212e7b5bffa99b161705dcd093ed7680368560ab83687a6733"
+      }
+    ],
+    "target_execution_ok": null,
+    "timed_out": false
+  },
+  "raw_semantic_oracle": {
+    "evidence": {
+      "declared": "failing",
+      "exit": 1,
+      "observed_failing": [
+        "ts > api: watch > should be executed correctly"
+      ],
+      "reached_framework": true,
+      "required_targets": [
+        "ts > api: watch > should be executed correctly"
+      ],
+      "summary": {
+        "failed": 1,
+        "failing_ids": [
+          "packages/runtime-core/__tests__/apiWatch.spec.ts > api: watch > should be executed correctly"
+        ],
+        "passed": 78
+      },
+      "targets_covered": true
+    },
+    "oracle": "test_outcome",
+    "verdict": true
+  },
+  "record_sha256": "sha256:980894aa0ddd709f3ab22af4cb26cfda3e7453b4bf04e36bb6f28a9396943e36",
+  "record_type": "n2e-canary-case",
+  "record_version": "v1",
+  "rejection_reasons": [
+    "rtk oracle disagreement: test_agreement"
+  ],
+  "rtk_arm": {
+    "canonical_deterministic": true,
+    "canonical_sha256": "5e4b47936b20134d8488af698fb47aa6f08637cb9b62c259c12fee125996022c",
+    "canonicalization_policy": "vitest-v1",
+    "exit_code": 1,
+    "exit_code_stable": true,
+    "nondeterminism_sample": null,
+    "o200k_tokens": 2318,
+    "per_rep_execution_proof": null,
+    "primary_evidence_files": [
+      {
+        "bytes": 9789,
+        "case_id": "vuejs__core-11589::js_ts::test::buggy",
+        "compression": "zlib",
+        "file": "rtk.rep0.zst",
+        "policy_id": "vitest-v1",
+        "rep": 0,
+        "role": "rtk",
+        "sha256": "5e4b47936b20134d8488af698fb47aa6f08637cb9b62c259c12fee125996022c"
+      },
+      {
+        "bytes": 9789,
+        "case_id": "vuejs__core-11589::js_ts::test::buggy",
+        "compression": "zlib",
+        "file": "rtk.rep1.zst",
+        "policy_id": "vitest-v1",
+        "rep": 1,
+        "role": "rtk",
+        "sha256": "5e4b47936b20134d8488af698fb47aa6f08637cb9b62c259c12fee125996022c"
+      },
+      {
+        "bytes": 9789,
+        "case_id": "vuejs__core-11589::js_ts::test::buggy",
+        "compression": "zlib",
+        "file": "rtk.rep2.zst",
+        "policy_id": "vitest-v1",
+        "rep": 2,
+        "role": "rtk",
+        "sha256": "5e4b47936b20134d8488af698fb47aa6f08637cb9b62c259c12fee125996022c"
+      }
+    ],
+    "raw_capture_hashes": [
+      "a19bef9c1b858ec4f6d32128e82e6f9b2798f5aaa3584c3c835be0c43a99e136",
+      "60a96e151de0afea386ed60fa0d8d0a8e55d6ba4e4593b2f89076b28c985de9c",
+      "43d81a6b02816754995dd02c860b69a216647dd927193d6a8c905c35c6f19d79"
+    ],
+    "reps_completed": 3,
+    "rtk_envelope_policy": "rtk-envelope-v1",
+    "rtk_sidecar_proof": {
+      "identity_only_in_unmeasured_sidecar": false,
+      "reps": [
+        {
+          "measured_failing_ids": [],
+          "measured_parsed_summary": {
+            "aggregate_summary_conflict": false,
+            "aggregate_summary_present": false,
+            "dialect": "rtk-go-test-summary-v1",
+            "failed": null,
+            "failing_ids": [],
+            "packages": null,
+            "passed": null,
+            "skipped": null
+          },
+          "required_ids": [
+            "ts > api: watch > should be executed correctly"
+          ],
+          "required_missing_from_measured": [
+            "ts > api: watch > should be executed correctly"
+          ],
+          "required_parsed_failing_in_sidecar": [],
+          "semantic_loss_ids_this_rep": [],
+          "sidecar_bytes": null,
+          "sidecar_failing_ids": [],
+          "sidecar_parsed_summary": null,
+          "sidecar_read": false,
+          "sidecar_sha256": null,
+          "tee_pointer": null,
+          "tee_pointer_present": false
+        },
+        {
+          "measured_failing_ids": [],
+          "measured_parsed_summary": {
+            "aggregate_summary_conflict": false,
+            "aggregate_summary_present": false,
+            "dialect": "rtk-go-test-summary-v1",
+            "failed": null,
+            "failing_ids": [],
+            "packages": null,
+            "passed": null,
+            "skipped": null
+          },
+          "required_ids": [
+            "ts > api: watch > should be executed correctly"
+          ],
+          "required_missing_from_measured": [
+            "ts > api: watch > should be executed correctly"
+          ],
+          "required_parsed_failing_in_sidecar": [],
+          "semantic_loss_ids_this_rep": [],
+          "sidecar_bytes": null,
+          "sidecar_failing_ids": [],
+          "sidecar_parsed_summary": null,
+          "sidecar_read": false,
+          "sidecar_sha256": null,
+          "tee_pointer": null,
+          "tee_pointer_present": false
+        },
+        {
+          "measured_failing_ids": [],
+          "measured_parsed_summary": {
+            "aggregate_summary_conflict": false,
+            "aggregate_summary_present": false,
+            "dialect": "rtk-go-test-summary-v1",
+            "failed": null,
+            "failing_ids": [],
+            "packages": null,
+            "passed": null,
+            "skipped": null
+          },
+          "required_ids": [
+            "ts > api: watch > should be executed correctly"
+          ],
+          "required_missing_from_measured": [
+            "ts > api: watch > should be executed correctly"
+          ],
+          "required_parsed_failing_in_sidecar": [],
+          "semantic_loss_ids_this_rep": [],
+          "sidecar_bytes": null,
+          "sidecar_failing_ids": [],
+          "sidecar_parsed_summary": null,
+          "sidecar_read": false,
+          "sidecar_sha256": null,
+          "tee_pointer": null,
+          "tee_pointer_present": false
+        }
+      ],
+      "required_ids": [
+        "ts > api: watch > should be executed correctly"
+      ],
+      "semantic_loss_confirmed": false
+    },
+    "runs": [
+      {
+        "canonical_bytes": 9789,
+        "canonical_sha256": "5e4b47936b20134d8488af698fb47aa6f08637cb9b62c259c12fee125996022c",
+        "exit_code": 1,
+        "raw_combined_sha256": "a19bef9c1b858ec4f6d32128e82e6f9b2798f5aaa3584c3c835be0c43a99e136"
+      },
+      {
+        "canonical_bytes": 9789,
+        "canonical_sha256": "5e4b47936b20134d8488af698fb47aa6f08637cb9b62c259c12fee125996022c",
+        "exit_code": 1,
+        "raw_combined_sha256": "60a96e151de0afea386ed60fa0d8d0a8e55d6ba4e4593b2f89076b28c985de9c"
+      },
+      {
+        "canonical_bytes": 9789,
+        "canonical_sha256": "5e4b47936b20134d8488af698fb47aa6f08637cb9b62c259c12fee125996022c",
+        "exit_code": 1,
+        "raw_combined_sha256": "43d81a6b02816754995dd02c860b69a216647dd927193d6a8c905c35c6f19d79"
+      }
+    ],
+    "target_execution_ok": null,
+    "timed_out": false
+  },
+  "rtk_binary_sha256": "41f316adf7b30a568208a0a4f824bffb266ecb6d01bd9de81bed58e1d469dfcf",
+  "rtk_savings_pct_reporting_only": 0.0,
+  "rtk_semantic_oracle": {
+    "evidence": {
+      "error": "no proven RTK dialect for family 'js_ts' -- fail-closed (do not reuse the Go parser)",
+      "raw": {
+        "failed": 1,
+        "failing_ids": [
+          "packages/runtime-core/__tests__/apiWatch.spec.ts > api: watch > should be executed correctly"
+        ],
+        "passed": 78
+      },
+      "rtk_dialect": null,
+      "unproven_family": "js_ts"
+    },
+    "oracle": "test_agreement",
+    "verdict": false
+  },
+  "schema_version": "n2e-record-1",
+  "status": "RTK_REJECTED"
+}

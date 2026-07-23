@@ -1,0 +1,9 @@
+commit f0ec1b58283bbf89625883b45d2aec5e515c95b3
+Merge: f852457 0a41735
+Author: Daniel Vandersluis <daniel.vandersluis@gmail.com>
+Date:   Mon Jan 13 16:25:34 2025 -0500
+
+    Merge pull request #13691 from dvandersluis/redundant-line-continuation-strings-test
+    
+    Add missing test for string concatenation using continuations in `spec/rubocop/cop/style/redundant_line_continuation_spec.rb`
+

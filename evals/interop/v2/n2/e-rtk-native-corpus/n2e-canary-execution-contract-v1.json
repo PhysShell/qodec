@@ -1,0 +1,745 @@
+{
+  "argv_resolver_policy_id": "n2e-argv-resolver-v1",
+  "canary_membership_sha256": "sha256:8f3bcf1e029c643d7b7937cee823786dd60f1a8c4874ca0f445b1756834c0e85",
+  "command_scenarios_sha256": "sha256:69f51947bdca6ae8c880b87e02cb43e7f24a2e435d465142e80b3f50fbdbd0e1",
+  "contract_count": 12,
+  "contracts": [
+    {
+      "argv_resolver_policy_id": "n2e-argv-resolver-v1",
+      "canonicalization_policy_id": "RUNTIME:gradle-test-v1|maven-test-v1",
+      "case_id": "apache__lucene-13704::jvm::test::buggy",
+      "command_family": "jvm",
+      "command_subfamily": "test",
+      "dependency_environment_identity_ref": {
+        "protected_files": [
+          "build.gradle",
+          "build.gradle.kts",
+          "settings.gradle",
+          "gradle.lockfile",
+          "pom.xml"
+        ],
+        "where": "per-case record: acquisition.environment_identity.dependencies"
+      },
+      "effective_raw_argv": [
+        "./gradlew",
+        "test",
+        "--tests",
+        "org.apache.lucene.search.TestLatLonDocValuesQueries",
+        "-Ptests.seed=965304069726D5D6",
+        "-Ptests.jvms=1",
+        "--max-workers=1",
+        "-Dorg.gradle.parallel=false",
+        "--console=plain"
+      ],
+      "effective_rtk_argv": [
+        "rtk",
+        "./gradlew",
+        "test",
+        "--tests",
+        "org.apache.lucene.search.TestLatLonDocValuesQueries",
+        "-Ptests.seed=965304069726D5D6",
+        "-Ptests.jvms=1",
+        "--max-workers=1",
+        "-Dorg.gradle.parallel=false",
+        "--console=plain"
+      ],
+      "execution_control": {
+        "arg": "-Ptests.seed=965304069726D5D6",
+        "args": [
+          "-Ptests.seed=965304069726D5D6",
+          "-Ptests.jvms=1",
+          "--max-workers=1",
+          "-Dorg.gradle.parallel=false",
+          "--console=plain"
+        ],
+        "console": "--console=plain",
+        "daemon_offline_isolation_policy_id": "gradle-offline-isolation-v1",
+        "execution_determinants": [
+          "-Ptests.jvms=1",
+          "--max-workers=1",
+          "-Dorg.gradle.parallel=false",
+          "--console=plain"
+        ],
+        "flag": "-Ptests.seed",
+        "max_workers": "--max-workers=1",
+        "parallel_disabled": "-Dorg.gradle.parallel=false",
+        "policy_id": "lucene-gradle-test-execution-v2",
+        "seed": "965304069726D5D6",
+        "seed_derivation": "sha256(lucene-randomized-seed-v1+selection_seed+case_id)[:16].upper()",
+        "seed_policy_id": "lucene-randomized-seed-v1",
+        "selection_seed": "20260717",
+        "single_jvm": "-Ptests.jvms=1",
+        "supersedes": "lucene-randomized-seed-v1 (seed+jvms only; RAW-nondeterministic run stays diagnostic-only)"
+      },
+      "frozen_rtk_resolution_rule": null,
+      "isolation_method": "network-denied-netns(lo-up); positive denial probe",
+      "mutation_guard": "before/after SHA-256 equality across acquisition + every measurement arm; any change is a typed harness rejection even on success exit",
+      "original_raw_argv": [
+        "mvn",
+        "test"
+      ],
+      "original_rtk_argv": [
+        "rtk",
+        "mvn",
+        "test"
+      ],
+      "protected_files": [
+        "build.gradle",
+        "build.gradle.kts",
+        "settings.gradle",
+        "gradle.lockfile",
+        "pom.xml"
+      ],
+      "resolution_rule": "publisher_recipe",
+      "rtk_test_dialect_policy_id": null,
+      "runtime_resolved": false,
+      "scheduler_env": {},
+      "scheduler_flags": null,
+      "semantic_oracle_policy_id": "n2e-oracle-test-v1",
+      "snapshot_variant": "buggy",
+      "timeout_seconds": 600,
+      "timeout_tier": "extended-600s",
+      "toolchain_identity_ref": {
+        "required_keys": [
+          "java",
+          "gradlew_or_mvn"
+        ],
+        "where": "per-case record: acquisition.environment_identity.toolchain"
+      }
+    },
+    {
+      "argv_resolver_policy_id": "n2e-argv-resolver-v1",
+      "canonicalization_policy_id": "pytest-v1",
+      "case_id": "bugsinpy::scrapy-9::python::pytest::fixed",
+      "command_family": "python",
+      "command_subfamily": "pytest",
+      "dependency_environment_identity_ref": {
+        "protected_files": [
+          "requirements.txt",
+          "setup.py",
+          "setup.cfg",
+          "pyproject.toml",
+          "poetry.lock"
+        ],
+        "where": "per-case record: acquisition.environment_identity.dependencies"
+      },
+      "effective_raw_argv": [
+        "pytest",
+        "tests/test_mail.py"
+      ],
+      "effective_rtk_argv": [
+        "rtk",
+        "pytest",
+        "tests/test_mail.py"
+      ],
+      "execution_control": null,
+      "frozen_rtk_resolution_rule": null,
+      "isolation_method": "network-denied-netns(lo-up); positive denial probe",
+      "mutation_guard": "before/after SHA-256 equality across acquisition + every measurement arm; any change is a typed harness rejection even on success exit",
+      "original_raw_argv": [
+        "pytest",
+        "tests/test_mail.py"
+      ],
+      "original_rtk_argv": [
+        "rtk",
+        "pytest",
+        "tests/test_mail.py"
+      ],
+      "protected_files": [
+        "requirements.txt",
+        "setup.py",
+        "setup.cfg",
+        "pyproject.toml",
+        "poetry.lock"
+      ],
+      "resolution_rule": "frozen_argv_verbatim",
+      "rtk_test_dialect_policy_id": null,
+      "runtime_resolved": false,
+      "scheduler_env": {
+        "PYTHONDONTWRITEBYTECODE": "1",
+        "PYTHONHASHSEED": "0"
+      },
+      "scheduler_flags": null,
+      "semantic_oracle_policy_id": "n2e-oracle-test-v1",
+      "snapshot_variant": "fixed",
+      "timeout_seconds": 120,
+      "timeout_tier": "standard-120s",
+      "toolchain_identity_ref": {
+        "required_keys": [
+          "python3",
+          "pip"
+        ],
+        "where": "per-case record: acquisition.environment_identity.toolchain"
+      }
+    },
+    {
+      "argv_resolver_policy_id": "n2e-argv-resolver-v1",
+      "canonicalization_policy_id": "caddy-go-test-v1",
+      "case_id": "caddyserver__caddy-5870::go::test::buggy",
+      "command_family": "go",
+      "command_subfamily": "test",
+      "dependency_environment_identity_ref": {
+        "protected_files": [
+          "go.mod",
+          "go.sum"
+        ],
+        "where": "per-case record: acquisition.environment_identity.dependencies"
+      },
+      "effective_raw_argv": [
+        "go",
+        "test",
+        "-v",
+        ".",
+        "-run",
+        "TestUnsyncedConfigAccess"
+      ],
+      "effective_rtk_argv": [
+        "rtk",
+        "go",
+        "test",
+        "-v",
+        ".",
+        "-run",
+        "TestUnsyncedConfigAccess"
+      ],
+      "execution_control": null,
+      "frozen_rtk_resolution_rule": null,
+      "isolation_method": "network-denied-netns(lo-up); positive denial probe",
+      "mutation_guard": "before/after SHA-256 equality across acquisition + every measurement arm; any change is a typed harness rejection even on success exit",
+      "original_raw_argv": [
+        "go",
+        "test",
+        "./..."
+      ],
+      "original_rtk_argv": [
+        "rtk",
+        "go",
+        "test",
+        "./..."
+      ],
+      "protected_files": [
+        "go.mod",
+        "go.sum"
+      ],
+      "resolution_rule": "publisher_recipe",
+      "rtk_test_dialect_policy_id": "rtk-go-test-summary-v1",
+      "runtime_resolved": false,
+      "scheduler_env": {
+        "GOFLAGS": "-mod=readonly",
+        "GOPROXY": "off"
+      },
+      "scheduler_flags": null,
+      "semantic_oracle_policy_id": "n2e-oracle-test-v1",
+      "snapshot_variant": "buggy",
+      "timeout_seconds": 600,
+      "timeout_tier": "extended-600s",
+      "toolchain_identity_ref": {
+        "required_keys": [
+          "go"
+        ],
+        "where": "per-case record: acquisition.environment_identity.toolchain"
+      }
+    },
+    {
+      "argv_resolver_policy_id": "n2e-argv-resolver-v1",
+      "canonicalization_policy_id": "docker-v1",
+      "case_id": "container::redis::docker::images",
+      "command_family": "containers",
+      "command_subfamily": "images",
+      "dependency_environment_identity_ref": {
+        "protected_files": [],
+        "where": "per-case record: acquisition.environment_identity.dependencies"
+      },
+      "effective_raw_argv": [
+        "docker",
+        "images"
+      ],
+      "effective_rtk_argv": [
+        "rtk",
+        "docker",
+        "images"
+      ],
+      "execution_control": null,
+      "frozen_rtk_resolution_rule": null,
+      "isolation_method": "host_side_docker_observation",
+      "mutation_guard": "before/after SHA-256 equality across acquisition + every measurement arm; any change is a typed harness rejection even on success exit",
+      "original_raw_argv": [
+        "docker",
+        "images"
+      ],
+      "original_rtk_argv": [
+        "rtk",
+        "docker",
+        "images"
+      ],
+      "protected_files": [],
+      "resolution_rule": "frozen_argv_verbatim",
+      "rtk_test_dialect_policy_id": null,
+      "runtime_resolved": false,
+      "scheduler_env": {},
+      "scheduler_flags": null,
+      "semantic_oracle_policy_id": "n2e-oracle-docker-v1",
+      "snapshot_variant": "running",
+      "timeout_seconds": 120,
+      "timeout_tier": "standard-120s",
+      "toolchain_identity_ref": {
+        "required_keys": [],
+        "where": "per-case record: acquisition.environment_identity.toolchain"
+      }
+    },
+    {
+      "argv_resolver_policy_id": "n2e-argv-resolver-v1",
+      "canonicalization_policy_id": "go-vet-v1",
+      "case_id": "gin-gonic__gin-2755::go::vet",
+      "command_family": "go",
+      "command_subfamily": "vet",
+      "dependency_environment_identity_ref": {
+        "protected_files": [
+          "go.mod",
+          "go.sum"
+        ],
+        "where": "per-case record: acquisition.environment_identity.dependencies"
+      },
+      "effective_raw_argv": [
+        "go",
+        "vet",
+        "./..."
+      ],
+      "effective_rtk_argv": [
+        "rtk",
+        "go",
+        "vet",
+        "./..."
+      ],
+      "execution_control": null,
+      "frozen_rtk_resolution_rule": null,
+      "isolation_method": "network-denied-netns(lo-up); positive denial probe",
+      "mutation_guard": "before/after SHA-256 equality across acquisition + every measurement arm; any change is a typed harness rejection even on success exit",
+      "original_raw_argv": [
+        "go",
+        "vet",
+        "./..."
+      ],
+      "original_rtk_argv": [
+        "rtk",
+        "go",
+        "vet",
+        "./..."
+      ],
+      "protected_files": [
+        "go.mod",
+        "go.sum"
+      ],
+      "resolution_rule": "frozen_argv_verbatim",
+      "rtk_test_dialect_policy_id": null,
+      "runtime_resolved": false,
+      "scheduler_env": {
+        "GOFLAGS": "-mod=readonly",
+        "GOPROXY": "off"
+      },
+      "scheduler_flags": null,
+      "semantic_oracle_policy_id": "n2e-oracle-diagnostics-v1",
+      "snapshot_variant": "fixed",
+      "timeout_seconds": 120,
+      "timeout_tier": "standard-120s",
+      "toolchain_identity_ref": {
+        "required_keys": [
+          "go"
+        ],
+        "where": "per-case record: acquisition.environment_identity.toolchain"
+      }
+    },
+    {
+      "argv_resolver_policy_id": "n2e-argv-resolver-v1",
+      "canonicalization_policy_id": "log-v1",
+      "case_id": "loghub::HDFS::log",
+      "command_family": "logs",
+      "command_subfamily": "log",
+      "dependency_environment_identity_ref": {
+        "protected_files": [],
+        "where": "per-case record: acquisition.environment_identity.dependencies"
+      },
+      "effective_raw_argv": [
+        "cat",
+        "HDFS.log"
+      ],
+      "effective_rtk_argv": [
+        "rtk",
+        "log",
+        "HDFS.log"
+      ],
+      "execution_control": null,
+      "frozen_rtk_resolution_rule": null,
+      "isolation_method": "network-denied-netns(lo-up); positive denial probe",
+      "mutation_guard": "before/after SHA-256 equality across acquisition + every measurement arm; any change is a typed harness rejection even on success exit",
+      "original_raw_argv": [
+        "cat",
+        "HDFS.log"
+      ],
+      "original_rtk_argv": [
+        "rtk",
+        "log",
+        "HDFS.log"
+      ],
+      "protected_files": [],
+      "resolution_rule": "frozen_argv_verbatim",
+      "rtk_test_dialect_policy_id": null,
+      "runtime_resolved": false,
+      "scheduler_env": {},
+      "scheduler_flags": null,
+      "semantic_oracle_policy_id": "n2e-oracle-log-v1",
+      "snapshot_variant": "prepared",
+      "timeout_seconds": 120,
+      "timeout_tier": "standard-120s",
+      "toolchain_identity_ref": {
+        "required_keys": [],
+        "where": "per-case record: acquisition.environment_identity.toolchain"
+      }
+    },
+    {
+      "argv_resolver_policy_id": "n2e-argv-resolver-v1",
+      "canonicalization_policy_id": "git-v1",
+      "case_id": "php-cs-fixer__php-cs-fixer-8075::git::commit",
+      "command_family": "git",
+      "command_subfamily": "commit",
+      "dependency_environment_identity_ref": {
+        "protected_files": [],
+        "where": "per-case record: acquisition.environment_identity.dependencies"
+      },
+      "effective_raw_argv": [
+        "git",
+        "commit",
+        "-m",
+        "n2e"
+      ],
+      "effective_rtk_argv": [
+        "rtk",
+        "git",
+        "commit",
+        "-m",
+        "n2e"
+      ],
+      "execution_control": null,
+      "frozen_rtk_resolution_rule": null,
+      "isolation_method": "network-denied-netns(lo-up); positive denial probe",
+      "mutation_guard": "before/after SHA-256 equality across acquisition + every measurement arm; any change is a typed harness rejection even on success exit",
+      "original_raw_argv": [
+        "git",
+        "commit",
+        "-m",
+        "n2e"
+      ],
+      "original_rtk_argv": [
+        "rtk",
+        "git",
+        "commit",
+        "-m",
+        "n2e"
+      ],
+      "protected_files": [],
+      "resolution_rule": "frozen_argv_verbatim",
+      "rtk_test_dialect_policy_id": null,
+      "runtime_resolved": false,
+      "scheduler_env": {},
+      "scheduler_flags": null,
+      "semantic_oracle_policy_id": "n2e-oracle-git-state-v1",
+      "snapshot_variant": "dirty",
+      "timeout_seconds": 120,
+      "timeout_tier": "standard-120s",
+      "toolchain_identity_ref": {
+        "required_keys": [],
+        "where": "per-case record: acquisition.environment_identity.toolchain"
+      }
+    },
+    {
+      "argv_resolver_policy_id": "n2e-argv-resolver-v1",
+      "canonicalization_policy_id": "files-v1",
+      "case_id": "preactjs__preact-3345::files_search::read",
+      "command_family": "files_search",
+      "command_subfamily": "read",
+      "dependency_environment_identity_ref": {
+        "protected_files": [],
+        "where": "per-case record: acquisition.environment_identity.dependencies"
+      },
+      "effective_raw_argv": [
+        "cat",
+        "README.md"
+      ],
+      "effective_rtk_argv": [
+        "rtk",
+        "read",
+        "README.md"
+      ],
+      "execution_control": null,
+      "frozen_rtk_resolution_rule": null,
+      "isolation_method": "network-denied-netns(lo-up); positive denial probe",
+      "mutation_guard": "before/after SHA-256 equality across acquisition + every measurement arm; any change is a typed harness rejection even on success exit",
+      "original_raw_argv": [
+        "cat",
+        "README.md"
+      ],
+      "original_rtk_argv": [
+        "rtk",
+        "read",
+        "README.md"
+      ],
+      "protected_files": [],
+      "resolution_rule": "frozen_argv_verbatim",
+      "rtk_test_dialect_policy_id": null,
+      "runtime_resolved": false,
+      "scheduler_env": {},
+      "scheduler_flags": null,
+      "semantic_oracle_policy_id": "n2e-oracle-file-read-v1",
+      "snapshot_variant": "snapshot",
+      "timeout_seconds": 120,
+      "timeout_tier": "standard-120s",
+      "toolchain_identity_ref": {
+        "required_keys": [],
+        "where": "per-case record: acquisition.environment_identity.toolchain"
+      }
+    },
+    {
+      "argv_resolver_policy_id": "n2e-argv-resolver-v1",
+      "canonicalization_policy_id": "files-v1",
+      "case_id": "projectlombok__lombok-3312::files_search::read",
+      "command_family": "files_search",
+      "command_subfamily": "read",
+      "dependency_environment_identity_ref": {
+        "protected_files": [],
+        "where": "per-case record: acquisition.environment_identity.dependencies"
+      },
+      "effective_raw_argv": [
+        "cat",
+        "README.md"
+      ],
+      "effective_rtk_argv": [
+        "rtk",
+        "read",
+        "README.md"
+      ],
+      "execution_control": null,
+      "frozen_rtk_resolution_rule": null,
+      "isolation_method": "network-denied-netns(lo-up); positive denial probe",
+      "mutation_guard": "before/after SHA-256 equality across acquisition + every measurement arm; any change is a typed harness rejection even on success exit",
+      "original_raw_argv": [
+        "cat",
+        "README.md"
+      ],
+      "original_rtk_argv": [
+        "rtk",
+        "read",
+        "README.md"
+      ],
+      "protected_files": [],
+      "resolution_rule": "frozen_argv_verbatim",
+      "rtk_test_dialect_policy_id": null,
+      "runtime_resolved": false,
+      "scheduler_env": {},
+      "scheduler_flags": null,
+      "semantic_oracle_policy_id": "n2e-oracle-file-read-v1",
+      "snapshot_variant": "snapshot",
+      "timeout_seconds": 120,
+      "timeout_tier": "standard-120s",
+      "toolchain_identity_ref": {
+        "required_keys": [],
+        "where": "per-case record: acquisition.environment_identity.toolchain"
+      }
+    },
+    {
+      "argv_resolver_policy_id": "n2e-argv-resolver-v1",
+      "canonicalization_policy_id": "git-v1",
+      "case_id": "rubocop__rubocop-13687::git::show",
+      "command_family": "git",
+      "command_subfamily": "show",
+      "dependency_environment_identity_ref": {
+        "protected_files": [],
+        "where": "per-case record: acquisition.environment_identity.dependencies"
+      },
+      "effective_raw_argv": [
+        "git",
+        "show"
+      ],
+      "effective_rtk_argv": [
+        "rtk",
+        "git",
+        "show"
+      ],
+      "execution_control": null,
+      "frozen_rtk_resolution_rule": null,
+      "isolation_method": "network-denied-netns(lo-up); positive denial probe",
+      "mutation_guard": "before/after SHA-256 equality across acquisition + every measurement arm; any change is a typed harness rejection even on success exit",
+      "original_raw_argv": [
+        "git",
+        "show"
+      ],
+      "original_rtk_argv": [
+        "rtk",
+        "git",
+        "show"
+      ],
+      "protected_files": [],
+      "resolution_rule": "frozen_argv_verbatim",
+      "rtk_test_dialect_policy_id": null,
+      "runtime_resolved": false,
+      "scheduler_env": {},
+      "scheduler_flags": null,
+      "semantic_oracle_policy_id": "n2e-oracle-git-diff-v1",
+      "snapshot_variant": "clean",
+      "timeout_seconds": 120,
+      "timeout_tier": "standard-120s",
+      "toolchain_identity_ref": {
+        "required_keys": [],
+        "where": "per-case record: acquisition.environment_identity.toolchain"
+      }
+    },
+    {
+      "argv_resolver_policy_id": "n2e-argv-resolver-v1",
+      "canonicalization_policy_id": "cargo-test-v1",
+      "case_id": "tokio-rs__tokio-4384::rust_cargo::test::fixed",
+      "command_family": "rust_cargo",
+      "command_subfamily": "test",
+      "dependency_environment_identity_ref": {
+        "protected_files": [
+          "Cargo.lock",
+          "Cargo.toml"
+        ],
+        "where": "per-case record: acquisition.environment_identity.dependencies"
+      },
+      "effective_raw_argv": [
+        "cargo",
+        "test",
+        "--package",
+        "tokio",
+        "--test",
+        "net_types_unwind",
+        "--features",
+        "full",
+        "--no-fail-fast"
+      ],
+      "effective_rtk_argv": [
+        "rtk",
+        "cargo",
+        "test",
+        "--package",
+        "tokio",
+        "--test",
+        "net_types_unwind",
+        "--features",
+        "full",
+        "--no-fail-fast"
+      ],
+      "execution_control": null,
+      "frozen_rtk_resolution_rule": null,
+      "isolation_method": "network-denied-netns(lo-up); positive denial probe",
+      "mutation_guard": "before/after SHA-256 equality across acquisition + every measurement arm; any change is a typed harness rejection even on success exit",
+      "original_raw_argv": [
+        "cargo",
+        "test"
+      ],
+      "original_rtk_argv": [
+        "rtk",
+        "cargo",
+        "test"
+      ],
+      "protected_files": [
+        "Cargo.lock",
+        "Cargo.toml"
+      ],
+      "resolution_rule": "publisher_recipe",
+      "rtk_test_dialect_policy_id": null,
+      "runtime_resolved": false,
+      "scheduler_env": {
+        "CARGO_BUILD_JOBS": "1",
+        "CARGO_NET_OFFLINE": "true",
+        "RUSTFLAGS": "-Awarnings",
+        "RUSTUP_TOOLCHAIN": "1.83",
+        "RUST_TEST_THREADS": "1"
+      },
+      "scheduler_flags": null,
+      "semantic_oracle_policy_id": "n2e-oracle-test-v1",
+      "snapshot_variant": "fixed",
+      "timeout_seconds": 600,
+      "timeout_tier": "extended-600s",
+      "toolchain_identity_ref": {
+        "required_keys": [
+          "rustc",
+          "cargo"
+        ],
+        "where": "per-case record: acquisition.environment_identity.toolchain"
+      }
+    },
+    {
+      "argv_resolver_policy_id": "n2e-argv-resolver-v1",
+      "canonicalization_policy_id": "vitest-v1",
+      "case_id": "vuejs__core-11589::js_ts::test::buggy",
+      "command_family": "js_ts",
+      "command_subfamily": "test",
+      "dependency_environment_identity_ref": {
+        "protected_files": [
+          "package.json",
+          "pnpm-lock.yaml",
+          "package-lock.json",
+          "yarn.lock"
+        ],
+        "where": "per-case record: acquisition.environment_identity.dependencies"
+      },
+      "effective_raw_argv": [
+        "pnpm",
+        "run",
+        "test",
+        "packages/runtime-core/__tests__/apiWatch.spec.ts",
+        "--no-watch",
+        "--reporter=verbose"
+      ],
+      "effective_rtk_argv": [
+        "rtk",
+        "pnpm",
+        "run",
+        "test",
+        "packages/runtime-core/__tests__/apiWatch.spec.ts",
+        "--no-watch",
+        "--reporter=verbose"
+      ],
+      "execution_control": null,
+      "frozen_rtk_resolution_rule": "acquisition:test_runner_from_package_json -> rtk jest|vitest",
+      "isolation_method": "network-denied-netns(lo-up); positive denial probe",
+      "mutation_guard": "before/after SHA-256 equality across acquisition + every measurement arm; any change is a typed harness rejection even on success exit",
+      "original_raw_argv": [
+        "npm",
+        "test"
+      ],
+      "original_rtk_argv": null,
+      "protected_files": [
+        "package.json",
+        "pnpm-lock.yaml",
+        "package-lock.json",
+        "yarn.lock"
+      ],
+      "resolution_rule": "publisher_recipe",
+      "rtk_test_dialect_policy_id": null,
+      "runtime_resolved": false,
+      "scheduler_env": {},
+      "scheduler_flags": null,
+      "semantic_oracle_policy_id": "n2e-oracle-test-v1",
+      "snapshot_variant": "buggy",
+      "timeout_seconds": 600,
+      "timeout_tier": "extended-600s",
+      "toolchain_identity_ref": {
+        "required_keys": [
+          "node",
+          "corepack",
+          "pnpm"
+        ],
+        "where": "per-case record: acquisition.environment_identity.toolchain"
+      }
+    }
+  ],
+  "generated_by": "evals/interop/v2/n2/e-rtk-native-corpus/tools/build_n2e_execution_contract.py",
+  "mission": "N2-E",
+  "mission_title": "external RTK-native claim-aligned command corpus",
+  "purpose": "Immutable per-case effective-execution contract; normative source for argv/canon/oracle resolution, toolchain+dependency identity references, and mutation guards (correction #3).",
+  "record_sha256": "sha256:081752d84db3ea10db7bc0fa017a45424f85c36602d7d6f45ca10bbb79e935be",
+  "record_type": "n2e-canary-execution-contract",
+  "record_version": "v1",
+  "schema_version": "n2e-record-1"
+}
