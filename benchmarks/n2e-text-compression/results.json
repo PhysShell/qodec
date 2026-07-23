@@ -1,0 +1,2148 @@
+{
+  "aggregate_all_12": {
+    "qodec": {
+      "cases_that_increased_text": 4,
+      "macro_median_pct_saved": 8.933858267716532,
+      "max_pct_saved": 55.91026747195858,
+      "min_pct_saved": -100.0,
+      "n_measured": 11,
+      "weighted_pct_tokens_saved": 44.336684128557266
+    },
+    "rtk": {
+      "cases_that_increased_text": 2,
+      "macro_median_pct_saved": 0.0,
+      "max_pct_saved": 98.6,
+      "min_pct_saved": -110.00000000000001,
+      "n_measured": 11,
+      "weighted_pct_tokens_saved": 6.123460285997451
+    },
+    "rtk_then_qodec": {
+      "cases_that_increased_text": 2,
+      "macro_median_pct_saved": 47.85954247320429,
+      "max_pct_saved": 96.6,
+      "min_pct_saved": -210.0,
+      "n_measured": 11,
+      "weighted_pct_tokens_saved": 49.59648874415971
+    },
+    "semantic_tally": {
+      "failed": 0,
+      "pass": 35,
+      "reference": 12,
+      "unsupported": 1
+    },
+    "winners": {
+      "none": 0,
+      "qodec": 6,
+      "rtk": 5,
+      "rtk_then_qodec": 1
+    }
+  },
+  "aggregate_without_loghub": {
+    "qodec": {
+      "cases_that_increased_text": 4,
+      "macro_median_pct_saved": 8.933858267716532,
+      "max_pct_saved": 55.91026747195858,
+      "min_pct_saved": -100.0,
+      "n_measured": 11,
+      "weighted_pct_tokens_saved": 44.336684128557266
+    },
+    "rtk": {
+      "cases_that_increased_text": 2,
+      "macro_median_pct_saved": 0.0,
+      "max_pct_saved": 98.6,
+      "min_pct_saved": -110.00000000000001,
+      "n_measured": 11,
+      "weighted_pct_tokens_saved": 6.123460285997451
+    },
+    "rtk_then_qodec": {
+      "cases_that_increased_text": 2,
+      "macro_median_pct_saved": 47.85954247320429,
+      "max_pct_saved": 96.6,
+      "min_pct_saved": -210.0,
+      "n_measured": 11,
+      "weighted_pct_tokens_saved": 49.59648874415971
+    },
+    "semantic_tally": {
+      "failed": 0,
+      "pass": 33,
+      "reference": 11,
+      "unsupported": 0
+    },
+    "winners": {
+      "none": 0,
+      "qodec": 6,
+      "rtk": 5,
+      "rtk_then_qodec": 0
+    }
+  },
+  "families": [
+    {
+      "cases": [
+        "gin"
+      ],
+      "family": "Diagnostics",
+      "n_cases": 1,
+      "note": "single-case family -- not a statistical average",
+      "qodec_median_pct_saved": null,
+      "qodec_pct_saved_range": [
+        null,
+        null
+      ],
+      "rtk_median_pct_saved": null,
+      "semantic_failures": 0,
+      "semantic_unsupported": 0
+    },
+    {
+      "cases": [
+        "redis"
+      ],
+      "family": "Docker inventory",
+      "n_cases": 1,
+      "note": "single-case family -- not a statistical average",
+      "qodec_median_pct_saved": -100.0,
+      "qodec_pct_saved_range": [
+        -100.0,
+        -100.0
+      ],
+      "rtk_median_pct_saved": -110.00000000000001,
+      "semantic_failures": 0,
+      "semantic_unsupported": 0
+    },
+    {
+      "cases": [
+        "preact",
+        "lombok"
+      ],
+      "family": "File content",
+      "n_cases": 2,
+      "note": "highly case-dependent",
+      "qodec_median_pct_saved": 31.294644438685044,
+      "qodec_pct_saved_range": [
+        8.267716535433067,
+        54.32157234193702
+      ],
+      "rtk_median_pct_saved": 0.0,
+      "semantic_failures": 0,
+      "semantic_unsupported": 0
+    },
+    {
+      "cases": [
+        "rubocop",
+        "php-cs-fixer"
+      ],
+      "family": "Git output",
+      "n_cases": 2,
+      "note": "consistent across cases",
+      "qodec_median_pct_saved": -18.191964285714292,
+      "qodec_pct_saved_range": [
+        -28.57142857142858,
+        -7.8125
+      ],
+      "rtk_median_pct_saved": 58.61607142857142,
+      "semantic_failures": 0,
+      "semantic_unsupported": 0
+    },
+    {
+      "cases": [
+        "loghub"
+      ],
+      "family": "Large structured logs",
+      "n_cases": 1,
+      "note": "single-case family -- not a statistical average",
+      "qodec_median_pct_saved": null,
+      "qodec_pct_saved_range": [
+        null,
+        null
+      ],
+      "rtk_median_pct_saved": null,
+      "semantic_failures": 0,
+      "semantic_unsupported": 1
+    },
+    {
+      "cases": [
+        "coreutils",
+        "caddy",
+        "lucene",
+        "vue",
+        "scrapy"
+      ],
+      "family": "Test output",
+      "n_cases": 5,
+      "note": "highly case-dependent",
+      "qodec_median_pct_saved": 15.697674418604645,
+      "qodec_pct_saved_range": [
+        -15.873015873015884,
+        55.91026747195858
+      ],
+      "rtk_median_pct_saved": 0.0,
+      "semantic_failures": 0,
+      "semantic_unsupported": 0
+    }
+  ],
+  "manifest_ref": {
+    "case_count": 12,
+    "qodec": "100fd35a18a9447f5b295c054c4e9db13cb4a36304b964e568cc9307ef487faf",
+    "tokenizers": {
+      "policy": "exact BPE token counts via qodec's own meter; no char/4 estimate.",
+      "primary": {
+        "profile": "o200k",
+        "provider": "tiktoken-rs 0.7.0 (embedded BPE, offline)",
+        "vocabulary": "o200k_base"
+      },
+      "secondary": {
+        "profile": "cl100k",
+        "provider": "tiktoken-rs 0.7.0 (embedded BPE, offline)",
+        "vocabulary": "cl100k_base"
+      }
+    }
+  },
+  "peak_kib_overall": null,
+  "results": [
+    {
+      "arms": {
+        "qodec": {
+          "bytes": 983,
+          "bytes_saved": 246,
+          "codec": "mine",
+          "compression_ratio": {
+            "cl100k": 0.861764705882353,
+            "o200k": 0.8430232558139535
+          },
+          "exit_status": 0,
+          "lines": 37,
+          "output_sha256": "b15d6525c04c8d37fe9616d17d7feda975ccde6e72e221f573e0b4194d979eb7",
+          "pct_bytes_saved": 20.016273393002436,
+          "pct_tokens_saved": {
+            "cl100k": 13.823529411764701,
+            "o200k": 15.697674418604645
+          },
+          "peak_kib": null,
+          "roundtrip_lossless": true,
+          "semantic_check": "pass",
+          "semantic_note": "byte-lossless (decode==input verified); no semantic information lost",
+          "status": "pass",
+          "throughput_mib_s": 0.0024280375131937133,
+          "token_status": {
+            "cl100k": "pass",
+            "o200k": "pass"
+          },
+          "tokens": {
+            "cl100k": 293,
+            "o200k": 290
+          },
+          "tokens_saved": {
+            "cl100k": 47,
+            "o200k": 54
+          },
+          "unicode_chars": 907,
+          "valid_utf8": true,
+          "wall_s": 0.3860985870001059
+        },
+        "raw": {
+          "bytes": 1229,
+          "bytes_saved": 0,
+          "compression_ratio": {
+            "cl100k": 1.0,
+            "o200k": 1.0
+          },
+          "exit_status": 0,
+          "lines": 28,
+          "nature": "canonicalized",
+          "output_sha256": "487716489520d8fcad19910120a06a8d41f9cd81dc6f58a4927c6dcbaac039d3",
+          "pct_bytes_saved": 0.0,
+          "pct_tokens_saved": {
+            "cl100k": 0.0,
+            "o200k": 0.0
+          },
+          "peak_kib": null,
+          "semantic_check": "reference",
+          "status": "pass",
+          "throughput_mib_s": 0.002698658966887722,
+          "token_status": {
+            "cl100k": "pass",
+            "o200k": "pass"
+          },
+          "tokens": {
+            "cl100k": 340,
+            "o200k": 344
+          },
+          "tokens_saved": {
+            "cl100k": 0,
+            "o200k": 0
+          },
+          "unicode_chars": 1229,
+          "valid_utf8": true,
+          "wall_s": 0.434314134999795
+        },
+        "rtk": {
+          "bytes": 59,
+          "bytes_saved": 1170,
+          "compression_ratio": {
+            "cl100k": 0.05588235294117647,
+            "o200k": 0.055232558139534885
+          },
+          "exit_status": 0,
+          "lines": 1,
+          "nature": "canonicalized",
+          "output_sha256": "e52359641fe0fa7e314ff31488cbcb2549c28651705b7c3e70c465fc58bd2da0",
+          "pct_bytes_saved": 95.1993490642799,
+          "pct_tokens_saved": {
+            "cl100k": 94.41176470588235,
+            "o200k": 94.47674418604652
+          },
+          "peak_kib": null,
+          "semantic_check": "pass",
+          "semantic_note": "qualified in the frozen N2-E corpus (oracle-equivalent to RAW)",
+          "status": "pass",
+          "throughput_mib_s": 0.0001235962371745467,
+          "token_status": {
+            "cl100k": "pass",
+            "o200k": "pass"
+          },
+          "tokens": {
+            "cl100k": 19,
+            "o200k": 19
+          },
+          "tokens_saved": {
+            "cl100k": 321,
+            "o200k": 325
+          },
+          "unicode_chars": 59,
+          "valid_utf8": true,
+          "wall_s": 0.4552467450000677
+        },
+        "rtk_then_qodec": {
+          "bytes": 76,
+          "bytes_saved": 1153,
+          "codec": "raw",
+          "compression_ratio": {
+            "cl100k": 0.08529411764705883,
+            "o200k": 0.08430232558139535
+          },
+          "exit_status": 0,
+          "lines": 3,
+          "output_sha256": "dc5acefd92a87bc0d8f3ffed456c9f8eb6e809db12f690e83a111979c4e638d4",
+          "pct_bytes_saved": 93.81611065907242,
+          "pct_tokens_saved": {
+            "cl100k": 91.47058823529412,
+            "o200k": 91.56976744186046
+          },
+          "peak_kib": null,
+          "roundtrip_lossless": true,
+          "semantic_check": "pass",
+          "semantic_note": "byte-lossless (decode==input verified); no semantic information lost",
+          "status": "pass",
+          "throughput_mib_s": 0.00021700063238877775,
+          "token_status": {
+            "cl100k": "pass",
+            "o200k": "pass"
+          },
+          "tokens": {
+            "cl100k": 29,
+            "o200k": 29
+          },
+          "tokens_saved": {
+            "cl100k": 311,
+            "o200k": 315
+          },
+          "unicode_chars": 76,
+          "valid_utf8": true,
+          "wall_s": 0.3340047780000077
+        }
+      },
+      "case": "coreutils",
+      "case_id": "uutils__coreutils-6731::rust_cargo::test::fixed",
+      "family": "Test output",
+      "oracle_policy_id": "rtk-rust-cargo-test-summary-v1",
+      "ranking_primary": [
+        "rtk",
+        "rtk_then_qodec",
+        "qodec"
+      ],
+      "winner": "rtk"
+    },
+    {
+      "arms": {
+        "qodec": {
+          "bytes": 223,
+          "bytes_saved": -17,
+          "codec": "raw",
+          "compression_ratio": {
+            "cl100k": 1.1587301587301588,
+            "o200k": 1.1587301587301588
+          },
+          "exit_status": 0,
+          "lines": 8,
+          "output_sha256": "e6b33538b1487191999121562220446100359a36adceef7ea8afd761ca915c5f",
+          "pct_bytes_saved": -8.252427184466015,
+          "pct_tokens_saved": {
+            "cl100k": -15.873015873015884,
+            "o200k": -15.873015873015884
+          },
+          "peak_kib": null,
+          "roundtrip_lossless": true,
+          "semantic_check": "pass",
+          "semantic_note": "byte-lossless (decode==input verified); no semantic information lost",
+          "status": "pass",
+          "throughput_mib_s": 0.000703290833276788,
+          "token_status": {
+            "cl100k": "pass",
+            "o200k": "pass"
+          },
+          "tokens": {
+            "cl100k": 73,
+            "o200k": 73
+          },
+          "tokens_saved": {
+            "cl100k": -10,
+            "o200k": -10
+          },
+          "unicode_chars": 223,
+          "valid_utf8": true,
+          "wall_s": 0.30239178800002264
+        },
+        "raw": {
+          "bytes": 206,
+          "bytes_saved": 0,
+          "compression_ratio": {
+            "cl100k": 1.0,
+            "o200k": 1.0
+          },
+          "exit_status": 0,
+          "lines": 6,
+          "nature": "canonicalized",
+          "output_sha256": "155467334fb1ee678dfb5dd81945fc05b5f2b89d4f80f91a8cd5c33e2de9e015",
+          "pct_bytes_saved": 0.0,
+          "pct_tokens_saved": {
+            "cl100k": 0.0,
+            "o200k": 0.0
+          },
+          "peak_kib": null,
+          "semantic_check": "reference",
+          "status": "pass",
+          "throughput_mib_s": 0.000435778572813497,
+          "token_status": {
+            "cl100k": "pass",
+            "o200k": "pass"
+          },
+          "tokens": {
+            "cl100k": 63,
+            "o200k": 63
+          },
+          "tokens_saved": {
+            "cl100k": 0,
+            "o200k": 0
+          },
+          "unicode_chars": 206,
+          "valid_utf8": true,
+          "wall_s": 0.4508181940000213
+        },
+        "rtk": {
+          "bytes": 232,
+          "bytes_saved": -26,
+          "compression_ratio": {
+            "cl100k": 1.2222222222222223,
+            "o200k": 1.2380952380952381
+          },
+          "exit_status": 0,
+          "lines": 6,
+          "nature": "canonicalized",
+          "output_sha256": "5fe2bc3fd6687db3258878683b46fbca171b316381ba81a1c766bc8532bba6fe",
+          "pct_bytes_saved": -12.621359223300965,
+          "pct_tokens_saved": {
+            "cl100k": -22.222222222222232,
+            "o200k": -23.809523809523814
+          },
+          "peak_kib": null,
+          "semantic_check": "pass",
+          "semantic_note": "qualified in the frozen N2-E corpus (oracle-equivalent to RAW)",
+          "status": "pass",
+          "throughput_mib_s": 0.0005219780666464204,
+          "token_status": {
+            "cl100k": "pass",
+            "o200k": "pass"
+          },
+          "tokens": {
+            "cl100k": 77,
+            "o200k": 78
+          },
+          "tokens_saved": {
+            "cl100k": -14,
+            "o200k": -15
+          },
+          "unicode_chars": 232,
+          "valid_utf8": true,
+          "wall_s": 0.4238730619999842
+        },
+        "rtk_then_qodec": {
+          "bytes": 249,
+          "bytes_saved": -43,
+          "codec": "raw",
+          "compression_ratio": {
+            "cl100k": 1.380952380952381,
+            "o200k": 1.3968253968253967
+          },
+          "exit_status": 0,
+          "lines": 8,
+          "output_sha256": "5688b2a7c7c440ca6f7c1787f171440458a0b7111d39cc8e65195891804b864d",
+          "pct_bytes_saved": -20.873786407766982,
+          "pct_tokens_saved": {
+            "cl100k": -38.095238095238095,
+            "o200k": -39.68253968253968
+          },
+          "peak_kib": null,
+          "roundtrip_lossless": true,
+          "semantic_check": "pass",
+          "semantic_note": "byte-lossless (decode==input verified); no semantic information lost",
+          "status": "pass",
+          "throughput_mib_s": 0.0007390445599377114,
+          "token_status": {
+            "cl100k": "pass",
+            "o200k": "pass"
+          },
+          "tokens": {
+            "cl100k": 87,
+            "o200k": 88
+          },
+          "tokens_saved": {
+            "cl100k": -24,
+            "o200k": -25
+          },
+          "unicode_chars": 249,
+          "valid_utf8": true,
+          "wall_s": 0.3213133790000029
+        }
+      },
+      "case": "caddy",
+      "case_id": "caddyserver__caddy-5870::go::test::buggy",
+      "family": "Test output",
+      "oracle_policy_id": null,
+      "ranking_primary": [
+        "qodec",
+        "rtk",
+        "rtk_then_qodec"
+      ],
+      "winner": "qodec"
+    },
+    {
+      "arms": {
+        "qodec": {
+          "bytes": 12870,
+          "bytes_saved": 11790,
+          "codec": "mine",
+          "compression_ratio": {
+            "cl100k": 0.6151039187688402,
+            "o200k": 0.5856662933930571
+          },
+          "exit_status": 0,
+          "lines": 538,
+          "output_sha256": "51f1f0bc7bee0d7c0bf765b6adef37b39db7a61cb43068acec60c4418cec1d8f",
+          "pct_bytes_saved": 47.81021897810219,
+          "pct_tokens_saved": {
+            "cl100k": 38.48960812311598,
+            "o200k": 41.433370660694294
+          },
+          "peak_kib": null,
+          "roundtrip_lossless": true,
+          "semantic_check": "pass",
+          "semantic_note": "byte-lossless (decode==input verified); no semantic information lost",
+          "status": "pass",
+          "throughput_mib_s": 0.001299349271625485,
+          "token_status": {
+            "cl100k": "pass",
+            "o200k": "pass"
+          },
+          "tokens": {
+            "cl100k": 3877,
+            "o200k": 3661
+          },
+          "tokens_saved": {
+            "cl100k": 2426,
+            "o200k": 2590
+          },
+          "unicode_chars": 11554,
+          "valid_utf8": true,
+          "wall_s": 9.446104076999973
+        },
+        "raw": {
+          "bytes": 24660,
+          "bytes_saved": 0,
+          "compression_ratio": {
+            "cl100k": 1.0,
+            "o200k": 1.0
+          },
+          "exit_status": 0,
+          "lines": 472,
+          "nature": "canonicalized",
+          "output_sha256": "1f5617802094f5066acff507fe810bc6920b88987bf72c91ad7ff0da97e48ef7",
+          "pct_bytes_saved": 0.0,
+          "pct_tokens_saved": {
+            "cl100k": 0.0,
+            "o200k": 0.0
+          },
+          "peak_kib": null,
+          "semantic_check": "reference",
+          "status": "pass",
+          "throughput_mib_s": 0.04629147994436018,
+          "token_status": {
+            "cl100k": "pass",
+            "o200k": "pass"
+          },
+          "tokens": {
+            "cl100k": 6303,
+            "o200k": 6251
+          },
+          "tokens_saved": {
+            "cl100k": 0,
+            "o200k": 0
+          },
+          "unicode_chars": 24660,
+          "valid_utf8": true,
+          "wall_s": 0.5080331990000104
+        },
+        "rtk": {
+          "bytes": 24660,
+          "bytes_saved": 0,
+          "compression_ratio": {
+            "cl100k": 1.0,
+            "o200k": 1.0
+          },
+          "exit_status": 0,
+          "lines": 472,
+          "nature": "canonicalized",
+          "output_sha256": "1f5617802094f5066acff507fe810bc6920b88987bf72c91ad7ff0da97e48ef7",
+          "pct_bytes_saved": 0.0,
+          "pct_tokens_saved": {
+            "cl100k": 0.0,
+            "o200k": 0.0
+          },
+          "peak_kib": null,
+          "semantic_check": "pass",
+          "semantic_note": "qualified in the frozen N2-E corpus (oracle-equivalent to RAW)",
+          "status": "pass",
+          "throughput_mib_s": 0.05202758174628344,
+          "token_status": {
+            "cl100k": "pass",
+            "o200k": "pass"
+          },
+          "tokens": {
+            "cl100k": 6303,
+            "o200k": 6251
+          },
+          "tokens_saved": {
+            "cl100k": 0,
+            "o200k": 0
+          },
+          "unicode_chars": 24660,
+          "valid_utf8": true,
+          "wall_s": 0.4520219440000801
+        },
+        "rtk_then_qodec": {
+          "bytes": 12870,
+          "bytes_saved": 11790,
+          "codec": "mine",
+          "compression_ratio": {
+            "cl100k": 0.6151039187688402,
+            "o200k": 0.5856662933930571
+          },
+          "exit_status": 0,
+          "lines": 538,
+          "output_sha256": "51f1f0bc7bee0d7c0bf765b6adef37b39db7a61cb43068acec60c4418cec1d8f",
+          "pct_bytes_saved": 47.81021897810219,
+          "pct_tokens_saved": {
+            "cl100k": 38.48960812311598,
+            "o200k": 41.433370660694294
+          },
+          "peak_kib": null,
+          "roundtrip_lossless": true,
+          "semantic_check": "pass",
+          "semantic_note": "byte-lossless (decode==input verified); no semantic information lost",
+          "status": "pass",
+          "throughput_mib_s": 0.0013178799926056627,
+          "token_status": {
+            "cl100k": "pass",
+            "o200k": "pass"
+          },
+          "tokens": {
+            "cl100k": 3877,
+            "o200k": 3661
+          },
+          "tokens_saved": {
+            "cl100k": 2426,
+            "o200k": 2590
+          },
+          "unicode_chars": 11554,
+          "valid_utf8": true,
+          "wall_s": 9.313282332999961
+        }
+      },
+      "case": "lucene",
+      "case_id": "apache__lucene-13704::jvm::test::buggy",
+      "family": "Test output",
+      "oracle_policy_id": null,
+      "ranking_primary": [
+        "qodec",
+        "rtk_then_qodec",
+        "rtk"
+      ],
+      "winner": "qodec"
+    },
+    {
+      "arms": {
+        "qodec": {
+          "bytes": 4115,
+          "bytes_saved": 5674,
+          "codec": "mine",
+          "compression_ratio": {
+            "cl100k": 0.45991379310344827,
+            "o200k": 0.44089732528041414
+          },
+          "exit_status": 0,
+          "lines": 131,
+          "output_sha256": "bb18d1ca389810766bdbd8f64c959c6fdd8c4b049ad1c0bd56c1338183fbb715",
+          "pct_bytes_saved": 57.96301971600777,
+          "pct_tokens_saved": {
+            "cl100k": 54.008620689655174,
+            "o200k": 55.91026747195858
+          },
+          "peak_kib": null,
+          "roundtrip_lossless": true,
+          "semantic_check": "pass",
+          "semantic_note": "byte-lossless (decode==input verified); no semantic information lost",
+          "status": "pass",
+          "throughput_mib_s": 0.0037215248158189206,
+          "token_status": {
+            "cl100k": "pass",
+            "o200k": "pass"
+          },
+          "tokens": {
+            "cl100k": 1067,
+            "o200k": 1022
+          },
+          "tokens_saved": {
+            "cl100k": 1253,
+            "o200k": 1296
+          },
+          "unicode_chars": 3716,
+          "valid_utf8": true,
+          "wall_s": 1.054505883000047
+        },
+        "raw": {
+          "bytes": 9789,
+          "bytes_saved": 0,
+          "compression_ratio": {
+            "cl100k": 1.0,
+            "o200k": 1.0
+          },
+          "exit_status": 0,
+          "lines": 112,
+          "nature": "canonicalized",
+          "output_sha256": "5e4b47936b20134d8488af698fb47aa6f08637cb9b62c259c12fee125996022c",
+          "pct_bytes_saved": 0.0,
+          "pct_tokens_saved": {
+            "cl100k": 0.0,
+            "o200k": 0.0
+          },
+          "peak_kib": null,
+          "semantic_check": "reference",
+          "status": "pass",
+          "throughput_mib_s": 0.016319385203347678,
+          "token_status": {
+            "cl100k": "pass",
+            "o200k": "pass"
+          },
+          "tokens": {
+            "cl100k": 2320,
+            "o200k": 2318
+          },
+          "tokens_saved": {
+            "cl100k": 0,
+            "o200k": 0
+          },
+          "unicode_chars": 9540,
+          "valid_utf8": true,
+          "wall_s": 0.5720508319998316
+        },
+        "rtk": {
+          "bytes": 9789,
+          "bytes_saved": 0,
+          "compression_ratio": {
+            "cl100k": 1.0,
+            "o200k": 1.0
+          },
+          "exit_status": 0,
+          "lines": 112,
+          "nature": "canonicalized",
+          "output_sha256": "5e4b47936b20134d8488af698fb47aa6f08637cb9b62c259c12fee125996022c",
+          "pct_bytes_saved": 0.0,
+          "pct_tokens_saved": {
+            "cl100k": 0.0,
+            "o200k": 0.0
+          },
+          "peak_kib": null,
+          "semantic_check": "pass",
+          "semantic_note": "qualified in the frozen N2-E corpus (oracle-equivalent to RAW)",
+          "status": "pass",
+          "throughput_mib_s": 0.018644146730724575,
+          "token_status": {
+            "cl100k": "pass",
+            "o200k": "pass"
+          },
+          "tokens": {
+            "cl100k": 2320,
+            "o200k": 2318
+          },
+          "tokens_saved": {
+            "cl100k": 0,
+            "o200k": 0
+          },
+          "unicode_chars": 9540,
+          "valid_utf8": true,
+          "wall_s": 0.5007211120000647
+        },
+        "rtk_then_qodec": {
+          "bytes": 4115,
+          "bytes_saved": 5674,
+          "codec": "mine",
+          "compression_ratio": {
+            "cl100k": 0.45991379310344827,
+            "o200k": 0.44089732528041414
+          },
+          "exit_status": 0,
+          "lines": 131,
+          "output_sha256": "bb18d1ca389810766bdbd8f64c959c6fdd8c4b049ad1c0bd56c1338183fbb715",
+          "pct_bytes_saved": 57.96301971600777,
+          "pct_tokens_saved": {
+            "cl100k": 54.008620689655174,
+            "o200k": 55.91026747195858
+          },
+          "peak_kib": null,
+          "roundtrip_lossless": true,
+          "semantic_check": "pass",
+          "semantic_note": "byte-lossless (decode==input verified); no semantic information lost",
+          "status": "pass",
+          "throughput_mib_s": 0.003622390425921155,
+          "token_status": {
+            "cl100k": "pass",
+            "o200k": "pass"
+          },
+          "tokens": {
+            "cl100k": 1067,
+            "o200k": 1022
+          },
+          "tokens_saved": {
+            "cl100k": 1253,
+            "o200k": 1296
+          },
+          "unicode_chars": 3716,
+          "valid_utf8": true,
+          "wall_s": 1.0833646710000266
+        }
+      },
+      "case": "vue",
+      "case_id": "vuejs__core-11589::js_ts::test::buggy",
+      "family": "Test output",
+      "oracle_policy_id": null,
+      "ranking_primary": [
+        "qodec",
+        "rtk_then_qodec",
+        "rtk"
+      ],
+      "winner": "qodec"
+    },
+    {
+      "arms": {
+        "qodec": {
+          "bytes": 1854,
+          "bytes_saved": 147,
+          "codec": "mine",
+          "compression_ratio": {
+            "cl100k": 0.9164969450101833,
+            "o200k": 0.904
+          },
+          "exit_status": 0,
+          "lines": 34,
+          "output_sha256": "790754adb7a0e5504e562a81403a69a09ea56500286a924b8333f9dfcc9124ef",
+          "pct_bytes_saved": 7.3463268365817065,
+          "pct_tokens_saved": {
+            "cl100k": 8.350305498981669,
+            "o200k": 9.599999999999998
+          },
+          "peak_kib": null,
+          "roundtrip_lossless": true,
+          "semantic_check": "pass",
+          "semantic_note": "byte-lossless (decode==input verified); no semantic information lost",
+          "status": "pass",
+          "throughput_mib_s": 0.004211326561195533,
+          "token_status": {
+            "cl100k": "pass",
+            "o200k": "pass"
+          },
+          "tokens": {
+            "cl100k": 450,
+            "o200k": 452
+          },
+          "tokens_saved": {
+            "cl100k": 41,
+            "o200k": 48
+          },
+          "unicode_chars": 1828,
+          "valid_utf8": true,
+          "wall_s": 0.41984684800013383
+        },
+        "raw": {
+          "bytes": 2001,
+          "bytes_saved": 0,
+          "compression_ratio": {
+            "cl100k": 1.0,
+            "o200k": 1.0
+          },
+          "exit_status": 0,
+          "lines": 28,
+          "nature": "canonicalized",
+          "output_sha256": "e85cb1921d49c434131604ab1fa66e5613c76f19a06942fb4461ef880bfe1656",
+          "pct_bytes_saved": 0.0,
+          "pct_tokens_saved": {
+            "cl100k": 0.0,
+            "o200k": 0.0
+          },
+          "peak_kib": null,
+          "semantic_check": "reference",
+          "status": "pass",
+          "throughput_mib_s": 0.0038040609363474125,
+          "token_status": {
+            "cl100k": "pass",
+            "o200k": "pass"
+          },
+          "tokens": {
+            "cl100k": 491,
+            "o200k": 500
+          },
+          "tokens_saved": {
+            "cl100k": 0,
+            "o200k": 0
+          },
+          "unicode_chars": 2001,
+          "valid_utf8": true,
+          "wall_s": 0.5016487220000272
+        },
+        "rtk": {
+          "bytes": 17,
+          "bytes_saved": 1984,
+          "compression_ratio": {
+            "cl100k": 0.014256619144602852,
+            "o200k": 0.014
+          },
+          "exit_status": 0,
+          "lines": 1,
+          "nature": "canonicalized",
+          "output_sha256": "8be4d1929f65ff74921c87ee607f1586974a531f49a7ae70e4dd079ea94442cd",
+          "pct_bytes_saved": 99.1504247876062,
+          "pct_tokens_saved": {
+            "cl100k": 98.57433808553971,
+            "o200k": 98.6
+          },
+          "peak_kib": null,
+          "semantic_check": "pass",
+          "semantic_note": "qualified in the frozen N2-E corpus (oracle-equivalent to RAW)",
+          "status": "pass",
+          "throughput_mib_s": 3.337339984947531e-05,
+          "token_status": {
+            "cl100k": "pass",
+            "o200k": "pass"
+          },
+          "tokens": {
+            "cl100k": 7,
+            "o200k": 7
+          },
+          "tokens_saved": {
+            "cl100k": 484,
+            "o200k": 493
+          },
+          "unicode_chars": 17,
+          "valid_utf8": true,
+          "wall_s": 0.48578998400012097
+        },
+        "rtk_then_qodec": {
+          "bytes": 34,
+          "bytes_saved": 1967,
+          "codec": "raw",
+          "compression_ratio": {
+            "cl100k": 0.034623217922606926,
+            "o200k": 0.034
+          },
+          "exit_status": 0,
+          "lines": 3,
+          "output_sha256": "e4329cb8e485ab0d5055f990cec2906f55db5a72586adb0cbd77ff4301b6d131",
+          "pct_bytes_saved": 98.3008495752124,
+          "pct_tokens_saved": {
+            "cl100k": 96.5376782077393,
+            "o200k": 96.6
+          },
+          "peak_kib": null,
+          "roundtrip_lossless": true,
+          "semantic_check": "pass",
+          "semantic_note": "byte-lossless (decode==input verified); no semantic information lost",
+          "status": "pass",
+          "throughput_mib_s": 0.00010325067175040895,
+          "token_status": {
+            "cl100k": "pass",
+            "o200k": "pass"
+          },
+          "tokens": {
+            "cl100k": 17,
+            "o200k": 17
+          },
+          "tokens_saved": {
+            "cl100k": 474,
+            "o200k": 483
+          },
+          "unicode_chars": 34,
+          "valid_utf8": true,
+          "wall_s": 0.31404083100005664
+        }
+      },
+      "case": "scrapy",
+      "case_id": "bugsinpy::scrapy-9::python::pytest::fixed",
+      "family": "Test output",
+      "oracle_policy_id": null,
+      "ranking_primary": [
+        "rtk",
+        "rtk_then_qodec",
+        "qodec"
+      ],
+      "winner": "rtk"
+    },
+    {
+      "arms": {
+        "qodec": {
+          "bytes": 17,
+          "bytes_saved": -17,
+          "codec": "raw",
+          "compression_ratio": {
+            "cl100k": null,
+            "o200k": null
+          },
+          "exit_status": 0,
+          "lines": 2,
+          "output_sha256": "a6da264b43b1e6b0590eabd8989449eceb7f046056a6e70064742827ac3f92d4",
+          "pct_bytes_saved": null,
+          "pct_tokens_saved": {
+            "cl100k": null,
+            "o200k": null
+          },
+          "peak_kib": null,
+          "roundtrip_lossless": true,
+          "semantic_check": "pass",
+          "semantic_note": "byte-lossless (decode==input verified); no semantic information lost",
+          "status": "pass",
+          "throughput_mib_s": 4.5705173411102566e-05,
+          "token_status": {
+            "cl100k": "pass",
+            "o200k": "pass"
+          },
+          "tokens": {
+            "cl100k": 10,
+            "o200k": 10
+          },
+          "tokens_saved": {
+            "cl100k": -10,
+            "o200k": -10
+          },
+          "unicode_chars": 17,
+          "valid_utf8": true,
+          "wall_s": 0.3547183429998313
+        },
+        "raw": {
+          "bytes": 0,
+          "bytes_saved": 0,
+          "compression_ratio": {
+            "cl100k": null,
+            "o200k": null
+          },
+          "exit_status": 0,
+          "lines": 0,
+          "nature": "canonicalized",
+          "output_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+          "pct_bytes_saved": null,
+          "pct_tokens_saved": {
+            "cl100k": null,
+            "o200k": null
+          },
+          "peak_kib": null,
+          "semantic_check": "reference",
+          "status": "pass",
+          "throughput_mib_s": null,
+          "token_status": {
+            "cl100k": "pass",
+            "o200k": "pass"
+          },
+          "tokens": {
+            "cl100k": 0,
+            "o200k": 0
+          },
+          "tokens_saved": {
+            "cl100k": 0,
+            "o200k": 0
+          },
+          "unicode_chars": 0,
+          "valid_utf8": true,
+          "wall_s": 0.4687056739999207
+        },
+        "rtk": {
+          "bytes": 1,
+          "bytes_saved": -1,
+          "compression_ratio": {
+            "cl100k": null,
+            "o200k": null
+          },
+          "exit_status": 0,
+          "lines": 1,
+          "nature": "canonicalized",
+          "output_sha256": "01ba4719c80b6fe911b091a7c05124b64eeece964e09c058ef8f9805daca546b",
+          "pct_bytes_saved": null,
+          "pct_tokens_saved": {
+            "cl100k": null,
+            "o200k": null
+          },
+          "peak_kib": null,
+          "semantic_check": "pass",
+          "semantic_note": "qualified in the frozen N2-E corpus (oracle-equivalent to RAW)",
+          "status": "pass",
+          "throughput_mib_s": 2.1025708612766436e-06,
+          "token_status": {
+            "cl100k": "pass",
+            "o200k": "pass"
+          },
+          "tokens": {
+            "cl100k": 1,
+            "o200k": 1
+          },
+          "tokens_saved": {
+            "cl100k": -1,
+            "o200k": -1
+          },
+          "unicode_chars": 1,
+          "valid_utf8": true,
+          "wall_s": 0.4535753510001541
+        },
+        "rtk_then_qodec": {
+          "bytes": 18,
+          "bytes_saved": -18,
+          "codec": "raw",
+          "compression_ratio": {
+            "cl100k": null,
+            "o200k": null
+          },
+          "exit_status": 0,
+          "lines": 3,
+          "output_sha256": "7c7d51e6c43b044f798475c0d66afc4f9aa110e2729da0097d39fe636d5e1a0a",
+          "pct_bytes_saved": null,
+          "pct_tokens_saved": {
+            "cl100k": null,
+            "o200k": null
+          },
+          "peak_kib": null,
+          "roundtrip_lossless": true,
+          "semantic_check": "pass",
+          "semantic_note": "byte-lossless (decode==input verified); no semantic information lost",
+          "status": "pass",
+          "throughput_mib_s": 5.0339060427285544e-05,
+          "token_status": {
+            "cl100k": "pass",
+            "o200k": "pass"
+          },
+          "tokens": {
+            "cl100k": 10,
+            "o200k": 10
+          },
+          "tokens_saved": {
+            "cl100k": -10,
+            "o200k": -10
+          },
+          "unicode_chars": 18,
+          "valid_utf8": true,
+          "wall_s": 0.34101029199996447
+        }
+      },
+      "case": "gin",
+      "case_id": "gin-gonic__gin-2755::go::vet",
+      "family": "Diagnostics",
+      "oracle_policy_id": null,
+      "ranking_primary": [
+        "rtk",
+        "qodec",
+        "rtk_then_qodec"
+      ],
+      "winner": "rtk"
+    },
+    {
+      "arms": {
+        "qodec": {
+          "bytes": 6824,
+          "bytes_saved": 7954,
+          "codec": "mine",
+          "compression_ratio": {
+            "cl100k": 0.4844206426484908,
+            "o200k": 0.45678427658062987
+          },
+          "exit_status": 0,
+          "lines": 210,
+          "output_sha256": "eecfd75a75be1c0dd63ed25191539cc555451566091754f892f9fba73b7e87b8",
+          "pct_bytes_saved": 53.823250778183784,
+          "pct_tokens_saved": {
+            "cl100k": 51.55793573515093,
+            "o200k": 54.32157234193702
+          },
+          "peak_kib": null,
+          "roundtrip_lossless": true,
+          "semantic_check": "pass",
+          "semantic_note": "byte-lossless (decode==input verified); no semantic information lost",
+          "status": "pass",
+          "throughput_mib_s": 0.0033392585038848955,
+          "token_status": {
+            "cl100k": "pass",
+            "o200k": "pass"
+          },
+          "tokens": {
+            "cl100k": 1990,
+            "o200k": 1929
+          },
+          "tokens_saved": {
+            "cl100k": 2118,
+            "o200k": 2294
+          },
+          "unicode_chars": 6111,
+          "valid_utf8": true,
+          "wall_s": 1.9488977949999935
+        },
+        "raw": {
+          "bytes": 14778,
+          "bytes_saved": 0,
+          "compression_ratio": {
+            "cl100k": 1.0,
+            "o200k": 1.0
+          },
+          "exit_status": 0,
+          "lines": 187,
+          "nature": "canonicalized",
+          "output_sha256": "250227d1308d08458d2e460411f6fe934b57f704d2d7a54c3a6f46c958ed8fdb",
+          "pct_bytes_saved": 0.0,
+          "pct_tokens_saved": {
+            "cl100k": 0.0,
+            "o200k": 0.0
+          },
+          "peak_kib": null,
+          "semantic_check": "reference",
+          "status": "pass",
+          "throughput_mib_s": 0.0262356958337329,
+          "token_status": {
+            "cl100k": "pass",
+            "o200k": "pass"
+          },
+          "tokens": {
+            "cl100k": 4108,
+            "o200k": 4223
+          },
+          "tokens_saved": {
+            "cl100k": 0,
+            "o200k": 0
+          },
+          "unicode_chars": 14765,
+          "valid_utf8": true,
+          "wall_s": 0.5371841149999455
+        },
+        "rtk": {
+          "bytes": 14778,
+          "bytes_saved": 0,
+          "compression_ratio": {
+            "cl100k": 1.0,
+            "o200k": 1.0
+          },
+          "exit_status": 0,
+          "lines": 187,
+          "nature": "canonicalized",
+          "output_sha256": "250227d1308d08458d2e460411f6fe934b57f704d2d7a54c3a6f46c958ed8fdb",
+          "pct_bytes_saved": 0.0,
+          "pct_tokens_saved": {
+            "cl100k": 0.0,
+            "o200k": 0.0
+          },
+          "peak_kib": null,
+          "semantic_check": "pass",
+          "semantic_note": "qualified in the frozen N2-E corpus (oracle-equivalent to RAW)",
+          "status": "pass",
+          "throughput_mib_s": 0.02605148302699603,
+          "token_status": {
+            "cl100k": "pass",
+            "o200k": "pass"
+          },
+          "tokens": {
+            "cl100k": 4108,
+            "o200k": 4223
+          },
+          "tokens_saved": {
+            "cl100k": 0,
+            "o200k": 0
+          },
+          "unicode_chars": 14765,
+          "valid_utf8": true,
+          "wall_s": 0.5409826009999961
+        },
+        "rtk_then_qodec": {
+          "bytes": 6824,
+          "bytes_saved": 7954,
+          "codec": "mine",
+          "compression_ratio": {
+            "cl100k": 0.4844206426484908,
+            "o200k": 0.45678427658062987
+          },
+          "exit_status": 0,
+          "lines": 210,
+          "output_sha256": "eecfd75a75be1c0dd63ed25191539cc555451566091754f892f9fba73b7e87b8",
+          "pct_bytes_saved": 53.823250778183784,
+          "pct_tokens_saved": {
+            "cl100k": 51.55793573515093,
+            "o200k": 54.32157234193702
+          },
+          "peak_kib": null,
+          "roundtrip_lossless": true,
+          "semantic_check": "pass",
+          "semantic_note": "byte-lossless (decode==input verified); no semantic information lost",
+          "status": "pass",
+          "throughput_mib_s": 0.003517692627336607,
+          "token_status": {
+            "cl100k": "pass",
+            "o200k": "pass"
+          },
+          "tokens": {
+            "cl100k": 1990,
+            "o200k": 1929
+          },
+          "tokens_saved": {
+            "cl100k": 2118,
+            "o200k": 2294
+          },
+          "unicode_chars": 6111,
+          "valid_utf8": true,
+          "wall_s": 1.850040417000173
+        }
+      },
+      "case": "preact",
+      "case_id": "preactjs__preact-3345::files_search::read",
+      "family": "File content",
+      "oracle_policy_id": null,
+      "ranking_primary": [
+        "qodec",
+        "rtk_then_qodec",
+        "rtk"
+      ],
+      "winner": "qodec"
+    },
+    {
+      "arms": {
+        "qodec": {
+          "bytes": 910,
+          "bytes_saved": 140,
+          "codec": "mine",
+          "compression_ratio": {
+            "cl100k": 0.9506172839506173,
+            "o200k": 0.9173228346456693
+          },
+          "exit_status": 0,
+          "lines": 26,
+          "output_sha256": "0cf774f063865f158306b95a5416a95b49835b29910a1b703739d51eb3be69f6",
+          "pct_bytes_saved": 13.33333333333333,
+          "pct_tokens_saved": {
+            "cl100k": 4.938271604938271,
+            "o200k": 8.267716535433067
+          },
+          "peak_kib": null,
+          "roundtrip_lossless": true,
+          "semantic_check": "pass",
+          "semantic_note": "byte-lossless (decode==input verified); no semantic information lost",
+          "status": "pass",
+          "throughput_mib_s": 0.00263939495070511,
+          "token_status": {
+            "cl100k": "pass",
+            "o200k": "pass"
+          },
+          "tokens": {
+            "cl100k": 231,
+            "o200k": 233
+          },
+          "tokens_saved": {
+            "cl100k": 12,
+            "o200k": 21
+          },
+          "unicode_chars": 876,
+          "valid_utf8": true,
+          "wall_s": 0.32880400400017606
+        },
+        "raw": {
+          "bytes": 1050,
+          "bytes_saved": 0,
+          "compression_ratio": {
+            "cl100k": 1.0,
+            "o200k": 1.0
+          },
+          "exit_status": 0,
+          "lines": 20,
+          "nature": "canonicalized",
+          "output_sha256": "ff7775d334bb3990fc991ca2e4f4a7c21f865d33291ecb30c891123456976fa0",
+          "pct_bytes_saved": 0.0,
+          "pct_tokens_saved": {
+            "cl100k": 0.0,
+            "o200k": 0.0
+          },
+          "peak_kib": null,
+          "semantic_check": "reference",
+          "status": "pass",
+          "throughput_mib_s": 0.0021883055347104003,
+          "token_status": {
+            "cl100k": "pass",
+            "o200k": "pass"
+          },
+          "tokens": {
+            "cl100k": 243,
+            "o200k": 254
+          },
+          "tokens_saved": {
+            "cl100k": 0,
+            "o200k": 0
+          },
+          "unicode_chars": 1050,
+          "valid_utf8": true,
+          "wall_s": 0.45759516500015707
+        },
+        "rtk": {
+          "bytes": 1050,
+          "bytes_saved": 0,
+          "compression_ratio": {
+            "cl100k": 1.0,
+            "o200k": 1.0
+          },
+          "exit_status": 0,
+          "lines": 20,
+          "nature": "canonicalized",
+          "output_sha256": "ff7775d334bb3990fc991ca2e4f4a7c21f865d33291ecb30c891123456976fa0",
+          "pct_bytes_saved": 0.0,
+          "pct_tokens_saved": {
+            "cl100k": 0.0,
+            "o200k": 0.0
+          },
+          "peak_kib": null,
+          "semantic_check": "pass",
+          "semantic_note": "qualified in the frozen N2-E corpus (oracle-equivalent to RAW)",
+          "status": "pass",
+          "throughput_mib_s": 0.002280327659668814,
+          "token_status": {
+            "cl100k": "pass",
+            "o200k": "pass"
+          },
+          "tokens": {
+            "cl100k": 243,
+            "o200k": 254
+          },
+          "tokens_saved": {
+            "cl100k": 0,
+            "o200k": 0
+          },
+          "unicode_chars": 1050,
+          "valid_utf8": true,
+          "wall_s": 0.4391290119999667
+        },
+        "rtk_then_qodec": {
+          "bytes": 910,
+          "bytes_saved": 140,
+          "codec": "mine",
+          "compression_ratio": {
+            "cl100k": 0.9506172839506173,
+            "o200k": 0.9173228346456693
+          },
+          "exit_status": 0,
+          "lines": 26,
+          "output_sha256": "0cf774f063865f158306b95a5416a95b49835b29910a1b703739d51eb3be69f6",
+          "pct_bytes_saved": 13.33333333333333,
+          "pct_tokens_saved": {
+            "cl100k": 4.938271604938271,
+            "o200k": 8.267716535433067
+          },
+          "peak_kib": null,
+          "roundtrip_lossless": true,
+          "semantic_check": "pass",
+          "semantic_note": "byte-lossless (decode==input verified); no semantic information lost",
+          "status": "pass",
+          "throughput_mib_s": 0.0025816149426976347,
+          "token_status": {
+            "cl100k": "pass",
+            "o200k": "pass"
+          },
+          "tokens": {
+            "cl100k": 231,
+            "o200k": 233
+          },
+          "tokens_saved": {
+            "cl100k": 12,
+            "o200k": 21
+          },
+          "unicode_chars": 876,
+          "valid_utf8": true,
+          "wall_s": 0.3361630790000163
+        }
+      },
+      "case": "lombok",
+      "case_id": "projectlombok__lombok-3312::files_search::read",
+      "family": "File content",
+      "oracle_policy_id": null,
+      "ranking_primary": [
+        "qodec",
+        "rtk_then_qodec",
+        "rtk"
+      ],
+      "winner": "qodec"
+    },
+    {
+      "arms": {
+        "qodec": {
+          "bytes_saved": null,
+          "compression_ratio": {
+            "cl100k": null,
+            "o200k": null
+          },
+          "pct_bytes_saved": null,
+          "pct_tokens_saved": {
+            "cl100k": null,
+            "o200k": null
+          },
+          "semantic_check": "unsupported",
+          "status": "unsupported",
+          "throughput_mib_s": null,
+          "token_status": {
+            "cl100k": "unsupported",
+            "o200k": "unsupported"
+          },
+          "tokens": {
+            "cl100k": null,
+            "o200k": null
+          },
+          "tokens_saved": {
+            "cl100k": null,
+            "o200k": null
+          },
+          "unsupported_reason": "RAW bytes not local (bounded capsule)"
+        },
+        "raw": {
+          "bytes": null,
+          "bytes_saved": null,
+          "compression_ratio": {
+            "cl100k": null,
+            "o200k": null
+          },
+          "exit_status": null,
+          "lines": 11167740,
+          "nature": "bounded_capsule",
+          "output_sha256": "e8987f909b97ce975d65f773a4e1eae7aadab455a38db2aa29ed30ae8b96f166",
+          "pct_bytes_saved": null,
+          "pct_tokens_saved": {
+            "cl100k": null,
+            "o200k": null
+          },
+          "peak_kib": null,
+          "semantic_check": "reference",
+          "status": "unsupported",
+          "throughput_mib_s": null,
+          "token_status": {
+            "cl100k": "unsupported",
+            "o200k": "unsupported"
+          },
+          "tokens": {
+            "cl100k": null,
+            "o200k": null
+          },
+          "tokens_saved": {
+            "cl100k": null,
+            "o200k": null
+          },
+          "unicode_chars": null,
+          "unsupported_reason": "RAW is the full ~1.5 GB HDFS.log member; not committed. Reacquisition is impractical in the session disk allowance and exact streaming BPE tokenization is out of scope for this slice, so RAW/Qodec-on-RAW token counts are UNSUPPORTED.",
+          "wall_s": null
+        },
+        "rtk": {
+          "bytes": 1877,
+          "bytes_saved": null,
+          "compression_ratio": {
+            "cl100k": null,
+            "o200k": null
+          },
+          "exit_status": 0,
+          "lines": 25,
+          "nature": "raw_captured",
+          "output_sha256": "cbf6d549fa8c7ae951beb688dba94708f53e57930b92d0bf1cbf6a140ed8015a",
+          "pct_bytes_saved": null,
+          "pct_tokens_saved": {
+            "cl100k": null,
+            "o200k": null
+          },
+          "peak_kib": null,
+          "semantic_check": "pass",
+          "semantic_note": "qualified in the frozen N2-E corpus (oracle-equivalent to RAW)",
+          "status": "pass",
+          "throughput_mib_s": 0.003979876428492268,
+          "token_status": {
+            "cl100k": "pass",
+            "o200k": "pass"
+          },
+          "tokens": {
+            "cl100k": 606,
+            "o200k": 606
+          },
+          "tokens_saved": {
+            "cl100k": null,
+            "o200k": null
+          },
+          "unicode_chars": 1862,
+          "valid_utf8": true,
+          "wall_s": 0.4497744400000556
+        },
+        "rtk_then_qodec": {
+          "bytes": 1055,
+          "bytes_saved": null,
+          "codec": "mine",
+          "compression_ratio": {
+            "cl100k": null,
+            "o200k": null
+          },
+          "exit_status": 0,
+          "lines": 33,
+          "output_sha256": "e2b4bc97c79ecc210e296fe9b46dc040445d646754f1ff5f367ca5c544c451fd",
+          "pct_bytes_saved": null,
+          "pct_tokens_saved": {
+            "cl100k": null,
+            "o200k": null
+          },
+          "peak_kib": null,
+          "roundtrip_lossless": true,
+          "semantic_check": "pass",
+          "semantic_note": "byte-lossless (decode==input verified); no semantic information lost",
+          "status": "pass",
+          "throughput_mib_s": 0.0024721182218918323,
+          "token_status": {
+            "cl100k": "pass",
+            "o200k": "pass"
+          },
+          "tokens": {
+            "cl100k": 383,
+            "o200k": 375
+          },
+          "tokens_saved": {
+            "cl100k": null,
+            "o200k": null
+          },
+          "unicode_chars": 966,
+          "valid_utf8": true,
+          "wall_s": 0.4069895990000987
+        }
+      },
+      "case": "loghub",
+      "case_id": "loghub::HDFS::log",
+      "family": "Large structured logs",
+      "oracle_policy_id": "rtk-log-hdfs-oracle-v1",
+      "ranking_primary": [
+        "rtk_then_qodec",
+        "rtk"
+      ],
+      "winner": "rtk_then_qodec"
+    },
+    {
+      "arms": {
+        "qodec": {
+          "bytes": 411,
+          "bytes_saved": -17,
+          "codec": "raw",
+          "compression_ratio": {
+            "cl100k": 1.078740157480315,
+            "o200k": 1.078125
+          },
+          "exit_status": 0,
+          "lines": 11,
+          "output_sha256": "94d2b55c78c455d78c7369c1491ab1ee940d799cfa8f9e0fa7348e0c53373310",
+          "pct_bytes_saved": -4.314720812182737,
+          "pct_tokens_saved": {
+            "cl100k": -7.874015748031504,
+            "o200k": -7.8125
+          },
+          "peak_kib": null,
+          "roundtrip_lossless": true,
+          "semantic_check": "pass",
+          "semantic_note": "byte-lossless (decode==input verified); no semantic information lost",
+          "status": "pass",
+          "throughput_mib_s": 0.0012613993145902062,
+          "token_status": {
+            "cl100k": "pass",
+            "o200k": "pass"
+          },
+          "tokens": {
+            "cl100k": 137,
+            "o200k": 138
+          },
+          "tokens_saved": {
+            "cl100k": -10,
+            "o200k": -10
+          },
+          "unicode_chars": 411,
+          "valid_utf8": true,
+          "wall_s": 0.3107343880001281
+        },
+        "raw": {
+          "bytes": 394,
+          "bytes_saved": 0,
+          "compression_ratio": {
+            "cl100k": 1.0,
+            "o200k": 1.0
+          },
+          "exit_status": 0,
+          "lines": 9,
+          "nature": "raw_captured",
+          "output_sha256": "3daedecfd130c0cc83bd3aca8fc10740cf67d1c59045e1237217744ff099341b",
+          "pct_bytes_saved": 0.0,
+          "pct_tokens_saved": {
+            "cl100k": 0.0,
+            "o200k": 0.0
+          },
+          "peak_kib": null,
+          "semantic_check": "reference",
+          "status": "pass",
+          "throughput_mib_s": 0.0007933216826135218,
+          "token_status": {
+            "cl100k": "pass",
+            "o200k": "pass"
+          },
+          "tokens": {
+            "cl100k": 127,
+            "o200k": 128
+          },
+          "tokens_saved": {
+            "cl100k": 0,
+            "o200k": 0
+          },
+          "unicode_chars": 394,
+          "valid_utf8": true,
+          "wall_s": 0.4736384860000271
+        },
+        "rtk": {
+          "bytes": 267,
+          "bytes_saved": 127,
+          "compression_ratio": {
+            "cl100k": 0.6535433070866141,
+            "o200k": 0.65625
+          },
+          "exit_status": 0,
+          "lines": 3,
+          "nature": "raw_captured",
+          "output_sha256": "aaf4404a3d10fd0f091c8f8381832e73260a5f8e13ae40ae0039de0ee8696b8f",
+          "pct_bytes_saved": 32.233502538071065,
+          "pct_tokens_saved": {
+            "cl100k": 34.645669291338585,
+            "o200k": 34.375
+          },
+          "peak_kib": null,
+          "semantic_check": "pass",
+          "semantic_note": "qualified in the frozen N2-E corpus (oracle-equivalent to RAW)",
+          "status": "pass",
+          "throughput_mib_s": 0.0005676503641382537,
+          "token_status": {
+            "cl100k": "pass",
+            "o200k": "pass"
+          },
+          "tokens": {
+            "cl100k": 83,
+            "o200k": 84
+          },
+          "tokens_saved": {
+            "cl100k": 44,
+            "o200k": 44
+          },
+          "unicode_chars": 267,
+          "valid_utf8": true,
+          "wall_s": 0.4485702090000814
+        },
+        "rtk_then_qodec": {
+          "bytes": 284,
+          "bytes_saved": 110,
+          "codec": "raw",
+          "compression_ratio": {
+            "cl100k": 0.7322834645669292,
+            "o200k": 0.734375
+          },
+          "exit_status": 0,
+          "lines": 5,
+          "output_sha256": "82a617c3afa3f831697a41f98bef8f671fda839fa8431b1471be5b20233227cd",
+          "pct_bytes_saved": 27.91878172588832,
+          "pct_tokens_saved": {
+            "cl100k": 26.77165354330708,
+            "o200k": 26.5625
+          },
+          "peak_kib": null,
+          "roundtrip_lossless": true,
+          "semantic_check": "pass",
+          "semantic_note": "byte-lossless (decode==input verified); no semantic information lost",
+          "status": "pass",
+          "throughput_mib_s": 0.0008425956603554473,
+          "token_status": {
+            "cl100k": "pass",
+            "o200k": "pass"
+          },
+          "tokens": {
+            "cl100k": 93,
+            "o200k": 94
+          },
+          "tokens_saved": {
+            "cl100k": 34,
+            "o200k": 34
+          },
+          "unicode_chars": 284,
+          "valid_utf8": true,
+          "wall_s": 0.32143947400004436
+        }
+      },
+      "case": "rubocop",
+      "case_id": "rubocop__rubocop-13687::git::show",
+      "family": "Git output",
+      "oracle_policy_id": "rtk-git-show-merge-first-parent-oracle-v1",
+      "ranking_primary": [
+        "rtk",
+        "rtk_then_qodec",
+        "qodec"
+      ],
+      "winner": "rtk"
+    },
+    {
+      "arms": {
+        "qodec": {
+          "bytes": 111,
+          "bytes_saved": -17,
+          "codec": "raw",
+          "compression_ratio": {
+            "cl100k": 1.2857142857142858,
+            "o200k": 1.2857142857142858
+          },
+          "exit_status": 0,
+          "lines": 5,
+          "output_sha256": "39bfb8d89d7bfe2334e05d52f419db6f0735f6adf24e16ec04557d50c669135e",
+          "pct_bytes_saved": -18.085106382978733,
+          "pct_tokens_saved": {
+            "cl100k": -28.57142857142858,
+            "o200k": -28.57142857142858
+          },
+          "peak_kib": null,
+          "roundtrip_lossless": true,
+          "semantic_check": "pass",
+          "semantic_note": "byte-lossless (decode==input verified); no semantic information lost",
+          "status": "pass",
+          "throughput_mib_s": 0.00019964057614531414,
+          "token_status": {
+            "cl100k": "pass",
+            "o200k": "pass"
+          },
+          "tokens": {
+            "cl100k": 45,
+            "o200k": 45
+          },
+          "tokens_saved": {
+            "cl100k": -10,
+            "o200k": -10
+          },
+          "unicode_chars": 111,
+          "valid_utf8": true,
+          "wall_s": 0.5302421540000068
+        },
+        "raw": {
+          "bytes": 94,
+          "bytes_saved": 0,
+          "compression_ratio": {
+            "cl100k": 1.0,
+            "o200k": 1.0
+          },
+          "exit_status": 0,
+          "lines": 3,
+          "nature": "raw_captured_diag_provenance",
+          "output_sha256": "04c68ef2f88a440c258ac2264cb29c4c08c14f84a38bc991f34e207fd5ff2b61",
+          "pct_bytes_saved": 0.0,
+          "pct_tokens_saved": {
+            "cl100k": 0.0,
+            "o200k": 0.0
+          },
+          "peak_kib": null,
+          "semantic_check": "reference",
+          "status": "pass",
+          "throughput_mib_s": 0.00019424467696184335,
+          "token_status": {
+            "cl100k": "pass",
+            "o200k": "pass"
+          },
+          "tokens": {
+            "cl100k": 35,
+            "o200k": 35
+          },
+          "tokens_saved": {
+            "cl100k": 0,
+            "o200k": 0
+          },
+          "unicode_chars": 94,
+          "valid_utf8": true,
+          "wall_s": 0.4615075540000362
+        },
+        "rtk": {
+          "bytes": 11,
+          "bytes_saved": 83,
+          "compression_ratio": {
+            "cl100k": 0.17142857142857143,
+            "o200k": 0.17142857142857143
+          },
+          "exit_status": 0,
+          "lines": 1,
+          "nature": "raw_captured",
+          "output_sha256": "80436b3903a346c2320ac86fc670589cd82bf260b02d8ab4381a21e3a0949ecd",
+          "pct_bytes_saved": 88.29787234042553,
+          "pct_tokens_saved": {
+            "cl100k": 82.85714285714285,
+            "o200k": 82.85714285714285
+          },
+          "peak_kib": null,
+          "semantic_check": "pass",
+          "semantic_note": "qualified in the frozen N2-E corpus (oracle-equivalent to RAW)",
+          "status": "pass",
+          "throughput_mib_s": 2.196419356346893e-05,
+          "token_status": {
+            "cl100k": "pass",
+            "o200k": "pass"
+          },
+          "tokens": {
+            "cl100k": 6,
+            "o200k": 6
+          },
+          "tokens_saved": {
+            "cl100k": 29,
+            "o200k": 29
+          },
+          "unicode_chars": 11,
+          "valid_utf8": true,
+          "wall_s": 0.4776145069999984
+        },
+        "rtk_then_qodec": {
+          "bytes": 28,
+          "bytes_saved": 66,
+          "codec": "raw",
+          "compression_ratio": {
+            "cl100k": 0.45714285714285713,
+            "o200k": 0.45714285714285713
+          },
+          "exit_status": 0,
+          "lines": 3,
+          "output_sha256": "3896168ae4ae74f372806784c7efdad0ee6e264ceaefe75660ce5078c948ef23",
+          "pct_bytes_saved": 70.2127659574468,
+          "pct_tokens_saved": {
+            "cl100k": 54.28571428571429,
+            "o200k": 54.28571428571429
+          },
+          "peak_kib": null,
+          "roundtrip_lossless": true,
+          "semantic_check": "pass",
+          "semantic_note": "byte-lossless (decode==input verified); no semantic information lost",
+          "status": "pass",
+          "throughput_mib_s": 8.452039344860587e-05,
+          "token_status": {
+            "cl100k": "pass",
+            "o200k": "pass"
+          },
+          "tokens": {
+            "cl100k": 16,
+            "o200k": 16
+          },
+          "tokens_saved": {
+            "cl100k": 19,
+            "o200k": 19
+          },
+          "unicode_chars": 28,
+          "valid_utf8": true,
+          "wall_s": 0.3159341759999279
+        }
+      },
+      "case": "php-cs-fixer",
+      "case_id": "php-cs-fixer__php-cs-fixer-8075::git::commit",
+      "family": "Git output",
+      "oracle_policy_id": "rtk-git-commit-oracle-v1",
+      "ranking_primary": [
+        "rtk",
+        "rtk_then_qodec",
+        "qodec"
+      ],
+      "winner": "rtk"
+    },
+    {
+      "arms": {
+        "qodec": {
+          "bytes": 34,
+          "bytes_saved": -17,
+          "codec": "raw",
+          "compression_ratio": {
+            "cl100k": 2.0,
+            "o200k": 2.0
+          },
+          "exit_status": 0,
+          "lines": 3,
+          "output_sha256": "654fbd129e87f68989934a942917034ef295aff2dcb55e995ee4105a93680de3",
+          "pct_bytes_saved": -100.0,
+          "pct_tokens_saved": {
+            "cl100k": -100.0,
+            "o200k": -100.0
+          },
+          "peak_kib": null,
+          "roundtrip_lossless": true,
+          "semantic_check": "pass",
+          "semantic_note": "byte-lossless (decode==input verified); no semantic information lost",
+          "status": "pass",
+          "throughput_mib_s": 9.83276747848934e-05,
+          "token_status": {
+            "cl100k": "pass",
+            "o200k": "pass"
+          },
+          "tokens": {
+            "cl100k": 20,
+            "o200k": 20
+          },
+          "tokens_saved": {
+            "cl100k": -10,
+            "o200k": -10
+          },
+          "unicode_chars": 34,
+          "valid_utf8": true,
+          "wall_s": 0.3297639940001318
+        },
+        "raw": {
+          "bytes": 17,
+          "bytes_saved": 0,
+          "compression_ratio": {
+            "cl100k": 1.0,
+            "o200k": 1.0
+          },
+          "exit_status": 0,
+          "lines": 1,
+          "nature": "raw_format_projection",
+          "output_sha256": "9530b8966dc1880a02b52681620271b6497fd991da77f226153b1e09344f4d91",
+          "pct_bytes_saved": 0.0,
+          "pct_tokens_saved": {
+            "cl100k": 0.0,
+            "o200k": 0.0
+          },
+          "peak_kib": null,
+          "semantic_check": "reference",
+          "status": "pass",
+          "throughput_mib_s": 3.497296169003354e-05,
+          "token_status": {
+            "cl100k": "pass",
+            "o200k": "pass"
+          },
+          "tokens": {
+            "cl100k": 10,
+            "o200k": 10
+          },
+          "tokens_saved": {
+            "cl100k": 0,
+            "o200k": 0
+          },
+          "unicode_chars": 17,
+          "valid_utf8": true,
+          "wall_s": 0.4635713590000705
+        },
+        "rtk": {
+          "bytes": 46,
+          "bytes_saved": -29,
+          "compression_ratio": {
+            "cl100k": 2.1,
+            "o200k": 2.1
+          },
+          "exit_status": 0,
+          "lines": 2,
+          "nature": "raw_captured",
+          "output_sha256": "9da768a783fa4667994fac744c89f7444cffa81349c6010dcbbd6dab7bd06e86",
+          "pct_bytes_saved": -170.58823529411765,
+          "pct_tokens_saved": {
+            "cl100k": -110.00000000000001,
+            "o200k": -110.00000000000001
+          },
+          "peak_kib": null,
+          "semantic_check": "pass",
+          "semantic_note": "qualified in the frozen N2-E corpus (oracle-equivalent to RAW)",
+          "status": "pass",
+          "throughput_mib_s": 9.255943239649298e-05,
+          "token_status": {
+            "cl100k": "pass",
+            "o200k": "pass"
+          },
+          "tokens": {
+            "cl100k": 21,
+            "o200k": 21
+          },
+          "tokens_saved": {
+            "cl100k": -11,
+            "o200k": -11
+          },
+          "unicode_chars": 46,
+          "valid_utf8": true,
+          "wall_s": 0.47395513800006484
+        },
+        "rtk_then_qodec": {
+          "bytes": 63,
+          "bytes_saved": -46,
+          "codec": "raw",
+          "compression_ratio": {
+            "cl100k": 3.1,
+            "o200k": 3.1
+          },
+          "exit_status": 0,
+          "lines": 4,
+          "output_sha256": "7a37910258a40f24d4724fd6a1ba6046a193bd626243e5fb7701f54f69ddf636",
+          "pct_bytes_saved": -270.5882352941177,
+          "pct_tokens_saved": {
+            "cl100k": -210.0,
+            "o200k": -210.0
+          },
+          "peak_kib": null,
+          "roundtrip_lossless": true,
+          "semantic_check": "pass",
+          "semantic_note": "byte-lossless (decode==input verified); no semantic information lost",
+          "status": "pass",
+          "throughput_mib_s": 0.0001964531671895948,
+          "token_status": {
+            "cl100k": "pass",
+            "o200k": "pass"
+          },
+          "tokens": {
+            "cl100k": 31,
+            "o200k": 31
+          },
+          "tokens_saved": {
+            "cl100k": -21,
+            "o200k": -21
+          },
+          "unicode_chars": 63,
+          "valid_utf8": true,
+          "wall_s": 0.30583106800008864
+        }
+      },
+      "case": "redis",
+      "case_id": "container::redis::docker::images",
+      "family": "Docker inventory",
+      "oracle_policy_id": "rtk-docker-images-oracle-v1",
+      "ranking_primary": [
+        "qodec",
+        "rtk",
+        "rtk_then_qodec"
+      ],
+      "winner": "qodec"
+    }
+  ],
+  "wall_total_s": 44.88828420639038
+}

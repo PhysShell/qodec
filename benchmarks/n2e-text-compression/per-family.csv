@@ -1,0 +1,7 @@
+family,n_cases,cases,rtk_median_pct_saved,qodec_median_pct_saved,qodec_min_pct_saved,qodec_max_pct_saved,semantic_failures,semantic_unsupported,note
+Diagnostics,1,gin,,,,,0,0,single-case family -- not a statistical average
+Docker inventory,1,redis,-110.0,-100.0,-100.0,-100.0,0,0,single-case family -- not a statistical average
+File content,2,preact;lombok,0.0,31.29,8.27,54.32,0,0,highly case-dependent
+Git output,2,rubocop;php-cs-fixer,58.62,-18.19,-28.57,-7.81,0,0,consistent across cases
+Large structured logs,1,loghub,,,,,0,1,single-case family -- not a statistical average
+Test output,5,coreutils;caddy;lucene;vue;scrapy,0.0,15.7,-15.87,55.91,0,0,highly case-dependent
