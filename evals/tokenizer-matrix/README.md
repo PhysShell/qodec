@@ -21,12 +21,25 @@ pinned is the tokenizer bytes, not the repo pedigree. Results (committed):
 `results/matrix.md` + full per-sample rows and hashes in
 `results/results.json`. Tokenizer files live in `.cache/` (gitignored).
 
+## Full-request accounting (`full_request.py`)
+
+The later increment, delivered: `full_request.py` renders each family's own
+`chat_template` (fetched from `tokenizer_config.json`, pinned in the lock)
+around the whole request — task line, notation brief, artifact with its
+dictionary — and counts with the Python `tokenizers` library (proven
+bit-identical to the crate's `hf:` meter by the interop parity tests).
+2026-07-25 run, 7/7 templates rendered, corpus totals: **warm squeeze
++29.8%…+35.6% on every family** (brief amortized in a cached prefix);
+cold squeeze −6%…−18.5% — on payloads this small the per-message brief
+eats the gain, and the table says so instead of hiding it. The paper
+baseline: warm only +4.0%…+5.4%. Results: `results/full-request.md`.
+
 ## Honest scope
 
-* Counts are payload-level (`add_special_tokens=false`), not full-request.
-  The chat-template wrapping is identical in both arms, so it cancels in the
-  absolute saving and only dilutes the percentage; exact chat-template
-  full-request accounting is a later increment.
+* `run.py` counts are payload-level (`add_special_tokens=false`); the
+  chat-template wrapping is identical in both arms there. Full-request
+  accounting lives in `full_request.py` (above), where templates are
+  rendered textually and counted without extra BOS injection.
 * This proves **net token reduction** per tokenizer — gate G2 of the
   program. It proves nothing about comprehension; that is Level 2's job
   (`evals/interop/`).

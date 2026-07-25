@@ -16,6 +16,25 @@ prompt.
 cargo build --release            # the runner shells the qodec binary
 python3 evals/reader-cli/run.py --name panel-v1
 python3 evals/reader-cli/run.py --name quick --cases stacktrace --codecs deep --repeats 1
+python3 evals/reader-cli/run.py --name codex-panel --provider codex --model gpt-5   # codex backend
+```
+
+`--provider codex` drives `codex exec` with 007's read-only flag set
+(`--sandbox read-only --ephemeral -c features.shell_tool=false
+--ignore-user-config --ignore-rules`, fresh empty cwd, prompt on stdin,
+answer from `--output-last-message`). Codex returns no usage envelope, so
+those runs carry scores and o200k counts only. Caveat from 007's security
+notes: codex's read-only denies writes but not network — prefer the claude
+backend for untrusted payloads.
+
+`gen_questions.py` closes the loop with `qodec risk`: it turns risk-flagged
+spans into exact-occurrence count questions, each carrying the precomputed
+`trap` (the artifact-visible count — the wrong answer a reader falls into
+if the hazard fires):
+
+```bash
+python3 evals/reader-cli/gen_questions.py \
+    --payload corpus/findings.json --codec paper --out ab/risk-probe-paper.json
 ```
 
 Arms per case: `raw` (payload verbatim) and one encoded arm per codec

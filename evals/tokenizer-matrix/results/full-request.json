@@ -1,0 +1,378 @@
+{
+  "date": "2026-07-25",
+  "git_commit": "ec98074d07653de5333e112e2c8f487eb9de5bc5",
+  "task_prefix": "Answer questions about the payload below.\n\n",
+  "families": {
+    "deepseek-v3": {
+      "status": "ok",
+      "rows": [
+        {
+          "sample": "build-log.txt",
+          "raw_request": 723,
+          "squeeze_request": 643,
+          "squeeze_request_warm": 371,
+          "paper_request": 858,
+          "paper_request_warm": 586
+        },
+        {
+          "sample": "findings.json",
+          "raw_request": 727,
+          "squeeze_request": 681,
+          "squeeze_request_warm": 409,
+          "paper_request": 1013,
+          "paper_request_warm": 741
+        },
+        {
+          "sample": "git-diff.txt",
+          "raw_request": 537,
+          "squeeze_request": 714,
+          "squeeze_request_warm": 442,
+          "paper_request": 819,
+          "paper_request_warm": 547
+        },
+        {
+          "sample": "prose.md",
+          "raw_request": 249,
+          "squeeze_request": 531,
+          "squeeze_request_warm": 259,
+          "paper_request": 531,
+          "paper_request_warm": 259
+        },
+        {
+          "sample": "rg-output.txt",
+          "raw_request": 605,
+          "squeeze_request": 639,
+          "squeeze_request_warm": 367,
+          "paper_request": 896,
+          "paper_request_warm": 624
+        },
+        {
+          "sample": "stacktrace.txt",
+          "raw_request": 609,
+          "squeeze_request": 704,
+          "squeeze_request_warm": 432,
+          "paper_request": 799,
+          "paper_request_warm": 527
+        }
+      ]
+    },
+    "gemma2": {
+      "status": "ok",
+      "rows": [
+        {
+          "sample": "build-log.txt",
+          "raw_request": 796,
+          "squeeze_request": 686,
+          "squeeze_request_warm": 418,
+          "paper_request": 916,
+          "paper_request_warm": 648
+        },
+        {
+          "sample": "findings.json",
+          "raw_request": 769,
+          "squeeze_request": 686,
+          "squeeze_request_warm": 418,
+          "paper_request": 1053,
+          "paper_request_warm": 785
+        },
+        {
+          "sample": "git-diff.txt",
+          "raw_request": 609,
+          "squeeze_request": 755,
+          "squeeze_request_warm": 487,
+          "paper_request": 887,
+          "paper_request_warm": 619
+        },
+        {
+          "sample": "prose.md",
+          "raw_request": 258,
+          "squeeze_request": 536,
+          "squeeze_request_warm": 268,
+          "paper_request": 536,
+          "paper_request_warm": 268
+        },
+        {
+          "sample": "rg-output.txt",
+          "raw_request": 647,
+          "squeeze_request": 670,
+          "squeeze_request_warm": 402,
+          "paper_request": 925,
+          "paper_request_warm": 657
+        },
+        {
+          "sample": "stacktrace.txt",
+          "raw_request": 657,
+          "squeeze_request": 721,
+          "squeeze_request_warm": 453,
+          "paper_request": 824,
+          "paper_request_warm": 556
+        }
+      ]
+    },
+    "glm4": {
+      "status": "ok",
+      "rows": [
+        {
+          "sample": "build-log.txt",
+          "raw_request": 673,
+          "squeeze_request": 624,
+          "squeeze_request_warm": 362,
+          "paper_request": 812,
+          "paper_request_warm": 550
+        },
+        {
+          "sample": "findings.json",
+          "raw_request": 689,
+          "squeeze_request": 631,
+          "squeeze_request_warm": 369,
+          "paper_request": 966,
+          "paper_request_warm": 704
+        },
+        {
+          "sample": "git-diff.txt",
+          "raw_request": 493,
+          "squeeze_request": 680,
+          "squeeze_request_warm": 418,
+          "paper_request": 778,
+          "paper_request_warm": 516
+        },
+        {
+          "sample": "prose.md",
+          "raw_request": 251,
+          "squeeze_request": 523,
+          "squeeze_request_warm": 261,
+          "paper_request": 523,
+          "paper_request_warm": 261
+        },
+        {
+          "sample": "rg-output.txt",
+          "raw_request": 524,
+          "squeeze_request": 609,
+          "squeeze_request_warm": 347,
+          "paper_request": 796,
+          "paper_request_warm": 534
+        },
+        {
+          "sample": "stacktrace.txt",
+          "raw_request": 513,
+          "squeeze_request": 646,
+          "squeeze_request_warm": 384,
+          "paper_request": 712,
+          "paper_request_warm": 450
+        }
+      ]
+    },
+    "llama3.1": {
+      "status": "ok",
+      "rows": [
+        {
+          "sample": "build-log.txt",
+          "raw_request": 669,
+          "squeeze_request": 626,
+          "squeeze_request_warm": 364,
+          "paper_request": 811,
+          "paper_request_warm": 549
+        },
+        {
+          "sample": "findings.json",
+          "raw_request": 684,
+          "squeeze_request": 629,
+          "squeeze_request_warm": 367,
+          "paper_request": 961,
+          "paper_request_warm": 699
+        },
+        {
+          "sample": "git-diff.txt",
+          "raw_request": 495,
+          "squeeze_request": 682,
+          "squeeze_request_warm": 420,
+          "paper_request": 780,
+          "paper_request_warm": 518
+        },
+        {
+          "sample": "prose.md",
+          "raw_request": 256,
+          "squeeze_request": 528,
+          "squeeze_request_warm": 266,
+          "paper_request": 528,
+          "paper_request_warm": 266
+        },
+        {
+          "sample": "rg-output.txt",
+          "raw_request": 529,
+          "squeeze_request": 611,
+          "squeeze_request_warm": 349,
+          "paper_request": 801,
+          "paper_request_warm": 539
+        },
+        {
+          "sample": "stacktrace.txt",
+          "raw_request": 518,
+          "squeeze_request": 650,
+          "squeeze_request_warm": 388,
+          "paper_request": 717,
+          "paper_request_warm": 455
+        }
+      ]
+    },
+    "mistral0.3": {
+      "status": "ok",
+      "rows": [
+        {
+          "sample": "build-log.txt",
+          "raw_request": 855,
+          "squeeze_request": 721,
+          "squeeze_request_warm": 436,
+          "paper_request": 980,
+          "paper_request_warm": 695
+        },
+        {
+          "sample": "findings.json",
+          "raw_request": 870,
+          "squeeze_request": 768,
+          "squeeze_request_warm": 483,
+          "paper_request": 1166,
+          "paper_request_warm": 881
+        },
+        {
+          "sample": "git-diff.txt",
+          "raw_request": 671,
+          "squeeze_request": 808,
+          "squeeze_request_warm": 523,
+          "paper_request": 975,
+          "paper_request_warm": 690
+        },
+        {
+          "sample": "prose.md",
+          "raw_request": 276,
+          "squeeze_request": 571,
+          "squeeze_request_warm": 286,
+          "paper_request": 571,
+          "paper_request_warm": 286
+        },
+        {
+          "sample": "rg-output.txt",
+          "raw_request": 726,
+          "squeeze_request": 719,
+          "squeeze_request_warm": 434,
+          "paper_request": 1030,
+          "paper_request_warm": 745
+        },
+        {
+          "sample": "stacktrace.txt",
+          "raw_request": 712,
+          "squeeze_request": 771,
+          "squeeze_request_warm": 486,
+          "paper_request": 885,
+          "paper_request_warm": 600
+        }
+      ]
+    },
+    "phi4": {
+      "status": "ok",
+      "rows": [
+        {
+          "sample": "build-log.txt",
+          "raw_request": 666,
+          "squeeze_request": 626,
+          "squeeze_request_warm": 364,
+          "paper_request": 808,
+          "paper_request_warm": 546
+        },
+        {
+          "sample": "findings.json",
+          "raw_request": 681,
+          "squeeze_request": 626,
+          "squeeze_request_warm": 364,
+          "paper_request": 958,
+          "paper_request_warm": 696
+        },
+        {
+          "sample": "git-diff.txt",
+          "raw_request": 492,
+          "squeeze_request": 679,
+          "squeeze_request_warm": 417,
+          "paper_request": 777,
+          "paper_request_warm": 515
+        },
+        {
+          "sample": "prose.md",
+          "raw_request": 253,
+          "squeeze_request": 525,
+          "squeeze_request_warm": 263,
+          "paper_request": 525,
+          "paper_request_warm": 263
+        },
+        {
+          "sample": "rg-output.txt",
+          "raw_request": 526,
+          "squeeze_request": 611,
+          "squeeze_request_warm": 349,
+          "paper_request": 798,
+          "paper_request_warm": 536
+        },
+        {
+          "sample": "stacktrace.txt",
+          "raw_request": 515,
+          "squeeze_request": 647,
+          "squeeze_request_warm": 385,
+          "paper_request": 714,
+          "paper_request_warm": 452
+        }
+      ]
+    },
+    "qwen2.5": {
+      "status": "ok",
+      "rows": [
+        {
+          "sample": "build-log.txt",
+          "raw_request": 727,
+          "squeeze_request": 669,
+          "squeeze_request_warm": 407,
+          "paper_request": 862,
+          "paper_request_warm": 600
+        },
+        {
+          "sample": "findings.json",
+          "raw_request": 740,
+          "squeeze_request": 687,
+          "squeeze_request_warm": 425,
+          "paper_request": 1018,
+          "paper_request_warm": 756
+        },
+        {
+          "sample": "git-diff.txt",
+          "raw_request": 543,
+          "squeeze_request": 724,
+          "squeeze_request_warm": 462,
+          "paper_request": 825,
+          "paper_request_warm": 563
+        },
+        {
+          "sample": "prose.md",
+          "raw_request": 275,
+          "squeeze_request": 547,
+          "squeeze_request_warm": 285,
+          "paper_request": 547,
+          "paper_request_warm": 285
+        },
+        {
+          "sample": "rg-output.txt",
+          "raw_request": 569,
+          "squeeze_request": 654,
+          "squeeze_request_warm": 392,
+          "paper_request": 841,
+          "paper_request_warm": 579
+        },
+        {
+          "sample": "stacktrace.txt",
+          "raw_request": 546,
+          "squeeze_request": 677,
+          "squeeze_request_warm": 415,
+          "paper_request": 744,
+          "paper_request_warm": 482
+        }
+      ]
+    }
+  }
+}

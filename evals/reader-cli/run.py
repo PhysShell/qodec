@@ -47,6 +47,9 @@ CASES = {
     # Count-only probes over the same payload — the questions `qodec risk`
     # predicts specific codecs to fail (split / heterogeneous-hidden spans).
     "findings-count": ("corpus/findings.json", "ab/counting.json"),
+    # gen_questions.py output: exact-occurrence probes for risk-flagged spans,
+    # each with a precomputed `trap` (the artifact-visible count).
+    "findings-risk-probe": ("corpus/findings.json", "ab/risk-probe-paper.json"),
 }
 
 # PhysShell/007 `invoke.rs::call_claude`'s proven closed-world flag set.
@@ -60,6 +63,24 @@ CLOSED_WORLD = [
     "--permission-mode", "default",
     "--no-session-persistence",
     "--max-budget-usd", "0.50",
+]
+
+# PhysShell/007's codex analogue (`judge.rs::call_codex` + `invoke.rs`'s extra
+# ambient-isolation flags): read-only sandbox, ephemeral, no user config or
+# rule files, shell tool off, prompt on stdin, answer read from the
+# --output-last-message file, cwd = a fresh empty dir so codex cannot walk up
+# into ambient project context. NOTE: read-only denies writes but NOT network
+# (codex has no one-flag equivalent) — prefer the claude backend for
+# untrusted payloads; see 007's docs/security-layers.md.
+CODEX_FLAGS = [
+    "exec",
+    "--sandbox", "read-only",
+    "--skip-git-repo-check",
+    "--ephemeral",
+    "--color", "never",
+    "-c", "features.shell_tool=false",
+    "--ignore-user-config",
+    "--ignore-rules",
 ]
 
 
@@ -85,7 +106,7 @@ def emit(case: str, codec: str, out_dir: Path) -> dict | None:
     return {"emit_stderr": proc.stderr.strip()}
 
 
-def call_reader(prompt: str, model: str | None, timeout: int) -> dict:
+def call_claude(prompt: str, model: str | None, timeout: int) -> dict:
     cmd = ["claude", *CLOSED_WORLD]
     if model:
         cmd += ["--model", model]
@@ -98,6 +119,35 @@ def call_reader(prompt: str, model: str | None, timeout: int) -> dict:
         return json.loads(proc.stdout)
     except json.JSONDecodeError:
         return {"error": f"non-JSON envelope: {proc.stdout[:300]}"}
+
+
+def call_codex(prompt: str, model: str | None, timeout: int) -> dict:
+    import tempfile
+
+    with tempfile.TemporaryDirectory(prefix="qodec-codex-") as cwd:
+        last_msg = Path(cwd) / "last-message.txt"
+        cmd = ["codex", *CODEX_FLAGS, "--output-last-message", str(last_msg)]
+        if model:
+            cmd += ["--model", model]
+        cmd.append("-")  # prompt on stdin
+        try:
+            proc = subprocess.run(
+                cmd, input=prompt, capture_output=True, text=True,
+                timeout=timeout, cwd=cwd,
+            )
+        except FileNotFoundError:
+            return {"error": "codex CLI not installed (`codex login` on a machine that has it)"}
+        if proc.returncode != 0 or not last_msg.exists():
+            return {"error": proc.stderr.strip()[:500] or "codex produced no last message"}
+        # No usage envelope from codex — record what exists, honestly.
+        return {"result": last_msg.read_text(), "provider": "codex",
+                "stderr_tail": proc.stderr.strip()[-300:]}
+
+
+def call_reader(provider: str, prompt: str, model: str | None, timeout: int) -> dict:
+    if provider == "codex":
+        return call_codex(prompt, model, timeout)
+    return call_claude(prompt, model, timeout)
 
 
 def grade(case: str, answers_path: Path, prompt_path: Path) -> dict:
@@ -149,7 +199,9 @@ def main() -> int:
     ap.add_argument("--cases", default=",".join(CASES), help="comma-separated case names")
     ap.add_argument("--codecs", default="deep,paper", help="encoded arms to run")
     ap.add_argument("--repeats", type=int, default=2)
-    ap.add_argument("--model", default=None, help="claude --model override (else CLI default, recorded from envelope)")
+    ap.add_argument("--model", default=None, help="reader --model override (else CLI default, recorded from envelope)")
+    ap.add_argument("--provider", default="claude", choices=["claude", "codex"],
+                    help="reader CLI backend (codex: read-only sandbox, no usage envelope)")
     ap.add_argument("--timeout", type=int, default=300, help="seconds per reader call")
     args = ap.parse_args()
 
@@ -165,9 +217,10 @@ def main() -> int:
 
     record: dict = {
         "date": datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ"),
+        "provider": args.provider,
         "claude_version": claude_version,
         "model_arg": args.model,
-        "closed_world_argv": CLOSED_WORLD,
+        "closed_world_argv": CLOSED_WORLD if args.provider == "claude" else CODEX_FLAGS,
         "qodec_sha256": sha256_file(QODEC),
         "git_commit": subprocess.run(
             ["git", "-C", str(ROOT), "rev-parse", "HEAD"], capture_output=True, text=True
@@ -203,7 +256,7 @@ def main() -> int:
             prompt = prompt_path.read_text()
             for rep in range(1, args.repeats + 1):
                 print(f"  {case}/{arm} rep {rep} …", file=sys.stderr)
-                env = call_reader(prompt, args.model, args.timeout)
+                env = call_reader(args.provider, prompt, args.model, args.timeout)
                 cell = {"case": case, "arm": arm, "rep": rep}
                 if "error" in env:
                     cell.update(status="reader-error", error=env["error"])
