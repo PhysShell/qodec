@@ -7,3 +7,4 @@ evals/interop/v2/private/
 
 # tokenizer-matrix downloaded tokenizer files — pinned by tokenizers.lock.json, never committed
 evals/tokenizer-matrix/.cache/
+__pycache__/
