@@ -94,7 +94,9 @@ pub fn encode_with(text: &str, meter: &dyn TokenMeter, lmax: usize, fmin: usize)
                 continue;
             };
             match groups.entry(slice) {
-                std::collections::hash_map::Entry::Occupied(mut o) => o.get_mut().push((start, end)),
+                std::collections::hash_map::Entry::Occupied(mut o) => {
+                    o.get_mut().push((start, end))
+                }
                 std::collections::hash_map::Entry::Vacant(v) => {
                     v.insert(vec![(start, end)]);
                     order.push(slice);

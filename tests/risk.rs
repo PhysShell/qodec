@@ -48,10 +48,7 @@ fn deep_same_predicate_is_not_split() -> Result<()> {
     let artifact = encode(&text, CodecKind::Deep, &meter, Alphabet::Auto);
     let report = analyze(&artifact)?;
     anyhow::ensure!(
-        !report
-            .split
-            .iter()
-            .any(|s| s.span.contains("suspect_fp")),
+        !report.split.iter().any(|s| s.span.contains("suspect_fp")),
         "deep held 6/6 in the panel — the suspect_fp predicate must not be split"
     );
     Ok(())

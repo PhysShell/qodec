@@ -173,8 +173,7 @@ fn corpus_roundtrips_byte_exact() -> Result<()> {
             continue;
         }
         let text = std::fs::read_to_string(&path)?;
-        roundtrip_bytes(&text, &meter)
-            .map_err(|e| anyhow::anyhow!("{}: {e}", path.display()))?;
+        roundtrip_bytes(&text, &meter).map_err(|e| anyhow::anyhow!("{}: {e}", path.display()))?;
     }
     Ok(())
 }
@@ -183,7 +182,8 @@ fn corpus_roundtrips_byte_exact() -> Result<()> {
 fn decode_refuses_unknown_alias() {
     // A hand-corrupted artifact whose body uses an alias the dictionary does
     // not define must fail, never silently pass the alias through as text.
-    let artifact = "%q1 paper n=1 lmax=20 fmin=2\n<M1>=known value\n%q1 body\n<M1> and then <M2> appears\n";
+    let artifact =
+        "%q1 paper n=1 lmax=20 fmin=2\n<M1>=known value\n%q1 body\n<M1> and then <M2> appears\n";
     let err = decode(artifact);
     assert!(err.is_err(), "unknown alias must refuse to decode");
 }

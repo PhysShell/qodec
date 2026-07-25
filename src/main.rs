@@ -1050,7 +1050,10 @@ fn cmd_risk(a: &RiskArgs) -> Result<()> {
     };
     let report = qodec::risk::analyze(&artifact)?;
     if a.json {
-        println!("{}", serde_json::to_string_pretty(&qodec::risk::to_json(&report))?);
+        println!(
+            "{}",
+            serde_json::to_string_pretty(&qodec::risk::to_json(&report))?
+        );
     } else {
         print!("{}", qodec::risk::render(&report));
     }
