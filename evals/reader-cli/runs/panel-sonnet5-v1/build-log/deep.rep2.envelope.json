@@ -1,0 +1,80 @@
+{
+  "is_error": false,
+  "duration_api_ms": 2594,
+  "num_turns": 1,
+  "stop_reason": "end_turn",
+  "session_id": "7e07d6be-b5fc-53d1-9dbd-3a72cdd573d7",
+  "total_cost_usd": 0.011736199999999999,
+  "usage": {
+    "input_tokens": 2,
+    "cache_creation_input_tokens": 1294,
+    "cache_read_input_tokens": 4794,
+    "output_tokens": 71,
+    "server_tool_use": {
+      "web_search_requests": 0,
+      "web_fetch_requests": 0
+    },
+    "service_tier": "standard",
+    "cache_creation": {
+      "ephemeral_1h_input_tokens": 1294,
+      "ephemeral_5m_input_tokens": 0
+    },
+    "inference_geo": "not_available",
+    "iterations": [
+      {
+        "input_tokens": 2,
+        "output_tokens": 71,
+        "cache_read_input_tokens": 4794,
+        "cache_creation_input_tokens": 1294,
+        "cache_creation": {
+          "ephemeral_5m_input_tokens": 0,
+          "ephemeral_1h_input_tokens": 1294
+        },
+        "type": "message"
+      }
+    ],
+    "speed": "standard"
+  },
+  "modelUsage": {
+    "claude-haiku-4-5-20251001": {
+      "inputTokens": 1383,
+      "outputTokens": 16,
+      "cacheReadInputTokens": 0,
+      "cacheCreationInputTokens": 0,
+      "webSearchRequests": 0,
+      "costUSD": 0.0014629999999999999,
+      "contextWindow": 200000,
+      "maxOutputTokens": 32000,
+      "canonicalModel": "claude-haiku-4-5",
+      "provider": "firstParty"
+    },
+    "claude-sonnet-5": {
+      "inputTokens": 2,
+      "outputTokens": 71,
+      "cacheReadInputTokens": 4794,
+      "cacheCreationInputTokens": 1294,
+      "webSearchRequests": 0,
+      "costUSD": 0.0102732,
+      "contextWindow": 1000000,
+      "maxOutputTokens": 64000,
+      "canonicalModel": "claude-sonnet-5",
+      "provider": "firstParty"
+    }
+  },
+  "permission_denials": [],
+  "terminal_reason": "completed",
+  "fast_mode_state": "off",
+  "fast_mode_disabled_reason": "sdk_opt_in_required",
+  "subtype": "success",
+  "api_error_status": null,
+  "result": "{\"q1\": \"2\", \"q2\": \"CS1061\", \"q3\": \"Token\", \"q4\": \"DevExpress.Xpf.Core\", \"q5\": \"CS8618\", \"q6\": \"00:02:14.61\"}",
+  "ttft_ms": 1763,
+  "ttft_stream_ms": 891,
+  "time_to_request_ms": 31,
+  "time_to_request_from_spawn_ms": 478885,
+  "warm_spare_claimed": false,
+  "time_origin_ms": 1785008839541.0146,
+  "type": "result",
+  "duration_ms": 4329,
+  "uuid": "f649407e-1783-4cd3-a3cf-fd879a857009"
+}

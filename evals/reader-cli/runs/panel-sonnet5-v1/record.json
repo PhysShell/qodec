@@ -1,0 +1,477 @@
+{
+  "date": "2026-07-25T19:46:31Z",
+  "claude_version": "2.1.220 (Claude Code)",
+  "model_arg": null,
+  "closed_world_argv": [
+    "-p",
+    "--output-format",
+    "json",
+    "--input-format",
+    "text",
+    "--tools",
+    "",
+    "--strict-mcp-config",
+    "--setting-sources",
+    "",
+    "--permission-mode",
+    "default",
+    "--no-session-persistence",
+    "--max-budget-usd",
+    "0.50"
+  ],
+  "qodec_sha256": "43e55782087c3ed60f06e1bdce49ef93e512a91ead912bc5f60885d34d1fd526",
+  "git_commit": "6666de5f2dc8bd6dd491a6a976ee38eaae4cc78f",
+  "repeats": 2,
+  "inputs": {
+    "stacktrace": {
+      "payload_sha256": "a30c3e5a3203476e3f865c5b1010f8d578d858725e0072255ed8a13a2696cc3b",
+      "questions_sha256": "ef79ef95eb41a33da85e720cd359bc2061b8b5d4ab2280c04f6531923733c034"
+    },
+    "build-log": {
+      "payload_sha256": "1b08279ab91c567f18d29e83b59285d6952a88bcb40aab72a97f90078f37d7f2",
+      "questions_sha256": "bb0c8e7ea4365046b0b3adbba2cb16ca8a242d280f18865915e37dafc92ca790"
+    },
+    "rg-output": {
+      "payload_sha256": "b3bfb3ae29272e108ad26f3d3398e6d548b58479987d87e96c565a35c90cb7ed",
+      "questions_sha256": "b49477e74416fdf8abaa48f537107d7956e5856f183b83552408887c31806018"
+    },
+    "findings": {
+      "payload_sha256": "3faedbfa552e2267515a21bf2f1a322698a065e54357c0027185d398c4780d5c",
+      "questions_sha256": "ad3f14688de3dd4a54754351c9af3e116a6acc6e81fb3d86af1bb99048b97763"
+    }
+  },
+  "cells": [
+    {
+      "case": "stacktrace",
+      "arm": "raw",
+      "rep": 1,
+      "status": "ok",
+      "correct": 6,
+      "total": 6,
+      "prompt_tokens_o200k": 691,
+      "envelope": {
+        "model": "claude-sonnet-5",
+        "input_tokens": 2,
+        "cache_creation": 0,
+        "cache_read": 6422,
+        "output_tokens": 88,
+        "cost_usd": 0.0048316
+      },
+      "grade_output": "PASS q1: System.NullReferenceException\nPASS q2: Validate\nPASS q3: line 96\nPASS q4: System.TimeoutException\nPASS q5: OpenAsync\nPASS q6: DevExpress.Xpf.Grid.GridControl\nscore: 6/6\nprompt: 691 tokens [o200k]   accuracy/1k tokens: 144.7\n"
+    },
+    {
+      "case": "stacktrace",
+      "arm": "raw",
+      "rep": 2,
+      "status": "ok",
+      "correct": 6,
+      "total": 6,
+      "prompt_tokens_o200k": 691,
+      "envelope": {
+        "model": "claude-sonnet-5",
+        "input_tokens": 2,
+        "cache_creation": 0,
+        "cache_read": 6422,
+        "output_tokens": 86,
+        "cost_usd": 0.0048016
+      },
+      "grade_output": "PASS q1: System.NullReferenceException\nPASS q2: Validate\nPASS q3: 96\nPASS q4: System.TimeoutException\nPASS q5: OpenAsync\nPASS q6: DevExpress.Xpf.Grid.GridControl\nscore: 6/6\nprompt: 691 tokens [o200k]   accuracy/1k tokens: 144.7\n"
+    },
+    {
+      "case": "stacktrace",
+      "arm": "deep",
+      "rep": 1,
+      "status": "ok",
+      "correct": 6,
+      "total": 6,
+      "prompt_tokens_o200k": 825,
+      "envelope": {
+        "model": "claude-sonnet-5",
+        "input_tokens": 2,
+        "cache_creation": 0,
+        "cache_read": 6329,
+        "output_tokens": 71,
+        "cost_usd": 0.0045627
+      },
+      "grade_output": "PASS q1: System.NullReferenceException\nPASS q2: Validate\nPASS q3: 96\nPASS q4: System.TimeoutException\nPASS q5: OpenAsync\nPASS q6: GridControl\nscore: 6/6\nprompt: 825 tokens [o200k]   accuracy/1k tokens: 121.2\n"
+    },
+    {
+      "case": "stacktrace",
+      "arm": "deep",
+      "rep": 2,
+      "status": "ok",
+      "correct": 6,
+      "total": 6,
+      "prompt_tokens_o200k": 825,
+      "envelope": {
+        "model": "claude-sonnet-5",
+        "input_tokens": 2,
+        "cache_creation": 0,
+        "cache_read": 6329,
+        "output_tokens": 71,
+        "cost_usd": 0.0045627
+      },
+      "grade_output": "PASS q1: System.NullReferenceException\nPASS q2: Validate\nPASS q3: 96\nPASS q4: System.TimeoutException\nPASS q5: OpenAsync\nPASS q6: GridControl\nscore: 6/6\nprompt: 825 tokens [o200k]   accuracy/1k tokens: 121.2\n"
+    },
+    {
+      "case": "stacktrace",
+      "arm": "paper",
+      "rep": 1,
+      "status": "ok",
+      "correct": 6,
+      "total": 6,
+      "prompt_tokens_o200k": 885,
+      "envelope": {
+        "model": "claude-sonnet-5",
+        "input_tokens": 2,
+        "cache_creation": 1733,
+        "cache_read": 4794,
+        "output_tokens": 71,
+        "cost_usd": 0.014596199999999998
+      },
+      "grade_output": "PASS q1: System.NullReferenceException\nPASS q2: Validate\nPASS q3: 96\nPASS q4: System.TimeoutException\nPASS q5: OpenAsync\nPASS q6: GridControl\nscore: 6/6\nprompt: 885 tokens [o200k]   accuracy/1k tokens: 113.0\n"
+    },
+    {
+      "case": "stacktrace",
+      "arm": "paper",
+      "rep": 2,
+      "status": "ok",
+      "correct": 6,
+      "total": 6,
+      "prompt_tokens_o200k": 885,
+      "envelope": {
+        "model": "claude-sonnet-5",
+        "input_tokens": 2,
+        "cache_creation": 0,
+        "cache_read": 6527,
+        "output_tokens": 71,
+        "cost_usd": 0.0047231
+      },
+      "grade_output": "PASS q1: System.NullReferenceException\nPASS q2: Validate\nPASS q3: 96\nPASS q4: System.TimeoutException\nPASS q5: OpenAsync\nPASS q6: GridControl\nscore: 6/6\nprompt: 885 tokens [o200k]   accuracy/1k tokens: 113.0\n"
+    },
+    {
+      "case": "build-log",
+      "arm": "raw",
+      "rep": 1,
+      "status": "ok",
+      "correct": 6,
+      "total": 6,
+      "prompt_tokens_o200k": 809,
+      "envelope": {
+        "model": "claude-sonnet-5",
+        "input_tokens": 2,
+        "cache_creation": 1524,
+        "cache_read": 4794,
+        "output_tokens": 71,
+        "cost_usd": 0.0132082
+      },
+      "grade_output": "PASS q1: 2\nPASS q2: CS1061\nPASS q3: Token\nPASS q4: DevExpress.Xpf.Core\nPASS q5: CS8618\nPASS q6: 00:02:14.61\nscore: 6/6\nprompt: 809 tokens [o200k]   accuracy/1k tokens: 123.6\n"
+    },
+    {
+      "case": "build-log",
+      "arm": "raw",
+      "rep": 2,
+      "status": "ok",
+      "correct": 6,
+      "total": 6,
+      "prompt_tokens_o200k": 809,
+      "envelope": {
+        "model": "claude-sonnet-5",
+        "input_tokens": 2,
+        "cache_creation": 0,
+        "cache_read": 6318,
+        "output_tokens": 71,
+        "cost_usd": 0.0045214
+      },
+      "grade_output": "PASS q1: 2\nPASS q2: CS1061\nPASS q3: Token\nPASS q4: DevExpress.Xpf.Core\nPASS q5: CS8618\nPASS q6: 00:02:14.61\nscore: 6/6\nprompt: 809 tokens [o200k]   accuracy/1k tokens: 123.6\n"
+    },
+    {
+      "case": "build-log",
+      "arm": "deep",
+      "rep": 1,
+      "status": "ok",
+      "correct": 6,
+      "total": 6,
+      "prompt_tokens_o200k": 765,
+      "envelope": {
+        "model": "claude-sonnet-5",
+        "input_tokens": 2,
+        "cache_creation": 1303,
+        "cache_read": 4794,
+        "output_tokens": 71,
+        "cost_usd": 0.011790199999999997
+      },
+      "grade_output": "PASS q1: 2\nPASS q2: CS1061\nPASS q3: Token\nPASS q4: DevExpress.Xpf.Core\nPASS q5: CS8618\nPASS q6: 00:02:14.61\nscore: 6/6\nprompt: 765 tokens [o200k]   accuracy/1k tokens: 130.7\n"
+    },
+    {
+      "case": "build-log",
+      "arm": "deep",
+      "rep": 2,
+      "status": "ok",
+      "correct": 6,
+      "total": 6,
+      "prompt_tokens_o200k": 765,
+      "envelope": {
+        "model": "claude-sonnet-5",
+        "input_tokens": 2,
+        "cache_creation": 1294,
+        "cache_read": 4794,
+        "output_tokens": 71,
+        "cost_usd": 0.011736199999999999
+      },
+      "grade_output": "PASS q1: 2\nPASS q2: CS1061\nPASS q3: Token\nPASS q4: DevExpress.Xpf.Core\nPASS q5: CS8618\nPASS q6: 00:02:14.61\nscore: 6/6\nprompt: 765 tokens [o200k]   accuracy/1k tokens: 130.7\n"
+    },
+    {
+      "case": "build-log",
+      "arm": "paper",
+      "rep": 1,
+      "status": "ok",
+      "correct": 6,
+      "total": 6,
+      "prompt_tokens_o200k": 946,
+      "envelope": {
+        "model": "claude-sonnet-5",
+        "input_tokens": 2,
+        "cache_creation": 1651,
+        "cache_read": 4794,
+        "output_tokens": 74,
+        "cost_usd": 0.014142199999999999
+      },
+      "grade_output": "PASS q1: 2 errors\nPASS q2: CS1061\nPASS q3: Token\nPASS q4: DevExpress.Xpf.Core\nPASS q5: CS8618\nPASS q6: 00:02:14.61\nscore: 6/6\nprompt: 946 tokens [o200k]   accuracy/1k tokens: 105.7\n"
+    },
+    {
+      "case": "build-log",
+      "arm": "paper",
+      "rep": 2,
+      "status": "ok",
+      "correct": 6,
+      "total": 6,
+      "prompt_tokens_o200k": 946,
+      "envelope": {
+        "model": "claude-sonnet-5",
+        "input_tokens": 2,
+        "cache_creation": 0,
+        "cache_read": 6445,
+        "output_tokens": 74,
+        "cost_usd": 0.004736499999999999
+      },
+      "grade_output": "PASS q1: 2 errors\nPASS q2: CS1061\nPASS q3: Token\nPASS q4: DevExpress.Xpf.Core\nPASS q5: CS8618\nPASS q6: 00:02:14.61\nscore: 6/6\nprompt: 946 tokens [o200k]   accuracy/1k tokens: 105.7\n"
+    },
+    {
+      "case": "rg-output",
+      "arm": "raw",
+      "rep": 1,
+      "status": "ok",
+      "correct": 6,
+      "total": 6,
+      "prompt_tokens_o200k": 697,
+      "envelope": {
+        "model": "claude-sonnet-5",
+        "input_tokens": 2,
+        "cache_creation": 1570,
+        "cache_read": 4794,
+        "output_tokens": 63,
+        "cost_usd": 0.013325199999999999
+      },
+      "grade_output": "PASS q1: 18\nPASS q2: ReportViewModel\nPASS q3: RequestAsync\nPASS q4: 3\nPASS q5: 14\nPASS q6: UpsertAsync\nscore: 6/6\nprompt: 697 tokens [o200k]   accuracy/1k tokens: 143.5\n"
+    },
+    {
+      "case": "rg-output",
+      "arm": "raw",
+      "rep": 2,
+      "status": "ok",
+      "correct": 6,
+      "total": 6,
+      "prompt_tokens_o200k": 697,
+      "envelope": {
+        "model": "claude-sonnet-5",
+        "input_tokens": 2,
+        "cache_creation": 0,
+        "cache_read": 6364,
+        "output_tokens": 63,
+        "cost_usd": 0.0043812
+      },
+      "grade_output": "PASS q1: 18\nPASS q2: ReportViewModel\nPASS q3: RequestAsync\nPASS q4: 3\nPASS q5: 14\nPASS q6: UpsertAsync\nscore: 6/6\nprompt: 697 tokens [o200k]   accuracy/1k tokens: 143.5\n"
+    },
+    {
+      "case": "rg-output",
+      "arm": "deep",
+      "rep": 1,
+      "status": "ok",
+      "correct": 6,
+      "total": 6,
+      "prompt_tokens_o200k": 762,
+      "envelope": {
+        "model": "claude-sonnet-5",
+        "input_tokens": 2,
+        "cache_creation": 1379,
+        "cache_read": 4794,
+        "output_tokens": 646,
+        "cost_usd": 0.0208852
+      },
+      "grade_output": "PASS q1: Line 18\nPASS q2: ReportViewModel\nPASS q3: RequestAsync\nPASS q4: 3\nPASS q5: Line 14\nPASS q6: UpsertAsync\nscore: 6/6\nprompt: 762 tokens [o200k]   accuracy/1k tokens: 131.2\n"
+    },
+    {
+      "case": "rg-output",
+      "arm": "deep",
+      "rep": 2,
+      "status": "ok",
+      "correct": 6,
+      "total": 6,
+      "prompt_tokens_o200k": 762,
+      "envelope": {
+        "model": "claude-sonnet-5",
+        "input_tokens": 2,
+        "cache_creation": 0,
+        "cache_read": 6173,
+        "output_tokens": 3095,
+        "cost_usd": 0.049764899999999994
+      },
+      "grade_output": "PASS q1: Line 18\nPASS q2: ReportViewModel\nPASS q3: RequestAsync\nPASS q4: 3\nPASS q5: Line 14\nPASS q6: UpsertAsync\nscore: 6/6\nprompt: 762 tokens [o200k]   accuracy/1k tokens: 131.2\n"
+    },
+    {
+      "case": "rg-output",
+      "arm": "paper",
+      "rep": 1,
+      "status": "ok",
+      "correct": 6,
+      "total": 6,
+      "prompt_tokens_o200k": 977,
+      "envelope": {
+        "model": "claude-sonnet-5",
+        "input_tokens": 2,
+        "cache_creation": 1926,
+        "cache_read": 4794,
+        "output_tokens": 63,
+        "cost_usd": 0.0157522
+      },
+      "grade_output": "PASS q1: 18\nPASS q2: ReportViewModel\nPASS q3: RequestAsync\nPASS q4: 3\nPASS q5: 14\nPASS q6: UpsertAsync\nscore: 6/6\nprompt: 977 tokens [o200k]   accuracy/1k tokens: 102.4\n"
+    },
+    {
+      "case": "rg-output",
+      "arm": "paper",
+      "rep": 2,
+      "status": "ok",
+      "correct": 6,
+      "total": 6,
+      "prompt_tokens_o200k": 977,
+      "envelope": {
+        "model": "claude-sonnet-5",
+        "input_tokens": 2,
+        "cache_creation": 0,
+        "cache_read": 6720,
+        "output_tokens": 63,
+        "cost_usd": 0.004784
+      },
+      "grade_output": "PASS q1: 18\nPASS q2: ReportViewModel\nPASS q3: RequestAsync\nPASS q4: 3\nPASS q5: 14\nPASS q6: UpsertAsync\nscore: 6/6\nprompt: 977 tokens [o200k]   accuracy/1k tokens: 102.4\n"
+    },
+    {
+      "case": "findings",
+      "arm": "raw",
+      "rep": 1,
+      "status": "ok",
+      "correct": 6,
+      "total": 6,
+      "prompt_tokens_o200k": 808,
+      "envelope": {
+        "model": "claude-sonnet-5",
+        "input_tokens": 2,
+        "cache_creation": 1585,
+        "cache_read": 4794,
+        "output_tokens": 98,
+        "cost_usd": 0.0140012
+      },
+      "grade_output": "PASS q1: static-observable\nPASS q2: low\nPASS q3: src/Legacy.UI/Controls/GridHost.xaml.cs\nPASS q4: 5\nPASS q5: UpsertAsync\nPASS q6: src/Legacy.UI/State/GlobalState.cs\nscore: 6/6\nprompt: 808 tokens [o200k]   accuracy/1k tokens: 123.8\n"
+    },
+    {
+      "case": "findings",
+      "arm": "raw",
+      "rep": 2,
+      "status": "ok",
+      "correct": 6,
+      "total": 6,
+      "prompt_tokens_o200k": 808,
+      "envelope": {
+        "model": "claude-sonnet-5",
+        "input_tokens": 2,
+        "cache_creation": 0,
+        "cache_read": 6379,
+        "output_tokens": 98,
+        "cost_usd": 0.0049616999999999994
+      },
+      "grade_output": "PASS q1: static-observable\nPASS q2: low\nPASS q3: src/Legacy.UI/Controls/GridHost.xaml.cs\nPASS q4: 5\nPASS q5: UpsertAsync\nPASS q6: src/Legacy.UI/State/GlobalState.cs\nscore: 6/6\nprompt: 808 tokens [o200k]   accuracy/1k tokens: 123.8\n"
+    },
+    {
+      "case": "findings",
+      "arm": "deep",
+      "rep": 1,
+      "status": "ok",
+      "correct": 6,
+      "total": 6,
+      "prompt_tokens_o200k": 842,
+      "envelope": {
+        "model": "claude-sonnet-5",
+        "input_tokens": 2,
+        "cache_creation": 1436,
+        "cache_read": 4794,
+        "output_tokens": 2658,
+        "cost_usd": 0.0514982
+      },
+      "grade_output": "PASS q1: static-observable\nPASS q2: low\nPASS q3: src/Legacy.UI/Controls/GridHost.xaml.cs\nPASS q4: 5\nPASS q5: UpsertAsync overload\nPASS q6: src/Legacy.UI/State/GlobalState.cs\nscore: 6/6\nprompt: 842 tokens [o200k]   accuracy/1k tokens: 118.8\n"
+    },
+    {
+      "case": "findings",
+      "arm": "deep",
+      "rep": 2,
+      "status": "ok",
+      "correct": 6,
+      "total": 6,
+      "prompt_tokens_o200k": 842,
+      "envelope": {
+        "model": "claude-sonnet-5",
+        "input_tokens": 2,
+        "cache_creation": 0,
+        "cache_read": 6230,
+        "output_tokens": 5345,
+        "cost_usd": 0.083623
+      },
+      "grade_output": "PASS q1: static-observable\nPASS q2: low\nPASS q3: src/Legacy.UI/Controls/GridHost.xaml.cs\nPASS q4: 5\nPASS q5: UpsertAsync overload\nPASS q6: src/Legacy.UI/State/GlobalState.cs\nscore: 6/6\nprompt: 842 tokens [o200k]   accuracy/1k tokens: 118.8\n"
+    },
+    {
+      "case": "findings",
+      "arm": "paper",
+      "rep": 1,
+      "status": "ok",
+      "correct": 5,
+      "total": 6,
+      "prompt_tokens_o200k": 1082,
+      "envelope": {
+        "model": "claude-sonnet-5",
+        "input_tokens": 2,
+        "cache_creation": 1926,
+        "cache_read": 4794,
+        "output_tokens": 98,
+        "cost_usd": 0.016339199999999998
+      },
+      "grade_output": "PASS q1: static-observable\nPASS q2: low\nPASS q3: src/Legacy.UI/Controls/GridHost.xaml.cs\nFAIL q4: 4\nPASS q5: UpsertAsync\nPASS q6: src/Legacy.UI/State/GlobalState.cs\nscore: 5/6\nprompt: 1082 tokens [o200k]   accuracy/1k tokens: 77.0\n"
+    },
+    {
+      "case": "findings",
+      "arm": "paper",
+      "rep": 2,
+      "status": "ok",
+      "correct": 5,
+      "total": 6,
+      "prompt_tokens_o200k": 1082,
+      "envelope": {
+        "model": "claude-sonnet-5",
+        "input_tokens": 2,
+        "cache_creation": 0,
+        "cache_read": 6720,
+        "output_tokens": 98,
+        "cost_usd": 0.005341
+      },
+      "grade_output": "PASS q1: static-observable\nPASS q2: low\nPASS q3: src/Legacy.UI/Controls/GridHost.xaml.cs\nFAIL q4: 4\nPASS q5: UpsertAsync\nPASS q6: src/Legacy.UI/State/GlobalState.cs\nscore: 5/6\nprompt: 1082 tokens [o200k]   accuracy/1k tokens: 77.0\n"
+    }
+  ]
+}
