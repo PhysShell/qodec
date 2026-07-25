@@ -1,0 +1,5795 @@
+{
+  "date": "2026-07-25",
+  "fetch_failed": [
+    "kimi-k2 (moonshotai/Kimi-K2-Instruct)"
+  ],
+  "qodec_sha256": "43e55782087c3ed60f06e1bdce49ef93e512a91ead912bc5f60885d34d1fd526",
+  "git_commit": "8bf12fe62bf4f57b12a640374650404a2cd15d76",
+  "corpus": {
+    "build-log.txt": "1b08279ab91c567f18d29e83b59285d6952a88bcb40aab72a97f90078f37d7f2",
+    "findings.json": "3faedbfa552e2267515a21bf2f1a322698a065e54357c0027185d398c4780d5c",
+    "git-diff.txt": "b81c86179bea8accd42c56ed11fbc2cabebd9ab27f342bb36678ef1064d3135e",
+    "prose.md": "39ad3b39d9a29d7c33f4e98acf58c6a634c9e37f032919523f8c6dc7f7a8f495",
+    "rg-output.txt": "b3bfb3ae29272e108ad26f3d3398e6d548b58479987d87e96c565a35c90cb7ed",
+    "stacktrace.txt": "a30c3e5a3203476e3f865c5b1010f8d578d858725e0072255ed8a13a2696cc3b"
+  },
+  "meters": {
+    "o200k": {
+      "provenance": {
+        "kind": "bundled"
+      },
+      "status": "ok",
+      "rows": [
+        {
+          "sample": "build-log.txt",
+          "codec": "fold",
+          "outcome": "fold",
+          "tokens_in": 661,
+          "tokens_cold": 440,
+          "tokens_warm": 427,
+          "roundtrip": "byte"
+        },
+        {
+          "sample": "build-log.txt",
+          "codec": "toon",
+          "outcome": "raw",
+          "tokens_in": 661,
+          "tokens_cold": 671,
+          "tokens_warm": 661,
+          "roundtrip": "byte"
+        },
+        {
+          "sample": "build-log.txt",
+          "codec": "grep",
+          "outcome": "raw",
+          "tokens_in": 661,
+          "tokens_cold": 671,
+          "tokens_warm": 661,
+          "roundtrip": "byte"
+        },
+        {
+          "sample": "build-log.txt",
+          "codec": "diag",
+          "outcome": "diag",
+          "tokens_in": 661,
+          "tokens_cold": 641,
+          "tokens_warm": 553,
+          "roundtrip": "byte"
+        },
+        {
+          "sample": "build-log.txt",
+          "codec": "tmpl",
+          "outcome": "tmpl",
+          "tokens_in": 661,
+          "tokens_cold": 379,
+          "tokens_warm": 165,
+          "roundtrip": "byte"
+        },
+        {
+          "sample": "build-log.txt",
+          "codec": "paper",
+          "outcome": "paper",
+          "tokens_in": 661,
+          "tokens_cold": 537,
+          "tokens_warm": 282,
+          "roundtrip": "byte"
+        },
+        {
+          "sample": "build-log.txt",
+          "codec": "mine",
+          "outcome": "mine",
+          "tokens_in": 661,
+          "tokens_cold": 372,
+          "tokens_warm": 181,
+          "roundtrip": "byte"
+        },
+        {
+          "sample": "build-log.txt",
+          "codec": "deep",
+          "outcome": "mine",
+          "tokens_in": 661,
+          "tokens_cold": 356,
+          "tokens_warm": 161,
+          "roundtrip": "byte"
+        },
+        {
+          "sample": "build-log.txt",
+          "codec": "squeeze",
+          "outcome": "mine",
+          "tokens_in": 661,
+          "tokens_cold": 350,
+          "tokens_warm": 292,
+          "roundtrip": "byte"
+        },
+        {
+          "sample": "build-log.txt",
+          "codec": "mosaic",
+          "outcome": "mine",
+          "tokens_in": 661,
+          "tokens_cold": 350,
+          "tokens_warm": 292,
+          "roundtrip": "byte"
+        },
+        {
+          "sample": "findings.json",
+          "codec": "fold",
+          "outcome": "raw",
+          "tokens_in": 659,
+          "tokens_cold": 669,
+          "tokens_warm": 659,
+          "roundtrip": "byte"
+        },
+        {
+          "sample": "findings.json",
+          "codec": "toon",
+          "outcome": "toon",
+          "tokens_in": 659,
+          "tokens_cold": 522,
+          "tokens_warm": 506,
+          "roundtrip": "sem"
+        },
+        {
+          "sample": "findings.json",
+          "codec": "grep",
+          "outcome": "raw",
+          "tokens_in": 659,
+          "tokens_cold": 669,
+          "tokens_warm": 659,
+          "roundtrip": "byte"
+        },
+        {
+          "sample": "findings.json",
+          "codec": "diag",
+          "outcome": "raw",
+          "tokens_in": 659,
+          "tokens_cold": 669,
+          "tokens_warm": 659,
+          "roundtrip": "byte"
+        },
+        {
+          "sample": "findings.json",
+          "codec": "tmpl",
+          "outcome": "tmpl",
+          "tokens_in": 659,
+          "tokens_cold": 589,
+          "tokens_warm": 405,
+          "roundtrip": "byte"
+        },
+        {
+          "sample": "findings.json",
+          "codec": "paper",
+          "outcome": "paper",
+          "tokens_in": 659,
+          "tokens_cold": 672,
+          "tokens_warm": 585,
+          "roundtrip": "byte"
+        },
+        {
+          "sample": "findings.json",
+          "codec": "mine",
+          "outcome": "mine",
+          "tokens_in": 659,
+          "tokens_cold": 641,
+          "tokens_warm": 557,
+          "roundtrip": "byte"
+        },
+        {
+          "sample": "findings.json",
+          "codec": "deep",
+          "outcome": "mine",
+          "tokens_in": 659,
+          "tokens_cold": 432,
+          "tokens_warm": 224,
+          "roundtrip": "byte"
+        },
+        {
+          "sample": "findings.json",
+          "codec": "squeeze",
+          "outcome": "mine",
+          "tokens_in": 659,
+          "tokens_cold": 352,
+          "tokens_warm": 184,
+          "roundtrip": "sem"
+        },
+        {
+          "sample": "findings.json",
+          "codec": "mosaic",
+          "outcome": "mine",
+          "tokens_in": 659,
+          "tokens_cold": 418,
+          "tokens_warm": 311,
+          "roundtrip": "byte"
+        },
+        {
+          "sample": "git-diff.txt",
+          "codec": "fold",
+          "outcome": "raw",
+          "tokens_in": 491,
+          "tokens_cold": 501,
+          "tokens_warm": 491,
+          "roundtrip": "byte"
+        },
+        {
+          "sample": "git-diff.txt",
+          "codec": "toon",
+          "outcome": "raw",
+          "tokens_in": 491,
+          "tokens_cold": 501,
+          "tokens_warm": 491,
+          "roundtrip": "byte"
+        },
+        {
+          "sample": "git-diff.txt",
+          "codec": "grep",
+          "outcome": "raw",
+          "tokens_in": 491,
+          "tokens_cold": 501,
+          "tokens_warm": 491,
+          "roundtrip": "byte"
+        },
+        {
+          "sample": "git-diff.txt",
+          "codec": "diag",
+          "outcome": "raw",
+          "tokens_in": 491,
+          "tokens_cold": 501,
+          "tokens_warm": 491,
+          "roundtrip": "byte"
+        },
+        {
+          "sample": "git-diff.txt",
+          "codec": "tmpl",
+          "outcome": "raw",
+          "tokens_in": 491,
+          "tokens_cold": 501,
+          "tokens_warm": 491,
+          "roundtrip": "byte"
+        },
+        {
+          "sample": "git-diff.txt",
+          "codec": "paper",
+          "outcome": "paper",
+          "tokens_in": 491,
+          "tokens_cold": 513,
+          "tokens_warm": 477,
+          "roundtrip": "byte"
+        },
+        {
+          "sample": "git-diff.txt",
+          "codec": "mine",
+          "outcome": "mine",
+          "tokens_in": 491,
+          "tokens_cold": 444,
+          "tokens_warm": 367,
+          "roundtrip": "byte"
+        },
+        {
+          "sample": "git-diff.txt",
+          "codec": "deep",
+          "outcome": "mine",
+          "tokens_in": 491,
+          "tokens_cold": 403,
+          "tokens_warm": 291,
+          "roundtrip": "byte"
+        },
+        {
+          "sample": "git-diff.txt",
+          "codec": "squeeze",
+          "outcome": "mine",
+          "tokens_in": 491,
+          "tokens_cold": 413,
+          "tokens_warm": 301,
+          "roundtrip": "byte"
+        },
+        {
+          "sample": "git-diff.txt",
+          "codec": "mosaic",
+          "outcome": "mine",
+          "tokens_in": 491,
+          "tokens_cold": 413,
+          "tokens_warm": 301,
+          "roundtrip": "byte"
+        },
+        {
+          "sample": "prose.md",
+          "codec": "fold",
+          "outcome": "raw",
+          "tokens_in": 238,
+          "tokens_cold": 248,
+          "tokens_warm": 238,
+          "roundtrip": "byte"
+        },
+        {
+          "sample": "prose.md",
+          "codec": "toon",
+          "outcome": "raw",
+          "tokens_in": 238,
+          "tokens_cold": 248,
+          "tokens_warm": 238,
+          "roundtrip": "byte"
+        },
+        {
+          "sample": "prose.md",
+          "codec": "grep",
+          "outcome": "raw",
+          "tokens_in": 238,
+          "tokens_cold": 248,
+          "tokens_warm": 238,
+          "roundtrip": "byte"
+        },
+        {
+          "sample": "prose.md",
+          "codec": "diag",
+          "outcome": "raw",
+          "tokens_in": 238,
+          "tokens_cold": 248,
+          "tokens_warm": 238,
+          "roundtrip": "byte"
+        },
+        {
+          "sample": "prose.md",
+          "codec": "tmpl",
+          "outcome": "raw",
+          "tokens_in": 238,
+          "tokens_cold": 248,
+          "tokens_warm": 238,
+          "roundtrip": "byte"
+        },
+        {
+          "sample": "prose.md",
+          "codec": "paper",
+          "outcome": "raw",
+          "tokens_in": 238,
+          "tokens_cold": 248,
+          "tokens_warm": 238,
+          "roundtrip": "byte"
+        },
+        {
+          "sample": "prose.md",
+          "codec": "mine",
+          "outcome": "raw",
+          "tokens_in": 238,
+          "tokens_cold": 248,
+          "tokens_warm": 238,
+          "roundtrip": "byte"
+        },
+        {
+          "sample": "prose.md",
+          "codec": "deep",
+          "outcome": "raw",
+          "tokens_in": 238,
+          "tokens_cold": 248,
+          "tokens_warm": 238,
+          "roundtrip": "byte"
+        },
+        {
+          "sample": "prose.md",
+          "codec": "squeeze",
+          "outcome": "raw",
+          "tokens_in": 238,
+          "tokens_cold": 248,
+          "tokens_warm": 238,
+          "roundtrip": "byte"
+        },
+        {
+          "sample": "prose.md",
+          "codec": "mosaic",
+          "outcome": "raw",
+          "tokens_in": 238,
+          "tokens_cold": 248,
+          "tokens_warm": 238,
+          "roundtrip": "byte"
+        },
+        {
+          "sample": "rg-output.txt",
+          "codec": "fold",
+          "outcome": "raw",
+          "tokens_in": 538,
+          "tokens_cold": 548,
+          "tokens_warm": 538,
+          "roundtrip": "byte"
+        },
+        {
+          "sample": "rg-output.txt",
+          "codec": "toon",
+          "outcome": "raw",
+          "tokens_in": 538,
+          "tokens_cold": 548,
+          "tokens_warm": 538,
+          "roundtrip": "byte"
+        },
+        {
+          "sample": "rg-output.txt",
+          "codec": "grep",
+          "outcome": "grep",
+          "tokens_in": 538,
+          "tokens_cold": 446,
+          "tokens_warm": 430,
+          "roundtrip": "byte"
+        },
+        {
+          "sample": "rg-output.txt",
+          "codec": "diag",
+          "outcome": "raw",
+          "tokens_in": 538,
+          "tokens_cold": 548,
+          "tokens_warm": 538,
+          "roundtrip": "byte"
+        },
+        {
+          "sample": "rg-output.txt",
+          "codec": "tmpl",
+          "outcome": "tmpl",
+          "tokens_in": 538,
+          "tokens_cold": 486,
+          "tokens_warm": 368,
+          "roundtrip": "byte"
+        },
+        {
+          "sample": "rg-output.txt",
+          "codec": "paper",
+          "outcome": "paper",
+          "tokens_in": 538,
+          "tokens_cold": 557,
+          "tokens_warm": 511,
+          "roundtrip": "byte"
+        },
+        {
+          "sample": "rg-output.txt",
+          "codec": "mine",
+          "outcome": "mine",
+          "tokens_in": 538,
+          "tokens_cold": 388,
+          "tokens_warm": 253,
+          "roundtrip": "byte"
+        },
+        {
+          "sample": "rg-output.txt",
+          "codec": "deep",
+          "outcome": "mine",
+          "tokens_in": 538,
+          "tokens_cold": 342,
+          "tokens_warm": 203,
+          "roundtrip": "byte"
+        },
+        {
+          "sample": "rg-output.txt",
+          "codec": "squeeze",
+          "outcome": "mine",
+          "tokens_in": 538,
+          "tokens_cold": 338,
+          "tokens_warm": 231,
+          "roundtrip": "byte"
+        },
+        {
+          "sample": "rg-output.txt",
+          "codec": "mosaic",
+          "outcome": "mine",
+          "tokens_in": 538,
+          "tokens_cold": 338,
+          "tokens_warm": 231,
+          "roundtrip": "byte"
+        },
+        {
+          "sample": "stacktrace.txt",
+          "codec": "fold",
+          "outcome": "raw",
+          "tokens_in": 528,
+          "tokens_cold": 538,
+          "tokens_warm": 528,
+          "roundtrip": "byte"
+        },
+        {
+          "sample": "stacktrace.txt",
+          "codec": "toon",
+          "outcome": "raw",
+          "tokens_in": 528,
+          "tokens_cold": 538,
+          "tokens_warm": 528,
+          "roundtrip": "byte"
+        },
+        {
+          "sample": "stacktrace.txt",
+          "codec": "grep",
+          "outcome": "raw",
+          "tokens_in": 528,
+          "tokens_cold": 538,
+          "tokens_warm": 528,
+          "roundtrip": "byte"
+        },
+        {
+          "sample": "stacktrace.txt",
+          "codec": "diag",
+          "outcome": "raw",
+          "tokens_in": 528,
+          "tokens_cold": 538,
+          "tokens_warm": 528,
+          "roundtrip": "byte"
+        },
+        {
+          "sample": "stacktrace.txt",
+          "codec": "tmpl",
+          "outcome": "tmpl",
+          "tokens_in": 528,
+          "tokens_cold": 414,
+          "tokens_warm": 220,
+          "roundtrip": "byte"
+        },
+        {
+          "sample": "stacktrace.txt",
+          "codec": "paper",
+          "outcome": "paper",
+          "tokens_in": 528,
+          "tokens_cold": 461,
+          "tokens_warm": 274,
+          "roundtrip": "byte"
+        },
+        {
+          "sample": "stacktrace.txt",
+          "codec": "mine",
+          "outcome": "mine",
+          "tokens_in": 528,
+          "tokens_cold": 424,
+          "tokens_warm": 233,
+          "roundtrip": "byte"
+        },
+        {
+          "sample": "stacktrace.txt",
+          "codec": "deep",
+          "outcome": "mine",
+          "tokens_in": 528,
+          "tokens_cold": 401,
+          "tokens_warm": 228,
+          "roundtrip": "byte"
+        },
+        {
+          "sample": "stacktrace.txt",
+          "codec": "squeeze",
+          "outcome": "mine",
+          "tokens_in": 528,
+          "tokens_cold": 387,
+          "tokens_warm": 327,
+          "roundtrip": "byte"
+        },
+        {
+          "sample": "stacktrace.txt",
+          "codec": "mosaic",
+          "outcome": "mine",
+          "tokens_in": 528,
+          "tokens_cold": 387,
+          "tokens_warm": 327,
+          "roundtrip": "byte"
+        }
+      ],
+      "totals": {
+        "fold": {
+          "tokens_in": 3115,
+          "tokens_cold": 2944,
+          "tokens_warm": 2881,
+          "cold_saving": 0.05489566613162119,
+          "warm_saving": 0.07512038523274478,
+          "roundtrip_fail": 0,
+          "raw_fallbacks": 5
+        },
+        "toon": {
+          "tokens_in": 3115,
+          "tokens_cold": 3028,
+          "tokens_warm": 2962,
+          "cold_saving": 0.027929373996789728,
+          "warm_saving": 0.04911717495987159,
+          "roundtrip_fail": 0,
+          "raw_fallbacks": 5
+        },
+        "grep": {
+          "tokens_in": 3115,
+          "tokens_cold": 3073,
+          "tokens_warm": 3007,
+          "cold_saving": 0.01348314606741573,
+          "warm_saving": 0.03467094703049759,
+          "roundtrip_fail": 0,
+          "raw_fallbacks": 5
+        },
+        "diag": {
+          "tokens_in": 3115,
+          "tokens_cold": 3145,
+          "tokens_warm": 3007,
+          "cold_saving": -0.009630818619582664,
+          "warm_saving": 0.03467094703049759,
+          "roundtrip_fail": 0,
+          "raw_fallbacks": 5
+        },
+        "tmpl": {
+          "tokens_in": 3115,
+          "tokens_cold": 2617,
+          "tokens_warm": 1887,
+          "cold_saving": 0.15987158908507224,
+          "warm_saving": 0.3942215088282504,
+          "roundtrip_fail": 0,
+          "raw_fallbacks": 2
+        },
+        "paper": {
+          "tokens_in": 3115,
+          "tokens_cold": 2988,
+          "tokens_warm": 2367,
+          "cold_saving": 0.040770465489566615,
+          "warm_saving": 0.24012841091492776,
+          "roundtrip_fail": 0,
+          "raw_fallbacks": 1
+        },
+        "mine": {
+          "tokens_in": 3115,
+          "tokens_cold": 2517,
+          "tokens_warm": 1829,
+          "cold_saving": 0.19197431781701443,
+          "warm_saving": 0.41284109149277687,
+          "roundtrip_fail": 0,
+          "raw_fallbacks": 1
+        },
+        "deep": {
+          "tokens_in": 3115,
+          "tokens_cold": 2182,
+          "tokens_warm": 1345,
+          "cold_saving": 0.29951845906902086,
+          "warm_saving": 0.5682182985553772,
+          "roundtrip_fail": 0,
+          "raw_fallbacks": 1
+        },
+        "squeeze": {
+          "tokens_in": 3115,
+          "tokens_cold": 2088,
+          "tokens_warm": 1573,
+          "cold_saving": 0.32969502407704654,
+          "warm_saving": 0.49502407704654894,
+          "roundtrip_fail": 0,
+          "raw_fallbacks": 1
+        },
+        "mosaic": {
+          "tokens_in": 3115,
+          "tokens_cold": 2154,
+          "tokens_warm": 1700,
+          "cold_saving": 0.30850722311396467,
+          "warm_saving": 0.45425361155698235,
+          "roundtrip_fail": 0,
+          "raw_fallbacks": 1
+        }
+      }
+    },
+    "cl100k": {
+      "provenance": {
+        "kind": "bundled"
+      },
+      "status": "ok",
+      "rows": [
+        {
+          "sample": "build-log.txt",
+          "codec": "fold",
+          "outcome": "fold",
+          "tokens_in": 653,
+          "tokens_cold": 438,
+          "tokens_warm": 425,
+          "roundtrip": "byte"
+        },
+        {
+          "sample": "build-log.txt",
+          "codec": "toon",
+          "outcome": "raw",
+          "tokens_in": 653,
+          "tokens_cold": 663,
+          "tokens_warm": 653,
+          "roundtrip": "byte"
+        },
+        {
+          "sample": "build-log.txt",
+          "codec": "grep",
+          "outcome": "raw",
+          "tokens_in": 653,
+          "tokens_cold": 663,
+          "tokens_warm": 653,
+          "roundtrip": "byte"
+        },
+        {
+          "sample": "build-log.txt",
+          "codec": "diag",
+          "outcome": "diag",
+          "tokens_in": 653,
+          "tokens_cold": 633,
+          "tokens_warm": 545,
+          "roundtrip": "byte"
+        },
+        {
+          "sample": "build-log.txt",
+          "codec": "tmpl",
+          "outcome": "tmpl",
+          "tokens_in": 653,
+          "tokens_cold": 377,
+          "tokens_warm": 165,
+          "roundtrip": "byte"
+        },
+        {
+          "sample": "build-log.txt",
+          "codec": "paper",
+          "outcome": "paper",
+          "tokens_in": 653,
+          "tokens_cold": 533,
+          "tokens_warm": 280,
+          "roundtrip": "byte"
+        },
+        {
+          "sample": "build-log.txt",
+          "codec": "mine",
+          "outcome": "mine",
+          "tokens_in": 653,
+          "tokens_cold": 378,
+          "tokens_warm": 187,
+          "roundtrip": "byte"
+        },
+        {
+          "sample": "build-log.txt",
+          "codec": "deep",
+          "outcome": "mine",
+          "tokens_in": 653,
+          "tokens_cold": 361,
+          "tokens_warm": 166,
+          "roundtrip": "byte"
+        },
+        {
+          "sample": "build-log.txt",
+          "codec": "squeeze",
+          "outcome": "mine",
+          "tokens_in": 653,
+          "tokens_cold": 351,
+          "tokens_warm": 298,
+          "roundtrip": "byte"
+        },
+        {
+          "sample": "build-log.txt",
+          "codec": "mosaic",
+          "outcome": "mine",
+          "tokens_in": 653,
+          "tokens_cold": 351,
+          "tokens_warm": 298,
+          "roundtrip": "byte"
+        },
+        {
+          "sample": "findings.json",
+          "codec": "fold",
+          "outcome": "raw",
+          "tokens_in": 667,
+          "tokens_cold": 677,
+          "tokens_warm": 667,
+          "roundtrip": "byte"
+        },
+        {
+          "sample": "findings.json",
+          "codec": "toon",
+          "outcome": "toon",
+          "tokens_in": 667,
+          "tokens_cold": 531,
+          "tokens_warm": 514,
+          "roundtrip": "sem"
+        },
+        {
+          "sample": "findings.json",
+          "codec": "grep",
+          "outcome": "raw",
+          "tokens_in": 667,
+          "tokens_cold": 677,
+          "tokens_warm": 667,
+          "roundtrip": "byte"
+        },
+        {
+          "sample": "findings.json",
+          "codec": "diag",
+          "outcome": "raw",
+          "tokens_in": 667,
+          "tokens_cold": 677,
+          "tokens_warm": 667,
+          "roundtrip": "byte"
+        },
+        {
+          "sample": "findings.json",
+          "codec": "tmpl",
+          "outcome": "tmpl",
+          "tokens_in": 667,
+          "tokens_cold": 599,
+          "tokens_warm": 417,
+          "roundtrip": "byte"
+        },
+        {
+          "sample": "findings.json",
+          "codec": "paper",
+          "outcome": "paper",
+          "tokens_in": 667,
+          "tokens_cold": 682,
+          "tokens_warm": 595,
+          "roundtrip": "byte"
+        },
+        {
+          "sample": "findings.json",
+          "codec": "mine",
+          "outcome": "mine",
+          "tokens_in": 667,
+          "tokens_cold": 658,
+          "tokens_warm": 583,
+          "roundtrip": "byte"
+        },
+        {
+          "sample": "findings.json",
+          "codec": "deep",
+          "outcome": "mine",
+          "tokens_in": 667,
+          "tokens_cold": 439,
+          "tokens_warm": 235,
+          "roundtrip": "byte"
+        },
+        {
+          "sample": "findings.json",
+          "codec": "squeeze",
+          "outcome": "mine",
+          "tokens_in": 667,
+          "tokens_cold": 351,
+          "tokens_warm": 184,
+          "roundtrip": "sem"
+        },
+        {
+          "sample": "findings.json",
+          "codec": "mosaic",
+          "outcome": "mine",
+          "tokens_in": 667,
+          "tokens_cold": 416,
+          "tokens_warm": 308,
+          "roundtrip": "byte"
+        },
+        {
+          "sample": "git-diff.txt",
+          "codec": "fold",
+          "outcome": "raw",
+          "tokens_in": 478,
+          "tokens_cold": 488,
+          "tokens_warm": 478,
+          "roundtrip": "byte"
+        },
+        {
+          "sample": "git-diff.txt",
+          "codec": "toon",
+          "outcome": "raw",
+          "tokens_in": 478,
+          "tokens_cold": 488,
+          "tokens_warm": 478,
+          "roundtrip": "byte"
+        },
+        {
+          "sample": "git-diff.txt",
+          "codec": "grep",
+          "outcome": "raw",
+          "tokens_in": 478,
+          "tokens_cold": 488,
+          "tokens_warm": 478,
+          "roundtrip": "byte"
+        },
+        {
+          "sample": "git-diff.txt",
+          "codec": "diag",
+          "outcome": "raw",
+          "tokens_in": 478,
+          "tokens_cold": 488,
+          "tokens_warm": 478,
+          "roundtrip": "byte"
+        },
+        {
+          "sample": "git-diff.txt",
+          "codec": "tmpl",
+          "outcome": "raw",
+          "tokens_in": 478,
+          "tokens_cold": 488,
+          "tokens_warm": 478,
+          "roundtrip": "byte"
+        },
+        {
+          "sample": "git-diff.txt",
+          "codec": "paper",
+          "outcome": "paper",
+          "tokens_in": 478,
+          "tokens_cold": 501,
+          "tokens_warm": 466,
+          "roundtrip": "byte"
+        },
+        {
+          "sample": "git-diff.txt",
+          "codec": "mine",
+          "outcome": "mine",
+          "tokens_in": 478,
+          "tokens_cold": 437,
+          "tokens_warm": 374,
+          "roundtrip": "byte"
+        },
+        {
+          "sample": "git-diff.txt",
+          "codec": "deep",
+          "outcome": "mine",
+          "tokens_in": 478,
+          "tokens_cold": 393,
+          "tokens_warm": 321,
+          "roundtrip": "byte"
+        },
+        {
+          "sample": "git-diff.txt",
+          "codec": "squeeze",
+          "outcome": "mine",
+          "tokens_in": 478,
+          "tokens_cold": 403,
+          "tokens_warm": 331,
+          "roundtrip": "byte"
+        },
+        {
+          "sample": "git-diff.txt",
+          "codec": "mosaic",
+          "outcome": "mine",
+          "tokens_in": 478,
+          "tokens_cold": 403,
+          "tokens_warm": 331,
+          "roundtrip": "byte"
+        },
+        {
+          "sample": "prose.md",
+          "codec": "fold",
+          "outcome": "raw",
+          "tokens_in": 239,
+          "tokens_cold": 249,
+          "tokens_warm": 239,
+          "roundtrip": "byte"
+        },
+        {
+          "sample": "prose.md",
+          "codec": "toon",
+          "outcome": "raw",
+          "tokens_in": 239,
+          "tokens_cold": 249,
+          "tokens_warm": 239,
+          "roundtrip": "byte"
+        },
+        {
+          "sample": "prose.md",
+          "codec": "grep",
+          "outcome": "raw",
+          "tokens_in": 239,
+          "tokens_cold": 249,
+          "tokens_warm": 239,
+          "roundtrip": "byte"
+        },
+        {
+          "sample": "prose.md",
+          "codec": "diag",
+          "outcome": "raw",
+          "tokens_in": 239,
+          "tokens_cold": 249,
+          "tokens_warm": 239,
+          "roundtrip": "byte"
+        },
+        {
+          "sample": "prose.md",
+          "codec": "tmpl",
+          "outcome": "raw",
+          "tokens_in": 239,
+          "tokens_cold": 249,
+          "tokens_warm": 239,
+          "roundtrip": "byte"
+        },
+        {
+          "sample": "prose.md",
+          "codec": "paper",
+          "outcome": "raw",
+          "tokens_in": 239,
+          "tokens_cold": 249,
+          "tokens_warm": 239,
+          "roundtrip": "byte"
+        },
+        {
+          "sample": "prose.md",
+          "codec": "mine",
+          "outcome": "raw",
+          "tokens_in": 239,
+          "tokens_cold": 249,
+          "tokens_warm": 239,
+          "roundtrip": "byte"
+        },
+        {
+          "sample": "prose.md",
+          "codec": "deep",
+          "outcome": "raw",
+          "tokens_in": 239,
+          "tokens_cold": 249,
+          "tokens_warm": 239,
+          "roundtrip": "byte"
+        },
+        {
+          "sample": "prose.md",
+          "codec": "squeeze",
+          "outcome": "raw",
+          "tokens_in": 239,
+          "tokens_cold": 249,
+          "tokens_warm": 239,
+          "roundtrip": "byte"
+        },
+        {
+          "sample": "prose.md",
+          "codec": "mosaic",
+          "outcome": "raw",
+          "tokens_in": 239,
+          "tokens_cold": 249,
+          "tokens_warm": 239,
+          "roundtrip": "byte"
+        },
+        {
+          "sample": "rg-output.txt",
+          "codec": "fold",
+          "outcome": "raw",
+          "tokens_in": 512,
+          "tokens_cold": 522,
+          "tokens_warm": 512,
+          "roundtrip": "byte"
+        },
+        {
+          "sample": "rg-output.txt",
+          "codec": "toon",
+          "outcome": "raw",
+          "tokens_in": 512,
+          "tokens_cold": 522,
+          "tokens_warm": 512,
+          "roundtrip": "byte"
+        },
+        {
+          "sample": "rg-output.txt",
+          "codec": "grep",
+          "outcome": "grep",
+          "tokens_in": 512,
+          "tokens_cold": 413,
+          "tokens_warm": 397,
+          "roundtrip": "byte"
+        },
+        {
+          "sample": "rg-output.txt",
+          "codec": "diag",
+          "outcome": "raw",
+          "tokens_in": 512,
+          "tokens_cold": 522,
+          "tokens_warm": 512,
+          "roundtrip": "byte"
+        },
+        {
+          "sample": "rg-output.txt",
+          "codec": "tmpl",
+          "outcome": "tmpl",
+          "tokens_in": 512,
+          "tokens_cold": 467,
+          "tokens_warm": 354,
+          "roundtrip": "byte"
+        },
+        {
+          "sample": "rg-output.txt",
+          "codec": "paper",
+          "outcome": "raw",
+          "tokens_in": 512,
+          "tokens_cold": 522,
+          "tokens_warm": 512,
+          "roundtrip": "byte"
+        },
+        {
+          "sample": "rg-output.txt",
+          "codec": "mine",
+          "outcome": "mine",
+          "tokens_in": 512,
+          "tokens_cold": 380,
+          "tokens_warm": 281,
+          "roundtrip": "byte"
+        },
+        {
+          "sample": "rg-output.txt",
+          "codec": "deep",
+          "outcome": "mine",
+          "tokens_in": 512,
+          "tokens_cold": 337,
+          "tokens_warm": 221,
+          "roundtrip": "byte"
+        },
+        {
+          "sample": "rg-output.txt",
+          "codec": "squeeze",
+          "outcome": "mine",
+          "tokens_in": 512,
+          "tokens_cold": 335,
+          "tokens_warm": 256,
+          "roundtrip": "byte"
+        },
+        {
+          "sample": "rg-output.txt",
+          "codec": "mosaic",
+          "outcome": "mine",
+          "tokens_in": 512,
+          "tokens_cold": 335,
+          "tokens_warm": 256,
+          "roundtrip": "byte"
+        },
+        {
+          "sample": "stacktrace.txt",
+          "codec": "fold",
+          "outcome": "raw",
+          "tokens_in": 501,
+          "tokens_cold": 511,
+          "tokens_warm": 501,
+          "roundtrip": "byte"
+        },
+        {
+          "sample": "stacktrace.txt",
+          "codec": "toon",
+          "outcome": "raw",
+          "tokens_in": 501,
+          "tokens_cold": 511,
+          "tokens_warm": 501,
+          "roundtrip": "byte"
+        },
+        {
+          "sample": "stacktrace.txt",
+          "codec": "grep",
+          "outcome": "raw",
+          "tokens_in": 501,
+          "tokens_cold": 511,
+          "tokens_warm": 501,
+          "roundtrip": "byte"
+        },
+        {
+          "sample": "stacktrace.txt",
+          "codec": "diag",
+          "outcome": "raw",
+          "tokens_in": 501,
+          "tokens_cold": 511,
+          "tokens_warm": 501,
+          "roundtrip": "byte"
+        },
+        {
+          "sample": "stacktrace.txt",
+          "codec": "tmpl",
+          "outcome": "tmpl",
+          "tokens_in": 501,
+          "tokens_cold": 395,
+          "tokens_warm": 208,
+          "roundtrip": "byte"
+        },
+        {
+          "sample": "stacktrace.txt",
+          "codec": "paper",
+          "outcome": "paper",
+          "tokens_in": 501,
+          "tokens_cold": 438,
+          "tokens_warm": 257,
+          "roundtrip": "byte"
+        },
+        {
+          "sample": "stacktrace.txt",
+          "codec": "mine",
+          "outcome": "mine",
+          "tokens_in": 501,
+          "tokens_cold": 411,
+          "tokens_warm": 249,
+          "roundtrip": "byte"
+        },
+        {
+          "sample": "stacktrace.txt",
+          "codec": "deep",
+          "outcome": "mine",
+          "tokens_in": 501,
+          "tokens_cold": 394,
+          "tokens_warm": 232,
+          "roundtrip": "byte"
+        },
+        {
+          "sample": "stacktrace.txt",
+          "codec": "squeeze",
+          "outcome": "mine",
+          "tokens_in": 501,
+          "tokens_cold": 372,
+          "tokens_warm": 313,
+          "roundtrip": "byte"
+        },
+        {
+          "sample": "stacktrace.txt",
+          "codec": "mosaic",
+          "outcome": "mine",
+          "tokens_in": 501,
+          "tokens_cold": 372,
+          "tokens_warm": 313,
+          "roundtrip": "byte"
+        }
+      ],
+      "totals": {
+        "fold": {
+          "tokens_in": 3050,
+          "tokens_cold": 2885,
+          "tokens_warm": 2822,
+          "cold_saving": 0.054098360655737705,
+          "warm_saving": 0.07475409836065573,
+          "roundtrip_fail": 0,
+          "raw_fallbacks": 5
+        },
+        "toon": {
+          "tokens_in": 3050,
+          "tokens_cold": 2964,
+          "tokens_warm": 2897,
+          "cold_saving": 0.02819672131147541,
+          "warm_saving": 0.05016393442622951,
+          "roundtrip_fail": 0,
+          "raw_fallbacks": 5
+        },
+        "grep": {
+          "tokens_in": 3050,
+          "tokens_cold": 3001,
+          "tokens_warm": 2935,
+          "cold_saving": 0.016065573770491802,
+          "warm_saving": 0.03770491803278689,
+          "roundtrip_fail": 0,
+          "raw_fallbacks": 5
+        },
+        "diag": {
+          "tokens_in": 3050,
+          "tokens_cold": 3080,
+          "tokens_warm": 2942,
+          "cold_saving": -0.009836065573770493,
+          "warm_saving": 0.03540983606557377,
+          "roundtrip_fail": 0,
+          "raw_fallbacks": 5
+        },
+        "tmpl": {
+          "tokens_in": 3050,
+          "tokens_cold": 2575,
+          "tokens_warm": 1861,
+          "cold_saving": 0.1557377049180328,
+          "warm_saving": 0.3898360655737705,
+          "roundtrip_fail": 0,
+          "raw_fallbacks": 2
+        },
+        "paper": {
+          "tokens_in": 3050,
+          "tokens_cold": 2925,
+          "tokens_warm": 2349,
+          "cold_saving": 0.040983606557377046,
+          "warm_saving": 0.22983606557377048,
+          "roundtrip_fail": 0,
+          "raw_fallbacks": 2
+        },
+        "mine": {
+          "tokens_in": 3050,
+          "tokens_cold": 2513,
+          "tokens_warm": 1913,
+          "cold_saving": 0.1760655737704918,
+          "warm_saving": 0.37278688524590164,
+          "roundtrip_fail": 0,
+          "raw_fallbacks": 1
+        },
+        "deep": {
+          "tokens_in": 3050,
+          "tokens_cold": 2173,
+          "tokens_warm": 1414,
+          "cold_saving": 0.2875409836065574,
+          "warm_saving": 0.5363934426229509,
+          "roundtrip_fail": 0,
+          "raw_fallbacks": 1
+        },
+        "squeeze": {
+          "tokens_in": 3050,
+          "tokens_cold": 2061,
+          "tokens_warm": 1621,
+          "cold_saving": 0.3242622950819672,
+          "warm_saving": 0.46852459016393444,
+          "roundtrip_fail": 0,
+          "raw_fallbacks": 1
+        },
+        "mosaic": {
+          "tokens_in": 3050,
+          "tokens_cold": 2126,
+          "tokens_warm": 1745,
+          "cold_saving": 0.30295081967213117,
+          "warm_saving": 0.4278688524590164,
+          "roundtrip_fail": 0,
+          "raw_fallbacks": 1
+        }
+      }
+    },
+    "qwen2.5": {
+      "provenance": {
+        "kind": "hf",
+        "repo": "Qwen/Qwen2.5-Coder-7B-Instruct",
+        "sha256": "c0382117ea329cdf097041132f6d735924b697924d6f6fc3945713e96ce87539"
+      },
+      "status": "ok",
+      "rows": [
+        {
+          "sample": "build-log.txt",
+          "codec": "fold",
+          "outcome": "fold",
+          "tokens_in": 691,
+          "tokens_cold": 464,
+          "tokens_warm": 451,
+          "roundtrip": "byte"
+        },
+        {
+          "sample": "build-log.txt",
+          "codec": "toon",
+          "outcome": "raw",
+          "tokens_in": 691,
+          "tokens_cold": 701,
+          "tokens_warm": 691,
+          "roundtrip": "byte"
+        },
+        {
+          "sample": "build-log.txt",
+          "codec": "grep",
+          "outcome": "raw",
+          "tokens_in": 691,
+          "tokens_cold": 701,
+          "tokens_warm": 691,
+          "roundtrip": "byte"
+        },
+        {
+          "sample": "build-log.txt",
+          "codec": "diag",
+          "outcome": "diag",
+          "tokens_in": 691,
+          "tokens_cold": 669,
+          "tokens_warm": 579,
+          "roundtrip": "byte"
+        },
+        {
+          "sample": "build-log.txt",
+          "codec": "tmpl",
+          "outcome": "tmpl",
+          "tokens_in": 691,
+          "tokens_cold": 399,
+          "tokens_warm": 181,
+          "roundtrip": "byte"
+        },
+        {
+          "sample": "build-log.txt",
+          "codec": "paper",
+          "outcome": "paper",
+          "tokens_in": 691,
+          "tokens_cold": 564,
+          "tokens_warm": 302,
+          "roundtrip": "byte"
+        },
+        {
+          "sample": "build-log.txt",
+          "codec": "mine",
+          "outcome": "mine",
+          "tokens_in": 691,
+          "tokens_cold": 406,
+          "tokens_warm": 207,
+          "roundtrip": "byte"
+        },
+        {
+          "sample": "build-log.txt",
+          "codec": "deep",
+          "outcome": "mine",
+          "tokens_in": 691,
+          "tokens_cold": 387,
+          "tokens_warm": 185,
+          "roundtrip": "byte"
+        },
+        {
+          "sample": "build-log.txt",
+          "codec": "squeeze",
+          "outcome": "mine",
+          "tokens_in": 691,
+          "tokens_cold": 371,
+          "tokens_warm": 318,
+          "roundtrip": "byte"
+        },
+        {
+          "sample": "build-log.txt",
+          "codec": "mosaic",
+          "outcome": "mine",
+          "tokens_in": 691,
+          "tokens_cold": 371,
+          "tokens_warm": 318,
+          "roundtrip": "byte"
+        },
+        {
+          "sample": "findings.json",
+          "codec": "fold",
+          "outcome": "raw",
+          "tokens_in": 704,
+          "tokens_cold": 714,
+          "tokens_warm": 704,
+          "roundtrip": "byte"
+        },
+        {
+          "sample": "findings.json",
+          "codec": "toon",
+          "outcome": "toon",
+          "tokens_in": 704,
+          "tokens_cold": 569,
+          "tokens_warm": 551,
+          "roundtrip": "sem"
+        },
+        {
+          "sample": "findings.json",
+          "codec": "grep",
+          "outcome": "raw",
+          "tokens_in": 704,
+          "tokens_cold": 714,
+          "tokens_warm": 704,
+          "roundtrip": "byte"
+        },
+        {
+          "sample": "findings.json",
+          "codec": "diag",
+          "outcome": "raw",
+          "tokens_in": 704,
+          "tokens_cold": 714,
+          "tokens_warm": 704,
+          "roundtrip": "byte"
+        },
+        {
+          "sample": "findings.json",
+          "codec": "tmpl",
+          "outcome": "tmpl",
+          "tokens_in": 704,
+          "tokens_cold": 624,
+          "tokens_warm": 432,
+          "roundtrip": "byte"
+        },
+        {
+          "sample": "findings.json",
+          "codec": "paper",
+          "outcome": "paper",
+          "tokens_in": 704,
+          "tokens_cold": 720,
+          "tokens_warm": 632,
+          "roundtrip": "byte"
+        },
+        {
+          "sample": "findings.json",
+          "codec": "mine",
+          "outcome": "mine",
+          "tokens_in": 704,
+          "tokens_cold": 695,
+          "tokens_warm": 620,
+          "roundtrip": "byte"
+        },
+        {
+          "sample": "findings.json",
+          "codec": "deep",
+          "outcome": "mine",
+          "tokens_in": 704,
+          "tokens_cold": 477,
+          "tokens_warm": 272,
+          "roundtrip": "byte"
+        },
+        {
+          "sample": "findings.json",
+          "codec": "squeeze",
+          "outcome": "mine",
+          "tokens_in": 704,
+          "tokens_cold": 389,
+          "tokens_warm": 219,
+          "roundtrip": "sem"
+        },
+        {
+          "sample": "findings.json",
+          "codec": "mosaic",
+          "outcome": "mine",
+          "tokens_in": 704,
+          "tokens_cold": 437,
+          "tokens_warm": 328,
+          "roundtrip": "byte"
+        },
+        {
+          "sample": "git-diff.txt",
+          "codec": "fold",
+          "outcome": "raw",
+          "tokens_in": 507,
+          "tokens_cold": 517,
+          "tokens_warm": 507,
+          "roundtrip": "byte"
+        },
+        {
+          "sample": "git-diff.txt",
+          "codec": "toon",
+          "outcome": "raw",
+          "tokens_in": 507,
+          "tokens_cold": 517,
+          "tokens_warm": 507,
+          "roundtrip": "byte"
+        },
+        {
+          "sample": "git-diff.txt",
+          "codec": "grep",
+          "outcome": "raw",
+          "tokens_in": 507,
+          "tokens_cold": 517,
+          "tokens_warm": 507,
+          "roundtrip": "byte"
+        },
+        {
+          "sample": "git-diff.txt",
+          "codec": "diag",
+          "outcome": "raw",
+          "tokens_in": 507,
+          "tokens_cold": 517,
+          "tokens_warm": 507,
+          "roundtrip": "byte"
+        },
+        {
+          "sample": "git-diff.txt",
+          "codec": "tmpl",
+          "outcome": "raw",
+          "tokens_in": 507,
+          "tokens_cold": 517,
+          "tokens_warm": 507,
+          "roundtrip": "byte"
+        },
+        {
+          "sample": "git-diff.txt",
+          "codec": "paper",
+          "outcome": "paper",
+          "tokens_in": 507,
+          "tokens_cold": 527,
+          "tokens_warm": 480,
+          "roundtrip": "byte"
+        },
+        {
+          "sample": "git-diff.txt",
+          "codec": "mine",
+          "outcome": "mine",
+          "tokens_in": 507,
+          "tokens_cold": 460,
+          "tokens_warm": 388,
+          "roundtrip": "byte"
+        },
+        {
+          "sample": "git-diff.txt",
+          "codec": "deep",
+          "outcome": "mine",
+          "tokens_in": 507,
+          "tokens_cold": 416,
+          "tokens_warm": 335,
+          "roundtrip": "byte"
+        },
+        {
+          "sample": "git-diff.txt",
+          "codec": "squeeze",
+          "outcome": "mine",
+          "tokens_in": 507,
+          "tokens_cold": 426,
+          "tokens_warm": 345,
+          "roundtrip": "byte"
+        },
+        {
+          "sample": "git-diff.txt",
+          "codec": "mosaic",
+          "outcome": "mine",
+          "tokens_in": 507,
+          "tokens_cold": 426,
+          "tokens_warm": 345,
+          "roundtrip": "byte"
+        },
+        {
+          "sample": "prose.md",
+          "codec": "fold",
+          "outcome": "raw",
+          "tokens_in": 239,
+          "tokens_cold": 249,
+          "tokens_warm": 239,
+          "roundtrip": "byte"
+        },
+        {
+          "sample": "prose.md",
+          "codec": "toon",
+          "outcome": "raw",
+          "tokens_in": 239,
+          "tokens_cold": 249,
+          "tokens_warm": 239,
+          "roundtrip": "byte"
+        },
+        {
+          "sample": "prose.md",
+          "codec": "grep",
+          "outcome": "raw",
+          "tokens_in": 239,
+          "tokens_cold": 249,
+          "tokens_warm": 239,
+          "roundtrip": "byte"
+        },
+        {
+          "sample": "prose.md",
+          "codec": "diag",
+          "outcome": "raw",
+          "tokens_in": 239,
+          "tokens_cold": 249,
+          "tokens_warm": 239,
+          "roundtrip": "byte"
+        },
+        {
+          "sample": "prose.md",
+          "codec": "tmpl",
+          "outcome": "raw",
+          "tokens_in": 239,
+          "tokens_cold": 249,
+          "tokens_warm": 239,
+          "roundtrip": "byte"
+        },
+        {
+          "sample": "prose.md",
+          "codec": "paper",
+          "outcome": "raw",
+          "tokens_in": 239,
+          "tokens_cold": 249,
+          "tokens_warm": 239,
+          "roundtrip": "byte"
+        },
+        {
+          "sample": "prose.md",
+          "codec": "mine",
+          "outcome": "raw",
+          "tokens_in": 239,
+          "tokens_cold": 249,
+          "tokens_warm": 239,
+          "roundtrip": "byte"
+        },
+        {
+          "sample": "prose.md",
+          "codec": "deep",
+          "outcome": "raw",
+          "tokens_in": 239,
+          "tokens_cold": 249,
+          "tokens_warm": 239,
+          "roundtrip": "byte"
+        },
+        {
+          "sample": "prose.md",
+          "codec": "squeeze",
+          "outcome": "raw",
+          "tokens_in": 239,
+          "tokens_cold": 249,
+          "tokens_warm": 239,
+          "roundtrip": "byte"
+        },
+        {
+          "sample": "prose.md",
+          "codec": "mosaic",
+          "outcome": "raw",
+          "tokens_in": 239,
+          "tokens_cold": 249,
+          "tokens_warm": 239,
+          "roundtrip": "byte"
+        },
+        {
+          "sample": "rg-output.txt",
+          "codec": "fold",
+          "outcome": "raw",
+          "tokens_in": 533,
+          "tokens_cold": 543,
+          "tokens_warm": 533,
+          "roundtrip": "byte"
+        },
+        {
+          "sample": "rg-output.txt",
+          "codec": "toon",
+          "outcome": "raw",
+          "tokens_in": 533,
+          "tokens_cold": 543,
+          "tokens_warm": 533,
+          "roundtrip": "byte"
+        },
+        {
+          "sample": "rg-output.txt",
+          "codec": "grep",
+          "outcome": "grep",
+          "tokens_in": 533,
+          "tokens_cold": 434,
+          "tokens_warm": 418,
+          "roundtrip": "byte"
+        },
+        {
+          "sample": "rg-output.txt",
+          "codec": "diag",
+          "outcome": "raw",
+          "tokens_in": 533,
+          "tokens_cold": 543,
+          "tokens_warm": 533,
+          "roundtrip": "byte"
+        },
+        {
+          "sample": "rg-output.txt",
+          "codec": "tmpl",
+          "outcome": "tmpl",
+          "tokens_in": 533,
+          "tokens_cold": 488,
+          "tokens_warm": 375,
+          "roundtrip": "byte"
+        },
+        {
+          "sample": "rg-output.txt",
+          "codec": "paper",
+          "outcome": "raw",
+          "tokens_in": 533,
+          "tokens_cold": 543,
+          "tokens_warm": 533,
+          "roundtrip": "byte"
+        },
+        {
+          "sample": "rg-output.txt",
+          "codec": "mine",
+          "outcome": "mine",
+          "tokens_in": 533,
+          "tokens_cold": 402,
+          "tokens_warm": 302,
+          "roundtrip": "byte"
+        },
+        {
+          "sample": "rg-output.txt",
+          "codec": "deep",
+          "outcome": "mine",
+          "tokens_in": 533,
+          "tokens_cold": 359,
+          "tokens_warm": 242,
+          "roundtrip": "byte"
+        },
+        {
+          "sample": "rg-output.txt",
+          "codec": "squeeze",
+          "outcome": "mine",
+          "tokens_in": 533,
+          "tokens_cold": 356,
+          "tokens_warm": 277,
+          "roundtrip": "byte"
+        },
+        {
+          "sample": "rg-output.txt",
+          "codec": "mosaic",
+          "outcome": "mine",
+          "tokens_in": 533,
+          "tokens_cold": 356,
+          "tokens_warm": 277,
+          "roundtrip": "byte"
+        },
+        {
+          "sample": "stacktrace.txt",
+          "codec": "fold",
+          "outcome": "raw",
+          "tokens_in": 510,
+          "tokens_cold": 520,
+          "tokens_warm": 510,
+          "roundtrip": "byte"
+        },
+        {
+          "sample": "stacktrace.txt",
+          "codec": "toon",
+          "outcome": "raw",
+          "tokens_in": 510,
+          "tokens_cold": 520,
+          "tokens_warm": 510,
+          "roundtrip": "byte"
+        },
+        {
+          "sample": "stacktrace.txt",
+          "codec": "grep",
+          "outcome": "raw",
+          "tokens_in": 510,
+          "tokens_cold": 520,
+          "tokens_warm": 510,
+          "roundtrip": "byte"
+        },
+        {
+          "sample": "stacktrace.txt",
+          "codec": "diag",
+          "outcome": "raw",
+          "tokens_in": 510,
+          "tokens_cold": 520,
+          "tokens_warm": 510,
+          "roundtrip": "byte"
+        },
+        {
+          "sample": "stacktrace.txt",
+          "codec": "tmpl",
+          "outcome": "tmpl",
+          "tokens_in": 510,
+          "tokens_cold": 402,
+          "tokens_warm": 213,
+          "roundtrip": "byte"
+        },
+        {
+          "sample": "stacktrace.txt",
+          "codec": "paper",
+          "outcome": "paper",
+          "tokens_in": 510,
+          "tokens_cold": 446,
+          "tokens_warm": 262,
+          "roundtrip": "byte"
+        },
+        {
+          "sample": "stacktrace.txt",
+          "codec": "mine",
+          "outcome": "mine",
+          "tokens_in": 510,
+          "tokens_cold": 419,
+          "tokens_warm": 266,
+          "roundtrip": "byte"
+        },
+        {
+          "sample": "stacktrace.txt",
+          "codec": "deep",
+          "outcome": "mine",
+          "tokens_in": 510,
+          "tokens_cold": 403,
+          "tokens_warm": 239,
+          "roundtrip": "byte"
+        },
+        {
+          "sample": "stacktrace.txt",
+          "codec": "squeeze",
+          "outcome": "mine",
+          "tokens_in": 510,
+          "tokens_cold": 379,
+          "tokens_warm": 319,
+          "roundtrip": "byte"
+        },
+        {
+          "sample": "stacktrace.txt",
+          "codec": "mosaic",
+          "outcome": "mine",
+          "tokens_in": 510,
+          "tokens_cold": 379,
+          "tokens_warm": 319,
+          "roundtrip": "byte"
+        }
+      ],
+      "totals": {
+        "fold": {
+          "tokens_in": 3184,
+          "tokens_cold": 3007,
+          "tokens_warm": 2944,
+          "cold_saving": 0.05559045226130653,
+          "warm_saving": 0.07537688442211055,
+          "roundtrip_fail": 0,
+          "raw_fallbacks": 5
+        },
+        "toon": {
+          "tokens_in": 3184,
+          "tokens_cold": 3099,
+          "tokens_warm": 3031,
+          "cold_saving": 0.02669597989949749,
+          "warm_saving": 0.04805276381909548,
+          "roundtrip_fail": 0,
+          "raw_fallbacks": 5
+        },
+        "grep": {
+          "tokens_in": 3184,
+          "tokens_cold": 3135,
+          "tokens_warm": 3069,
+          "cold_saving": 0.015389447236180905,
+          "warm_saving": 0.0361180904522613,
+          "roundtrip_fail": 0,
+          "raw_fallbacks": 5
+        },
+        "diag": {
+          "tokens_in": 3184,
+          "tokens_cold": 3212,
+          "tokens_warm": 3072,
+          "cold_saving": -0.008793969849246231,
+          "warm_saving": 0.035175879396984924,
+          "roundtrip_fail": 0,
+          "raw_fallbacks": 5
+        },
+        "tmpl": {
+          "tokens_in": 3184,
+          "tokens_cold": 2679,
+          "tokens_warm": 1947,
+          "cold_saving": 0.15860552763819097,
+          "warm_saving": 0.3885050251256281,
+          "roundtrip_fail": 0,
+          "raw_fallbacks": 2
+        },
+        "paper": {
+          "tokens_in": 3184,
+          "tokens_cold": 3049,
+          "tokens_warm": 2448,
+          "cold_saving": 0.04239949748743719,
+          "warm_saving": 0.23115577889447236,
+          "roundtrip_fail": 0,
+          "raw_fallbacks": 2
+        },
+        "mine": {
+          "tokens_in": 3184,
+          "tokens_cold": 2631,
+          "tokens_warm": 2022,
+          "cold_saving": 0.17368090452261306,
+          "warm_saving": 0.3649497487437186,
+          "roundtrip_fail": 0,
+          "raw_fallbacks": 1
+        },
+        "deep": {
+          "tokens_in": 3184,
+          "tokens_cold": 2291,
+          "tokens_warm": 1512,
+          "cold_saving": 0.28046482412060303,
+          "warm_saving": 0.5251256281407035,
+          "roundtrip_fail": 0,
+          "raw_fallbacks": 1
+        },
+        "squeeze": {
+          "tokens_in": 3184,
+          "tokens_cold": 2170,
+          "tokens_warm": 1717,
+          "cold_saving": 0.3184673366834171,
+          "warm_saving": 0.46074120603015073,
+          "roundtrip_fail": 0,
+          "raw_fallbacks": 1
+        },
+        "mosaic": {
+          "tokens_in": 3184,
+          "tokens_cold": 2218,
+          "tokens_warm": 1826,
+          "cold_saving": 0.30339195979899497,
+          "warm_saving": 0.4265075376884422,
+          "roundtrip_fail": 0,
+          "raw_fallbacks": 1
+        }
+      }
+    },
+    "llama3.1": {
+      "provenance": {
+        "kind": "hf",
+        "repo": "NousResearch/Meta-Llama-3.1-8B-Instruct",
+        "sha256": "79e3e522635f3171300913bb421464a87de6222182a0570b9b2ccba2a964b2b4",
+        "note": "mirror of gated meta-llama"
+      },
+      "status": "ok",
+      "rows": [
+        {
+          "sample": "build-log.txt",
+          "codec": "fold",
+          "outcome": "fold",
+          "tokens_in": 653,
+          "tokens_cold": 438,
+          "tokens_warm": 425,
+          "roundtrip": "byte"
+        },
+        {
+          "sample": "build-log.txt",
+          "codec": "toon",
+          "outcome": "raw",
+          "tokens_in": 653,
+          "tokens_cold": 663,
+          "tokens_warm": 653,
+          "roundtrip": "byte"
+        },
+        {
+          "sample": "build-log.txt",
+          "codec": "grep",
+          "outcome": "raw",
+          "tokens_in": 653,
+          "tokens_cold": 663,
+          "tokens_warm": 653,
+          "roundtrip": "byte"
+        },
+        {
+          "sample": "build-log.txt",
+          "codec": "diag",
+          "outcome": "diag",
+          "tokens_in": 653,
+          "tokens_cold": 633,
+          "tokens_warm": 545,
+          "roundtrip": "byte"
+        },
+        {
+          "sample": "build-log.txt",
+          "codec": "tmpl",
+          "outcome": "tmpl",
+          "tokens_in": 653,
+          "tokens_cold": 377,
+          "tokens_warm": 165,
+          "roundtrip": "byte"
+        },
+        {
+          "sample": "build-log.txt",
+          "codec": "paper",
+          "outcome": "paper",
+          "tokens_in": 653,
+          "tokens_cold": 533,
+          "tokens_warm": 280,
+          "roundtrip": "byte"
+        },
+        {
+          "sample": "build-log.txt",
+          "codec": "mine",
+          "outcome": "mine",
+          "tokens_in": 653,
+          "tokens_cold": 367,
+          "tokens_warm": 178,
+          "roundtrip": "byte"
+        },
+        {
+          "sample": "build-log.txt",
+          "codec": "deep",
+          "outcome": "mine",
+          "tokens_in": 653,
+          "tokens_cold": 352,
+          "tokens_warm": 159,
+          "roundtrip": "byte"
+        },
+        {
+          "sample": "build-log.txt",
+          "codec": "squeeze",
+          "outcome": "mine",
+          "tokens_in": 653,
+          "tokens_cold": 348,
+          "tokens_warm": 290,
+          "roundtrip": "byte"
+        },
+        {
+          "sample": "build-log.txt",
+          "codec": "mosaic",
+          "outcome": "mine",
+          "tokens_in": 653,
+          "tokens_cold": 348,
+          "tokens_warm": 290,
+          "roundtrip": "byte"
+        },
+        {
+          "sample": "findings.json",
+          "codec": "fold",
+          "outcome": "raw",
+          "tokens_in": 667,
+          "tokens_cold": 677,
+          "tokens_warm": 667,
+          "roundtrip": "byte"
+        },
+        {
+          "sample": "findings.json",
+          "codec": "toon",
+          "outcome": "toon",
+          "tokens_in": 667,
+          "tokens_cold": 531,
+          "tokens_warm": 514,
+          "roundtrip": "sem"
+        },
+        {
+          "sample": "findings.json",
+          "codec": "grep",
+          "outcome": "raw",
+          "tokens_in": 667,
+          "tokens_cold": 677,
+          "tokens_warm": 667,
+          "roundtrip": "byte"
+        },
+        {
+          "sample": "findings.json",
+          "codec": "diag",
+          "outcome": "raw",
+          "tokens_in": 667,
+          "tokens_cold": 677,
+          "tokens_warm": 667,
+          "roundtrip": "byte"
+        },
+        {
+          "sample": "findings.json",
+          "codec": "tmpl",
+          "outcome": "tmpl",
+          "tokens_in": 667,
+          "tokens_cold": 599,
+          "tokens_warm": 417,
+          "roundtrip": "byte"
+        },
+        {
+          "sample": "findings.json",
+          "codec": "paper",
+          "outcome": "paper",
+          "tokens_in": 667,
+          "tokens_cold": 682,
+          "tokens_warm": 595,
+          "roundtrip": "byte"
+        },
+        {
+          "sample": "findings.json",
+          "codec": "mine",
+          "outcome": "mine",
+          "tokens_in": 667,
+          "tokens_cold": 652,
+          "tokens_warm": 577,
+          "roundtrip": "byte"
+        },
+        {
+          "sample": "findings.json",
+          "codec": "deep",
+          "outcome": "mine",
+          "tokens_in": 667,
+          "tokens_cold": 430,
+          "tokens_warm": 223,
+          "roundtrip": "byte"
+        },
+        {
+          "sample": "findings.json",
+          "codec": "squeeze",
+          "outcome": "mine",
+          "tokens_in": 667,
+          "tokens_cold": 351,
+          "tokens_warm": 184,
+          "roundtrip": "sem"
+        },
+        {
+          "sample": "findings.json",
+          "codec": "mosaic",
+          "outcome": "mine",
+          "tokens_in": 667,
+          "tokens_cold": 416,
+          "tokens_warm": 308,
+          "roundtrip": "byte"
+        },
+        {
+          "sample": "git-diff.txt",
+          "codec": "fold",
+          "outcome": "raw",
+          "tokens_in": 478,
+          "tokens_cold": 488,
+          "tokens_warm": 478,
+          "roundtrip": "byte"
+        },
+        {
+          "sample": "git-diff.txt",
+          "codec": "toon",
+          "outcome": "raw",
+          "tokens_in": 478,
+          "tokens_cold": 488,
+          "tokens_warm": 478,
+          "roundtrip": "byte"
+        },
+        {
+          "sample": "git-diff.txt",
+          "codec": "grep",
+          "outcome": "raw",
+          "tokens_in": 478,
+          "tokens_cold": 488,
+          "tokens_warm": 478,
+          "roundtrip": "byte"
+        },
+        {
+          "sample": "git-diff.txt",
+          "codec": "diag",
+          "outcome": "raw",
+          "tokens_in": 478,
+          "tokens_cold": 488,
+          "tokens_warm": 478,
+          "roundtrip": "byte"
+        },
+        {
+          "sample": "git-diff.txt",
+          "codec": "tmpl",
+          "outcome": "raw",
+          "tokens_in": 478,
+          "tokens_cold": 488,
+          "tokens_warm": 478,
+          "roundtrip": "byte"
+        },
+        {
+          "sample": "git-diff.txt",
+          "codec": "paper",
+          "outcome": "paper",
+          "tokens_in": 478,
+          "tokens_cold": 501,
+          "tokens_warm": 466,
+          "roundtrip": "byte"
+        },
+        {
+          "sample": "git-diff.txt",
+          "codec": "mine",
+          "outcome": "mine",
+          "tokens_in": 478,
+          "tokens_cold": 424,
+          "tokens_warm": 344,
+          "roundtrip": "byte"
+        },
+        {
+          "sample": "git-diff.txt",
+          "codec": "deep",
+          "outcome": "mine",
+          "tokens_in": 478,
+          "tokens_cold": 393,
+          "tokens_warm": 321,
+          "roundtrip": "byte"
+        },
+        {
+          "sample": "git-diff.txt",
+          "codec": "squeeze",
+          "outcome": "mine",
+          "tokens_in": 478,
+          "tokens_cold": 403,
+          "tokens_warm": 331,
+          "roundtrip": "byte"
+        },
+        {
+          "sample": "git-diff.txt",
+          "codec": "mosaic",
+          "outcome": "mine",
+          "tokens_in": 478,
+          "tokens_cold": 403,
+          "tokens_warm": 331,
+          "roundtrip": "byte"
+        },
+        {
+          "sample": "prose.md",
+          "codec": "fold",
+          "outcome": "raw",
+          "tokens_in": 239,
+          "tokens_cold": 249,
+          "tokens_warm": 239,
+          "roundtrip": "byte"
+        },
+        {
+          "sample": "prose.md",
+          "codec": "toon",
+          "outcome": "raw",
+          "tokens_in": 239,
+          "tokens_cold": 249,
+          "tokens_warm": 239,
+          "roundtrip": "byte"
+        },
+        {
+          "sample": "prose.md",
+          "codec": "grep",
+          "outcome": "raw",
+          "tokens_in": 239,
+          "tokens_cold": 249,
+          "tokens_warm": 239,
+          "roundtrip": "byte"
+        },
+        {
+          "sample": "prose.md",
+          "codec": "diag",
+          "outcome": "raw",
+          "tokens_in": 239,
+          "tokens_cold": 249,
+          "tokens_warm": 239,
+          "roundtrip": "byte"
+        },
+        {
+          "sample": "prose.md",
+          "codec": "tmpl",
+          "outcome": "raw",
+          "tokens_in": 239,
+          "tokens_cold": 249,
+          "tokens_warm": 239,
+          "roundtrip": "byte"
+        },
+        {
+          "sample": "prose.md",
+          "codec": "paper",
+          "outcome": "raw",
+          "tokens_in": 239,
+          "tokens_cold": 249,
+          "tokens_warm": 239,
+          "roundtrip": "byte"
+        },
+        {
+          "sample": "prose.md",
+          "codec": "mine",
+          "outcome": "raw",
+          "tokens_in": 239,
+          "tokens_cold": 249,
+          "tokens_warm": 239,
+          "roundtrip": "byte"
+        },
+        {
+          "sample": "prose.md",
+          "codec": "deep",
+          "outcome": "raw",
+          "tokens_in": 239,
+          "tokens_cold": 249,
+          "tokens_warm": 239,
+          "roundtrip": "byte"
+        },
+        {
+          "sample": "prose.md",
+          "codec": "squeeze",
+          "outcome": "raw",
+          "tokens_in": 239,
+          "tokens_cold": 249,
+          "tokens_warm": 239,
+          "roundtrip": "byte"
+        },
+        {
+          "sample": "prose.md",
+          "codec": "mosaic",
+          "outcome": "raw",
+          "tokens_in": 239,
+          "tokens_cold": 249,
+          "tokens_warm": 239,
+          "roundtrip": "byte"
+        },
+        {
+          "sample": "rg-output.txt",
+          "codec": "fold",
+          "outcome": "raw",
+          "tokens_in": 512,
+          "tokens_cold": 522,
+          "tokens_warm": 512,
+          "roundtrip": "byte"
+        },
+        {
+          "sample": "rg-output.txt",
+          "codec": "toon",
+          "outcome": "raw",
+          "tokens_in": 512,
+          "tokens_cold": 522,
+          "tokens_warm": 512,
+          "roundtrip": "byte"
+        },
+        {
+          "sample": "rg-output.txt",
+          "codec": "grep",
+          "outcome": "grep",
+          "tokens_in": 512,
+          "tokens_cold": 410,
+          "tokens_warm": 394,
+          "roundtrip": "byte"
+        },
+        {
+          "sample": "rg-output.txt",
+          "codec": "diag",
+          "outcome": "raw",
+          "tokens_in": 512,
+          "tokens_cold": 522,
+          "tokens_warm": 512,
+          "roundtrip": "byte"
+        },
+        {
+          "sample": "rg-output.txt",
+          "codec": "tmpl",
+          "outcome": "tmpl",
+          "tokens_in": 512,
+          "tokens_cold": 467,
+          "tokens_warm": 354,
+          "roundtrip": "byte"
+        },
+        {
+          "sample": "rg-output.txt",
+          "codec": "paper",
+          "outcome": "raw",
+          "tokens_in": 512,
+          "tokens_cold": 522,
+          "tokens_warm": 512,
+          "roundtrip": "byte"
+        },
+        {
+          "sample": "rg-output.txt",
+          "codec": "mine",
+          "outcome": "mine",
+          "tokens_in": 512,
+          "tokens_cold": 372,
+          "tokens_warm": 273,
+          "roundtrip": "byte"
+        },
+        {
+          "sample": "rg-output.txt",
+          "codec": "deep",
+          "outcome": "mine",
+          "tokens_in": 512,
+          "tokens_cold": 337,
+          "tokens_warm": 221,
+          "roundtrip": "byte"
+        },
+        {
+          "sample": "rg-output.txt",
+          "codec": "squeeze",
+          "outcome": "mine",
+          "tokens_in": 512,
+          "tokens_cold": 332,
+          "tokens_warm": 253,
+          "roundtrip": "byte"
+        },
+        {
+          "sample": "rg-output.txt",
+          "codec": "mosaic",
+          "outcome": "mine",
+          "tokens_in": 512,
+          "tokens_cold": 332,
+          "tokens_warm": 253,
+          "roundtrip": "byte"
+        },
+        {
+          "sample": "stacktrace.txt",
+          "codec": "fold",
+          "outcome": "raw",
+          "tokens_in": 501,
+          "tokens_cold": 511,
+          "tokens_warm": 501,
+          "roundtrip": "byte"
+        },
+        {
+          "sample": "stacktrace.txt",
+          "codec": "toon",
+          "outcome": "raw",
+          "tokens_in": 501,
+          "tokens_cold": 511,
+          "tokens_warm": 501,
+          "roundtrip": "byte"
+        },
+        {
+          "sample": "stacktrace.txt",
+          "codec": "grep",
+          "outcome": "raw",
+          "tokens_in": 501,
+          "tokens_cold": 511,
+          "tokens_warm": 501,
+          "roundtrip": "byte"
+        },
+        {
+          "sample": "stacktrace.txt",
+          "codec": "diag",
+          "outcome": "raw",
+          "tokens_in": 501,
+          "tokens_cold": 511,
+          "tokens_warm": 501,
+          "roundtrip": "byte"
+        },
+        {
+          "sample": "stacktrace.txt",
+          "codec": "tmpl",
+          "outcome": "tmpl",
+          "tokens_in": 501,
+          "tokens_cold": 395,
+          "tokens_warm": 208,
+          "roundtrip": "byte"
+        },
+        {
+          "sample": "stacktrace.txt",
+          "codec": "paper",
+          "outcome": "paper",
+          "tokens_in": 501,
+          "tokens_cold": 438,
+          "tokens_warm": 257,
+          "roundtrip": "byte"
+        },
+        {
+          "sample": "stacktrace.txt",
+          "codec": "mine",
+          "outcome": "mine",
+          "tokens_in": 501,
+          "tokens_cold": 405,
+          "tokens_warm": 238,
+          "roundtrip": "byte"
+        },
+        {
+          "sample": "stacktrace.txt",
+          "codec": "deep",
+          "outcome": "mine",
+          "tokens_in": 501,
+          "tokens_cold": 387,
+          "tokens_warm": 225,
+          "roundtrip": "byte"
+        },
+        {
+          "sample": "stacktrace.txt",
+          "codec": "squeeze",
+          "outcome": "mine",
+          "tokens_in": 501,
+          "tokens_cold": 372,
+          "tokens_warm": 313,
+          "roundtrip": "byte"
+        },
+        {
+          "sample": "stacktrace.txt",
+          "codec": "mosaic",
+          "outcome": "mine",
+          "tokens_in": 501,
+          "tokens_cold": 372,
+          "tokens_warm": 313,
+          "roundtrip": "byte"
+        }
+      ],
+      "totals": {
+        "fold": {
+          "tokens_in": 3050,
+          "tokens_cold": 2885,
+          "tokens_warm": 2822,
+          "cold_saving": 0.054098360655737705,
+          "warm_saving": 0.07475409836065573,
+          "roundtrip_fail": 0,
+          "raw_fallbacks": 5
+        },
+        "toon": {
+          "tokens_in": 3050,
+          "tokens_cold": 2964,
+          "tokens_warm": 2897,
+          "cold_saving": 0.02819672131147541,
+          "warm_saving": 0.05016393442622951,
+          "roundtrip_fail": 0,
+          "raw_fallbacks": 5
+        },
+        "grep": {
+          "tokens_in": 3050,
+          "tokens_cold": 2998,
+          "tokens_warm": 2932,
+          "cold_saving": 0.017049180327868854,
+          "warm_saving": 0.038688524590163934,
+          "roundtrip_fail": 0,
+          "raw_fallbacks": 5
+        },
+        "diag": {
+          "tokens_in": 3050,
+          "tokens_cold": 3080,
+          "tokens_warm": 2942,
+          "cold_saving": -0.009836065573770493,
+          "warm_saving": 0.03540983606557377,
+          "roundtrip_fail": 0,
+          "raw_fallbacks": 5
+        },
+        "tmpl": {
+          "tokens_in": 3050,
+          "tokens_cold": 2575,
+          "tokens_warm": 1861,
+          "cold_saving": 0.1557377049180328,
+          "warm_saving": 0.3898360655737705,
+          "roundtrip_fail": 0,
+          "raw_fallbacks": 2
+        },
+        "paper": {
+          "tokens_in": 3050,
+          "tokens_cold": 2925,
+          "tokens_warm": 2349,
+          "cold_saving": 0.040983606557377046,
+          "warm_saving": 0.22983606557377048,
+          "roundtrip_fail": 0,
+          "raw_fallbacks": 2
+        },
+        "mine": {
+          "tokens_in": 3050,
+          "tokens_cold": 2469,
+          "tokens_warm": 1849,
+          "cold_saving": 0.19049180327868853,
+          "warm_saving": 0.39377049180327867,
+          "roundtrip_fail": 0,
+          "raw_fallbacks": 1
+        },
+        "deep": {
+          "tokens_in": 3050,
+          "tokens_cold": 2148,
+          "tokens_warm": 1388,
+          "cold_saving": 0.2957377049180328,
+          "warm_saving": 0.5449180327868852,
+          "roundtrip_fail": 0,
+          "raw_fallbacks": 1
+        },
+        "squeeze": {
+          "tokens_in": 3050,
+          "tokens_cold": 2055,
+          "tokens_warm": 1610,
+          "cold_saving": 0.3262295081967213,
+          "warm_saving": 0.4721311475409836,
+          "roundtrip_fail": 0,
+          "raw_fallbacks": 1
+        },
+        "mosaic": {
+          "tokens_in": 3050,
+          "tokens_cold": 2120,
+          "tokens_warm": 1734,
+          "cold_saving": 0.30491803278688523,
+          "warm_saving": 0.4314754098360656,
+          "roundtrip_fail": 0,
+          "raw_fallbacks": 1
+        }
+      }
+    },
+    "deepseek-v3": {
+      "provenance": {
+        "kind": "hf",
+        "repo": "deepseek-ai/DeepSeek-V3",
+        "sha256": "621ac2e32d0dba658404412318818aaa8ce8cda492e59830109d8da6b517fb41"
+      },
+      "status": "ok",
+      "rows": [
+        {
+          "sample": "build-log.txt",
+          "codec": "fold",
+          "outcome": "fold",
+          "tokens_in": 713,
+          "tokens_cold": 466,
+          "tokens_warm": 453,
+          "roundtrip": "byte"
+        },
+        {
+          "sample": "build-log.txt",
+          "codec": "toon",
+          "outcome": "raw",
+          "tokens_in": 713,
+          "tokens_cold": 723,
+          "tokens_warm": 713,
+          "roundtrip": "byte"
+        },
+        {
+          "sample": "build-log.txt",
+          "codec": "grep",
+          "outcome": "raw",
+          "tokens_in": 713,
+          "tokens_cold": 723,
+          "tokens_warm": 713,
+          "roundtrip": "byte"
+        },
+        {
+          "sample": "build-log.txt",
+          "codec": "diag",
+          "outcome": "diag",
+          "tokens_in": 713,
+          "tokens_cold": 691,
+          "tokens_warm": 599,
+          "roundtrip": "byte"
+        },
+        {
+          "sample": "build-log.txt",
+          "codec": "tmpl",
+          "outcome": "tmpl",
+          "tokens_in": 713,
+          "tokens_cold": 400,
+          "tokens_warm": 171,
+          "roundtrip": "byte"
+        },
+        {
+          "sample": "build-log.txt",
+          "codec": "paper",
+          "outcome": "paper",
+          "tokens_in": 713,
+          "tokens_cold": 576,
+          "tokens_warm": 309,
+          "roundtrip": "byte"
+        },
+        {
+          "sample": "build-log.txt",
+          "codec": "mine",
+          "outcome": "mine",
+          "tokens_in": 713,
+          "tokens_cold": 389,
+          "tokens_warm": 180,
+          "roundtrip": "byte"
+        },
+        {
+          "sample": "build-log.txt",
+          "codec": "deep",
+          "outcome": "mine",
+          "tokens_in": 713,
+          "tokens_cold": 366,
+          "tokens_warm": 157,
+          "roundtrip": "byte"
+        },
+        {
+          "sample": "build-log.txt",
+          "codec": "squeeze",
+          "outcome": "mine",
+          "tokens_in": 713,
+          "tokens_cold": 361,
+          "tokens_warm": 299,
+          "roundtrip": "byte"
+        },
+        {
+          "sample": "build-log.txt",
+          "codec": "mosaic",
+          "outcome": "mine",
+          "tokens_in": 713,
+          "tokens_cold": 361,
+          "tokens_warm": 299,
+          "roundtrip": "byte"
+        },
+        {
+          "sample": "findings.json",
+          "codec": "fold",
+          "outcome": "raw",
+          "tokens_in": 717,
+          "tokens_cold": 727,
+          "tokens_warm": 717,
+          "roundtrip": "byte"
+        },
+        {
+          "sample": "findings.json",
+          "codec": "toon",
+          "outcome": "toon",
+          "tokens_in": 717,
+          "tokens_cold": 631,
+          "tokens_warm": 614,
+          "roundtrip": "sem"
+        },
+        {
+          "sample": "findings.json",
+          "codec": "grep",
+          "outcome": "raw",
+          "tokens_in": 717,
+          "tokens_cold": 727,
+          "tokens_warm": 717,
+          "roundtrip": "byte"
+        },
+        {
+          "sample": "findings.json",
+          "codec": "diag",
+          "outcome": "raw",
+          "tokens_in": 717,
+          "tokens_cold": 727,
+          "tokens_warm": 717,
+          "roundtrip": "byte"
+        },
+        {
+          "sample": "findings.json",
+          "codec": "tmpl",
+          "outcome": "tmpl",
+          "tokens_in": 717,
+          "tokens_cold": 639,
+          "tokens_warm": 443,
+          "roundtrip": "byte"
+        },
+        {
+          "sample": "findings.json",
+          "codec": "paper",
+          "outcome": "paper",
+          "tokens_in": 717,
+          "tokens_cold": 731,
+          "tokens_warm": 651,
+          "roundtrip": "byte"
+        },
+        {
+          "sample": "findings.json",
+          "codec": "mine",
+          "outcome": "mine",
+          "tokens_in": 717,
+          "tokens_cold": 696,
+          "tokens_warm": 601,
+          "roundtrip": "byte"
+        },
+        {
+          "sample": "findings.json",
+          "codec": "deep",
+          "outcome": "mine",
+          "tokens_in": 717,
+          "tokens_cold": 465,
+          "tokens_warm": 218,
+          "roundtrip": "byte"
+        },
+        {
+          "sample": "findings.json",
+          "codec": "squeeze",
+          "outcome": "mine",
+          "tokens_in": 717,
+          "tokens_cold": 399,
+          "tokens_warm": 211,
+          "roundtrip": "sem"
+        },
+        {
+          "sample": "findings.json",
+          "codec": "mosaic",
+          "outcome": "mine",
+          "tokens_in": 717,
+          "tokens_cold": 440,
+          "tokens_warm": 319,
+          "roundtrip": "byte"
+        },
+        {
+          "sample": "git-diff.txt",
+          "codec": "fold",
+          "outcome": "raw",
+          "tokens_in": 527,
+          "tokens_cold": 537,
+          "tokens_warm": 527,
+          "roundtrip": "byte"
+        },
+        {
+          "sample": "git-diff.txt",
+          "codec": "toon",
+          "outcome": "raw",
+          "tokens_in": 527,
+          "tokens_cold": 537,
+          "tokens_warm": 527,
+          "roundtrip": "byte"
+        },
+        {
+          "sample": "git-diff.txt",
+          "codec": "grep",
+          "outcome": "raw",
+          "tokens_in": 527,
+          "tokens_cold": 537,
+          "tokens_warm": 527,
+          "roundtrip": "byte"
+        },
+        {
+          "sample": "git-diff.txt",
+          "codec": "diag",
+          "outcome": "raw",
+          "tokens_in": 527,
+          "tokens_cold": 537,
+          "tokens_warm": 527,
+          "roundtrip": "byte"
+        },
+        {
+          "sample": "git-diff.txt",
+          "codec": "tmpl",
+          "outcome": "raw",
+          "tokens_in": 527,
+          "tokens_cold": 537,
+          "tokens_warm": 527,
+          "roundtrip": "byte"
+        },
+        {
+          "sample": "git-diff.txt",
+          "codec": "paper",
+          "outcome": "raw",
+          "tokens_in": 527,
+          "tokens_cold": 537,
+          "tokens_warm": 527,
+          "roundtrip": "byte"
+        },
+        {
+          "sample": "git-diff.txt",
+          "codec": "mine",
+          "outcome": "mine",
+          "tokens_in": 527,
+          "tokens_cold": 468,
+          "tokens_warm": 373,
+          "roundtrip": "byte"
+        },
+        {
+          "sample": "git-diff.txt",
+          "codec": "deep",
+          "outcome": "mine",
+          "tokens_in": 527,
+          "tokens_cold": 422,
+          "tokens_warm": 318,
+          "roundtrip": "byte"
+        },
+        {
+          "sample": "git-diff.txt",
+          "codec": "squeeze",
+          "outcome": "mine",
+          "tokens_in": 527,
+          "tokens_cold": 432,
+          "tokens_warm": 328,
+          "roundtrip": "byte"
+        },
+        {
+          "sample": "git-diff.txt",
+          "codec": "mosaic",
+          "outcome": "mine",
+          "tokens_in": 527,
+          "tokens_cold": 432,
+          "tokens_warm": 328,
+          "roundtrip": "byte"
+        },
+        {
+          "sample": "prose.md",
+          "codec": "fold",
+          "outcome": "raw",
+          "tokens_in": 239,
+          "tokens_cold": 249,
+          "tokens_warm": 239,
+          "roundtrip": "byte"
+        },
+        {
+          "sample": "prose.md",
+          "codec": "toon",
+          "outcome": "raw",
+          "tokens_in": 239,
+          "tokens_cold": 249,
+          "tokens_warm": 239,
+          "roundtrip": "byte"
+        },
+        {
+          "sample": "prose.md",
+          "codec": "grep",
+          "outcome": "raw",
+          "tokens_in": 239,
+          "tokens_cold": 249,
+          "tokens_warm": 239,
+          "roundtrip": "byte"
+        },
+        {
+          "sample": "prose.md",
+          "codec": "diag",
+          "outcome": "raw",
+          "tokens_in": 239,
+          "tokens_cold": 249,
+          "tokens_warm": 239,
+          "roundtrip": "byte"
+        },
+        {
+          "sample": "prose.md",
+          "codec": "tmpl",
+          "outcome": "raw",
+          "tokens_in": 239,
+          "tokens_cold": 249,
+          "tokens_warm": 239,
+          "roundtrip": "byte"
+        },
+        {
+          "sample": "prose.md",
+          "codec": "paper",
+          "outcome": "raw",
+          "tokens_in": 239,
+          "tokens_cold": 249,
+          "tokens_warm": 239,
+          "roundtrip": "byte"
+        },
+        {
+          "sample": "prose.md",
+          "codec": "mine",
+          "outcome": "raw",
+          "tokens_in": 239,
+          "tokens_cold": 249,
+          "tokens_warm": 239,
+          "roundtrip": "byte"
+        },
+        {
+          "sample": "prose.md",
+          "codec": "deep",
+          "outcome": "raw",
+          "tokens_in": 239,
+          "tokens_cold": 249,
+          "tokens_warm": 239,
+          "roundtrip": "byte"
+        },
+        {
+          "sample": "prose.md",
+          "codec": "squeeze",
+          "outcome": "raw",
+          "tokens_in": 239,
+          "tokens_cold": 249,
+          "tokens_warm": 239,
+          "roundtrip": "byte"
+        },
+        {
+          "sample": "prose.md",
+          "codec": "mosaic",
+          "outcome": "raw",
+          "tokens_in": 239,
+          "tokens_cold": 249,
+          "tokens_warm": 239,
+          "roundtrip": "byte"
+        },
+        {
+          "sample": "rg-output.txt",
+          "codec": "fold",
+          "outcome": "raw",
+          "tokens_in": 595,
+          "tokens_cold": 605,
+          "tokens_warm": 595,
+          "roundtrip": "byte"
+        },
+        {
+          "sample": "rg-output.txt",
+          "codec": "toon",
+          "outcome": "raw",
+          "tokens_in": 595,
+          "tokens_cold": 605,
+          "tokens_warm": 595,
+          "roundtrip": "byte"
+        },
+        {
+          "sample": "rg-output.txt",
+          "codec": "grep",
+          "outcome": "grep",
+          "tokens_in": 595,
+          "tokens_cold": 486,
+          "tokens_warm": 469,
+          "roundtrip": "byte"
+        },
+        {
+          "sample": "rg-output.txt",
+          "codec": "diag",
+          "outcome": "raw",
+          "tokens_in": 595,
+          "tokens_cold": 605,
+          "tokens_warm": 595,
+          "roundtrip": "byte"
+        },
+        {
+          "sample": "rg-output.txt",
+          "codec": "tmpl",
+          "outcome": "tmpl",
+          "tokens_in": 595,
+          "tokens_cold": 525,
+          "tokens_warm": 397,
+          "roundtrip": "byte"
+        },
+        {
+          "sample": "rg-output.txt",
+          "codec": "paper",
+          "outcome": "paper",
+          "tokens_in": 595,
+          "tokens_cold": 614,
+          "tokens_warm": 580,
+          "roundtrip": "byte"
+        },
+        {
+          "sample": "rg-output.txt",
+          "codec": "mine",
+          "outcome": "mine",
+          "tokens_in": 595,
+          "tokens_cold": 409,
+          "tokens_warm": 270,
+          "roundtrip": "byte"
+        },
+        {
+          "sample": "rg-output.txt",
+          "codec": "deep",
+          "outcome": "mine",
+          "tokens_in": 595,
+          "tokens_cold": 355,
+          "tokens_warm": 215,
+          "roundtrip": "byte"
+        },
+        {
+          "sample": "rg-output.txt",
+          "codec": "squeeze",
+          "outcome": "mine",
+          "tokens_in": 595,
+          "tokens_cold": 357,
+          "tokens_warm": 245,
+          "roundtrip": "byte"
+        },
+        {
+          "sample": "rg-output.txt",
+          "codec": "mosaic",
+          "outcome": "mine",
+          "tokens_in": 595,
+          "tokens_cold": 357,
+          "tokens_warm": 245,
+          "roundtrip": "byte"
+        },
+        {
+          "sample": "stacktrace.txt",
+          "codec": "fold",
+          "outcome": "raw",
+          "tokens_in": 599,
+          "tokens_cold": 609,
+          "tokens_warm": 599,
+          "roundtrip": "byte"
+        },
+        {
+          "sample": "stacktrace.txt",
+          "codec": "toon",
+          "outcome": "raw",
+          "tokens_in": 599,
+          "tokens_cold": 609,
+          "tokens_warm": 599,
+          "roundtrip": "byte"
+        },
+        {
+          "sample": "stacktrace.txt",
+          "codec": "grep",
+          "outcome": "raw",
+          "tokens_in": 599,
+          "tokens_cold": 609,
+          "tokens_warm": 599,
+          "roundtrip": "byte"
+        },
+        {
+          "sample": "stacktrace.txt",
+          "codec": "diag",
+          "outcome": "raw",
+          "tokens_in": 599,
+          "tokens_cold": 609,
+          "tokens_warm": 599,
+          "roundtrip": "byte"
+        },
+        {
+          "sample": "stacktrace.txt",
+          "codec": "tmpl",
+          "outcome": "tmpl",
+          "tokens_in": 599,
+          "tokens_cold": 454,
+          "tokens_warm": 239,
+          "roundtrip": "byte"
+        },
+        {
+          "sample": "stacktrace.txt",
+          "codec": "paper",
+          "outcome": "paper",
+          "tokens_in": 599,
+          "tokens_cold": 517,
+          "tokens_warm": 305,
+          "roundtrip": "byte"
+        },
+        {
+          "sample": "stacktrace.txt",
+          "codec": "mine",
+          "outcome": "mine",
+          "tokens_in": 599,
+          "tokens_cold": 457,
+          "tokens_warm": 250,
+          "roundtrip": "byte"
+        },
+        {
+          "sample": "stacktrace.txt",
+          "codec": "deep",
+          "outcome": "mine",
+          "tokens_in": 599,
+          "tokens_cold": 439,
+          "tokens_warm": 243,
+          "roundtrip": "byte"
+        },
+        {
+          "sample": "stacktrace.txt",
+          "codec": "squeeze",
+          "outcome": "mine",
+          "tokens_in": 599,
+          "tokens_cold": 422,
+          "tokens_warm": 352,
+          "roundtrip": "byte"
+        },
+        {
+          "sample": "stacktrace.txt",
+          "codec": "mosaic",
+          "outcome": "mine",
+          "tokens_in": 599,
+          "tokens_cold": 422,
+          "tokens_warm": 352,
+          "roundtrip": "byte"
+        }
+      ],
+      "totals": {
+        "fold": {
+          "tokens_in": 3390,
+          "tokens_cold": 3193,
+          "tokens_warm": 3130,
+          "cold_saving": 0.058112094395280235,
+          "warm_saving": 0.07669616519174041,
+          "roundtrip_fail": 0,
+          "raw_fallbacks": 5
+        },
+        "toon": {
+          "tokens_in": 3390,
+          "tokens_cold": 3354,
+          "tokens_warm": 3287,
+          "cold_saving": 0.010619469026548672,
+          "warm_saving": 0.0303834808259587,
+          "roundtrip_fail": 0,
+          "raw_fallbacks": 5
+        },
+        "grep": {
+          "tokens_in": 3390,
+          "tokens_cold": 3331,
+          "tokens_warm": 3264,
+          "cold_saving": 0.017404129793510324,
+          "warm_saving": 0.03716814159292035,
+          "roundtrip_fail": 0,
+          "raw_fallbacks": 5
+        },
+        "diag": {
+          "tokens_in": 3390,
+          "tokens_cold": 3418,
+          "tokens_warm": 3276,
+          "cold_saving": -0.008259587020648967,
+          "warm_saving": 0.033628318584070796,
+          "roundtrip_fail": 0,
+          "raw_fallbacks": 5
+        },
+        "tmpl": {
+          "tokens_in": 3390,
+          "tokens_cold": 2804,
+          "tokens_warm": 2016,
+          "cold_saving": 0.1728613569321534,
+          "warm_saving": 0.40530973451327434,
+          "roundtrip_fail": 0,
+          "raw_fallbacks": 2
+        },
+        "paper": {
+          "tokens_in": 3390,
+          "tokens_cold": 3224,
+          "tokens_warm": 2611,
+          "cold_saving": 0.04896755162241888,
+          "warm_saving": 0.22979351032448378,
+          "roundtrip_fail": 0,
+          "raw_fallbacks": 2
+        },
+        "mine": {
+          "tokens_in": 3390,
+          "tokens_cold": 2668,
+          "tokens_warm": 1913,
+          "cold_saving": 0.2129793510324484,
+          "warm_saving": 0.43569321533923305,
+          "roundtrip_fail": 0,
+          "raw_fallbacks": 1
+        },
+        "deep": {
+          "tokens_in": 3390,
+          "tokens_cold": 2296,
+          "tokens_warm": 1390,
+          "cold_saving": 0.32271386430678467,
+          "warm_saving": 0.5899705014749262,
+          "roundtrip_fail": 0,
+          "raw_fallbacks": 1
+        },
+        "squeeze": {
+          "tokens_in": 3390,
+          "tokens_cold": 2220,
+          "tokens_warm": 1674,
+          "cold_saving": 0.34513274336283184,
+          "warm_saving": 0.5061946902654867,
+          "roundtrip_fail": 0,
+          "raw_fallbacks": 1
+        },
+        "mosaic": {
+          "tokens_in": 3390,
+          "tokens_cold": 2261,
+          "tokens_warm": 1782,
+          "cold_saving": 0.33303834808259586,
+          "warm_saving": 0.4743362831858407,
+          "roundtrip_fail": 0,
+          "raw_fallbacks": 1
+        }
+      }
+    },
+    "glm4": {
+      "provenance": {
+        "kind": "hf",
+        "repo": "THUDM/glm-4-9b-chat-hf",
+        "sha256": "8a7269d6daa6328de533def0082ff9d3a825bb89036cbcc665c324f941f67fbf"
+      },
+      "status": "ok",
+      "rows": [
+        {
+          "sample": "build-log.txt",
+          "codec": "fold",
+          "outcome": "fold",
+          "tokens_in": 661,
+          "tokens_cold": 440,
+          "tokens_warm": 427,
+          "roundtrip": "byte"
+        },
+        {
+          "sample": "build-log.txt",
+          "codec": "toon",
+          "outcome": "raw",
+          "tokens_in": 661,
+          "tokens_cold": 671,
+          "tokens_warm": 661,
+          "roundtrip": "byte"
+        },
+        {
+          "sample": "build-log.txt",
+          "codec": "grep",
+          "outcome": "raw",
+          "tokens_in": 661,
+          "tokens_cold": 671,
+          "tokens_warm": 661,
+          "roundtrip": "byte"
+        },
+        {
+          "sample": "build-log.txt",
+          "codec": "diag",
+          "outcome": "diag",
+          "tokens_in": 661,
+          "tokens_cold": 641,
+          "tokens_warm": 553,
+          "roundtrip": "byte"
+        },
+        {
+          "sample": "build-log.txt",
+          "codec": "tmpl",
+          "outcome": "tmpl",
+          "tokens_in": 661,
+          "tokens_cold": 379,
+          "tokens_warm": 165,
+          "roundtrip": "byte"
+        },
+        {
+          "sample": "build-log.txt",
+          "codec": "paper",
+          "outcome": "paper",
+          "tokens_in": 661,
+          "tokens_cold": 538,
+          "tokens_warm": 282,
+          "roundtrip": "byte"
+        },
+        {
+          "sample": "build-log.txt",
+          "codec": "mine",
+          "outcome": "mine",
+          "tokens_in": 661,
+          "tokens_cold": 367,
+          "tokens_warm": 176,
+          "roundtrip": "byte"
+        },
+        {
+          "sample": "build-log.txt",
+          "codec": "deep",
+          "outcome": "mine",
+          "tokens_in": 661,
+          "tokens_cold": 351,
+          "tokens_warm": 156,
+          "roundtrip": "byte"
+        },
+        {
+          "sample": "build-log.txt",
+          "codec": "squeeze",
+          "outcome": "mine",
+          "tokens_in": 661,
+          "tokens_cold": 350,
+          "tokens_warm": 292,
+          "roundtrip": "byte"
+        },
+        {
+          "sample": "build-log.txt",
+          "codec": "mosaic",
+          "outcome": "mine",
+          "tokens_in": 661,
+          "tokens_cold": 350,
+          "tokens_warm": 292,
+          "roundtrip": "byte"
+        },
+        {
+          "sample": "findings.json",
+          "codec": "fold",
+          "outcome": "raw",
+          "tokens_in": 677,
+          "tokens_cold": 687,
+          "tokens_warm": 677,
+          "roundtrip": "byte"
+        },
+        {
+          "sample": "findings.json",
+          "codec": "toon",
+          "outcome": "toon",
+          "tokens_in": 677,
+          "tokens_cold": 541,
+          "tokens_warm": 524,
+          "roundtrip": "sem"
+        },
+        {
+          "sample": "findings.json",
+          "codec": "grep",
+          "outcome": "raw",
+          "tokens_in": 677,
+          "tokens_cold": 687,
+          "tokens_warm": 677,
+          "roundtrip": "byte"
+        },
+        {
+          "sample": "findings.json",
+          "codec": "diag",
+          "outcome": "raw",
+          "tokens_in": 677,
+          "tokens_cold": 687,
+          "tokens_warm": 677,
+          "roundtrip": "byte"
+        },
+        {
+          "sample": "findings.json",
+          "codec": "tmpl",
+          "outcome": "tmpl",
+          "tokens_in": 677,
+          "tokens_cold": 604,
+          "tokens_warm": 418,
+          "roundtrip": "byte"
+        },
+        {
+          "sample": "findings.json",
+          "codec": "paper",
+          "outcome": "paper",
+          "tokens_in": 677,
+          "tokens_cold": 692,
+          "tokens_warm": 605,
+          "roundtrip": "byte"
+        },
+        {
+          "sample": "findings.json",
+          "codec": "mine",
+          "outcome": "mine",
+          "tokens_in": 677,
+          "tokens_cold": 662,
+          "tokens_warm": 587,
+          "roundtrip": "byte"
+        },
+        {
+          "sample": "findings.json",
+          "codec": "deep",
+          "outcome": "mine",
+          "tokens_in": 677,
+          "tokens_cold": 440,
+          "tokens_warm": 233,
+          "roundtrip": "byte"
+        },
+        {
+          "sample": "findings.json",
+          "codec": "squeeze",
+          "outcome": "mine",
+          "tokens_in": 677,
+          "tokens_cold": 357,
+          "tokens_warm": 190,
+          "roundtrip": "sem"
+        },
+        {
+          "sample": "findings.json",
+          "codec": "mosaic",
+          "outcome": "mine",
+          "tokens_in": 677,
+          "tokens_cold": 417,
+          "tokens_warm": 309,
+          "roundtrip": "byte"
+        },
+        {
+          "sample": "git-diff.txt",
+          "codec": "fold",
+          "outcome": "raw",
+          "tokens_in": 481,
+          "tokens_cold": 491,
+          "tokens_warm": 481,
+          "roundtrip": "byte"
+        },
+        {
+          "sample": "git-diff.txt",
+          "codec": "toon",
+          "outcome": "raw",
+          "tokens_in": 481,
+          "tokens_cold": 491,
+          "tokens_warm": 481,
+          "roundtrip": "byte"
+        },
+        {
+          "sample": "git-diff.txt",
+          "codec": "grep",
+          "outcome": "raw",
+          "tokens_in": 481,
+          "tokens_cold": 491,
+          "tokens_warm": 481,
+          "roundtrip": "byte"
+        },
+        {
+          "sample": "git-diff.txt",
+          "codec": "diag",
+          "outcome": "raw",
+          "tokens_in": 481,
+          "tokens_cold": 491,
+          "tokens_warm": 481,
+          "roundtrip": "byte"
+        },
+        {
+          "sample": "git-diff.txt",
+          "codec": "tmpl",
+          "outcome": "raw",
+          "tokens_in": 481,
+          "tokens_cold": 491,
+          "tokens_warm": 481,
+          "roundtrip": "byte"
+        },
+        {
+          "sample": "git-diff.txt",
+          "codec": "paper",
+          "outcome": "paper",
+          "tokens_in": 481,
+          "tokens_cold": 504,
+          "tokens_warm": 469,
+          "roundtrip": "byte"
+        },
+        {
+          "sample": "git-diff.txt",
+          "codec": "mine",
+          "outcome": "mine",
+          "tokens_in": 481,
+          "tokens_cold": 428,
+          "tokens_warm": 355,
+          "roundtrip": "byte"
+        },
+        {
+          "sample": "git-diff.txt",
+          "codec": "deep",
+          "outcome": "mine",
+          "tokens_in": 481,
+          "tokens_cold": 396,
+          "tokens_warm": 324,
+          "roundtrip": "byte"
+        },
+        {
+          "sample": "git-diff.txt",
+          "codec": "squeeze",
+          "outcome": "mine",
+          "tokens_in": 481,
+          "tokens_cold": 406,
+          "tokens_warm": 334,
+          "roundtrip": "byte"
+        },
+        {
+          "sample": "git-diff.txt",
+          "codec": "mosaic",
+          "outcome": "mine",
+          "tokens_in": 481,
+          "tokens_cold": 406,
+          "tokens_warm": 334,
+          "roundtrip": "byte"
+        },
+        {
+          "sample": "prose.md",
+          "codec": "fold",
+          "outcome": "raw",
+          "tokens_in": 239,
+          "tokens_cold": 249,
+          "tokens_warm": 239,
+          "roundtrip": "byte"
+        },
+        {
+          "sample": "prose.md",
+          "codec": "toon",
+          "outcome": "raw",
+          "tokens_in": 239,
+          "tokens_cold": 249,
+          "tokens_warm": 239,
+          "roundtrip": "byte"
+        },
+        {
+          "sample": "prose.md",
+          "codec": "grep",
+          "outcome": "raw",
+          "tokens_in": 239,
+          "tokens_cold": 249,
+          "tokens_warm": 239,
+          "roundtrip": "byte"
+        },
+        {
+          "sample": "prose.md",
+          "codec": "diag",
+          "outcome": "raw",
+          "tokens_in": 239,
+          "tokens_cold": 249,
+          "tokens_warm": 239,
+          "roundtrip": "byte"
+        },
+        {
+          "sample": "prose.md",
+          "codec": "tmpl",
+          "outcome": "raw",
+          "tokens_in": 239,
+          "tokens_cold": 249,
+          "tokens_warm": 239,
+          "roundtrip": "byte"
+        },
+        {
+          "sample": "prose.md",
+          "codec": "paper",
+          "outcome": "raw",
+          "tokens_in": 239,
+          "tokens_cold": 249,
+          "tokens_warm": 239,
+          "roundtrip": "byte"
+        },
+        {
+          "sample": "prose.md",
+          "codec": "mine",
+          "outcome": "raw",
+          "tokens_in": 239,
+          "tokens_cold": 249,
+          "tokens_warm": 239,
+          "roundtrip": "byte"
+        },
+        {
+          "sample": "prose.md",
+          "codec": "deep",
+          "outcome": "raw",
+          "tokens_in": 239,
+          "tokens_cold": 249,
+          "tokens_warm": 239,
+          "roundtrip": "byte"
+        },
+        {
+          "sample": "prose.md",
+          "codec": "squeeze",
+          "outcome": "raw",
+          "tokens_in": 239,
+          "tokens_cold": 249,
+          "tokens_warm": 239,
+          "roundtrip": "byte"
+        },
+        {
+          "sample": "prose.md",
+          "codec": "mosaic",
+          "outcome": "raw",
+          "tokens_in": 239,
+          "tokens_cold": 249,
+          "tokens_warm": 239,
+          "roundtrip": "byte"
+        },
+        {
+          "sample": "rg-output.txt",
+          "codec": "fold",
+          "outcome": "raw",
+          "tokens_in": 512,
+          "tokens_cold": 522,
+          "tokens_warm": 512,
+          "roundtrip": "byte"
+        },
+        {
+          "sample": "rg-output.txt",
+          "codec": "toon",
+          "outcome": "raw",
+          "tokens_in": 512,
+          "tokens_cold": 522,
+          "tokens_warm": 512,
+          "roundtrip": "byte"
+        },
+        {
+          "sample": "rg-output.txt",
+          "codec": "grep",
+          "outcome": "grep",
+          "tokens_in": 512,
+          "tokens_cold": 413,
+          "tokens_warm": 397,
+          "roundtrip": "byte"
+        },
+        {
+          "sample": "rg-output.txt",
+          "codec": "diag",
+          "outcome": "raw",
+          "tokens_in": 512,
+          "tokens_cold": 522,
+          "tokens_warm": 512,
+          "roundtrip": "byte"
+        },
+        {
+          "sample": "rg-output.txt",
+          "codec": "tmpl",
+          "outcome": "tmpl",
+          "tokens_in": 512,
+          "tokens_cold": 467,
+          "tokens_warm": 354,
+          "roundtrip": "byte"
+        },
+        {
+          "sample": "rg-output.txt",
+          "codec": "paper",
+          "outcome": "raw",
+          "tokens_in": 512,
+          "tokens_cold": 522,
+          "tokens_warm": 512,
+          "roundtrip": "byte"
+        },
+        {
+          "sample": "rg-output.txt",
+          "codec": "mine",
+          "outcome": "mine",
+          "tokens_in": 512,
+          "tokens_cold": 366,
+          "tokens_warm": 261,
+          "roundtrip": "byte"
+        },
+        {
+          "sample": "rg-output.txt",
+          "codec": "deep",
+          "outcome": "mine",
+          "tokens_in": 512,
+          "tokens_cold": 337,
+          "tokens_warm": 221,
+          "roundtrip": "byte"
+        },
+        {
+          "sample": "rg-output.txt",
+          "codec": "squeeze",
+          "outcome": "mine",
+          "tokens_in": 512,
+          "tokens_cold": 335,
+          "tokens_warm": 256,
+          "roundtrip": "byte"
+        },
+        {
+          "sample": "rg-output.txt",
+          "codec": "mosaic",
+          "outcome": "mine",
+          "tokens_in": 512,
+          "tokens_cold": 335,
+          "tokens_warm": 256,
+          "roundtrip": "byte"
+        },
+        {
+          "sample": "stacktrace.txt",
+          "codec": "fold",
+          "outcome": "raw",
+          "tokens_in": 501,
+          "tokens_cold": 511,
+          "tokens_warm": 501,
+          "roundtrip": "byte"
+        },
+        {
+          "sample": "stacktrace.txt",
+          "codec": "toon",
+          "outcome": "raw",
+          "tokens_in": 501,
+          "tokens_cold": 511,
+          "tokens_warm": 501,
+          "roundtrip": "byte"
+        },
+        {
+          "sample": "stacktrace.txt",
+          "codec": "grep",
+          "outcome": "raw",
+          "tokens_in": 501,
+          "tokens_cold": 511,
+          "tokens_warm": 501,
+          "roundtrip": "byte"
+        },
+        {
+          "sample": "stacktrace.txt",
+          "codec": "diag",
+          "outcome": "raw",
+          "tokens_in": 501,
+          "tokens_cold": 511,
+          "tokens_warm": 501,
+          "roundtrip": "byte"
+        },
+        {
+          "sample": "stacktrace.txt",
+          "codec": "tmpl",
+          "outcome": "tmpl",
+          "tokens_in": 501,
+          "tokens_cold": 395,
+          "tokens_warm": 208,
+          "roundtrip": "byte"
+        },
+        {
+          "sample": "stacktrace.txt",
+          "codec": "paper",
+          "outcome": "paper",
+          "tokens_in": 501,
+          "tokens_cold": 438,
+          "tokens_warm": 257,
+          "roundtrip": "byte"
+        },
+        {
+          "sample": "stacktrace.txt",
+          "codec": "mine",
+          "outcome": "mine",
+          "tokens_in": 501,
+          "tokens_cold": 407,
+          "tokens_warm": 260,
+          "roundtrip": "byte"
+        },
+        {
+          "sample": "stacktrace.txt",
+          "codec": "deep",
+          "outcome": "mine",
+          "tokens_in": 501,
+          "tokens_cold": 385,
+          "tokens_warm": 223,
+          "roundtrip": "byte"
+        },
+        {
+          "sample": "stacktrace.txt",
+          "codec": "squeeze",
+          "outcome": "mine",
+          "tokens_in": 501,
+          "tokens_cold": 372,
+          "tokens_warm": 313,
+          "roundtrip": "byte"
+        },
+        {
+          "sample": "stacktrace.txt",
+          "codec": "mosaic",
+          "outcome": "mine",
+          "tokens_in": 501,
+          "tokens_cold": 372,
+          "tokens_warm": 313,
+          "roundtrip": "byte"
+        }
+      ],
+      "totals": {
+        "fold": {
+          "tokens_in": 3071,
+          "tokens_cold": 2900,
+          "tokens_warm": 2837,
+          "cold_saving": 0.05568218821230869,
+          "warm_saving": 0.07619667860631717,
+          "roundtrip_fail": 0,
+          "raw_fallbacks": 5
+        },
+        "toon": {
+          "tokens_in": 3071,
+          "tokens_cold": 2985,
+          "tokens_warm": 2918,
+          "cold_saving": 0.02800390752197981,
+          "warm_saving": 0.04982090524259199,
+          "roundtrip_fail": 0,
+          "raw_fallbacks": 5
+        },
+        "grep": {
+          "tokens_in": 3071,
+          "tokens_cold": 3022,
+          "tokens_warm": 2956,
+          "cold_saving": 0.015955714750895474,
+          "warm_saving": 0.03744708563985672,
+          "roundtrip_fail": 0,
+          "raw_fallbacks": 5
+        },
+        "diag": {
+          "tokens_in": 3071,
+          "tokens_cold": 3101,
+          "tokens_warm": 2963,
+          "cold_saving": -0.00976880494952784,
+          "warm_saving": 0.03516769781830023,
+          "roundtrip_fail": 0,
+          "raw_fallbacks": 5
+        },
+        "tmpl": {
+          "tokens_in": 3071,
+          "tokens_cold": 2585,
+          "tokens_warm": 1865,
+          "cold_saving": 0.15825464018235103,
+          "warm_saving": 0.39270595897101923,
+          "roundtrip_fail": 0,
+          "raw_fallbacks": 2
+        },
+        "paper": {
+          "tokens_in": 3071,
+          "tokens_cold": 2943,
+          "tokens_warm": 2364,
+          "cold_saving": 0.04168023445131879,
+          "warm_saving": 0.23021816997720612,
+          "roundtrip_fail": 0,
+          "raw_fallbacks": 2
+        },
+        "mine": {
+          "tokens_in": 3071,
+          "tokens_cold": 2479,
+          "tokens_warm": 1878,
+          "cold_saving": 0.1927710843373494,
+          "warm_saving": 0.38847281015955715,
+          "roundtrip_fail": 0,
+          "raw_fallbacks": 1
+        },
+        "deep": {
+          "tokens_in": 3071,
+          "tokens_cold": 2158,
+          "tokens_warm": 1396,
+          "cold_saving": 0.2972972972972973,
+          "warm_saving": 0.5454249430153044,
+          "roundtrip_fail": 0,
+          "raw_fallbacks": 1
+        },
+        "squeeze": {
+          "tokens_in": 3071,
+          "tokens_cold": 2069,
+          "tokens_warm": 1624,
+          "cold_saving": 0.3262780853142299,
+          "warm_saving": 0.47118202539889287,
+          "roundtrip_fail": 0,
+          "raw_fallbacks": 1
+        },
+        "mosaic": {
+          "tokens_in": 3071,
+          "tokens_cold": 2129,
+          "tokens_warm": 1743,
+          "cold_saving": 0.3067404754151742,
+          "warm_saving": 0.43243243243243246,
+          "roundtrip_fail": 0,
+          "raw_fallbacks": 1
+        }
+      }
+    },
+    "phi4": {
+      "provenance": {
+        "kind": "hf",
+        "repo": "microsoft/phi-4",
+        "sha256": "9f38d05d9d25756bb2f181ab5a0cebcd59e638df10336fc7ed1010f7296d0298"
+      },
+      "status": "ok",
+      "rows": [
+        {
+          "sample": "build-log.txt",
+          "codec": "fold",
+          "outcome": "fold",
+          "tokens_in": 653,
+          "tokens_cold": 438,
+          "tokens_warm": 425,
+          "roundtrip": "byte"
+        },
+        {
+          "sample": "build-log.txt",
+          "codec": "toon",
+          "outcome": "raw",
+          "tokens_in": 653,
+          "tokens_cold": 663,
+          "tokens_warm": 653,
+          "roundtrip": "byte"
+        },
+        {
+          "sample": "build-log.txt",
+          "codec": "grep",
+          "outcome": "raw",
+          "tokens_in": 653,
+          "tokens_cold": 663,
+          "tokens_warm": 653,
+          "roundtrip": "byte"
+        },
+        {
+          "sample": "build-log.txt",
+          "codec": "diag",
+          "outcome": "diag",
+          "tokens_in": 653,
+          "tokens_cold": 633,
+          "tokens_warm": 545,
+          "roundtrip": "byte"
+        },
+        {
+          "sample": "build-log.txt",
+          "codec": "tmpl",
+          "outcome": "tmpl",
+          "tokens_in": 653,
+          "tokens_cold": 377,
+          "tokens_warm": 165,
+          "roundtrip": "byte"
+        },
+        {
+          "sample": "build-log.txt",
+          "codec": "paper",
+          "outcome": "paper",
+          "tokens_in": 653,
+          "tokens_cold": 533,
+          "tokens_warm": 280,
+          "roundtrip": "byte"
+        },
+        {
+          "sample": "build-log.txt",
+          "codec": "mine",
+          "outcome": "mine",
+          "tokens_in": 653,
+          "tokens_cold": 378,
+          "tokens_warm": 187,
+          "roundtrip": "byte"
+        },
+        {
+          "sample": "build-log.txt",
+          "codec": "deep",
+          "outcome": "mine",
+          "tokens_in": 653,
+          "tokens_cold": 361,
+          "tokens_warm": 166,
+          "roundtrip": "byte"
+        },
+        {
+          "sample": "build-log.txt",
+          "codec": "squeeze",
+          "outcome": "mine",
+          "tokens_in": 653,
+          "tokens_cold": 351,
+          "tokens_warm": 298,
+          "roundtrip": "byte"
+        },
+        {
+          "sample": "build-log.txt",
+          "codec": "mosaic",
+          "outcome": "mine",
+          "tokens_in": 653,
+          "tokens_cold": 351,
+          "tokens_warm": 298,
+          "roundtrip": "byte"
+        },
+        {
+          "sample": "findings.json",
+          "codec": "fold",
+          "outcome": "raw",
+          "tokens_in": 667,
+          "tokens_cold": 677,
+          "tokens_warm": 667,
+          "roundtrip": "byte"
+        },
+        {
+          "sample": "findings.json",
+          "codec": "toon",
+          "outcome": "toon",
+          "tokens_in": 667,
+          "tokens_cold": 531,
+          "tokens_warm": 514,
+          "roundtrip": "sem"
+        },
+        {
+          "sample": "findings.json",
+          "codec": "grep",
+          "outcome": "raw",
+          "tokens_in": 667,
+          "tokens_cold": 677,
+          "tokens_warm": 667,
+          "roundtrip": "byte"
+        },
+        {
+          "sample": "findings.json",
+          "codec": "diag",
+          "outcome": "raw",
+          "tokens_in": 667,
+          "tokens_cold": 677,
+          "tokens_warm": 667,
+          "roundtrip": "byte"
+        },
+        {
+          "sample": "findings.json",
+          "codec": "tmpl",
+          "outcome": "tmpl",
+          "tokens_in": 667,
+          "tokens_cold": 599,
+          "tokens_warm": 417,
+          "roundtrip": "byte"
+        },
+        {
+          "sample": "findings.json",
+          "codec": "paper",
+          "outcome": "paper",
+          "tokens_in": 667,
+          "tokens_cold": 682,
+          "tokens_warm": 595,
+          "roundtrip": "byte"
+        },
+        {
+          "sample": "findings.json",
+          "codec": "mine",
+          "outcome": "mine",
+          "tokens_in": 667,
+          "tokens_cold": 658,
+          "tokens_warm": 583,
+          "roundtrip": "byte"
+        },
+        {
+          "sample": "findings.json",
+          "codec": "deep",
+          "outcome": "mine",
+          "tokens_in": 667,
+          "tokens_cold": 439,
+          "tokens_warm": 235,
+          "roundtrip": "byte"
+        },
+        {
+          "sample": "findings.json",
+          "codec": "squeeze",
+          "outcome": "mine",
+          "tokens_in": 667,
+          "tokens_cold": 351,
+          "tokens_warm": 184,
+          "roundtrip": "sem"
+        },
+        {
+          "sample": "findings.json",
+          "codec": "mosaic",
+          "outcome": "mine",
+          "tokens_in": 667,
+          "tokens_cold": 416,
+          "tokens_warm": 308,
+          "roundtrip": "byte"
+        },
+        {
+          "sample": "git-diff.txt",
+          "codec": "fold",
+          "outcome": "raw",
+          "tokens_in": 478,
+          "tokens_cold": 488,
+          "tokens_warm": 478,
+          "roundtrip": "byte"
+        },
+        {
+          "sample": "git-diff.txt",
+          "codec": "toon",
+          "outcome": "raw",
+          "tokens_in": 478,
+          "tokens_cold": 488,
+          "tokens_warm": 478,
+          "roundtrip": "byte"
+        },
+        {
+          "sample": "git-diff.txt",
+          "codec": "grep",
+          "outcome": "raw",
+          "tokens_in": 478,
+          "tokens_cold": 488,
+          "tokens_warm": 478,
+          "roundtrip": "byte"
+        },
+        {
+          "sample": "git-diff.txt",
+          "codec": "diag",
+          "outcome": "raw",
+          "tokens_in": 478,
+          "tokens_cold": 488,
+          "tokens_warm": 478,
+          "roundtrip": "byte"
+        },
+        {
+          "sample": "git-diff.txt",
+          "codec": "tmpl",
+          "outcome": "raw",
+          "tokens_in": 478,
+          "tokens_cold": 488,
+          "tokens_warm": 478,
+          "roundtrip": "byte"
+        },
+        {
+          "sample": "git-diff.txt",
+          "codec": "paper",
+          "outcome": "paper",
+          "tokens_in": 478,
+          "tokens_cold": 501,
+          "tokens_warm": 466,
+          "roundtrip": "byte"
+        },
+        {
+          "sample": "git-diff.txt",
+          "codec": "mine",
+          "outcome": "mine",
+          "tokens_in": 478,
+          "tokens_cold": 437,
+          "tokens_warm": 374,
+          "roundtrip": "byte"
+        },
+        {
+          "sample": "git-diff.txt",
+          "codec": "deep",
+          "outcome": "mine",
+          "tokens_in": 478,
+          "tokens_cold": 393,
+          "tokens_warm": 321,
+          "roundtrip": "byte"
+        },
+        {
+          "sample": "git-diff.txt",
+          "codec": "squeeze",
+          "outcome": "mine",
+          "tokens_in": 478,
+          "tokens_cold": 403,
+          "tokens_warm": 331,
+          "roundtrip": "byte"
+        },
+        {
+          "sample": "git-diff.txt",
+          "codec": "mosaic",
+          "outcome": "mine",
+          "tokens_in": 478,
+          "tokens_cold": 403,
+          "tokens_warm": 331,
+          "roundtrip": "byte"
+        },
+        {
+          "sample": "prose.md",
+          "codec": "fold",
+          "outcome": "raw",
+          "tokens_in": 239,
+          "tokens_cold": 249,
+          "tokens_warm": 239,
+          "roundtrip": "byte"
+        },
+        {
+          "sample": "prose.md",
+          "codec": "toon",
+          "outcome": "raw",
+          "tokens_in": 239,
+          "tokens_cold": 249,
+          "tokens_warm": 239,
+          "roundtrip": "byte"
+        },
+        {
+          "sample": "prose.md",
+          "codec": "grep",
+          "outcome": "raw",
+          "tokens_in": 239,
+          "tokens_cold": 249,
+          "tokens_warm": 239,
+          "roundtrip": "byte"
+        },
+        {
+          "sample": "prose.md",
+          "codec": "diag",
+          "outcome": "raw",
+          "tokens_in": 239,
+          "tokens_cold": 249,
+          "tokens_warm": 239,
+          "roundtrip": "byte"
+        },
+        {
+          "sample": "prose.md",
+          "codec": "tmpl",
+          "outcome": "raw",
+          "tokens_in": 239,
+          "tokens_cold": 249,
+          "tokens_warm": 239,
+          "roundtrip": "byte"
+        },
+        {
+          "sample": "prose.md",
+          "codec": "paper",
+          "outcome": "raw",
+          "tokens_in": 239,
+          "tokens_cold": 249,
+          "tokens_warm": 239,
+          "roundtrip": "byte"
+        },
+        {
+          "sample": "prose.md",
+          "codec": "mine",
+          "outcome": "raw",
+          "tokens_in": 239,
+          "tokens_cold": 249,
+          "tokens_warm": 239,
+          "roundtrip": "byte"
+        },
+        {
+          "sample": "prose.md",
+          "codec": "deep",
+          "outcome": "raw",
+          "tokens_in": 239,
+          "tokens_cold": 249,
+          "tokens_warm": 239,
+          "roundtrip": "byte"
+        },
+        {
+          "sample": "prose.md",
+          "codec": "squeeze",
+          "outcome": "raw",
+          "tokens_in": 239,
+          "tokens_cold": 249,
+          "tokens_warm": 239,
+          "roundtrip": "byte"
+        },
+        {
+          "sample": "prose.md",
+          "codec": "mosaic",
+          "outcome": "raw",
+          "tokens_in": 239,
+          "tokens_cold": 249,
+          "tokens_warm": 239,
+          "roundtrip": "byte"
+        },
+        {
+          "sample": "rg-output.txt",
+          "codec": "fold",
+          "outcome": "raw",
+          "tokens_in": 512,
+          "tokens_cold": 522,
+          "tokens_warm": 512,
+          "roundtrip": "byte"
+        },
+        {
+          "sample": "rg-output.txt",
+          "codec": "toon",
+          "outcome": "raw",
+          "tokens_in": 512,
+          "tokens_cold": 522,
+          "tokens_warm": 512,
+          "roundtrip": "byte"
+        },
+        {
+          "sample": "rg-output.txt",
+          "codec": "grep",
+          "outcome": "grep",
+          "tokens_in": 512,
+          "tokens_cold": 413,
+          "tokens_warm": 397,
+          "roundtrip": "byte"
+        },
+        {
+          "sample": "rg-output.txt",
+          "codec": "diag",
+          "outcome": "raw",
+          "tokens_in": 512,
+          "tokens_cold": 522,
+          "tokens_warm": 512,
+          "roundtrip": "byte"
+        },
+        {
+          "sample": "rg-output.txt",
+          "codec": "tmpl",
+          "outcome": "tmpl",
+          "tokens_in": 512,
+          "tokens_cold": 467,
+          "tokens_warm": 354,
+          "roundtrip": "byte"
+        },
+        {
+          "sample": "rg-output.txt",
+          "codec": "paper",
+          "outcome": "raw",
+          "tokens_in": 512,
+          "tokens_cold": 522,
+          "tokens_warm": 512,
+          "roundtrip": "byte"
+        },
+        {
+          "sample": "rg-output.txt",
+          "codec": "mine",
+          "outcome": "mine",
+          "tokens_in": 512,
+          "tokens_cold": 380,
+          "tokens_warm": 281,
+          "roundtrip": "byte"
+        },
+        {
+          "sample": "rg-output.txt",
+          "codec": "deep",
+          "outcome": "mine",
+          "tokens_in": 512,
+          "tokens_cold": 337,
+          "tokens_warm": 221,
+          "roundtrip": "byte"
+        },
+        {
+          "sample": "rg-output.txt",
+          "codec": "squeeze",
+          "outcome": "mine",
+          "tokens_in": 512,
+          "tokens_cold": 335,
+          "tokens_warm": 256,
+          "roundtrip": "byte"
+        },
+        {
+          "sample": "rg-output.txt",
+          "codec": "mosaic",
+          "outcome": "mine",
+          "tokens_in": 512,
+          "tokens_cold": 335,
+          "tokens_warm": 256,
+          "roundtrip": "byte"
+        },
+        {
+          "sample": "stacktrace.txt",
+          "codec": "fold",
+          "outcome": "raw",
+          "tokens_in": 501,
+          "tokens_cold": 511,
+          "tokens_warm": 501,
+          "roundtrip": "byte"
+        },
+        {
+          "sample": "stacktrace.txt",
+          "codec": "toon",
+          "outcome": "raw",
+          "tokens_in": 501,
+          "tokens_cold": 511,
+          "tokens_warm": 501,
+          "roundtrip": "byte"
+        },
+        {
+          "sample": "stacktrace.txt",
+          "codec": "grep",
+          "outcome": "raw",
+          "tokens_in": 501,
+          "tokens_cold": 511,
+          "tokens_warm": 501,
+          "roundtrip": "byte"
+        },
+        {
+          "sample": "stacktrace.txt",
+          "codec": "diag",
+          "outcome": "raw",
+          "tokens_in": 501,
+          "tokens_cold": 511,
+          "tokens_warm": 501,
+          "roundtrip": "byte"
+        },
+        {
+          "sample": "stacktrace.txt",
+          "codec": "tmpl",
+          "outcome": "tmpl",
+          "tokens_in": 501,
+          "tokens_cold": 395,
+          "tokens_warm": 208,
+          "roundtrip": "byte"
+        },
+        {
+          "sample": "stacktrace.txt",
+          "codec": "paper",
+          "outcome": "paper",
+          "tokens_in": 501,
+          "tokens_cold": 438,
+          "tokens_warm": 257,
+          "roundtrip": "byte"
+        },
+        {
+          "sample": "stacktrace.txt",
+          "codec": "mine",
+          "outcome": "mine",
+          "tokens_in": 501,
+          "tokens_cold": 411,
+          "tokens_warm": 249,
+          "roundtrip": "byte"
+        },
+        {
+          "sample": "stacktrace.txt",
+          "codec": "deep",
+          "outcome": "mine",
+          "tokens_in": 501,
+          "tokens_cold": 394,
+          "tokens_warm": 232,
+          "roundtrip": "byte"
+        },
+        {
+          "sample": "stacktrace.txt",
+          "codec": "squeeze",
+          "outcome": "mine",
+          "tokens_in": 501,
+          "tokens_cold": 372,
+          "tokens_warm": 313,
+          "roundtrip": "byte"
+        },
+        {
+          "sample": "stacktrace.txt",
+          "codec": "mosaic",
+          "outcome": "mine",
+          "tokens_in": 501,
+          "tokens_cold": 372,
+          "tokens_warm": 313,
+          "roundtrip": "byte"
+        }
+      ],
+      "totals": {
+        "fold": {
+          "tokens_in": 3050,
+          "tokens_cold": 2885,
+          "tokens_warm": 2822,
+          "cold_saving": 0.054098360655737705,
+          "warm_saving": 0.07475409836065573,
+          "roundtrip_fail": 0,
+          "raw_fallbacks": 5
+        },
+        "toon": {
+          "tokens_in": 3050,
+          "tokens_cold": 2964,
+          "tokens_warm": 2897,
+          "cold_saving": 0.02819672131147541,
+          "warm_saving": 0.05016393442622951,
+          "roundtrip_fail": 0,
+          "raw_fallbacks": 5
+        },
+        "grep": {
+          "tokens_in": 3050,
+          "tokens_cold": 3001,
+          "tokens_warm": 2935,
+          "cold_saving": 0.016065573770491802,
+          "warm_saving": 0.03770491803278689,
+          "roundtrip_fail": 0,
+          "raw_fallbacks": 5
+        },
+        "diag": {
+          "tokens_in": 3050,
+          "tokens_cold": 3080,
+          "tokens_warm": 2942,
+          "cold_saving": -0.009836065573770493,
+          "warm_saving": 0.03540983606557377,
+          "roundtrip_fail": 0,
+          "raw_fallbacks": 5
+        },
+        "tmpl": {
+          "tokens_in": 3050,
+          "tokens_cold": 2575,
+          "tokens_warm": 1861,
+          "cold_saving": 0.1557377049180328,
+          "warm_saving": 0.3898360655737705,
+          "roundtrip_fail": 0,
+          "raw_fallbacks": 2
+        },
+        "paper": {
+          "tokens_in": 3050,
+          "tokens_cold": 2925,
+          "tokens_warm": 2349,
+          "cold_saving": 0.040983606557377046,
+          "warm_saving": 0.22983606557377048,
+          "roundtrip_fail": 0,
+          "raw_fallbacks": 2
+        },
+        "mine": {
+          "tokens_in": 3050,
+          "tokens_cold": 2513,
+          "tokens_warm": 1913,
+          "cold_saving": 0.1760655737704918,
+          "warm_saving": 0.37278688524590164,
+          "roundtrip_fail": 0,
+          "raw_fallbacks": 1
+        },
+        "deep": {
+          "tokens_in": 3050,
+          "tokens_cold": 2173,
+          "tokens_warm": 1414,
+          "cold_saving": 0.2875409836065574,
+          "warm_saving": 0.5363934426229509,
+          "roundtrip_fail": 0,
+          "raw_fallbacks": 1
+        },
+        "squeeze": {
+          "tokens_in": 3050,
+          "tokens_cold": 2061,
+          "tokens_warm": 1621,
+          "cold_saving": 0.3242622950819672,
+          "warm_saving": 0.46852459016393444,
+          "roundtrip_fail": 0,
+          "raw_fallbacks": 1
+        },
+        "mosaic": {
+          "tokens_in": 3050,
+          "tokens_cold": 2126,
+          "tokens_warm": 1745,
+          "cold_saving": 0.30295081967213117,
+          "warm_saving": 0.4278688524590164,
+          "roundtrip_fail": 0,
+          "raw_fallbacks": 1
+        }
+      }
+    },
+    "mistral0.3": {
+      "provenance": {
+        "kind": "hf",
+        "repo": "unsloth/Mistral-7B-Instruct-v0.3",
+        "sha256": "60b945759e27a63c3c5c0ca675881f5a73b4aa38b5d1d6818570308d4f1a3c59",
+        "note": "mirror of gated mistralai"
+      },
+      "status": "ok",
+      "rows": [
+        {
+          "sample": "build-log.txt",
+          "codec": "fold",
+          "outcome": "fold",
+          "tokens_in": 843,
+          "tokens_cold": 552,
+          "tokens_warm": 539,
+          "roundtrip": "byte"
+        },
+        {
+          "sample": "build-log.txt",
+          "codec": "toon",
+          "outcome": "raw",
+          "tokens_in": 843,
+          "tokens_cold": 853,
+          "tokens_warm": 843,
+          "roundtrip": "byte"
+        },
+        {
+          "sample": "build-log.txt",
+          "codec": "grep",
+          "outcome": "raw",
+          "tokens_in": 843,
+          "tokens_cold": 853,
+          "tokens_warm": 843,
+          "roundtrip": "byte"
+        },
+        {
+          "sample": "build-log.txt",
+          "codec": "diag",
+          "outcome": "diag",
+          "tokens_in": 843,
+          "tokens_cold": 814,
+          "tokens_warm": 715,
+          "roundtrip": "byte"
+        },
+        {
+          "sample": "build-log.txt",
+          "codec": "tmpl",
+          "outcome": "tmpl",
+          "tokens_in": 843,
+          "tokens_cold": 469,
+          "tokens_warm": 212,
+          "roundtrip": "byte"
+        },
+        {
+          "sample": "build-log.txt",
+          "codec": "paper",
+          "outcome": "paper",
+          "tokens_in": 843,
+          "tokens_cold": 683,
+          "tokens_warm": 379,
+          "roundtrip": "byte"
+        },
+        {
+          "sample": "build-log.txt",
+          "codec": "mine",
+          "outcome": "mine",
+          "tokens_in": 843,
+          "tokens_cold": 459,
+          "tokens_warm": 226,
+          "roundtrip": "byte"
+        },
+        {
+          "sample": "build-log.txt",
+          "codec": "deep",
+          "outcome": "mine",
+          "tokens_in": 843,
+          "tokens_cold": 435,
+          "tokens_warm": 209,
+          "roundtrip": "byte"
+        },
+        {
+          "sample": "build-log.txt",
+          "codec": "squeeze",
+          "outcome": "mine",
+          "tokens_in": 843,
+          "tokens_cold": 424,
+          "tokens_warm": 357,
+          "roundtrip": "byte"
+        },
+        {
+          "sample": "build-log.txt",
+          "codec": "mosaic",
+          "outcome": "mine",
+          "tokens_in": 843,
+          "tokens_cold": 424,
+          "tokens_warm": 357,
+          "roundtrip": "byte"
+        },
+        {
+          "sample": "findings.json",
+          "codec": "fold",
+          "outcome": "raw",
+          "tokens_in": 858,
+          "tokens_cold": 868,
+          "tokens_warm": 858,
+          "roundtrip": "byte"
+        },
+        {
+          "sample": "findings.json",
+          "codec": "toon",
+          "outcome": "toon",
+          "tokens_in": 858,
+          "tokens_cold": 738,
+          "tokens_warm": 720,
+          "roundtrip": "sem"
+        },
+        {
+          "sample": "findings.json",
+          "codec": "grep",
+          "outcome": "raw",
+          "tokens_in": 858,
+          "tokens_cold": 868,
+          "tokens_warm": 858,
+          "roundtrip": "byte"
+        },
+        {
+          "sample": "findings.json",
+          "codec": "diag",
+          "outcome": "raw",
+          "tokens_in": 858,
+          "tokens_cold": 868,
+          "tokens_warm": 858,
+          "roundtrip": "byte"
+        },
+        {
+          "sample": "findings.json",
+          "codec": "tmpl",
+          "outcome": "tmpl",
+          "tokens_in": 858,
+          "tokens_cold": 738,
+          "tokens_warm": 508,
+          "roundtrip": "byte"
+        },
+        {
+          "sample": "findings.json",
+          "codec": "paper",
+          "outcome": "paper",
+          "tokens_in": 858,
+          "tokens_cold": 869,
+          "tokens_warm": 780,
+          "roundtrip": "byte"
+        },
+        {
+          "sample": "findings.json",
+          "codec": "mine",
+          "outcome": "mine",
+          "tokens_in": 858,
+          "tokens_cold": 828,
+          "tokens_warm": 710,
+          "roundtrip": "byte"
+        },
+        {
+          "sample": "findings.json",
+          "codec": "deep",
+          "outcome": "mine",
+          "tokens_in": 858,
+          "tokens_cold": 567,
+          "tokens_warm": 286,
+          "roundtrip": "byte"
+        },
+        {
+          "sample": "findings.json",
+          "codec": "squeeze",
+          "outcome": "mine",
+          "tokens_in": 858,
+          "tokens_cold": 471,
+          "tokens_warm": 258,
+          "roundtrip": "sem"
+        },
+        {
+          "sample": "findings.json",
+          "codec": "mosaic",
+          "outcome": "mine",
+          "tokens_in": 858,
+          "tokens_cold": 488,
+          "tokens_warm": 338,
+          "roundtrip": "byte"
+        },
+        {
+          "sample": "git-diff.txt",
+          "codec": "fold",
+          "outcome": "raw",
+          "tokens_in": 659,
+          "tokens_cold": 669,
+          "tokens_warm": 659,
+          "roundtrip": "byte"
+        },
+        {
+          "sample": "git-diff.txt",
+          "codec": "toon",
+          "outcome": "raw",
+          "tokens_in": 659,
+          "tokens_cold": 669,
+          "tokens_warm": 659,
+          "roundtrip": "byte"
+        },
+        {
+          "sample": "git-diff.txt",
+          "codec": "grep",
+          "outcome": "raw",
+          "tokens_in": 659,
+          "tokens_cold": 669,
+          "tokens_warm": 659,
+          "roundtrip": "byte"
+        },
+        {
+          "sample": "git-diff.txt",
+          "codec": "diag",
+          "outcome": "raw",
+          "tokens_in": 659,
+          "tokens_cold": 669,
+          "tokens_warm": 659,
+          "roundtrip": "byte"
+        },
+        {
+          "sample": "git-diff.txt",
+          "codec": "tmpl",
+          "outcome": "raw",
+          "tokens_in": 659,
+          "tokens_cold": 669,
+          "tokens_warm": 659,
+          "roundtrip": "byte"
+        },
+        {
+          "sample": "git-diff.txt",
+          "codec": "paper",
+          "outcome": "paper",
+          "tokens_in": 659,
+          "tokens_cold": 678,
+          "tokens_warm": 622,
+          "roundtrip": "byte"
+        },
+        {
+          "sample": "git-diff.txt",
+          "codec": "mine",
+          "outcome": "mine",
+          "tokens_in": 659,
+          "tokens_cold": 564,
+          "tokens_warm": 404,
+          "roundtrip": "byte"
+        },
+        {
+          "sample": "git-diff.txt",
+          "codec": "deep",
+          "outcome": "mine",
+          "tokens_in": 659,
+          "tokens_cold": 501,
+          "tokens_warm": 372,
+          "roundtrip": "byte"
+        },
+        {
+          "sample": "git-diff.txt",
+          "codec": "squeeze",
+          "outcome": "mine",
+          "tokens_in": 659,
+          "tokens_cold": 511,
+          "tokens_warm": 382,
+          "roundtrip": "byte"
+        },
+        {
+          "sample": "git-diff.txt",
+          "codec": "mosaic",
+          "outcome": "mine",
+          "tokens_in": 659,
+          "tokens_cold": 511,
+          "tokens_warm": 382,
+          "roundtrip": "byte"
+        },
+        {
+          "sample": "prose.md",
+          "codec": "fold",
+          "outcome": "raw",
+          "tokens_in": 264,
+          "tokens_cold": 274,
+          "tokens_warm": 264,
+          "roundtrip": "byte"
+        },
+        {
+          "sample": "prose.md",
+          "codec": "toon",
+          "outcome": "raw",
+          "tokens_in": 264,
+          "tokens_cold": 274,
+          "tokens_warm": 264,
+          "roundtrip": "byte"
+        },
+        {
+          "sample": "prose.md",
+          "codec": "grep",
+          "outcome": "raw",
+          "tokens_in": 264,
+          "tokens_cold": 274,
+          "tokens_warm": 264,
+          "roundtrip": "byte"
+        },
+        {
+          "sample": "prose.md",
+          "codec": "diag",
+          "outcome": "raw",
+          "tokens_in": 264,
+          "tokens_cold": 274,
+          "tokens_warm": 264,
+          "roundtrip": "byte"
+        },
+        {
+          "sample": "prose.md",
+          "codec": "tmpl",
+          "outcome": "raw",
+          "tokens_in": 264,
+          "tokens_cold": 274,
+          "tokens_warm": 264,
+          "roundtrip": "byte"
+        },
+        {
+          "sample": "prose.md",
+          "codec": "paper",
+          "outcome": "raw",
+          "tokens_in": 264,
+          "tokens_cold": 274,
+          "tokens_warm": 264,
+          "roundtrip": "byte"
+        },
+        {
+          "sample": "prose.md",
+          "codec": "mine",
+          "outcome": "raw",
+          "tokens_in": 264,
+          "tokens_cold": 274,
+          "tokens_warm": 264,
+          "roundtrip": "byte"
+        },
+        {
+          "sample": "prose.md",
+          "codec": "deep",
+          "outcome": "raw",
+          "tokens_in": 264,
+          "tokens_cold": 274,
+          "tokens_warm": 264,
+          "roundtrip": "byte"
+        },
+        {
+          "sample": "prose.md",
+          "codec": "squeeze",
+          "outcome": "raw",
+          "tokens_in": 264,
+          "tokens_cold": 274,
+          "tokens_warm": 264,
+          "roundtrip": "byte"
+        },
+        {
+          "sample": "prose.md",
+          "codec": "mosaic",
+          "outcome": "raw",
+          "tokens_in": 264,
+          "tokens_cold": 274,
+          "tokens_warm": 264,
+          "roundtrip": "byte"
+        },
+        {
+          "sample": "rg-output.txt",
+          "codec": "fold",
+          "outcome": "raw",
+          "tokens_in": 714,
+          "tokens_cold": 724,
+          "tokens_warm": 714,
+          "roundtrip": "byte"
+        },
+        {
+          "sample": "rg-output.txt",
+          "codec": "toon",
+          "outcome": "raw",
+          "tokens_in": 714,
+          "tokens_cold": 724,
+          "tokens_warm": 714,
+          "roundtrip": "byte"
+        },
+        {
+          "sample": "rg-output.txt",
+          "codec": "grep",
+          "outcome": "grep",
+          "tokens_in": 714,
+          "tokens_cold": 582,
+          "tokens_warm": 563,
+          "roundtrip": "byte"
+        },
+        {
+          "sample": "rg-output.txt",
+          "codec": "diag",
+          "outcome": "diag",
+          "tokens_in": 714,
+          "tokens_cold": 713,
+          "tokens_warm": 660,
+          "roundtrip": "byte"
+        },
+        {
+          "sample": "rg-output.txt",
+          "codec": "tmpl",
+          "outcome": "tmpl",
+          "tokens_in": 714,
+          "tokens_cold": 626,
+          "tokens_warm": 486,
+          "roundtrip": "byte"
+        },
+        {
+          "sample": "rg-output.txt",
+          "codec": "paper",
+          "outcome": "paper",
+          "tokens_in": 714,
+          "tokens_cold": 733,
+          "tokens_warm": 696,
+          "roundtrip": "byte"
+        },
+        {
+          "sample": "rg-output.txt",
+          "codec": "mine",
+          "outcome": "mine",
+          "tokens_in": 714,
+          "tokens_cold": 482,
+          "tokens_warm": 330,
+          "roundtrip": "byte"
+        },
+        {
+          "sample": "rg-output.txt",
+          "codec": "deep",
+          "outcome": "mine",
+          "tokens_in": 714,
+          "tokens_cold": 420,
+          "tokens_warm": 233,
+          "roundtrip": "byte"
+        },
+        {
+          "sample": "rg-output.txt",
+          "codec": "squeeze",
+          "outcome": "mine",
+          "tokens_in": 714,
+          "tokens_cold": 422,
+          "tokens_warm": 266,
+          "roundtrip": "byte"
+        },
+        {
+          "sample": "rg-output.txt",
+          "codec": "mosaic",
+          "outcome": "mine",
+          "tokens_in": 714,
+          "tokens_cold": 422,
+          "tokens_warm": 266,
+          "roundtrip": "byte"
+        },
+        {
+          "sample": "stacktrace.txt",
+          "codec": "fold",
+          "outcome": "raw",
+          "tokens_in": 700,
+          "tokens_cold": 710,
+          "tokens_warm": 700,
+          "roundtrip": "byte"
+        },
+        {
+          "sample": "stacktrace.txt",
+          "codec": "toon",
+          "outcome": "raw",
+          "tokens_in": 700,
+          "tokens_cold": 710,
+          "tokens_warm": 700,
+          "roundtrip": "byte"
+        },
+        {
+          "sample": "stacktrace.txt",
+          "codec": "grep",
+          "outcome": "raw",
+          "tokens_in": 700,
+          "tokens_cold": 710,
+          "tokens_warm": 700,
+          "roundtrip": "byte"
+        },
+        {
+          "sample": "stacktrace.txt",
+          "codec": "diag",
+          "outcome": "raw",
+          "tokens_in": 700,
+          "tokens_cold": 710,
+          "tokens_warm": 700,
+          "roundtrip": "byte"
+        },
+        {
+          "sample": "stacktrace.txt",
+          "codec": "tmpl",
+          "outcome": "tmpl",
+          "tokens_in": 700,
+          "tokens_cold": 520,
+          "tokens_warm": 272,
+          "roundtrip": "byte"
+        },
+        {
+          "sample": "stacktrace.txt",
+          "codec": "paper",
+          "outcome": "paper",
+          "tokens_in": 700,
+          "tokens_cold": 588,
+          "tokens_warm": 352,
+          "roundtrip": "byte"
+        },
+        {
+          "sample": "stacktrace.txt",
+          "codec": "mine",
+          "outcome": "mine",
+          "tokens_in": 700,
+          "tokens_cold": 520,
+          "tokens_warm": 269,
+          "roundtrip": "byte"
+        },
+        {
+          "sample": "stacktrace.txt",
+          "codec": "deep",
+          "outcome": "mine",
+          "tokens_in": 700,
+          "tokens_cold": 490,
+          "tokens_warm": 260,
+          "roundtrip": "byte"
+        },
+        {
+          "sample": "stacktrace.txt",
+          "codec": "squeeze",
+          "outcome": "mine",
+          "tokens_in": 700,
+          "tokens_cold": 474,
+          "tokens_warm": 389,
+          "roundtrip": "byte"
+        },
+        {
+          "sample": "stacktrace.txt",
+          "codec": "mosaic",
+          "outcome": "mine",
+          "tokens_in": 700,
+          "tokens_cold": 474,
+          "tokens_warm": 389,
+          "roundtrip": "byte"
+        }
+      ],
+      "totals": {
+        "fold": {
+          "tokens_in": 4038,
+          "tokens_cold": 3797,
+          "tokens_warm": 3734,
+          "cold_saving": 0.05968301139177811,
+          "warm_saving": 0.07528479445269935,
+          "roundtrip_fail": 0,
+          "raw_fallbacks": 5
+        },
+        "toon": {
+          "tokens_in": 4038,
+          "tokens_cold": 3968,
+          "tokens_warm": 3900,
+          "cold_saving": 0.01733531451213472,
+          "warm_saving": 0.03417533432392273,
+          "roundtrip_fail": 0,
+          "raw_fallbacks": 5
+        },
+        "grep": {
+          "tokens_in": 4038,
+          "tokens_cold": 3956,
+          "tokens_warm": 3887,
+          "cold_saving": 0.02030708271421496,
+          "warm_saving": 0.037394749876176324,
+          "roundtrip_fail": 0,
+          "raw_fallbacks": 5
+        },
+        "diag": {
+          "tokens_in": 4038,
+          "tokens_cold": 4048,
+          "tokens_warm": 3856,
+          "cold_saving": -0.0024764735017335313,
+          "warm_saving": 0.04507181773155027,
+          "roundtrip_fail": 0,
+          "raw_fallbacks": 4
+        },
+        "tmpl": {
+          "tokens_in": 4038,
+          "tokens_cold": 3296,
+          "tokens_warm": 2401,
+          "cold_saving": 0.18375433382862805,
+          "warm_saving": 0.4053987122337791,
+          "roundtrip_fail": 0,
+          "raw_fallbacks": 2
+        },
+        "paper": {
+          "tokens_in": 4038,
+          "tokens_cold": 3825,
+          "tokens_warm": 3093,
+          "cold_saving": 0.05274888558692422,
+          "warm_saving": 0.23402674591381872,
+          "roundtrip_fail": 0,
+          "raw_fallbacks": 1
+        },
+        "mine": {
+          "tokens_in": 4038,
+          "tokens_cold": 3127,
+          "tokens_warm": 2203,
+          "cold_saving": 0.22560673600792472,
+          "warm_saving": 0.454432887568103,
+          "roundtrip_fail": 0,
+          "raw_fallbacks": 1
+        },
+        "deep": {
+          "tokens_in": 4038,
+          "tokens_cold": 2687,
+          "tokens_warm": 1624,
+          "cold_saving": 0.3345715700842001,
+          "warm_saving": 0.5978207033184745,
+          "roundtrip_fail": 0,
+          "raw_fallbacks": 1
+        },
+        "squeeze": {
+          "tokens_in": 4038,
+          "tokens_cold": 2576,
+          "tokens_warm": 1916,
+          "cold_saving": 0.3620604259534423,
+          "warm_saving": 0.5255076770678554,
+          "roundtrip_fail": 0,
+          "raw_fallbacks": 1
+        },
+        "mosaic": {
+          "tokens_in": 4038,
+          "tokens_cold": 2593,
+          "tokens_warm": 1996,
+          "cold_saving": 0.3578504210004953,
+          "warm_saving": 0.5056958890539871,
+          "roundtrip_fail": 0,
+          "raw_fallbacks": 1
+        }
+      }
+    },
+    "gemma2": {
+      "provenance": {
+        "kind": "hf",
+        "repo": "unsloth/gemma-2-9b-it",
+        "sha256": "3f289bc05132635a8bc7aca7aa21255efd5e18f3710f43e3cdb96bcd41be4922",
+        "note": "mirror of gated google"
+      },
+      "status": "ok",
+      "rows": [
+        {
+          "sample": "build-log.txt",
+          "codec": "fold",
+          "outcome": "fold",
+          "tokens_in": 780,
+          "tokens_cold": 513,
+          "tokens_warm": 500,
+          "roundtrip": "byte"
+        },
+        {
+          "sample": "build-log.txt",
+          "codec": "toon",
+          "outcome": "raw",
+          "tokens_in": 780,
+          "tokens_cold": 790,
+          "tokens_warm": 780,
+          "roundtrip": "byte"
+        },
+        {
+          "sample": "build-log.txt",
+          "codec": "grep",
+          "outcome": "raw",
+          "tokens_in": 780,
+          "tokens_cold": 790,
+          "tokens_warm": 780,
+          "roundtrip": "byte"
+        },
+        {
+          "sample": "build-log.txt",
+          "codec": "diag",
+          "outcome": "diag",
+          "tokens_in": 780,
+          "tokens_cold": 753,
+          "tokens_warm": 658,
+          "roundtrip": "byte"
+        },
+        {
+          "sample": "build-log.txt",
+          "codec": "tmpl",
+          "outcome": "tmpl",
+          "tokens_in": 780,
+          "tokens_cold": 437,
+          "tokens_warm": 194,
+          "roundtrip": "byte"
+        },
+        {
+          "sample": "build-log.txt",
+          "codec": "paper",
+          "outcome": "paper",
+          "tokens_in": 780,
+          "tokens_cold": 632,
+          "tokens_warm": 350,
+          "roundtrip": "byte"
+        },
+        {
+          "sample": "build-log.txt",
+          "codec": "mine",
+          "outcome": "mine",
+          "tokens_in": 780,
+          "tokens_cold": 419,
+          "tokens_warm": 209,
+          "roundtrip": "byte"
+        },
+        {
+          "sample": "build-log.txt",
+          "codec": "deep",
+          "outcome": "mine",
+          "tokens_in": 780,
+          "tokens_cold": 407,
+          "tokens_warm": 190,
+          "roundtrip": "byte"
+        },
+        {
+          "sample": "build-log.txt",
+          "codec": "squeeze",
+          "outcome": "mine",
+          "tokens_in": 780,
+          "tokens_cold": 402,
+          "tokens_warm": 337,
+          "roundtrip": "byte"
+        },
+        {
+          "sample": "build-log.txt",
+          "codec": "mosaic",
+          "outcome": "mine",
+          "tokens_in": 780,
+          "tokens_cold": 402,
+          "tokens_warm": 337,
+          "roundtrip": "byte"
+        },
+        {
+          "sample": "findings.json",
+          "codec": "fold",
+          "outcome": "raw",
+          "tokens_in": 753,
+          "tokens_cold": 763,
+          "tokens_warm": 753,
+          "roundtrip": "byte"
+        },
+        {
+          "sample": "findings.json",
+          "codec": "toon",
+          "outcome": "toon",
+          "tokens_in": 753,
+          "tokens_cold": 593,
+          "tokens_warm": 576,
+          "roundtrip": "sem"
+        },
+        {
+          "sample": "findings.json",
+          "codec": "grep",
+          "outcome": "raw",
+          "tokens_in": 753,
+          "tokens_cold": 763,
+          "tokens_warm": 753,
+          "roundtrip": "byte"
+        },
+        {
+          "sample": "findings.json",
+          "codec": "diag",
+          "outcome": "raw",
+          "tokens_in": 753,
+          "tokens_cold": 763,
+          "tokens_warm": 753,
+          "roundtrip": "byte"
+        },
+        {
+          "sample": "findings.json",
+          "codec": "tmpl",
+          "outcome": "tmpl",
+          "tokens_in": 753,
+          "tokens_cold": 659,
+          "tokens_warm": 454,
+          "roundtrip": "byte"
+        },
+        {
+          "sample": "findings.json",
+          "codec": "paper",
+          "outcome": "paper",
+          "tokens_in": 753,
+          "tokens_cold": 769,
+          "tokens_warm": 687,
+          "roundtrip": "byte"
+        },
+        {
+          "sample": "findings.json",
+          "codec": "mine",
+          "outcome": "mine",
+          "tokens_in": 753,
+          "tokens_cold": 723,
+          "tokens_warm": 637,
+          "roundtrip": "byte"
+        },
+        {
+          "sample": "findings.json",
+          "codec": "deep",
+          "outcome": "mine",
+          "tokens_in": 753,
+          "tokens_cold": 502,
+          "tokens_warm": 267,
+          "roundtrip": "byte"
+        },
+        {
+          "sample": "findings.json",
+          "codec": "squeeze",
+          "outcome": "mine",
+          "tokens_in": 753,
+          "tokens_cold": 402,
+          "tokens_warm": 225,
+          "roundtrip": "sem"
+        },
+        {
+          "sample": "findings.json",
+          "codec": "mosaic",
+          "outcome": "mine",
+          "tokens_in": 753,
+          "tokens_cold": 456,
+          "tokens_warm": 318,
+          "roundtrip": "byte"
+        },
+        {
+          "sample": "git-diff.txt",
+          "codec": "fold",
+          "outcome": "raw",
+          "tokens_in": 593,
+          "tokens_cold": 603,
+          "tokens_warm": 593,
+          "roundtrip": "byte"
+        },
+        {
+          "sample": "git-diff.txt",
+          "codec": "toon",
+          "outcome": "raw",
+          "tokens_in": 593,
+          "tokens_cold": 603,
+          "tokens_warm": 593,
+          "roundtrip": "byte"
+        },
+        {
+          "sample": "git-diff.txt",
+          "codec": "grep",
+          "outcome": "raw",
+          "tokens_in": 593,
+          "tokens_cold": 603,
+          "tokens_warm": 593,
+          "roundtrip": "byte"
+        },
+        {
+          "sample": "git-diff.txt",
+          "codec": "diag",
+          "outcome": "raw",
+          "tokens_in": 593,
+          "tokens_cold": 603,
+          "tokens_warm": 593,
+          "roundtrip": "byte"
+        },
+        {
+          "sample": "git-diff.txt",
+          "codec": "tmpl",
+          "outcome": "raw",
+          "tokens_in": 593,
+          "tokens_cold": 603,
+          "tokens_warm": 593,
+          "roundtrip": "byte"
+        },
+        {
+          "sample": "git-diff.txt",
+          "codec": "paper",
+          "outcome": "raw",
+          "tokens_in": 593,
+          "tokens_cold": 603,
+          "tokens_warm": 593,
+          "roundtrip": "byte"
+        },
+        {
+          "sample": "git-diff.txt",
+          "codec": "mine",
+          "outcome": "mine",
+          "tokens_in": 593,
+          "tokens_cold": 513,
+          "tokens_warm": 399,
+          "roundtrip": "byte"
+        },
+        {
+          "sample": "git-diff.txt",
+          "codec": "deep",
+          "outcome": "mine",
+          "tokens_in": 593,
+          "tokens_cold": 461,
+          "tokens_warm": 328,
+          "roundtrip": "byte"
+        },
+        {
+          "sample": "git-diff.txt",
+          "codec": "squeeze",
+          "outcome": "mine",
+          "tokens_in": 593,
+          "tokens_cold": 471,
+          "tokens_warm": 338,
+          "roundtrip": "byte"
+        },
+        {
+          "sample": "git-diff.txt",
+          "codec": "mosaic",
+          "outcome": "mine",
+          "tokens_in": 593,
+          "tokens_cold": 471,
+          "tokens_warm": 338,
+          "roundtrip": "byte"
+        },
+        {
+          "sample": "prose.md",
+          "codec": "fold",
+          "outcome": "raw",
+          "tokens_in": 242,
+          "tokens_cold": 252,
+          "tokens_warm": 242,
+          "roundtrip": "byte"
+        },
+        {
+          "sample": "prose.md",
+          "codec": "toon",
+          "outcome": "raw",
+          "tokens_in": 242,
+          "tokens_cold": 252,
+          "tokens_warm": 242,
+          "roundtrip": "byte"
+        },
+        {
+          "sample": "prose.md",
+          "codec": "grep",
+          "outcome": "raw",
+          "tokens_in": 242,
+          "tokens_cold": 252,
+          "tokens_warm": 242,
+          "roundtrip": "byte"
+        },
+        {
+          "sample": "prose.md",
+          "codec": "diag",
+          "outcome": "raw",
+          "tokens_in": 242,
+          "tokens_cold": 252,
+          "tokens_warm": 242,
+          "roundtrip": "byte"
+        },
+        {
+          "sample": "prose.md",
+          "codec": "tmpl",
+          "outcome": "raw",
+          "tokens_in": 242,
+          "tokens_cold": 252,
+          "tokens_warm": 242,
+          "roundtrip": "byte"
+        },
+        {
+          "sample": "prose.md",
+          "codec": "paper",
+          "outcome": "raw",
+          "tokens_in": 242,
+          "tokens_cold": 252,
+          "tokens_warm": 242,
+          "roundtrip": "byte"
+        },
+        {
+          "sample": "prose.md",
+          "codec": "mine",
+          "outcome": "raw",
+          "tokens_in": 242,
+          "tokens_cold": 252,
+          "tokens_warm": 242,
+          "roundtrip": "byte"
+        },
+        {
+          "sample": "prose.md",
+          "codec": "deep",
+          "outcome": "raw",
+          "tokens_in": 242,
+          "tokens_cold": 252,
+          "tokens_warm": 242,
+          "roundtrip": "byte"
+        },
+        {
+          "sample": "prose.md",
+          "codec": "squeeze",
+          "outcome": "raw",
+          "tokens_in": 242,
+          "tokens_cold": 252,
+          "tokens_warm": 242,
+          "roundtrip": "byte"
+        },
+        {
+          "sample": "prose.md",
+          "codec": "mosaic",
+          "outcome": "raw",
+          "tokens_in": 242,
+          "tokens_cold": 252,
+          "tokens_warm": 242,
+          "roundtrip": "byte"
+        },
+        {
+          "sample": "rg-output.txt",
+          "codec": "fold",
+          "outcome": "raw",
+          "tokens_in": 631,
+          "tokens_cold": 641,
+          "tokens_warm": 631,
+          "roundtrip": "byte"
+        },
+        {
+          "sample": "rg-output.txt",
+          "codec": "toon",
+          "outcome": "raw",
+          "tokens_in": 631,
+          "tokens_cold": 641,
+          "tokens_warm": 631,
+          "roundtrip": "byte"
+        },
+        {
+          "sample": "rg-output.txt",
+          "codec": "grep",
+          "outcome": "grep",
+          "tokens_in": 631,
+          "tokens_cold": 523,
+          "tokens_warm": 507,
+          "roundtrip": "byte"
+        },
+        {
+          "sample": "rg-output.txt",
+          "codec": "diag",
+          "outcome": "raw",
+          "tokens_in": 631,
+          "tokens_cold": 641,
+          "tokens_warm": 631,
+          "roundtrip": "byte"
+        },
+        {
+          "sample": "rg-output.txt",
+          "codec": "tmpl",
+          "outcome": "tmpl",
+          "tokens_in": 631,
+          "tokens_cold": 560,
+          "tokens_warm": 431,
+          "roundtrip": "byte"
+        },
+        {
+          "sample": "rg-output.txt",
+          "codec": "paper",
+          "outcome": "raw",
+          "tokens_in": 631,
+          "tokens_cold": 641,
+          "tokens_warm": 631,
+          "roundtrip": "byte"
+        },
+        {
+          "sample": "rg-output.txt",
+          "codec": "mine",
+          "outcome": "mine",
+          "tokens_in": 631,
+          "tokens_cold": 444,
+          "tokens_warm": 298,
+          "roundtrip": "byte"
+        },
+        {
+          "sample": "rg-output.txt",
+          "codec": "deep",
+          "outcome": "mine",
+          "tokens_in": 631,
+          "tokens_cold": 383,
+          "tokens_warm": 236,
+          "roundtrip": "byte"
+        },
+        {
+          "sample": "rg-output.txt",
+          "codec": "squeeze",
+          "outcome": "mine",
+          "tokens_in": 631,
+          "tokens_cold": 386,
+          "tokens_warm": 266,
+          "roundtrip": "byte"
+        },
+        {
+          "sample": "rg-output.txt",
+          "codec": "mosaic",
+          "outcome": "mine",
+          "tokens_in": 631,
+          "tokens_cold": 386,
+          "tokens_warm": 266,
+          "roundtrip": "byte"
+        },
+        {
+          "sample": "stacktrace.txt",
+          "codec": "fold",
+          "outcome": "raw",
+          "tokens_in": 641,
+          "tokens_cold": 651,
+          "tokens_warm": 641,
+          "roundtrip": "byte"
+        },
+        {
+          "sample": "stacktrace.txt",
+          "codec": "toon",
+          "outcome": "raw",
+          "tokens_in": 641,
+          "tokens_cold": 651,
+          "tokens_warm": 641,
+          "roundtrip": "byte"
+        },
+        {
+          "sample": "stacktrace.txt",
+          "codec": "grep",
+          "outcome": "raw",
+          "tokens_in": 641,
+          "tokens_cold": 651,
+          "tokens_warm": 641,
+          "roundtrip": "byte"
+        },
+        {
+          "sample": "stacktrace.txt",
+          "codec": "diag",
+          "outcome": "raw",
+          "tokens_in": 641,
+          "tokens_cold": 651,
+          "tokens_warm": 641,
+          "roundtrip": "byte"
+        },
+        {
+          "sample": "stacktrace.txt",
+          "codec": "tmpl",
+          "outcome": "tmpl",
+          "tokens_in": 641,
+          "tokens_cold": 479,
+          "tokens_warm": 248,
+          "roundtrip": "byte"
+        },
+        {
+          "sample": "stacktrace.txt",
+          "codec": "paper",
+          "outcome": "paper",
+          "tokens_in": 641,
+          "tokens_cold": 540,
+          "tokens_warm": 321,
+          "roundtrip": "byte"
+        },
+        {
+          "sample": "stacktrace.txt",
+          "codec": "mine",
+          "outcome": "mine",
+          "tokens_in": 641,
+          "tokens_cold": 464,
+          "tokens_warm": 242,
+          "roundtrip": "byte"
+        },
+        {
+          "sample": "stacktrace.txt",
+          "codec": "deep",
+          "outcome": "mine",
+          "tokens_in": 641,
+          "tokens_cold": 447,
+          "tokens_warm": 237,
+          "roundtrip": "byte"
+        },
+        {
+          "sample": "stacktrace.txt",
+          "codec": "squeeze",
+          "outcome": "mine",
+          "tokens_in": 641,
+          "tokens_cold": 437,
+          "tokens_warm": 356,
+          "roundtrip": "byte"
+        },
+        {
+          "sample": "stacktrace.txt",
+          "codec": "mosaic",
+          "outcome": "mine",
+          "tokens_in": 641,
+          "tokens_cold": 437,
+          "tokens_warm": 356,
+          "roundtrip": "byte"
+        }
+      ],
+      "totals": {
+        "fold": {
+          "tokens_in": 3640,
+          "tokens_cold": 3423,
+          "tokens_warm": 3360,
+          "cold_saving": 0.05961538461538462,
+          "warm_saving": 0.07692307692307693,
+          "roundtrip_fail": 0,
+          "raw_fallbacks": 5
+        },
+        "toon": {
+          "tokens_in": 3640,
+          "tokens_cold": 3530,
+          "tokens_warm": 3463,
+          "cold_saving": 0.03021978021978022,
+          "warm_saving": 0.04862637362637363,
+          "roundtrip_fail": 0,
+          "raw_fallbacks": 5
+        },
+        "grep": {
+          "tokens_in": 3640,
+          "tokens_cold": 3582,
+          "tokens_warm": 3516,
+          "cold_saving": 0.015934065934065933,
+          "warm_saving": 0.03406593406593406,
+          "roundtrip_fail": 0,
+          "raw_fallbacks": 5
+        },
+        "diag": {
+          "tokens_in": 3640,
+          "tokens_cold": 3663,
+          "tokens_warm": 3518,
+          "cold_saving": -0.006318681318681319,
+          "warm_saving": 0.033516483516483515,
+          "roundtrip_fail": 0,
+          "raw_fallbacks": 5
+        },
+        "tmpl": {
+          "tokens_in": 3640,
+          "tokens_cold": 2990,
+          "tokens_warm": 2162,
+          "cold_saving": 0.17857142857142858,
+          "warm_saving": 0.40604395604395604,
+          "roundtrip_fail": 0,
+          "raw_fallbacks": 2
+        },
+        "paper": {
+          "tokens_in": 3640,
+          "tokens_cold": 3437,
+          "tokens_warm": 2824,
+          "cold_saving": 0.05576923076923077,
+          "warm_saving": 0.22417582417582418,
+          "roundtrip_fail": 0,
+          "raw_fallbacks": 3
+        },
+        "mine": {
+          "tokens_in": 3640,
+          "tokens_cold": 2815,
+          "tokens_warm": 2027,
+          "cold_saving": 0.22664835164835165,
+          "warm_saving": 0.4431318681318681,
+          "roundtrip_fail": 0,
+          "raw_fallbacks": 1
+        },
+        "deep": {
+          "tokens_in": 3640,
+          "tokens_cold": 2452,
+          "tokens_warm": 1500,
+          "cold_saving": 0.3263736263736264,
+          "warm_saving": 0.5879120879120879,
+          "roundtrip_fail": 0,
+          "raw_fallbacks": 1
+        },
+        "squeeze": {
+          "tokens_in": 3640,
+          "tokens_cold": 2350,
+          "tokens_warm": 1764,
+          "cold_saving": 0.3543956043956044,
+          "warm_saving": 0.5153846153846153,
+          "roundtrip_fail": 0,
+          "raw_fallbacks": 1
+        },
+        "mosaic": {
+          "tokens_in": 3640,
+          "tokens_cold": 2404,
+          "tokens_warm": 1857,
+          "cold_saving": 0.3395604395604396,
+          "warm_saving": 0.4898351648351648,
+          "roundtrip_fail": 0,
+          "raw_fallbacks": 1
+        }
+      }
+    }
+  }
+}

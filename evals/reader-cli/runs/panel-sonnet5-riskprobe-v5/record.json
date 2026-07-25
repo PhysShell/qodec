@@ -1,0 +1,142 @@
+{
+  "date": "2026-07-25T20:17:02Z",
+  "provider": "claude",
+  "claude_version": "2.1.220 (Claude Code)",
+  "model_arg": null,
+  "closed_world_argv": [
+    "-p",
+    "--output-format",
+    "json",
+    "--input-format",
+    "text",
+    "--tools",
+    "",
+    "--strict-mcp-config",
+    "--setting-sources",
+    "",
+    "--permission-mode",
+    "default",
+    "--no-session-persistence",
+    "--max-budget-usd",
+    "0.50"
+  ],
+  "qodec_sha256": "78259af0b515dd3169e33f8758fb70e348b7ae22708cdba6611aee78301bef30",
+  "git_commit": "ec98074d07653de5333e112e2c8f487eb9de5bc5",
+  "repeats": 2,
+  "inputs": {
+    "findings-risk-probe": {
+      "payload_sha256": "3faedbfa552e2267515a21bf2f1a322698a065e54357c0027185d398c4780d5c",
+      "questions_sha256": "18a2e32b82eeb6ae7954c113e252da360d7aed2c2e1833c382f5d8d674980002"
+    }
+  },
+  "cells": [
+    {
+      "case": "findings-risk-probe",
+      "arm": "raw",
+      "rep": 1,
+      "status": "ok",
+      "correct": 2,
+      "total": 2,
+      "prompt_tokens_o200k": 791,
+      "envelope": {
+        "model": "claude-sonnet-5",
+        "input_tokens": 2,
+        "cache_creation": 1569,
+        "cache_read": 4794,
+        "output_tokens": 310,
+        "cost_usd": 0.0170462
+      },
+      "grade_output": "PASS r1: 12\nPASS r2: 3\nscore: 2/2\nprompt: 791 tokens [o200k]   accuracy/1k tokens: 126.4\n"
+    },
+    {
+      "case": "findings-risk-probe",
+      "arm": "raw",
+      "rep": 2,
+      "status": "ok",
+      "correct": 2,
+      "total": 2,
+      "prompt_tokens_o200k": 791,
+      "envelope": {
+        "model": "claude-sonnet-5",
+        "input_tokens": 2,
+        "cache_creation": 0,
+        "cache_read": 6363,
+        "output_tokens": 174,
+        "cost_usd": 0.0060579
+      },
+      "grade_output": "PASS r1: 12\nPASS r2: 3\nscore: 2/2\nprompt: 791 tokens [o200k]   accuracy/1k tokens: 126.4\n"
+    },
+    {
+      "case": "findings-risk-probe",
+      "arm": "deep",
+      "rep": 1,
+      "status": "ok",
+      "correct": 2,
+      "total": 2,
+      "prompt_tokens_o200k": 825,
+      "envelope": {
+        "model": "claude-sonnet-5",
+        "input_tokens": 2,
+        "cache_creation": 1420,
+        "cache_read": 4794,
+        "output_tokens": 4162,
+        "cost_usd": 0.07393319999999999
+      },
+      "grade_output": "PASS r1: 12\nPASS r2: 3\nscore: 2/2\nprompt: 825 tokens [o200k]   accuracy/1k tokens: 121.2\n"
+    },
+    {
+      "case": "findings-risk-probe",
+      "arm": "deep",
+      "rep": 2,
+      "status": "ok",
+      "correct": 2,
+      "total": 2,
+      "prompt_tokens_o200k": 825,
+      "envelope": {
+        "model": "claude-sonnet-5",
+        "input_tokens": 2,
+        "cache_creation": 0,
+        "cache_read": 6214,
+        "output_tokens": 4368,
+        "cost_usd": 0.0689242
+      },
+      "grade_output": "PASS r1: 12\nPASS r2: 3\nscore: 2/2\nprompt: 825 tokens [o200k]   accuracy/1k tokens: 121.2\n"
+    },
+    {
+      "case": "findings-risk-probe",
+      "arm": "paper",
+      "rep": 1,
+      "status": "ok",
+      "correct": 2,
+      "total": 2,
+      "prompt_tokens_o200k": 1065,
+      "envelope": {
+        "model": "claude-sonnet-5",
+        "input_tokens": 2,
+        "cache_creation": 1910,
+        "cache_read": 4794,
+        "output_tokens": 627,
+        "cost_usd": 0.0241392
+      },
+      "grade_output": "PASS r1: 12\nPASS r2: 3\nscore: 2/2\nprompt: 1065 tokens [o200k]   accuracy/1k tokens: 93.9\n"
+    },
+    {
+      "case": "findings-risk-probe",
+      "arm": "paper",
+      "rep": 2,
+      "status": "ok",
+      "correct": 2,
+      "total": 2,
+      "prompt_tokens_o200k": 1065,
+      "envelope": {
+        "model": "claude-sonnet-5",
+        "input_tokens": 2,
+        "cache_creation": 0,
+        "cache_read": 6704,
+        "output_tokens": 521,
+        "cost_usd": 0.0116622
+      },
+      "grade_output": "PASS r1: 12\nPASS r2: 3\nscore: 2/2\nprompt: 1065 tokens [o200k]   accuracy/1k tokens: 93.9\n"
+    }
+  ]
+}

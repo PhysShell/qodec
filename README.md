@@ -241,6 +241,7 @@ overhead 42), all byte-exact, all fail-closed without the exact file.
 | `diag` | template miner for diagnostic streams (`path:line: warning: …`, MSBuild `path(l,c): …`): repeated tails → legend once, quoted identifiers → slot values; one linear pass — the redundancy is *known*, not searched for | byte |
 | `tmpl` | Drain-style template mining for *any* line-based log: lines cluster by skeleton (whitespace byte-equal, ≥60% of words equal), varying positions become slots; slots go *sub-word* — a cluster pulls its members' common prefix/suffix inside a varying word into the template when that measures cheaper, so a path that differs in one number costs one number per row | byte |
 | `squeeze` | `toon` (JSON) or measured best of `fold`/`grep`/`diag`/`tmpl` (text), then the better miner over the result | byte / semantic |
+| `paper` | faithful baseline of arXiv:2604.13066 (in-context dictionary encoding): whitespace n-grams, longest-first greedy, `<M#>` meta-tokens, batch-local dictionary, per-pattern acceptance only — the related-work measuring stick, never a pipeline stage | byte |
 
 Format specialization is the speed lever: on the real 133 KB ownsharp audit
 log, `diag` takes −52% in 0.4 s where `deep` takes −77% in 20 s — the miner
@@ -252,11 +253,51 @@ decryption key) and falls back to `raw` whenever the measured artifact does
 not beat the original. `decode` is exact and deterministic — the model never
 has to decompress anything.
 
+### Model-readability risk (`qodec risk`)
+
+Byte-lossless ≠ legible: the reader-cli panel measured Sonnet 5 stably
+undercounting a predicate the `paper` baseline had split between literal
+body text and dictionary values, while `deep`'s uniform aliasing of the
+same predicate held. `qodec risk` mechanizes that finding: it classifies
+every repeated source span's representation in the artifact
+(`uniform-literal` / `split` / `heterogeneous-hidden` / `uniform-hidden` /
+`boundary-recomposed`) plus legend confusability (near-duplicate values,
+numeric density), and flags count-splitting as HIGH risk:
+
+```bash
+./target/release/qodec risk -i corpus/findings.json --codec paper
+./target/release/qodec risk -i artifact.q1 --json
+```
+
+Diagnostic, not a gate — it flags, the measured A/B stands decide. It also
+makes falsifiable predictions: on `findings.json` it flags `deep`'s
+`,"severity":"` handling too, which the next counting panel exists to test.
+
+### The paper baseline, measured
+
+`paper` reproduces the dictionary encoder of arXiv:2604.13066 with its known
+weaknesses intact (see `src/paper.rs` for the faithful-vs-divergent list —
+divergences exist only where byte-exactness demanded them). Its acceptance is
+the paper's per-pattern Equation 1 and nothing else, so unlike every other
+codec here it is allowed to *lose* net tokens — that gap is what it exists to
+measure. On this corpus (o200k, cold = artifact incl. dictionary): it wins on
+its home turf of repetitive logs (+18.8% build-log, +12.7% stacktrace) and
+goes net-negative on three of six samples (−2.0% findings.json, −3.5%
+rg-output, −4.5% git-diff) where the dictionary envelope outweighs the
+per-pattern savings; `deep` beats it on every sample (e.g. +46.1% vs +18.8%
+on build-log). The two disciplines it lacks — exact serialized whole-artifact
+measurement and token-aware (not whitespace) candidates — are precisely
+qodec's contribution over the paper.
+
 ## Rules the lab lives by
 
 1. **Tokens, not bytes.** Gains are measured by a real BPE (`o200k` bundled
    offline; `cl100k` for cross-checks). Claude's tokenizer is not public —
-   treat absolute numbers as proxy, relative ordering transfers.
+   treat absolute numbers as proxy, relative ordering transfers. That
+   transfer is now *measured*, not assumed: `evals/tokenizer-matrix/` runs
+   the whole codec table under 8 open tokenizer families (Qwen, Llama 3.1,
+   DeepSeek-V3, GLM-4, Phi-4, Mistral, Gemma 2), and the ordering held on
+   every one.
 2. **Measured, not modeled.** A dictionary entry is committed only if
    re-tokenizing the actual replacement beats the legend line it adds.
 3. **Never lie to the decoder.** Aliases are chars provably absent from the

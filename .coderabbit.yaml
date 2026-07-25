@@ -1,0 +1,9 @@
+# Review the code, not the frozen evidence. Committed eval-run artifacts
+# (model answers, CLI envelopes, emitted prompts) and generated result
+# tables are immutable records — reviewing them is meaningless, and they
+# pushed PR #6 past CodeRabbit's 100-file limit (192 files, review
+# skipped). Code, tests, configs and hand-written docs stay in scope.
+reviews:
+  path_filters:
+    - "!evals/reader-cli/runs/**"
+    - "!evals/tokenizer-matrix/results/**"

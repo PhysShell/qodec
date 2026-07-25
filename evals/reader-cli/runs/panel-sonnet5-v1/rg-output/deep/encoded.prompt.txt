@@ -1,0 +1,72 @@
+Answer the questions below using ONLY the payload in this message.
+Do not use any tools, do not read any files, do not guess beyond the
+payload. Reply with ONLY a JSON object mapping each question id to a
+short answer string, e.g. {"q1": "...", "q2": "..."}.
+
+The payload is encoded as a `%q1` container. Format: first line
+`%q1 <codec> ...` (parameters), then legend lines `<alias>=<phrase>`
+(each alias is a short stand-in for that exact phrase), then a
+`%q1 body` line, then the body. `%q1 xN` after a line means that line
+occurs N times in total. A `toon` body is a table: first line is a JSON
+array of keys, each following line is one object, cells are JSON values
+joined by the separator named in the header. A `grep` body is grouped
+matcher output: a marker line names a file path and the lines after it
+are `line:text` hits in that file (a bare marker starts verbatim
+lines). A `diag` body line starting with an alias expands to: the head
+after the alias, then that alias's legend template with each slot
+placeholder filled by the sep-joined values in order. A `tmpl` body
+line starting with an alias is its legend template with the slot
+placeholders filled by the sep-joined values that follow the alias.
+Mentally decode the body via the legend before answering; never emit
+alias characters in answers.
+
+# Payload
+
+%q1 mine n=16
+码=src/Legacy.UI/ViewModels/
+引=src/Legacy.Core/Services/
+路=, cancellationToken).ConfigureAwait(false);
+类=:        
+函=tests/Legacy.UI.Tests/ViewModels/
+值=码UserEditorViewModel.cs:
+错=Async(CancellationToken
+试=类private void OnPropertyChanged(string propertyName)
+件=类public async Task 
+组=码ReportViewModel.cs:
+标=码LoginViewModel.cs:
+记=函UserEditorViewModelTests.cs:
+链=, CancellationToken cancellationToken)
+节=类await 
+层=Service.cs:
+块=节viewModel.
+%q1 body
+值42件Save错 cancellationToken)
+值57节_userService.SaveAsync(CurrentUser路
+值58节_auditLogger.LogAsync("User saved"路
+值112试
+组31件Generate错 cancellationToken)
+组44类var report = _reportService.Generate(criteria).GetAwaiter().GetResult();
+组88试
+标23件Login错 cancellationToken)
+标39节_sessionService.OpenAsync(credentials路
+标71试
+引User层18件SaveAsync(User user链
+引User层27节_repository.UpsertAsync(user路
+引Report层52类public Report Generate(ReportCriteria criteria)
+引Session层33件OpenAsync(Credentials credentials链
+引Session层41节_tokenClient.RequestAsync(credentials路
+引AuditLogger.cs:14件LogAsync(string message链
+记29块Save错.None);
+记63块Save错.None);
+函ReportViewModelTests.cs:41块Generate错.None);
+函LoginViewModelTests.cs:36块Login错.None);
+
+
+# Questions
+
+q1: On what line of UserService.cs is SaveAsync declared?
+q2: Which ViewModel calls GetAwaiter().GetResult()?
+q3: Which client method does SessionService.OpenAsync await on _tokenClient?
+q4: How many distinct test files appear in the results?
+q5: On what line does AuditLogger's LogAsync declaration appear?
+q6: Which repository method does UserService.SaveAsync await?

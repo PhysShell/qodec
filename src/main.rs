@@ -69,6 +69,29 @@ enum Cmd {
     /// Comprehension A/B: emit paired raw/encoded prompts, grade answers.
     #[command(subcommand)]
     Ab(AbCmd),
+    /// Model-readability risk report: classify how repeated source spans are
+    /// represented in the artifact (count-splitting, heterogeneous hiding,
+    /// legend confusability). Diagnostic, not a gate — it flags the
+    /// representation classes measured panels showed readers miscounting.
+    Risk(RiskArgs),
+}
+
+#[derive(Args)]
+struct RiskArgs {
+    /// Input file (stdin when omitted): a %q1 artifact, or plain text to
+    /// encode first via --codec.
+    #[arg(short, long)]
+    input: Option<PathBuf>,
+    /// Encode plain-text input with this codec before analyzing.
+    #[arg(long)]
+    codec: Option<String>,
+    #[arg(long, default_value = "auto")]
+    alphabet: String,
+    #[arg(long, default_value = "o200k")]
+    meter: String,
+    /// Emit machine-readable JSON instead of the text report.
+    #[arg(long)]
+    json: bool,
 }
 
 #[derive(Subcommand)]
@@ -128,7 +151,7 @@ struct IoArgs {
 struct EncodeArgs {
     #[command(flatten)]
     io: IoArgs,
-    /// mine | deep | fold | toon | grep | diag | tmpl | squeeze | mosaic | identity | structural | fold-grep-guarded
+    /// mine | deep | fold | toon | grep | diag | tmpl | squeeze | mosaic | paper | identity | structural | fold-grep-guarded
     #[arg(long, default_value = "squeeze")]
     codec: String,
     /// auto | glyph | sigil
@@ -319,7 +342,7 @@ struct PplArgs {
     /// Input file (stdin when omitted).
     #[arg(short, long)]
     input: Option<PathBuf>,
-    /// mine | deep | fold | toon | grep | diag | tmpl | squeeze | mosaic | identity | structural | fold-grep-guarded
+    /// mine | deep | fold | toon | grep | diag | tmpl | squeeze | mosaic | paper | identity | structural | fold-grep-guarded
     #[arg(long, default_value = "squeeze")]
     codec: String,
     #[arg(long, default_value = "auto")]
@@ -378,6 +401,7 @@ fn main() -> Result<()> {
         Cmd::Ppl(a) => cmd_ppl(&a),
         Cmd::Ab(AbCmd::Emit(a)) => cmd_ab_emit(&a),
         Cmd::Ab(AbCmd::Grade(a)) => cmd_ab_grade(&a),
+        Cmd::Risk(a) => cmd_risk(&a),
     }
 }
 
@@ -999,6 +1023,39 @@ fn cmd_aliases(a: &AliasArgs) -> Result<()> {
     println!("|---|---|---:|");
     for row in probe_table(meter.as_ref(), a.top) {
         println!("| {} | {} | {} |", row.alias, row.kind, row.cost);
+    }
+    Ok(())
+}
+
+fn cmd_risk(a: &RiskArgs) -> Result<()> {
+    let text = read_input(&IoArgs {
+        input: a.input.clone(),
+        output: None,
+    })?;
+    let artifact = if container::is_container(&text) {
+        text
+    } else if let Some(codec) = &a.codec {
+        let meter = by_name(&a.meter)?;
+        let kind = CodecKind::parse(codec).with_context(|| format!("unknown codec {codec:?}"))?;
+        let alphabet = Alphabet::parse(&a.alphabet)
+            .with_context(|| format!("unknown alphabet {:?}", a.alphabet))?;
+        let art = encode(&text, kind, meter.as_ref(), alphabet);
+        if meter.poisoned() {
+            bail!("meter failed on this input — no risk report");
+        }
+        art
+    } else {
+        qodec::risk::ensure_container(&text)?;
+        unreachable!("ensure_container errors on non-containers");
+    };
+    let report = qodec::risk::analyze(&artifact)?;
+    if a.json {
+        println!(
+            "{}",
+            serde_json::to_string_pretty(&qodec::risk::to_json(&report))?
+        );
+    } else {
+        print!("{}", qodec::risk::render(&report));
     }
     Ok(())
 }

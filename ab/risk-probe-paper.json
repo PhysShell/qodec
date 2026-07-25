@@ -1,0 +1,22 @@
+[
+  {
+    "id": "r1",
+    "question": "In the ORIGINAL data this payload represents, how many times does the exact character sequence \"\\\",\\\"suspect_fp\\\":\" occur?",
+    "accept": [
+      "12",
+      "twelve"
+    ],
+    "trap": 9,
+    "class": "split"
+  },
+  {
+    "id": "r2",
+    "question": "In the ORIGINAL data this payload represents, how many times does the exact character sequence \"y\\\":\\\"medium\\\",\\\"message\\\":\\\"event subscription withou\" occur?",
+    "accept": [
+      "3",
+      "three"
+    ],
+    "trap": 1,
+    "class": "split"
+  }
+]

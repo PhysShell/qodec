@@ -1,0 +1,8 @@
+[
+  {"id":"q1","question":"How many findings are in the report in total?","accept":["12", "twelve"]},
+  {"id":"q2","question":"How many findings are marked suspect_fp = true?","accept":["5", "five"]},
+  {"id":"q3","question":"How many findings have severity \"medium\"?","accept":["5", "five"]},
+  {"id":"q4","question":"How many findings have severity \"high\"?","accept":["4", "four"]},
+  {"id":"q5","question":"How many findings have the rule \"event-leak\"?","accept":["3", "three"]},
+  {"id":"q6","question":"How many findings are marked suspect_fp = false?","accept":["7", "seven"]}
+]
