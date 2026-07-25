@@ -1,0 +1,80 @@
+{
+  "is_error": false,
+  "duration_api_ms": 65032,
+  "num_turns": 1,
+  "stop_reason": "end_turn",
+  "session_id": "7e07d6be-b5fc-53d1-9dbd-3a72cdd573d7",
+  "total_cost_usd": 0.1216952,
+  "usage": {
+    "input_tokens": 2,
+    "cache_creation_input_tokens": 1301,
+    "cache_read_input_tokens": 4794,
+    "output_tokens": 7400,
+    "server_tool_use": {
+      "web_search_requests": 0,
+      "web_fetch_requests": 0
+    },
+    "service_tier": "standard",
+    "cache_creation": {
+      "ephemeral_1h_input_tokens": 1301,
+      "ephemeral_5m_input_tokens": 0
+    },
+    "inference_geo": "not_available",
+    "iterations": [
+      {
+        "input_tokens": 2,
+        "output_tokens": 7400,
+        "cache_read_input_tokens": 4794,
+        "cache_creation_input_tokens": 1301,
+        "cache_creation": {
+          "ephemeral_5m_input_tokens": 0,
+          "ephemeral_1h_input_tokens": 1301
+        },
+        "type": "message"
+      }
+    ],
+    "speed": "standard"
+  },
+  "modelUsage": {
+    "claude-haiku-4-5-20251001": {
+      "inputTokens": 1370,
+      "outputTokens": 15,
+      "cacheReadInputTokens": 0,
+      "cacheCreationInputTokens": 0,
+      "webSearchRequests": 0,
+      "costUSD": 0.0014449999999999999,
+      "contextWindow": 200000,
+      "maxOutputTokens": 32000,
+      "canonicalModel": "claude-haiku-4-5",
+      "provider": "firstParty"
+    },
+    "claude-sonnet-5": {
+      "inputTokens": 2,
+      "outputTokens": 7400,
+      "cacheReadInputTokens": 4794,
+      "cacheCreationInputTokens": 1301,
+      "webSearchRequests": 0,
+      "costUSD": 0.1202502,
+      "contextWindow": 1000000,
+      "maxOutputTokens": 64000,
+      "canonicalModel": "claude-sonnet-5",
+      "provider": "firstParty"
+    }
+  },
+  "permission_denials": [],
+  "terminal_reason": "completed",
+  "fast_mode_state": "off",
+  "fast_mode_disabled_reason": "sdk_opt_in_required",
+  "subtype": "success",
+  "api_error_status": null,
+  "result": "{\"q1\": \"12\", \"q2\": \"5\", \"q3\": \"5\", \"q4\": \"4\", \"q5\": \"3\", \"q6\": \"7\"}",
+  "ttft_ms": 63920,
+  "ttft_stream_ms": 2026,
+  "time_to_request_ms": 31,
+  "time_to_request_from_spawn_ms": 1564820,
+  "warm_spare_claimed": false,
+  "time_origin_ms": 1785009925453.538,
+  "type": "result",
+  "duration_ms": 65431,
+  "uuid": "715fcbb8-567e-4239-8fb8-e6dd52cb98b8"
+}

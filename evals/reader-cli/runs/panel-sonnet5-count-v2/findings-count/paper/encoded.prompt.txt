@@ -1,0 +1,54 @@
+Answer the questions below using ONLY the payload in this message.
+Do not use any tools, do not read any files, do not guess beyond the
+payload. Reply with ONLY a JSON object mapping each question id to a
+short answer string, e.g. {"q1": "...", "q2": "..."}.
+
+The payload is encoded as a `%q1` container. Format: first line
+`%q1 <codec> ...` (parameters), then legend lines `<alias>=<phrase>`
+(each alias is a short stand-in for that exact phrase), then a
+`%q1 body` line, then the body. `%q1 xN` after a line means that line
+occurs N times in total. A `toon` body is a table: first line is a JSON
+array of keys, each following line is one object, cells are JSON values
+joined by the separator named in the header. A `grep` body is grouped
+matcher output: a marker line names a file path and the lines after it
+are `line:text` hits in that file (a bare marker starts verbatim
+lines). A `diag` body line starting with an alias expands to: the head
+after the alias, then that alias's legend template with each slot
+placeholder filled by the sep-joined values in order. A `tmpl` body
+line starting with an alias is its legend template with the slot
+placeholders filled by the sep-joined values that follow the alias.
+Mentally decode the body via the legend before answering; never emit
+alias characters in answers.
+
+# Payload
+
+%q1 paper n=4 lmax=20 fmin=2
+<M1>=blocks the UI thread inside an async flow","suspect_fp":false},
+<M2>=used where BeginInvoke would avoid a re-entrancy
+<M3>=subscription without matching unsubscribe in Dispose","suspect_fp":true},
+<M4>=ObservableCollection roots every subscribed view model","suspect_fp":false},
+%q1 body
+[
+  {"id":"OWN0101","rule":"async-over-sync","file":"src/Legacy.UI/ViewModels/ReportViewModel.cs","line":44,"severity":"high","message":"GetAwaiter().GetResult() <M1>
+  {"id":"OWN0102","rule":"async-over-sync","file":"src/Legacy.UI/ViewModels/StationViewModel.cs","line":81,"severity":"high","message":"Task.Wait() <M1>
+  {"id":"OWN0201","rule":"event-leak","file":"src/Legacy.UI/ViewModels/UserEditorViewModel.cs","line":33,"severity":"medium","message":"event <M3>
+  {"id":"OWN0202","rule":"event-leak","file":"src/Legacy.UI/ViewModels/ReportViewModel.cs","line":27,"severity":"medium","message":"event <M3>
+  {"id":"OWN0203","rule":"event-leak","file":"src/Legacy.UI/ViewModels/LoginViewModel.cs","line":19,"severity":"medium","message":"event subscription without matching unsubscribe in Dispose","suspect_fp":false},
+  {"id":"OWN0301","rule":"cancellation-not-forwarded","file":"src/Legacy.Core/Services/UserService.cs","line":27,"severity":"low","message":"CancellationToken parameter is not forwarded to UpsertAsync overload","suspect_fp":false},
+  {"id":"OWN0302","rule":"cancellation-not-forwarded","file":"src/Legacy.Core/Services/SessionService.cs","line":41,"severity":"low","message":"CancellationToken parameter is not forwarded to RequestAsync overload","suspect_fp":true},
+  {"id":"OWN0401","rule":"dispatcher-invoke","file":"src/Legacy.UI/ViewModels/StationViewModel.cs","line":102,"severity":"medium","message":"Dispatcher.Invoke <M2> deadlock","suspect_fp":false},
+  {"id":"OWN0402","rule":"dispatcher-invoke","file":"src/Legacy.UI/Controls/GridHost.xaml.cs","line":58,"severity":"medium","message":"Dispatcher.Invoke <M2> deadlock","suspect_fp":true},
+  {"id":"OWN0501","rule":"static-observable","file":"src/Legacy.UI/State/GlobalState.cs","line":12,"severity":"high","message":"static <M4>
+  {"id":"OWN0502","rule":"static-observable","file":"src/Legacy.UI/State/SessionCache.cs","line":21,"severity":"high","message":"static <M4>
+  {"id":"OWN0601","rule":"config-await","file":"src/Legacy.Core/Services/AuditLogger.cs","line":16,"severity":"info","message":"missing ConfigureAwait(false) in library code","suspect_fp":true}
+]
+
+
+# Questions
+
+q1: How many findings are in the report in total?
+q2: How many findings are marked suspect_fp = true?
+q3: How many findings have severity "medium"?
+q4: How many findings have severity "high"?
+q5: How many findings have the rule "event-leak"?
+q6: How many findings are marked suspect_fp = false?
