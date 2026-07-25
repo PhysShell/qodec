@@ -1,0 +1,44 @@
+{
+  "deepseek-v3": {
+    "bytes": 7847652,
+    "repo": "deepseek-ai/DeepSeek-V3",
+    "sha256": "621ac2e32d0dba658404412318818aaa8ce8cda492e59830109d8da6b517fb41",
+    "url": "https://huggingface.co/deepseek-ai/DeepSeek-V3/resolve/main/tokenizer.json"
+  },
+  "gemma2": {
+    "bytes": 17525357,
+    "repo": "unsloth/gemma-2-9b-it",
+    "sha256": "3f289bc05132635a8bc7aca7aa21255efd5e18f3710f43e3cdb96bcd41be4922",
+    "url": "https://huggingface.co/unsloth/gemma-2-9b-it/resolve/main/tokenizer.json"
+  },
+  "glm4": {
+    "bytes": 19967863,
+    "repo": "THUDM/glm-4-9b-chat-hf",
+    "sha256": "8a7269d6daa6328de533def0082ff9d3a825bb89036cbcc665c324f941f67fbf",
+    "url": "https://huggingface.co/THUDM/glm-4-9b-chat-hf/resolve/main/tokenizer.json"
+  },
+  "llama3.1": {
+    "bytes": 9085657,
+    "repo": "NousResearch/Meta-Llama-3.1-8B-Instruct",
+    "sha256": "79e3e522635f3171300913bb421464a87de6222182a0570b9b2ccba2a964b2b4",
+    "url": "https://huggingface.co/NousResearch/Meta-Llama-3.1-8B-Instruct/resolve/main/tokenizer.json"
+  },
+  "mistral0.3": {
+    "bytes": 1961548,
+    "repo": "unsloth/Mistral-7B-Instruct-v0.3",
+    "sha256": "60b945759e27a63c3c5c0ca675881f5a73b4aa38b5d1d6818570308d4f1a3c59",
+    "url": "https://huggingface.co/unsloth/Mistral-7B-Instruct-v0.3/resolve/main/tokenizer.json"
+  },
+  "phi4": {
+    "bytes": 4253055,
+    "repo": "microsoft/phi-4",
+    "sha256": "9f38d05d9d25756bb2f181ab5a0cebcd59e638df10336fc7ed1010f7296d0298",
+    "url": "https://huggingface.co/microsoft/phi-4/resolve/main/tokenizer.json"
+  },
+  "qwen2.5": {
+    "bytes": 7031645,
+    "repo": "Qwen/Qwen2.5-Coder-7B-Instruct",
+    "sha256": "c0382117ea329cdf097041132f6d735924b697924d6f6fc3945713e96ce87539",
+    "url": "https://huggingface.co/Qwen/Qwen2.5-Coder-7B-Instruct/resolve/main/tokenizer.json"
+  }
+}

@@ -273,7 +273,11 @@ qodec's contribution over the paper.
 
 1. **Tokens, not bytes.** Gains are measured by a real BPE (`o200k` bundled
    offline; `cl100k` for cross-checks). Claude's tokenizer is not public —
-   treat absolute numbers as proxy, relative ordering transfers.
+   treat absolute numbers as proxy, relative ordering transfers. That
+   transfer is now *measured*, not assumed: `evals/tokenizer-matrix/` runs
+   the whole codec table under 8 open tokenizer families (Qwen, Llama 3.1,
+   DeepSeek-V3, GLM-4, Phi-4, Mistral, Gemma 2), and the ordering held on
+   every one.
 2. **Measured, not modeled.** A dictionary entry is committed only if
    re-tokenizing the actual replacement beats the legend line it adds.
 3. **Never lie to the decoder.** Aliases are chars provably absent from the

@@ -4,3 +4,6 @@
 
 # interop benchmark v2 sealed held-out material — never commit
 evals/interop/v2/private/
+
+# tokenizer-matrix downloaded tokenizer files — pinned by tokenizers.lock.json, never committed
+evals/tokenizer-matrix/.cache/
