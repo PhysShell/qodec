@@ -1,6 +1,6 @@
 {
   "date": "2026-07-25",
-  "git_commit": "ec98074d07653de5333e112e2c8f487eb9de5bc5",
+  "git_commit": "d8d17b4a28831951a129350a20ed388726fc5f3c",
   "task_prefix": "Answer questions about the payload below.\n\n",
   "families": {
     "deepseek-v3": {

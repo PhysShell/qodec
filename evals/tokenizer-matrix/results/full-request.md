@@ -1,6 +1,6 @@
 # Full-request matrix — chat template applied, brief + dictionary paid
 
-date 2026-07-25 · qodec `ec98074d0765` · cold one-shot: encoded arm = template(task + notation brief + artifact). Per family, corpus-total request tokens; saving vs the raw request.
+date 2026-07-25 · qodec `d8d17b4a2883` · cold one-shot: encoded arm = template(task + notation brief + artifact). Per family, corpus-total request tokens; saving vs the raw request.
 
 | tokenizer | raw req | squeeze cold | Δ | squeeze warm | Δ | paper cold | Δ | paper warm | Δ |
 |---|---:|---:|---:|---:|---:|---:|---:|---:|---:|

@@ -185,13 +185,23 @@ def main() -> int:
         if m.get("status") != "ok":
             lines.append(f"| {family} | {m['status']} | | | | | | | | |")
             continue
-        tot = lambda k: sum(r[k] for r in m["rows"] if r.get(k) is not None)
-        raw_t = tot("raw_request")
-        cells = [f"| {family} | {raw_t} |"]
+        rows = m["rows"]
+        raw_all = sum(r["raw_request"] for r in rows)
+        cells = [f"| {family} | {raw_all} |"]
         for codec in CODECS:
             for key in (f"{codec}_request", f"{codec}_request_warm"):
-                t = tot(key)
-                cells.append(f" {t} | {100 * (raw_t - t) / raw_t:+.1f}% |")
+                # Paired totals: a sample where this codec failed drops from
+                # BOTH sides — comparing a partial encoded corpus against the
+                # complete raw corpus would inflate the saving. Fewer than
+                # all samples is marked, never silently averaged away.
+                sel = [r for r in rows if r.get(key) is not None]
+                if not sel:
+                    cells.append(" — | — |")
+                    continue
+                t = sum(r[key] for r in sel)
+                raw_sel = sum(r["raw_request"] for r in sel)
+                mark = "" if len(sel) == len(rows) else f" ⚠{len(sel)}/{len(rows)}"
+                cells.append(f" {t}{mark} | {100 * (raw_sel - t) / raw_sel:+.1f}% |")
         lines.append("".join(cells))
     lines += [
         "",

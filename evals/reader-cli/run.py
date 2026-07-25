@@ -110,9 +110,16 @@ def call_claude(prompt: str, model: str | None, timeout: int) -> dict:
     cmd = ["claude", *CLOSED_WORLD]
     if model:
         cmd += ["--model", model]
-    proc = subprocess.run(
-        cmd, input=prompt, capture_output=True, text=True, timeout=timeout
-    )
+    try:
+        proc = subprocess.run(
+            cmd, input=prompt, capture_output=True, text=True, timeout=timeout
+        )
+    except subprocess.TimeoutExpired:
+        # A slow call is a failed cell, not a dead run: completed (and paid)
+        # cells must still reach record.json.
+        return {"error": f"reader timed out after {timeout}s"}
+    except FileNotFoundError:
+        return {"error": "claude CLI not installed"}
     if proc.returncode != 0:
         return {"error": proc.stderr.strip()[:500]}
     try:
@@ -135,6 +142,8 @@ def call_codex(prompt: str, model: str | None, timeout: int) -> dict:
                 cmd, input=prompt, capture_output=True, text=True,
                 timeout=timeout, cwd=cwd,
             )
+        except subprocess.TimeoutExpired:
+            return {"error": f"reader timed out after {timeout}s"}
         except FileNotFoundError:
             return {"error": "codex CLI not installed (`codex login` on a machine that has it)"}
         if proc.returncode != 0 or not last_msg.exists():
@@ -211,14 +220,19 @@ def main() -> int:
     run_dir = HERE / "runs" / args.name
     run_dir.mkdir(parents=True, exist_ok=True)
 
-    claude_version = subprocess.run(
-        ["claude", "--version"], capture_output=True, text=True
-    ).stdout.strip()
+    # Probe the *selected* provider's binary only — a codex-only machine must
+    # not need claude installed to run the codex backend.
+    try:
+        reader_version = subprocess.run(
+            [args.provider, "--version"], capture_output=True, text=True
+        ).stdout.strip()
+    except FileNotFoundError:
+        reader_version = "not-installed"
 
     record: dict = {
         "date": datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ"),
         "provider": args.provider,
-        "claude_version": claude_version,
+        "reader_version": reader_version,
         "model_arg": args.model,
         "closed_world_argv": CLOSED_WORLD if args.provider == "claude" else CODEX_FLAGS,
         "qodec_sha256": sha256_file(QODEC),
@@ -284,7 +298,7 @@ def main() -> int:
     lines = [
         f"# reader-cli A/B — run `{args.name}`",
         "",
-        f"date {record['date']} · {claude_version} · qodec `{record['git_commit'][:12]}` · "
+        f"date {record['date']} · {args.provider} {reader_version} · qodec `{record['git_commit'][:12]}` · "
         f"repeats {args.repeats} · closed-world flags as in 007 judge",
         "",
         "| case | arm | scores | mean | prompt tok (o200k) | fresh input tok (envelope) | model |",
