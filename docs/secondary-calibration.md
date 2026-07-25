@@ -7,10 +7,19 @@
 >
 > Состояние против кода на дату фиксации:
 >
-> * Разрешённый слой («переупорядочивание, не решение») уже существует и
->   соблюдает эти границы: ranker `src/rank.rs` (`qodec train`,
->   `encode --probe-budget`) только переставляет очередь probes — acceptance
->   остаётся измеренным, точный метр авторитетен, byte verifier нетронут.
+> * Production-переупорядочивание probes существует **до** этой записки и
+>   **без shadow-стадии**: ranker `src/rank.rs` (`qodec train` →
+>   `encode --profile --probe-budget`) переставляет и усечает очередь
+>   кандидатов прямо в кодировании. Записка это исключение не легализует
+>   задним числом — фиксируем его явно, с причиной, почему оно другого
+>   класса риска, чем её calibrator: ranker обучается только офлайн, явным
+>   `qodec train`, на точных *измеренных* gains (ровно тот «чистый корпус»,
+>   который записка требует; никакого online-накопления из production и
+>   никакого usage), включается вручную через `--profile`, а acceptance
+>   остаётся измеренным — неверный ranker тратит probes, не байты
+>   (измерено: cross-domain ranker деградирует до 9% recovery, оставаясь
+>   byte-safe). Требование shadow-first применяется в полную силу к любому
+>   будущему calibrator'у, обновляющемуся из production-наблюдений.
 > * Из таблицы приоритетов: exact token meter, full-overhead accounting,
 >   byte verifier — есть; paper/Qodec benchmark и frozen semantic
 >   evaluation — закрыты milestone'ом
