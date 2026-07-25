@@ -14,6 +14,7 @@ pub mod legend;
 pub mod meter;
 pub mod mine;
 pub mod mosaic;
+pub mod paper;
 pub mod ppl;
 pub mod profile;
 pub mod rank;
@@ -57,6 +58,11 @@ pub enum CodecKind {
     /// span candidates), then mine the whole assembled artifact. The
     /// orchestration layer above the specialized codecs. See `mosaic.rs`.
     Mosaic,
+    /// Faithful baseline reproduction of arXiv:2604.13066: whitespace n-grams,
+    /// longest-first greedy selection, `<M#>` meta-tokens, batch-local
+    /// dictionary, per-pattern acceptance only (the paper's Equation 1).
+    /// The related-work measuring stick — never a `squeeze`/`mosaic` stage.
+    Paper,
     /// Eval-only. A `%q1 identity` container: byte-identical body, no alias, no
     /// structural transform. Isolates the `%q1` framing itself (the ablation I
     /// arm). alias=off, structural=off.
@@ -92,6 +98,7 @@ impl CodecKind {
             "tmpl" => Some(Self::Tmpl),
             "squeeze" => Some(Self::Squeeze),
             "mosaic" => Some(Self::Mosaic),
+            "paper" => Some(Self::Paper),
             "identity" => Some(Self::Identity),
             "structural" => Some(Self::Structural),
             "fold-grep-guarded" => Some(Self::FoldGrepGuarded),
@@ -112,6 +119,7 @@ impl CodecKind {
             Self::Tmpl => "tmpl",
             Self::Squeeze => "squeeze",
             Self::Mosaic => "mosaic",
+            Self::Paper => "paper",
             Self::Identity => "identity",
             Self::Structural => "structural",
             Self::FoldGrepGuarded => "fold-grep-guarded",
@@ -206,6 +214,7 @@ pub fn encode_seeded(
                 container::raw(text)
             }
         }
+        CodecKind::Paper => paper::encode(text, meter),
         CodecKind::SqueezeStage1 => squeeze_stage1(text, meter, &seeds.templates),
         CodecKind::SqueezeMineGuarded => {
             // SG: production stage 1 (shared code) + a GUARDED mine. Same stage-1
@@ -382,6 +391,7 @@ fn decode_container(c: &container::Container, keys: &Keys<'_>) -> Result<String>
         "grep" => grep::decode(c),
         "diag" => diag::decode(c),
         "tmpl" => tmpl::decode(c, keys.templates),
+        "paper" => paper::decode(c),
         "mosaic" => {
             // Each segment is a single-layer container by construction, so
             // decode exactly one layer per segment — no `decode_all` loop,

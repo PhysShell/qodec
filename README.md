@@ -241,6 +241,7 @@ overhead 42), all byte-exact, all fail-closed without the exact file.
 | `diag` | template miner for diagnostic streams (`path:line: warning: …`, MSBuild `path(l,c): …`): repeated tails → legend once, quoted identifiers → slot values; one linear pass — the redundancy is *known*, not searched for | byte |
 | `tmpl` | Drain-style template mining for *any* line-based log: lines cluster by skeleton (whitespace byte-equal, ≥60% of words equal), varying positions become slots; slots go *sub-word* — a cluster pulls its members' common prefix/suffix inside a varying word into the template when that measures cheaper, so a path that differs in one number costs one number per row | byte |
 | `squeeze` | `toon` (JSON) or measured best of `fold`/`grep`/`diag`/`tmpl` (text), then the better miner over the result | byte / semantic |
+| `paper` | faithful baseline of arXiv:2604.13066 (in-context dictionary encoding): whitespace n-grams, longest-first greedy, `<M#>` meta-tokens, batch-local dictionary, per-pattern acceptance only — the related-work measuring stick, never a pipeline stage | byte |
 
 Format specialization is the speed lever: on the real 133 KB ownsharp audit
 log, `diag` takes −52% in 0.4 s where `deep` takes −77% in 20 s — the miner
@@ -251,6 +252,22 @@ Every encode is self-describing (`%q1` container: header + legend = the
 decryption key) and falls back to `raw` whenever the measured artifact does
 not beat the original. `decode` is exact and deterministic — the model never
 has to decompress anything.
+
+### The paper baseline, measured
+
+`paper` reproduces the dictionary encoder of arXiv:2604.13066 with its known
+weaknesses intact (see `src/paper.rs` for the faithful-vs-divergent list —
+divergences exist only where byte-exactness demanded them). Its acceptance is
+the paper's per-pattern Equation 1 and nothing else, so unlike every other
+codec here it is allowed to *lose* net tokens — that gap is what it exists to
+measure. On this corpus (o200k, cold = artifact incl. dictionary): it wins on
+its home turf of repetitive logs (+18.8% build-log, +12.7% stacktrace) and
+goes net-negative on three of six samples (−2.0% findings.json, −3.5%
+rg-output, −4.5% git-diff) where the dictionary envelope outweighs the
+per-pattern savings; `deep` beats it on every sample (e.g. +46.1% vs +18.8%
+on build-log). The two disciplines it lacks — exact serialized whole-artifact
+measurement and token-aware (not whitespace) candidates — are precisely
+qodec's contribution over the paper.
 
 ## Rules the lab lives by
 
