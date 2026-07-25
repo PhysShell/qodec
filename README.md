@@ -253,6 +253,26 @@ decryption key) and falls back to `raw` whenever the measured artifact does
 not beat the original. `decode` is exact and deterministic — the model never
 has to decompress anything.
 
+### Model-readability risk (`qodec risk`)
+
+Byte-lossless ≠ legible: the reader-cli panel measured Sonnet 5 stably
+undercounting a predicate the `paper` baseline had split between literal
+body text and dictionary values, while `deep`'s uniform aliasing of the
+same predicate held. `qodec risk` mechanizes that finding: it classifies
+every repeated source span's representation in the artifact
+(`uniform-literal` / `split` / `heterogeneous-hidden` / `uniform-hidden` /
+`boundary-recomposed`) plus legend confusability (near-duplicate values,
+numeric density), and flags count-splitting as HIGH risk:
+
+```bash
+./target/release/qodec risk -i corpus/findings.json --codec paper
+./target/release/qodec risk -i artifact.q1 --json
+```
+
+Diagnostic, not a gate — it flags, the measured A/B stands decide. It also
+makes falsifiable predictions: on `findings.json` it flags `deep`'s
+`,"severity":"` handling too, which the next counting panel exists to test.
+
 ### The paper baseline, measured
 
 `paper` reproduces the dictionary encoder of arXiv:2604.13066 with its known

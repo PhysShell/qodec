@@ -18,6 +18,7 @@ pub mod paper;
 pub mod ppl;
 pub mod profile;
 pub mod rank;
+pub mod risk;
 pub mod rules;
 pub mod sam;
 pub mod slice;
