@@ -44,6 +44,9 @@ CASES = {
     "build-log": ("corpus/build-log.txt", "ab/build-log.json"),
     "rg-output": ("corpus/rg-output.txt", "ab/rg-output.json"),
     "findings": ("corpus/findings.json", "ab/findings.json"),
+    # Count-only probes over the same payload — the questions `qodec risk`
+    # predicts specific codecs to fail (split / heterogeneous-hidden spans).
+    "findings-count": ("corpus/findings.json", "ab/counting.json"),
 }
 
 # PhysShell/007 `invoke.rs::call_claude`'s proven closed-world flag set.
