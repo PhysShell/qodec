@@ -60,6 +60,11 @@ python3 evals/agent-g5/run.py --name g5-v1 --repeats 2
 Runs live under `runs/<name>/` with `record.json` (hashes, envelopes,
 per-cell grades) and `summary.md`.
 
+**Completion criterion**: the runner writes `record.json` and `summary.md`
+only after the last cell finishes — a run directory without `record.json`
+is an in-progress or aborted run and must not be read as evidence (cell
+files land incrementally and can be swept into interim commits).
+
 ## Result — `g5-sonnet-v1` (2026-07-26, claude 2.1.220, repeats 2)
 
 | pooled | score | note |
