@@ -74,6 +74,64 @@ enum Cmd {
     /// legend confusability). Diagnostic, not a gate — it flags the
     /// representation classes measured panels showed readers miscounting.
     Risk(RiskArgs),
+    /// Learned edge-cost model for mosaic's DP: harvest exact span costs,
+    /// fit a standardized ridge model, benchmark predicted vs measured
+    /// routing. Ordering-only — the exact meter stays authoritative.
+    #[command(subcommand)]
+    Cost(CostCmd),
+}
+
+#[derive(Subcommand)]
+enum CostCmd {
+    /// Measure every span of every corpus file with the exact meter and
+    /// write the (features, cost) dataset. Expensive, offline, ground truth.
+    Harvest(CostHarvestArgs),
+    /// Fit the ridge model on a harvested dataset (minus held-out files),
+    /// print train/holdout metrics, write the model JSON.
+    Fit(CostFitArgs),
+    /// Per-file end-to-end comparison: measured exhaustive DP vs predicted
+    /// DP vs geometric production mosaic — exact tokens and wall time.
+    Bench(CostBenchArgs),
+}
+
+#[derive(Args)]
+struct CostHarvestArgs {
+    /// Corpus directory of sample files.
+    #[arg(long)]
+    corpus: PathBuf,
+    #[arg(long, default_value = "o200k")]
+    meter: String,
+    /// Skip files with more lines than this (harvest is O(N²) encodes).
+    #[arg(long, default_value_t = 300)]
+    max_lines: usize,
+    /// Output dataset path (JSON array of rows).
+    #[arg(short, long)]
+    out: PathBuf,
+}
+
+#[derive(Args)]
+struct CostFitArgs {
+    /// Harvested dataset (from `cost harvest`).
+    #[arg(short, long)]
+    input: PathBuf,
+    /// Comma-separated file names to hold out of training (evaluated only).
+    #[arg(long, default_value = "")]
+    holdout: String,
+    /// Output model path (JSON).
+    #[arg(short, long)]
+    out: PathBuf,
+}
+
+#[derive(Args)]
+struct CostBenchArgs {
+    /// Corpus directory of sample files.
+    #[arg(long)]
+    corpus: PathBuf,
+    /// Fitted model (from `cost fit`).
+    #[arg(long)]
+    model: PathBuf,
+    #[arg(long, default_value = "o200k")]
+    meter: String,
 }
 
 #[derive(Args)]
@@ -402,6 +460,9 @@ fn main() -> Result<()> {
         Cmd::Ab(AbCmd::Emit(a)) => cmd_ab_emit(&a),
         Cmd::Ab(AbCmd::Grade(a)) => cmd_ab_grade(&a),
         Cmd::Risk(a) => cmd_risk(&a),
+        Cmd::Cost(CostCmd::Harvest(a)) => cmd_cost_harvest(&a),
+        Cmd::Cost(CostCmd::Fit(a)) => cmd_cost_fit(&a),
+        Cmd::Cost(CostCmd::Bench(a)) => cmd_cost_bench(&a),
     }
 }
 
@@ -1023,6 +1084,131 @@ fn cmd_aliases(a: &AliasArgs) -> Result<()> {
     println!("|---|---|---:|");
     for row in probe_table(meter.as_ref(), a.top) {
         println!("| {} | {} | {} |", row.alias, row.kind, row.cost);
+    }
+    Ok(())
+}
+
+fn corpus_files(dir: &PathBuf) -> Result<Vec<(String, String)>> {
+    let mut files: Vec<_> = fs::read_dir(dir)
+        .with_context(|| format!("reading corpus dir {}", dir.display()))?
+        .filter_map(std::result::Result::ok)
+        .map(|e| e.path())
+        .filter(|p| p.is_file())
+        .collect();
+    files.sort();
+    let mut out = Vec::new();
+    for path in files {
+        let name = path
+            .file_name()
+            .map(|n| n.to_string_lossy().into_owned())
+            .unwrap_or_default();
+        let text =
+            fs::read_to_string(&path).with_context(|| format!("reading {}", path.display()))?;
+        out.push((name, text));
+    }
+    Ok(out)
+}
+
+fn cmd_cost_harvest(a: &CostHarvestArgs) -> Result<()> {
+    let meter = by_name(&a.meter)?;
+    let mut rows = Vec::new();
+    for (name, text) in corpus_files(&a.corpus)? {
+        let before = rows.len();
+        rows.extend(qodec::cost::harvest(
+            &name,
+            &text,
+            meter.as_ref(),
+            &[],
+            a.max_lines,
+        ));
+        eprintln!("{name}: {} spans", rows.len() - before);
+    }
+    if meter.poisoned() {
+        bail!("meter failed during harvest — no dataset");
+    }
+    fs::write(&a.out, qodec::cost::rows_to_json(&rows))?;
+    eprintln!("wrote {} rows to {}", rows.len(), a.out.display());
+    Ok(())
+}
+
+fn cmd_cost_fit(a: &CostFitArgs) -> Result<()> {
+    let rows = qodec::cost::rows_from_json(&fs::read_to_string(&a.input)?)?;
+    let holdout: Vec<&str> = a
+        .holdout
+        .split(',')
+        .map(str::trim)
+        .filter(|s| !s.is_empty())
+        .collect();
+    let (train, held): (Vec<_>, Vec<_>) = rows
+        .into_iter()
+        .partition(|r| !holdout.contains(&r.file.as_str()));
+    for name in &holdout {
+        anyhow::ensure!(
+            held.iter().any(|r| r.file == *name),
+            "holdout file {name:?} matches no rows in the dataset (check the exact file name)"
+        );
+    }
+    let model = qodec::cost::fit(&train)
+        .ok_or_else(|| anyhow::anyhow!("fit refused (too few samples or degenerate system)"))?;
+    let m = qodec::cost::evaluate(&model, &train);
+    println!(
+        "train:   n={} mae={:.1} mean_target={:.1} spearman={:.3}",
+        m.n, m.mae, m.mean_target, m.spearman
+    );
+    // Per-held-out-file metrics: ordering quality within a file is what the
+    // DP actually consumes.
+    let mut held_files: Vec<String> = held.iter().map(|r| r.file.clone()).collect();
+    held_files.sort();
+    held_files.dedup();
+    for file in &held_files {
+        let subset: Vec<_> = held.iter().filter(|r| &r.file == file).cloned().collect();
+        let m = qodec::cost::evaluate(&model, &subset);
+        println!(
+            "holdout {file}: n={} mae={:.1} mean_target={:.1} spearman={:.3}",
+            m.n, m.mae, m.mean_target, m.spearman
+        );
+    }
+    fs::write(&a.out, serde_json::to_string_pretty(&model.to_json())?)?;
+    eprintln!("wrote model to {}", a.out.display());
+    Ok(())
+}
+
+fn cmd_cost_bench(a: &CostBenchArgs) -> Result<()> {
+    let meter = by_name(&a.meter)?;
+    let model =
+        qodec::cost::CostModel::from_json(&serde_json::from_str(&fs::read_to_string(&a.model)?)?)?;
+    println!(
+        "| file | raw tok | measured all-span | ms | predicted all-span | ms | geometric | ms |"
+    );
+    println!("|---|---:|---:|---:|---:|---:|---:|---:|");
+    for (name, text) in corpus_files(&a.corpus)? {
+        let raw_tokens = meter.count(&text);
+        let clock = std::time::Instant::now;
+
+        let t0 = clock();
+        let measured = qodec::mosaic::all_span_dp(&text, meter.as_ref(), &[])
+            .map(|r| r.exact_tokens.min(r.baseline_tokens));
+        let t_measured = t0.elapsed().as_millis();
+
+        let t1 = clock();
+        let predicted = qodec::mosaic::encode_predicted(&text, meter.as_ref(), &model, &[]);
+        let predicted_tokens = meter.count(&predicted);
+        let t_predicted = t1.elapsed().as_millis();
+
+        // Routing stage only (no stage-2 mine) so all three columns compare
+        // the same thing: segmentation quality and its search cost.
+        let t2 = clock();
+        let geometric = qodec::mosaic::encode(&text, meter.as_ref());
+        let geometric_tokens = meter.count(&geometric);
+        let t_geometric = t2.elapsed().as_millis();
+
+        println!(
+            "| {name} | {raw_tokens} | {} | {t_measured} | {predicted_tokens} | {t_predicted} | {geometric_tokens} | {t_geometric} |",
+            measured.map_or("-".to_string(), |t| t.to_string()),
+        );
+    }
+    if meter.poisoned() {
+        bail!("meter failed during bench");
     }
     Ok(())
 }

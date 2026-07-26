@@ -7,6 +7,7 @@ pub mod adapter;
 pub mod alias;
 pub mod bench;
 pub mod container;
+pub mod cost;
 pub mod diag;
 pub mod fold;
 pub mod grep;
