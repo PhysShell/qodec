@@ -328,8 +328,11 @@ fn tmpl_seeds_survive_crlf_rows() -> Result<()> {
 fn tmpl_subword_slots_pull_common_affixes_into_the_template() -> Result<()> {
     // The varying fragment hides inside one long path "word" — whole-word
     // slots would ship the entire path in every row. The refined template
-    // must carry the shared prefix/suffix and leave only the digits in
-    // the row.
+    // must carry the shared prefix/suffix, SNAPPED to token boundaries:
+    // pulling `Proj` into the template would leave bare digits in the rows
+    // and force the reader to recompose `Proj` + `3` — the exact
+    // boundary-recomposed slip the G5 panel caught live. The affix stops at
+    // the `\` separator and the slot value stays a whole token (`Proj3`).
     let meter = Bpe::o200k()?;
     let mut text = String::new();
     for i in 0..12 {
@@ -340,8 +343,8 @@ fn tmpl_subword_slots_pull_common_affixes_into_the_template() -> Result<()> {
     let encoded = roundtrip(&text, CodecKind::Tmpl, &meter)?;
     anyhow::ensure!(encoded.starts_with("%q1 tmpl"), "expected tmpl container");
     anyhow::ensure!(
-        encoded.contains("C:\\build\\src\\Proj¿\\obj\\App.dll"),
-        "the shared path bytes must move into the template: {encoded:?}"
+        encoded.contains("C:\\build\\src\\¿\\obj\\App.dll"),
+        "shared path bytes move into the template, snapped at the separator: {encoded:?}"
     );
     // Rows should be alias + two tiny slot values (the digits), i.e. the
     // body must not repeat the path bytes.

@@ -118,6 +118,35 @@ impl RiskReport {
     }
 }
 
+/// True when placing a representation boundary between `before` and `after`
+/// would split an identifier or number run — the `boundary-recomposed`
+/// failure made live by the G5 panel: a reader reassembling
+/// `codec` + `::pool_` + `28` answered `codecpool_28`, and one recomposing
+/// slot `819200` + template literal `0` answered `819200` for `8192000`.
+/// Task logic was correct both times; the surface reconstruction failed.
+///
+/// Unsafe cuts, each pinned to evidence: inside a `[A-Za-z0-9_]` run (both
+/// G5 misses), and against `::` path glue on either side (the dropped `::`).
+/// A *single* `:` is deliberately a safe cut: the counting panels measured
+/// readers holding 6/6 on `"key":`-shaped aliases and G5 root-cause held
+/// 6/6 through `path:`-prefix aliases — and refusing those cuts fragments
+/// previously uniform representations into the `split` class, a worse
+/// hazard than the one avoided. Text edges never split. Used by `mine` and
+/// `tmpl` to keep alias and slot edges on whole-token boundaries — a
+/// representational mitigation, not "compress less": the same content may
+/// still be aliased whole.
+pub fn splits_token(before: &str, after: &str) -> bool {
+    let w = |c: char| c.is_ascii_alphanumeric() || c == '_';
+    let l = before.chars().next_back();
+    let r = after.chars().next();
+    match (l, r) {
+        (Some(l), Some(r)) => {
+            (w(l) && w(r)) || (w(l) && after.starts_with("::")) || (before.ends_with("::") && w(r))
+        }
+        _ => false,
+    }
+}
+
 /// Analyze an encoded artifact. The artifact must decode (fails on pinned
 /// extern keys — supply the decoded source path instead by re-encoding).
 pub fn analyze(artifact: &str) -> Result<RiskReport> {

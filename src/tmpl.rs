@@ -193,6 +193,51 @@ fn common_affixes(words: &[&str]) -> (usize, usize) {
     (pre, suf)
 }
 
+/// Shrink refined affixes until the template/slot boundary never splits an
+/// identifier or number run in ANY member (`risk::splits_token`). The G5
+/// panel made the hazard live: values `327680` and `8192000` share a
+/// trailing `0`, `common_affixes` pulled it into the template literal, and
+/// a reader recomposing slot `819200` + literal `0` answered `819200`.
+/// Compression impact is arbitrated as before — `choose_template` still
+/// measures refined vs bare and keeps the cheaper artifact.
+fn snap_affixes(words: &[&str], mut pre: usize, mut suf: usize) -> (usize, usize) {
+    let Some(&first) = words.first() else {
+        return (pre, suf);
+    };
+    // Prefix boundary: template literal `first[..pre]` against each member's
+    // remainder. The literal is common, the right-hand side varies.
+    loop {
+        if pre == 0 {
+            break;
+        }
+        let literal = first.get(..pre).unwrap_or_default();
+        let unsafe_cut = words
+            .iter()
+            .any(|w| crate::risk::splits_token(literal, w.get(pre..).unwrap_or_default()));
+        if !unsafe_cut {
+            break;
+        }
+        pre -= literal.chars().next_back().map_or(1, char::len_utf8);
+    }
+    // Suffix boundary: each member's slot tail against the common suffix
+    // literal. The literal is common, the left-hand side varies.
+    loop {
+        if suf == 0 {
+            break;
+        }
+        let literal = first.get(first.len() - suf..).unwrap_or_default();
+        let unsafe_cut = words.iter().any(|w| {
+            let cut = w.len().saturating_sub(suf);
+            crate::risk::splits_token(w.get(..cut).unwrap_or_default(), literal)
+        });
+        if !unsafe_cut {
+            break;
+        }
+        suf -= literal.chars().next().map_or(1, char::len_utf8);
+    }
+    (pre, suf)
+}
+
 /// One emitted row: the cluster alias plus, per wildcard, the seg position
 /// and how many bytes of the word the template already carries as its
 /// common prefix/suffix (0/0 = the bare whole-word slot).
@@ -242,6 +287,7 @@ fn choose_template(
             .map(|s| s.segs.get(pos).copied().unwrap_or_default())
             .collect();
         let (pre, suf) = common_affixes(&words);
+        let (pre, suf) = snap_affixes(&words, pre, suf);
         refined_slots.push((pos, pre, suf));
     }
     if refined_slots

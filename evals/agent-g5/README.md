@@ -90,3 +90,16 @@ identifiers and long numerals), not "compress less".
 What this does NOT show: tool-loop agent behavior (L3), other reader
 families (codex backend still environment-blocked), non-synthetic payloads.
 Those remain the recorded next steps.
+
+## Mitigation (landed after this run)
+
+`risk::splits_token` + the miners now keep alias edges and template/slot
+cuts on whole-token boundaries: no cut inside a `[A-Za-z0-9_]` run, no cut
+against `::` glue (`mine::boundary_safe`, `tmpl::snap_affixes`). Scoped to
+the evidence: a single `:` stays a legal cut — the counting panels measured
+readers holding on `"key":`/`path:`-shaped aliases, and a draft rule that
+refused those cuts fragmented previously uniform representations into the
+worse `split` risk class (caught by `deep_same_predicate_is_not_split` and
+the cost-model label canary during development). Cost on this battery:
+wire savings 44.4% → 43.8%. Pinned by `tests/boundary.rs`; whether the
+slips actually disappear needs a fresh panel, not a claim.
