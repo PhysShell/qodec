@@ -1,0 +1,8 @@
+{
+  "result": "{\"t1\":\"log::pool_10\"}",
+  "provider": "codex",
+  "model": "gpt-5.6-sol",
+  "reasoning_effort": "none",
+  "stderr_head": "OpenAI Codex v0.145.0\n--------\nworkdir: /tmp/qodec-codex-m48o77k8\nmodel: gpt-5.6-sol\nprovider: openai\napproval: never\nsandbox: read-only\nreasoning effort: none\nreasoning summaries: none\nsession id: 019f9fe0-7cce-7f83-99a4-951bd82008ae\n--------\nuser\nAnswer the questions below using ONLY the payload in this message.\nDo not use any tools, do not read any files, do not guess beyond the\npayload. Reply with ONLY a JSON object mapping each question id to a\nshort answer string, e.g. {\"q1\": \"...\", \"q2\": \"...\"}.\n\n# Payload\n\nrunning retry harness (max 3 attempts per test)\n--- attempt 1 ---\ntest codec::pr",
+  "stderr_tail": "arning: Codex could not find bubblewrap on PATH. Install bubblewrap with your OS package manager. See the sandbox prerequisites: https://developers.openai.com/codex/concepts/sandboxing#prerequisites. Codex will use the bundled bubblewrap in the meantime.\ncodex\n{\"t1\":\"log::pool_10\"}\ntokens used\n1,256"
+}

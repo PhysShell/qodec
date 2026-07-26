@@ -1,0 +1,35 @@
+Answer the questions below using ONLY the payload in this message.
+Do not use any tools, do not read any files, do not guess beyond the
+payload. Reply with ONLY a JSON object mapping each question id to a
+short answer string, e.g. {"q1": "...", "q2": "..."}.
+
+# Payload
+
+running retry harness (max 3 attempts per test)
+--- attempt 1 ---
+test sched::mount_00 ... ok
+test auth::handshake_01 ... FAILED
+test vm::cursor_02 ... ok
+test ipc::session_03 ... ok
+test auth::frame_04 ... FAILED
+test vm::mount_05 ... FAILED
+--- attempt 2 ---
+test sched::mount_00 ... ok
+test auth::handshake_01 ... ok
+test vm::cursor_02 ... ok
+test ipc::session_03 ... ok
+test auth::frame_04 ... ok
+test vm::mount_05 ... FAILED
+--- attempt 3 ---
+test sched::mount_00 ... FAILED
+test auth::handshake_01 ... FAILED
+test vm::cursor_02 ... FAILED
+test ipc::session_03 ... FAILED
+test auth::frame_04 ... FAILED
+test vm::mount_05 ... FAILED
+retry harness done
+
+
+# Questions
+
+t1: A flaky test passes at least one attempt. Which test failed on EVERY attempt? Reply with the full test name.

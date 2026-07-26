@@ -1,0 +1,746 @@
+{
+  "date": "2026-07-26T19:20:04Z",
+  "provider": "codex",
+  "reader_version": "codex-cli 0.145.0",
+  "model_arg": null,
+  "closed_world_argv": [
+    "exec",
+    "--sandbox",
+    "read-only",
+    "--skip-git-repo-check",
+    "--ephemeral",
+    "--color",
+    "never",
+    "-c",
+    "features.shell_tool=false",
+    "--ignore-user-config",
+    "--ignore-rules"
+  ],
+  "qodec_sha256": "6355dc85cde0793968b24fca46845593864bfb8cd3218e79a6fa89b865ecebf0",
+  "git_commit": "72c0dcd013f168ba688e18b13e3b9fabf2f007b5",
+  "repeats": 2,
+  "inputs": {
+    "decj-d06-1": {
+      "payload_sha256": "043ccc91848ccde279f8ff9a67ac0a58318c14d3153b163c81d266e7ebc78ffc",
+      "questions_sha256": "9d392f21ac0cf5e65643f9259be79b73aab1744261134117d41f29fe10004ceb"
+    },
+    "decj-d06-2": {
+      "payload_sha256": "24bb96dd4758b0b09833b570f417d194d800085de2e84d4ac3846804fe755239",
+      "questions_sha256": "b1208fedcfc615d57efa3c30082ec9bc1bb5422e8023f249f3ab379f497adce7"
+    },
+    "decj-d06-3": {
+      "payload_sha256": "c0bd48df744fd6f39732f454f19c3df58246c82e093c7dfe1d6cfea0c5f81471",
+      "questions_sha256": "b10fde7558245f05a6c036ccaf3e4992cd49695ebd97564698fc42903b63db31"
+    },
+    "decj-d15-1": {
+      "payload_sha256": "70f003584a5ed1e3b69075d6d81f9e970e24a7df8bcf65cb980bae2d9832b8f0",
+      "questions_sha256": "f2959529c34565b65f618769361d47b128ab2009030afd4e9e36f7b70ab12f60"
+    },
+    "decj-d15-2": {
+      "payload_sha256": "cec8cc6c3243f8dbe26ac5fb6052bf6d2fd219fda9d3edd871729ea9d3e2c147",
+      "questions_sha256": "f7d93d23c88821bcfd8e005baa9d193505937de36edfe4dee4c4d7a1f2616fd7"
+    },
+    "decj-d15-3": {
+      "payload_sha256": "3daeac6e493bd95ad05ce6886028f83aa14b674900804d066cd688f1e4d281c1",
+      "questions_sha256": "5c73072748d1e6308111b9e03bbd50cb72bda0d3c922e97e7504e8b4e350890f"
+    },
+    "decj-d22-1": {
+      "payload_sha256": "6b713e1ad3fdb36d30ea8df13a4eb7260ea03afc4c5869a652c60c7515aa5deb",
+      "questions_sha256": "ba0f68c6147664ac7c7b95daf5fe65fed9404b621fc89bf8cb54d19b6fe8a694"
+    },
+    "decj-d22-2": {
+      "payload_sha256": "f5d89cd27880fb3447b12da9169a68dbe6d4c340b4ebdf6c510e4197f7e93e6c",
+      "questions_sha256": "a021b0ec81e8fdd46ce2cfb9db5253e71a0cbf5ae14f4c3d54c52fe1f5a97757"
+    },
+    "decj-d22-3": {
+      "payload_sha256": "c2d6ac5581f5712a52535bfd0eaa5c5c71d34e18e5267ef33d52390527477d1a",
+      "questions_sha256": "0dc340e54a6ff52b6c90f47c79ae535a38915f4d49a8e85fd26c6ee33907ab00"
+    },
+    "decj-d32-1": {
+      "payload_sha256": "136f1b060c56f18cf87484b1ff3b26560a4aedde48b272b7206766ea0559fdc6",
+      "questions_sha256": "b64b872430b11641e7a42c27ee43a333223e4a59ad7798d98d61f0233d27e172"
+    },
+    "decj-d32-2": {
+      "payload_sha256": "73cd575bd52bd289e2025d1b5433d8a2854fe0c5bbaad8416c22416432c55065",
+      "questions_sha256": "563f61139c7b7aafdc4bec0b918434928a788093008c6426adbfa0ceb199ea39"
+    },
+    "decj-d32-3": {
+      "payload_sha256": "f34dab5aceba5c4883fdfd1ec480b771f7b49965b9575c0619790791404dbbdc",
+      "questions_sha256": "72ccf243ad5cd4cb4dbf9ffa7714325d30e0e9fb7a4fc3e660e0d8e6eb011351"
+    },
+    "decj-d44-1": {
+      "payload_sha256": "3a266a572aa266fe41f0dc9d96947b360763bda126a9948325d759a51076c956",
+      "questions_sha256": "d4f8727746c7af07df9fcca0e0f5e5445162ca3b86624030c026990c080e91e2"
+    },
+    "decj-d44-2": {
+      "payload_sha256": "f484ed19c68348c2a9029c5fcdd94bea2f43ddcb13e447f10941f0f4958b5e68",
+      "questions_sha256": "11a6029ce951ba8148d7b947475b84c36c11a05f210e6ed16d6cadff622243d4"
+    },
+    "decj-d44-3": {
+      "payload_sha256": "7d9e6aaee1eb8477183e6d3684989d5d1d425fec8fa691b1e8e334b41ed7c505",
+      "questions_sha256": "dd1c4da935f4806d6a65c505de2d6ddb0d5bb1bfe28ed5e6461d052cdc4887ab"
+    }
+  },
+  "cells": [
+    {
+      "task": "decj-d06-1",
+      "arm": "raw",
+      "rep": 1,
+      "status": "ok",
+      "correct": 1,
+      "total": 1,
+      "prompt_tokens_o200k": 292,
+      "envelope": {},
+      "grade_output": "PASS t1: vm::mount_05\nscore: 1/1\nprompt: 292 tokens [o200k]   accuracy/1k tokens: 342.5\n"
+    },
+    {
+      "task": "decj-d06-1",
+      "arm": "raw",
+      "rep": 2,
+      "status": "ok",
+      "correct": 1,
+      "total": 1,
+      "prompt_tokens_o200k": 292,
+      "envelope": {},
+      "grade_output": "PASS t1: vm::mount_05\nscore: 1/1\nprompt: 292 tokens [o200k]   accuracy/1k tokens: 342.5\n"
+    },
+    {
+      "task": "decj-d06-1",
+      "arm": "squeeze",
+      "rep": 1,
+      "status": "ok",
+      "correct": 1,
+      "total": 1,
+      "prompt_tokens_o200k": 513,
+      "envelope": {},
+      "grade_output": "PASS t1: test vm::mount_05\nscore: 1/1\nprompt: 513 tokens [o200k]   accuracy/1k tokens: 194.9\n"
+    },
+    {
+      "task": "decj-d06-1",
+      "arm": "squeeze",
+      "rep": 2,
+      "status": "ok",
+      "correct": 1,
+      "total": 1,
+      "prompt_tokens_o200k": 513,
+      "envelope": {},
+      "grade_output": "PASS t1: test vm::mount_05\nscore: 1/1\nprompt: 513 tokens [o200k]   accuracy/1k tokens: 194.9\n"
+    },
+    {
+      "task": "decj-d06-2",
+      "arm": "raw",
+      "rep": 1,
+      "status": "ok",
+      "correct": 1,
+      "total": 1,
+      "prompt_tokens_o200k": 289,
+      "envelope": {},
+      "grade_output": "PASS t1: ipc::cursor_03\nscore: 1/1\nprompt: 289 tokens [o200k]   accuracy/1k tokens: 346.0\n"
+    },
+    {
+      "task": "decj-d06-2",
+      "arm": "raw",
+      "rep": 2,
+      "status": "ok",
+      "correct": 1,
+      "total": 1,
+      "prompt_tokens_o200k": 289,
+      "envelope": {},
+      "grade_output": "PASS t1: ipc::cursor_03\nscore: 1/1\nprompt: 289 tokens [o200k]   accuracy/1k tokens: 346.0\n"
+    },
+    {
+      "task": "decj-d06-2",
+      "arm": "squeeze",
+      "rep": 1,
+      "status": "ok",
+      "correct": 1,
+      "total": 1,
+      "prompt_tokens_o200k": 510,
+      "envelope": {},
+      "grade_output": "PASS t1: test ipc::cursor_03\nscore: 1/1\nprompt: 510 tokens [o200k]   accuracy/1k tokens: 196.1\n"
+    },
+    {
+      "task": "decj-d06-2",
+      "arm": "squeeze",
+      "rep": 2,
+      "status": "ok",
+      "correct": 1,
+      "total": 1,
+      "prompt_tokens_o200k": 510,
+      "envelope": {},
+      "grade_output": "PASS t1: test ipc::cursor_03\nscore: 1/1\nprompt: 510 tokens [o200k]   accuracy/1k tokens: 196.1\n"
+    },
+    {
+      "task": "decj-d06-3",
+      "arm": "raw",
+      "rep": 1,
+      "status": "ok",
+      "correct": 1,
+      "total": 1,
+      "prompt_tokens_o200k": 292,
+      "envelope": {},
+      "grade_output": "PASS t1: auth::handshake_03\nscore: 1/1\nprompt: 292 tokens [o200k]   accuracy/1k tokens: 342.5\n"
+    },
+    {
+      "task": "decj-d06-3",
+      "arm": "raw",
+      "rep": 2,
+      "status": "ok",
+      "correct": 1,
+      "total": 1,
+      "prompt_tokens_o200k": 292,
+      "envelope": {},
+      "grade_output": "PASS t1: auth::handshake_03\nscore: 1/1\nprompt: 292 tokens [o200k]   accuracy/1k tokens: 342.5\n"
+    },
+    {
+      "task": "decj-d06-3",
+      "arm": "squeeze",
+      "rep": 1,
+      "status": "ok",
+      "correct": 1,
+      "total": 1,
+      "prompt_tokens_o200k": 511,
+      "envelope": {},
+      "grade_output": "PASS t1: auth::handshake_03\nscore: 1/1\nprompt: 511 tokens [o200k]   accuracy/1k tokens: 195.7\n"
+    },
+    {
+      "task": "decj-d06-3",
+      "arm": "squeeze",
+      "rep": 2,
+      "status": "ok",
+      "correct": 1,
+      "total": 1,
+      "prompt_tokens_o200k": 511,
+      "envelope": {},
+      "grade_output": "PASS t1: auth::handshake_03\nscore: 1/1\nprompt: 511 tokens [o200k]   accuracy/1k tokens: 195.7\n"
+    },
+    {
+      "task": "decj-d15-1",
+      "arm": "raw",
+      "rep": 1,
+      "status": "ok",
+      "correct": 1,
+      "total": 1,
+      "prompt_tokens_o200k": 538,
+      "envelope": {},
+      "grade_output": "PASS t1: log::ledger_05\nscore: 1/1\nprompt: 538 tokens [o200k]   accuracy/1k tokens: 185.9\n"
+    },
+    {
+      "task": "decj-d15-1",
+      "arm": "raw",
+      "rep": 2,
+      "status": "ok",
+      "correct": 1,
+      "total": 1,
+      "prompt_tokens_o200k": 538,
+      "envelope": {},
+      "grade_output": "PASS t1: log::ledger_05\nscore: 1/1\nprompt: 538 tokens [o200k]   accuracy/1k tokens: 185.9\n"
+    },
+    {
+      "task": "decj-d15-1",
+      "arm": "squeeze",
+      "rep": 1,
+      "status": "ok",
+      "correct": 1,
+      "total": 1,
+      "prompt_tokens_o200k": 698,
+      "envelope": {},
+      "grade_output": "PASS t1: log::ledger_05\nscore: 1/1\nprompt: 698 tokens [o200k]   accuracy/1k tokens: 143.3\n"
+    },
+    {
+      "task": "decj-d15-1",
+      "arm": "squeeze",
+      "rep": 2,
+      "status": "ok",
+      "correct": 1,
+      "total": 1,
+      "prompt_tokens_o200k": 698,
+      "envelope": {},
+      "grade_output": "PASS t1: log::ledger_05\nscore: 1/1\nprompt: 698 tokens [o200k]   accuracy/1k tokens: 143.3\n"
+    },
+    {
+      "task": "decj-d15-2",
+      "arm": "raw",
+      "rep": 1,
+      "status": "ok",
+      "correct": 1,
+      "total": 1,
+      "prompt_tokens_o200k": 535,
+      "envelope": {},
+      "grade_output": "PASS t1: log::pool_10\nscore: 1/1\nprompt: 535 tokens [o200k]   accuracy/1k tokens: 186.9\n"
+    },
+    {
+      "task": "decj-d15-2",
+      "arm": "raw",
+      "rep": 2,
+      "status": "ok",
+      "correct": 1,
+      "total": 1,
+      "prompt_tokens_o200k": 535,
+      "envelope": {},
+      "grade_output": "PASS t1: log::pool_10\nscore: 1/1\nprompt: 535 tokens [o200k]   accuracy/1k tokens: 186.9\n"
+    },
+    {
+      "task": "decj-d15-2",
+      "arm": "squeeze",
+      "rep": 1,
+      "status": "ok",
+      "correct": 1,
+      "total": 1,
+      "prompt_tokens_o200k": 699,
+      "envelope": {},
+      "grade_output": "PASS t1: log::pool_10\nscore: 1/1\nprompt: 699 tokens [o200k]   accuracy/1k tokens: 143.1\n"
+    },
+    {
+      "task": "decj-d15-2",
+      "arm": "squeeze",
+      "rep": 2,
+      "status": "ok",
+      "correct": 1,
+      "total": 1,
+      "prompt_tokens_o200k": 699,
+      "envelope": {},
+      "grade_output": "PASS t1: log::pool_10\nscore: 1/1\nprompt: 699 tokens [o200k]   accuracy/1k tokens: 143.1\n"
+    },
+    {
+      "task": "decj-d15-3",
+      "arm": "raw",
+      "rep": 1,
+      "status": "ok",
+      "correct": 1,
+      "total": 1,
+      "prompt_tokens_o200k": 535,
+      "envelope": {},
+      "grade_output": "PASS t1: index::reader_05\nscore: 1/1\nprompt: 535 tokens [o200k]   accuracy/1k tokens: 186.9\n"
+    },
+    {
+      "task": "decj-d15-3",
+      "arm": "raw",
+      "rep": 2,
+      "status": "ok",
+      "correct": 1,
+      "total": 1,
+      "prompt_tokens_o200k": 535,
+      "envelope": {},
+      "grade_output": "PASS t1: index::reader_05\nscore: 1/1\nprompt: 535 tokens [o200k]   accuracy/1k tokens: 186.9\n"
+    },
+    {
+      "task": "decj-d15-3",
+      "arm": "squeeze",
+      "rep": 1,
+      "status": "ok",
+      "correct": 1,
+      "total": 1,
+      "prompt_tokens_o200k": 697,
+      "envelope": {},
+      "grade_output": "PASS t1: index::reader_05\nscore: 1/1\nprompt: 697 tokens [o200k]   accuracy/1k tokens: 143.5\n"
+    },
+    {
+      "task": "decj-d15-3",
+      "arm": "squeeze",
+      "rep": 2,
+      "status": "ok",
+      "correct": 1,
+      "total": 1,
+      "prompt_tokens_o200k": 697,
+      "envelope": {},
+      "grade_output": "PASS t1: index::reader_05\nscore: 1/1\nprompt: 697 tokens [o200k]   accuracy/1k tokens: 143.5\n"
+    },
+    {
+      "task": "decj-d22-1",
+      "arm": "raw",
+      "rep": 1,
+      "status": "ok",
+      "correct": 1,
+      "total": 1,
+      "prompt_tokens_o200k": 721,
+      "envelope": {},
+      "grade_output": "PASS t1: gc::ledger_11\nscore: 1/1\nprompt: 721 tokens [o200k]   accuracy/1k tokens: 138.7\n"
+    },
+    {
+      "task": "decj-d22-1",
+      "arm": "raw",
+      "rep": 2,
+      "status": "ok",
+      "correct": 1,
+      "total": 1,
+      "prompt_tokens_o200k": 721,
+      "envelope": {},
+      "grade_output": "PASS t1: gc::ledger_11\nscore: 1/1\nprompt: 721 tokens [o200k]   accuracy/1k tokens: 138.7\n"
+    },
+    {
+      "task": "decj-d22-1",
+      "arm": "squeeze",
+      "rep": 1,
+      "status": "ok",
+      "correct": 1,
+      "total": 1,
+      "prompt_tokens_o200k": 820,
+      "envelope": {},
+      "grade_output": "PASS t1: gc::ledger_11\nscore: 1/1\nprompt: 820 tokens [o200k]   accuracy/1k tokens: 122.0\n"
+    },
+    {
+      "task": "decj-d22-1",
+      "arm": "squeeze",
+      "rep": 2,
+      "status": "ok",
+      "correct": 1,
+      "total": 1,
+      "prompt_tokens_o200k": 820,
+      "envelope": {},
+      "grade_output": "PASS t1: gc::ledger_11\nscore: 1/1\nprompt: 820 tokens [o200k]   accuracy/1k tokens: 122.0\n"
+    },
+    {
+      "task": "decj-d22-2",
+      "arm": "raw",
+      "rep": 1,
+      "status": "ok",
+      "correct": 1,
+      "total": 1,
+      "prompt_tokens_o200k": 727,
+      "envelope": {},
+      "grade_output": "PASS t1: dns::frame_13\nscore: 1/1\nprompt: 727 tokens [o200k]   accuracy/1k tokens: 137.6\n"
+    },
+    {
+      "task": "decj-d22-2",
+      "arm": "raw",
+      "rep": 2,
+      "status": "ok",
+      "correct": 1,
+      "total": 1,
+      "prompt_tokens_o200k": 727,
+      "envelope": {},
+      "grade_output": "PASS t1: dns::frame_13\nscore: 1/1\nprompt: 727 tokens [o200k]   accuracy/1k tokens: 137.6\n"
+    },
+    {
+      "task": "decj-d22-2",
+      "arm": "squeeze",
+      "rep": 1,
+      "status": "ok",
+      "correct": 1,
+      "total": 1,
+      "prompt_tokens_o200k": 822,
+      "envelope": {},
+      "grade_output": "PASS t1: dns::frame_13\nscore: 1/1\nprompt: 822 tokens [o200k]   accuracy/1k tokens: 121.7\n"
+    },
+    {
+      "task": "decj-d22-2",
+      "arm": "squeeze",
+      "rep": 2,
+      "status": "ok",
+      "correct": 1,
+      "total": 1,
+      "prompt_tokens_o200k": 822,
+      "envelope": {},
+      "grade_output": "PASS t1: dns::frame_13\nscore: 1/1\nprompt: 822 tokens [o200k]   accuracy/1k tokens: 121.7\n"
+    },
+    {
+      "task": "decj-d22-3",
+      "arm": "raw",
+      "rep": 1,
+      "status": "ok",
+      "correct": 1,
+      "total": 1,
+      "prompt_tokens_o200k": 730,
+      "envelope": {},
+      "grade_output": "PASS t1: codec::pool_21\nscore: 1/1\nprompt: 730 tokens [o200k]   accuracy/1k tokens: 137.0\n"
+    },
+    {
+      "task": "decj-d22-3",
+      "arm": "raw",
+      "rep": 2,
+      "status": "ok",
+      "correct": 1,
+      "total": 1,
+      "prompt_tokens_o200k": 730,
+      "envelope": {},
+      "grade_output": "PASS t1: codec::pool_21\nscore: 1/1\nprompt: 730 tokens [o200k]   accuracy/1k tokens: 137.0\n"
+    },
+    {
+      "task": "decj-d22-3",
+      "arm": "squeeze",
+      "rep": 1,
+      "status": "ok",
+      "correct": 1,
+      "total": 1,
+      "prompt_tokens_o200k": 827,
+      "envelope": {},
+      "grade_output": "PASS t1: codec::pool_21\nscore: 1/1\nprompt: 827 tokens [o200k]   accuracy/1k tokens: 120.9\n"
+    },
+    {
+      "task": "decj-d22-3",
+      "arm": "squeeze",
+      "rep": 2,
+      "status": "ok",
+      "correct": 1,
+      "total": 1,
+      "prompt_tokens_o200k": 827,
+      "envelope": {},
+      "grade_output": "PASS t1: codec::pool_21\nscore: 1/1\nprompt: 827 tokens [o200k]   accuracy/1k tokens: 120.9\n"
+    },
+    {
+      "task": "decj-d32-1",
+      "arm": "raw",
+      "rep": 1,
+      "status": "ok",
+      "correct": 1,
+      "total": 1,
+      "prompt_tokens_o200k": 1006,
+      "envelope": {},
+      "grade_output": "PASS t1: net::pool_16\nscore: 1/1\nprompt: 1006 tokens [o200k]   accuracy/1k tokens: 99.4\n"
+    },
+    {
+      "task": "decj-d32-1",
+      "arm": "raw",
+      "rep": 2,
+      "status": "ok",
+      "correct": 1,
+      "total": 1,
+      "prompt_tokens_o200k": 1006,
+      "envelope": {},
+      "grade_output": "PASS t1: net::pool_16\nscore: 1/1\nprompt: 1006 tokens [o200k]   accuracy/1k tokens: 99.4\n"
+    },
+    {
+      "task": "decj-d32-1",
+      "arm": "squeeze",
+      "rep": 1,
+      "status": "ok",
+      "correct": 1,
+      "total": 1,
+      "prompt_tokens_o200k": 1034,
+      "envelope": {},
+      "grade_output": "PASS t1: net::pool_16\nscore: 1/1\nprompt: 1034 tokens [o200k]   accuracy/1k tokens: 96.7\n"
+    },
+    {
+      "task": "decj-d32-1",
+      "arm": "squeeze",
+      "rep": 2,
+      "status": "ok",
+      "correct": 1,
+      "total": 1,
+      "prompt_tokens_o200k": 1034,
+      "envelope": {},
+      "grade_output": "PASS t1: net::pool_16\nscore: 1/1\nprompt: 1034 tokens [o200k]   accuracy/1k tokens: 96.7\n"
+    },
+    {
+      "task": "decj-d32-2",
+      "arm": "raw",
+      "rep": 1,
+      "status": "ok",
+      "correct": 1,
+      "total": 1,
+      "prompt_tokens_o200k": 1003,
+      "envelope": {},
+      "grade_output": "PASS t1: gc::mount_16\nscore: 1/1\nprompt: 1003 tokens [o200k]   accuracy/1k tokens: 99.7\n"
+    },
+    {
+      "task": "decj-d32-2",
+      "arm": "raw",
+      "rep": 2,
+      "status": "ok",
+      "correct": 1,
+      "total": 1,
+      "prompt_tokens_o200k": 1003,
+      "envelope": {},
+      "grade_output": "PASS t1: gc::mount_16\nscore: 1/1\nprompt: 1003 tokens [o200k]   accuracy/1k tokens: 99.7\n"
+    },
+    {
+      "task": "decj-d32-2",
+      "arm": "squeeze",
+      "rep": 1,
+      "status": "ok",
+      "correct": 1,
+      "total": 1,
+      "prompt_tokens_o200k": 1046,
+      "envelope": {},
+      "grade_output": "PASS t1: gc::mount_16\nscore: 1/1\nprompt: 1046 tokens [o200k]   accuracy/1k tokens: 95.6\n"
+    },
+    {
+      "task": "decj-d32-2",
+      "arm": "squeeze",
+      "rep": 2,
+      "status": "ok",
+      "correct": 1,
+      "total": 1,
+      "prompt_tokens_o200k": 1046,
+      "envelope": {},
+      "grade_output": "PASS t1: gc::mount_16\nscore: 1/1\nprompt: 1046 tokens [o200k]   accuracy/1k tokens: 95.6\n"
+    },
+    {
+      "task": "decj-d32-3",
+      "arm": "raw",
+      "rep": 1,
+      "status": "ok",
+      "correct": 1,
+      "total": 1,
+      "prompt_tokens_o200k": 997,
+      "envelope": {},
+      "grade_output": "PASS t1: cli::reader_17\nscore: 1/1\nprompt: 997 tokens [o200k]   accuracy/1k tokens: 100.3\n"
+    },
+    {
+      "task": "decj-d32-3",
+      "arm": "raw",
+      "rep": 2,
+      "status": "ok",
+      "correct": 1,
+      "total": 1,
+      "prompt_tokens_o200k": 997,
+      "envelope": {},
+      "grade_output": "PASS t1: cli::reader_17\nscore: 1/1\nprompt: 997 tokens [o200k]   accuracy/1k tokens: 100.3\n"
+    },
+    {
+      "task": "decj-d32-3",
+      "arm": "squeeze",
+      "rep": 1,
+      "status": "ok",
+      "correct": 1,
+      "total": 1,
+      "prompt_tokens_o200k": 1018,
+      "envelope": {},
+      "grade_output": "PASS t1: cli::reader_17\nscore: 1/1\nprompt: 1018 tokens [o200k]   accuracy/1k tokens: 98.2\n"
+    },
+    {
+      "task": "decj-d32-3",
+      "arm": "squeeze",
+      "rep": 2,
+      "status": "ok",
+      "correct": 0,
+      "total": 1,
+      "prompt_tokens_o200k": 1018,
+      "envelope": {},
+      "grade_output": "FAIL t1: dns::reader_25\nscore: 0/1\nprompt: 1018 tokens [o200k]   accuracy/1k tokens: 0.0\n"
+    },
+    {
+      "task": "decj-d44-1",
+      "arm": "raw",
+      "rep": 1,
+      "status": "ok",
+      "correct": 1,
+      "total": 1,
+      "prompt_tokens_o200k": 1336,
+      "envelope": {},
+      "grade_output": "PASS t1: log::frame_33\nscore: 1/1\nprompt: 1336 tokens [o200k]   accuracy/1k tokens: 74.9\n"
+    },
+    {
+      "task": "decj-d44-1",
+      "arm": "raw",
+      "rep": 2,
+      "status": "ok",
+      "correct": 1,
+      "total": 1,
+      "prompt_tokens_o200k": 1336,
+      "envelope": {},
+      "grade_output": "PASS t1: log::frame_33\nscore: 1/1\nprompt: 1336 tokens [o200k]   accuracy/1k tokens: 74.9\n"
+    },
+    {
+      "task": "decj-d44-1",
+      "arm": "squeeze",
+      "rep": 1,
+      "status": "ok",
+      "correct": 1,
+      "total": 1,
+      "prompt_tokens_o200k": 1291,
+      "envelope": {},
+      "grade_output": "PASS t1: log::frame_33\nscore: 1/1\nprompt: 1291 tokens [o200k]   accuracy/1k tokens: 77.5\n"
+    },
+    {
+      "task": "decj-d44-1",
+      "arm": "squeeze",
+      "rep": 2,
+      "status": "ok",
+      "correct": 1,
+      "total": 1,
+      "prompt_tokens_o200k": 1291,
+      "envelope": {},
+      "grade_output": "PASS t1: log::frame_33\nscore: 1/1\nprompt: 1291 tokens [o200k]   accuracy/1k tokens: 77.5\n"
+    },
+    {
+      "task": "decj-d44-2",
+      "arm": "raw",
+      "rep": 1,
+      "status": "ok",
+      "correct": 1,
+      "total": 1,
+      "prompt_tokens_o200k": 1315,
+      "envelope": {},
+      "grade_output": "PASS t1: tls::mount_38\nscore: 1/1\nprompt: 1315 tokens [o200k]   accuracy/1k tokens: 76.0\n"
+    },
+    {
+      "task": "decj-d44-2",
+      "arm": "raw",
+      "rep": 2,
+      "status": "ok",
+      "correct": 1,
+      "total": 1,
+      "prompt_tokens_o200k": 1315,
+      "envelope": {},
+      "grade_output": "PASS t1: tls::mount_38\nscore: 1/1\nprompt: 1315 tokens [o200k]   accuracy/1k tokens: 76.0\n"
+    },
+    {
+      "task": "decj-d44-2",
+      "arm": "squeeze",
+      "rep": 1,
+      "status": "ok",
+      "correct": 0,
+      "total": 1,
+      "prompt_tokens_o200k": 1286,
+      "envelope": {},
+      "grade_output": "FAIL t1: None.\nscore: 0/1\nprompt: 1286 tokens [o200k]   accuracy/1k tokens: 0.0\n"
+    },
+    {
+      "task": "decj-d44-2",
+      "arm": "squeeze",
+      "rep": 2,
+      "status": "ok",
+      "correct": 0,
+      "total": 1,
+      "prompt_tokens_o200k": 1286,
+      "envelope": {},
+      "grade_output": "FAIL t1: None\nscore: 0/1\nprompt: 1286 tokens [o200k]   accuracy/1k tokens: 0.0\n"
+    },
+    {
+      "task": "decj-d44-3",
+      "arm": "raw",
+      "rep": 1,
+      "status": "ok",
+      "correct": 1,
+      "total": 1,
+      "prompt_tokens_o200k": 1327,
+      "envelope": {},
+      "grade_output": "PASS t1: codec::cursor_27\nscore: 1/1\nprompt: 1327 tokens [o200k]   accuracy/1k tokens: 75.4\n"
+    },
+    {
+      "task": "decj-d44-3",
+      "arm": "raw",
+      "rep": 2,
+      "status": "ok",
+      "correct": 1,
+      "total": 1,
+      "prompt_tokens_o200k": 1327,
+      "envelope": {},
+      "grade_output": "PASS t1: codec::cursor_27\nscore: 1/1\nprompt: 1327 tokens [o200k]   accuracy/1k tokens: 75.4\n"
+    },
+    {
+      "task": "decj-d44-3",
+      "arm": "squeeze",
+      "rep": 1,
+      "status": "ok",
+      "correct": 1,
+      "total": 1,
+      "prompt_tokens_o200k": 1298,
+      "envelope": {},
+      "grade_output": "PASS t1: codec::cursor_27\nscore: 1/1\nprompt: 1298 tokens [o200k]   accuracy/1k tokens: 77.0\n"
+    },
+    {
+      "task": "decj-d44-3",
+      "arm": "squeeze",
+      "rep": 2,
+      "status": "ok",
+      "correct": 1,
+      "total": 1,
+      "prompt_tokens_o200k": 1298,
+      "envelope": {},
+      "grade_output": "PASS t1: codec::cursor_27\nscore: 1/1\nprompt: 1298 tokens [o200k]   accuracy/1k tokens: 77.0\n"
+    }
+  ]
+}

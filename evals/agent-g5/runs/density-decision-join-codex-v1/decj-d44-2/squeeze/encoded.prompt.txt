@@ -1,0 +1,217 @@
+Answer the questions below using ONLY the payload in this message.
+Do not use any tools, do not read any files, do not guess beyond the
+payload. Reply with ONLY a JSON object mapping each question id to a
+short answer string, e.g. {"q1": "...", "q2": "..."}.
+
+The payload is encoded as a `%q1` container. Format: first line
+`%q1 <codec> ...` (parameters), then legend lines `<alias>=<phrase>`
+(each alias is a short stand-in for that exact phrase), then a
+`%q1 body` line, then the body. `%q1 xN` after a line means that line
+occurs N times in total. A `toon` body is a table: first line is a JSON
+array of keys, each following line is one object, cells are JSON values
+joined by the separator named in the header. A `grep` body is grouped
+matcher output: a marker line names a file path and the lines after it
+are `line:text` hits in that file (a bare marker starts verbatim
+lines). A `diag` body line starting with an alias expands to: the head
+after the alias, then that alias's legend template with each slot
+placeholder filled by the sep-joined values in order. A `tmpl` body
+line starting with an alias is its legend template with the slot
+placeholders filled by the sep-joined values that follow the alias.
+Mentally decode the body via the legend before answering; never emit
+alias characters in answers.
+
+# Payload
+
+%q1 mine n=44
+类=码|cache::reader_39
+函=码|index::frame_22
+值=码|cache::mount_36
+错=码|net::reader_18
+试=码|net::cursor_27
+件=码|fmt::ledger_05
+组=码|cli::reader_35
+标=码|cli::ledger_09
+记=码|cli::cursor_34
+链=码|fmt::mount_29
+节=码|dns::mount_08
+层=引|tls::mount_38
+块=码|sched::session_21
+表=码|index::reader_23
+行=码|codec::reader_00
+列=引|index::cursor_40
+键=引|codec::cursor_11
+名=引|cache::ledger_13
+数=码|sched::mount_10
+串=引|wal::session_33
+图=引|sched::probe_32
+树=引|dns::session_14
+点=引|auth::ledger_31
+边=码|log::reader_17
+库=码|fmt::ledger_41
+包=码|fmt::ledger_19
+版=引|net::ledger_03
+构=引|net::cursor_06
+建=码|gc::cursor_37
+测=码|gc::cursor_04
+例=码|fs::ledger_25
+警=码|fs::ledger_15
+告=|tls::probe_01
+异=|log::frame_07
+常=|ipc::mount_26
+态=|fs::cursor_28
+流=|fmt::probe_12
+程=|fmt::mount_24
+入=|cli::mount_43
+出=|vm::mount_02
+参=|net::pool_16
+回=|gc::mount_30
+调=|fs::probe_20
+查=|dns::pool_42
+%q1 body
+%q1 tmpl sep=pipe slot=quest n=3 nl=1
+码=test ¿ ... ok
+引=test ¿ ... FAILED
+路=--- attempt ¿ ---
+%q1 body
+running retry harness (max 3 attempts per test)
+路|1
+引|codec::reader_00
+引告
+码出
+版
+引|gc::cursor_04
+件
+构
+引异
+节
+标
+数
+键
+引流
+码|cache::ledger_13
+码|dns::session_14
+警
+码参
+引|log::reader_17
+错
+引|fmt::ledger_19
+码调
+块
+函
+表
+码程
+例
+码常
+试
+码态
+链
+码回
+点
+码|sched::probe_32
+码|wal::session_33
+记
+组
+值
+引|gc::cursor_37
+层
+类
+列
+引|fmt::ledger_41
+码查
+码入
+路|2
+行
+码告
+引出
+码|net::ledger_03
+测
+件
+构
+引异
+节
+标
+数
+码|codec::cursor_11
+引流
+名
+树
+警
+码参
+边
+错
+包
+引调
+块
+函
+表
+码程
+引|fs::ledger_25
+引常
+试
+码态
+链
+码回
+码|auth::ledger_31
+图
+串
+记
+组
+值
+建
+层
+类
+列
+库
+引查
+引入
+路|3
+行
+引告
+码出
+版
+测
+件
+码|net::cursor_06
+码异
+节
+标
+引|sched::mount_10
+键
+码流
+名
+树
+引|fs::ledger_15
+引参
+边
+错
+包
+引调
+引|sched::session_21
+函
+引|index::reader_23
+引程
+例
+引常
+试
+引态
+链
+引回
+点
+图
+串
+记
+组
+值
+建
+层
+类
+码|index::cursor_40
+库
+码查
+引入
+retry harness done
+
+
+# Questions
+
+t1: A flaky test passes at least one attempt. Which test failed on EVERY attempt? Reply with the full test name.

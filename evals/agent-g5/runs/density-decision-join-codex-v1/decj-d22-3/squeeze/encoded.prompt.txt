@@ -1,0 +1,129 @@
+Answer the questions below using ONLY the payload in this message.
+Do not use any tools, do not read any files, do not guess beyond the
+payload. Reply with ONLY a JSON object mapping each question id to a
+short answer string, e.g. {"q1": "...", "q2": "..."}.
+
+The payload is encoded as a `%q1` container. Format: first line
+`%q1 <codec> ...` (parameters), then legend lines `<alias>=<phrase>`
+(each alias is a short stand-in for that exact phrase), then a
+`%q1 body` line, then the body. `%q1 xN` after a line means that line
+occurs N times in total. A `toon` body is a table: first line is a JSON
+array of keys, each following line is one object, cells are JSON values
+joined by the separator named in the header. A `grep` body is grouped
+matcher output: a marker line names a file path and the lines after it
+are `line:text` hits in that file (a bare marker starts verbatim
+lines). A `diag` body line starting with an alias expands to: the head
+after the alias, then that alias's legend template with each slot
+placeholder filled by the sep-joined values in order. A `tmpl` body
+line starting with an alias is its legend template with the slot
+placeholders filled by the sep-joined values that follow the alias.
+Mentally decode the body via the legend before answering; never emit
+alias characters in answers.
+
+# Payload
+
+%q1 mine n=22
+类=引|log::handshake_05
+函=码|codec::pool_21
+值=引|wal::ledger_17
+错=引|ipc::cursor_16
+试=引|cli::mount_03
+件=|cache::handshake_10
+组=|wal::handshake_02
+标=|sched::reader_14
+记=|cache::writer_20
+链=|auth::session_01
+节=|codec::mount_12
+层=|auth::ledger_08
+块=|tls::cursor_00
+表=|log::cursor_15
+行=|wal::mount_19
+列=|tls::mount_07
+键=|fs::cursor_11
+名=|fmt::probe_13
+数=|fmt::mount_09
+串=|fmt::frame_06
+图=|fs::probe_04
+树=|gc::pool_18
+%q1 body
+%q1 tmpl sep=pipe slot=quest n=3 nl=1
+码=test ¿ ... FAILED
+引=test ¿ ... ok
+路=--- attempt ¿ ---
+%q1 body
+running retry harness (max 3 attempts per test)
+路|1
+码块
+引链
+引组
+试
+引图
+类
+引串
+码列
+引层
+码数
+引件
+码键
+码节
+引名
+码标
+引表
+错
+值
+码树
+码行
+引记
+函
+路|2
+引块
+码链
+码组
+试
+码图
+类
+码串
+码列
+码层
+引数
+引件
+引键
+码节
+码名
+码标
+码表
+错
+值
+码树
+码行
+码记
+函
+路|3
+引块
+码链
+码组
+试
+码图
+类
+码串
+引列
+码层
+码数
+码件
+引键
+引节
+引名
+引标
+码表
+错
+值
+引树
+引行
+引记
+函
+retry harness done
+
+
+# Questions
+
+t1: A flaky test passes at least one attempt. Which test failed on EVERY attempt? Reply with the full test name.

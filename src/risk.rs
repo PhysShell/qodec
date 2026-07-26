@@ -120,16 +120,38 @@ pub struct RiskReport {
 /// discordant cells favoring raw, exact two-sided McNemar p=0.03125.
 ///
 /// Precisely what this constant is: **the first tested legend load at
-/// which failures appeared**, not an estimated causal breakpoint — the
-/// observed onset lies in (7, 15], and six calls per dose cannot pin the
-/// curve's shape beyond "compatible with a step/plateau". All cells share
-/// one semantic task family (cross-file join), so cross-family
-/// replication remains open. The Sonnet reader held 5/5 on the same task
-/// shape in `g5-sonnet-v1`. Family-dependent hazard, not an oracle: at or
-/// above this many entries, reasoning that must *join across* the legend
-/// becomes unreliable for at least one reader family, and an operational
-/// threshold this low means most non-trivial mine/deep artifacts carry
-/// the flag — which is exactly what an info-level hazard is for.
+/// which failures appeared, in the cross-ref family**, not an estimated
+/// causal breakpoint — the observed onset lies in (7, 15], and six calls
+/// per dose cannot pin the curve's shape beyond "compatible with a
+/// step/plateau". The Sonnet reader held 5/5 on the same task shape in
+/// `g5-sonnet-v1`.
+///
+/// Cross-family replication has since been attempted, and the constant
+/// must be read in its light (`density-decision-join-codex-v1`, a second
+/// join family — intersect three retry blocks — at the same *measured*
+/// legend doses):
+///
+/// * The direction replicates: across both join families all 8 discordant
+///   task cells favor raw and none favor squeeze (pooled exact McNemar
+///   p=0.0078 over 30 pairs).
+/// * The magnitude does not, at this power: the second family alone gives
+///   13/15 vs 15/15, McNemar p=0.5. Nor are the families shown to differ
+///   (6/15 vs 2/15 failures, Fisher p=0.21) — the honest state is that the
+///   direction is established and the rate is unresolved.
+/// * **The onset does not transfer.** Cross-ref failed from 15 entries up;
+///   the second join family was clean at 15 and 22 and failed only at 32
+///   and 44. So 15 is a cross-ref-calibrated anchor kept as the
+///   conservative minimum across tested families, not a general onset.
+/// * The hazard is join-specific, not "the artifact is unreadable":
+///   `density-decision-codex-v1` runs a lookup-shaped task at the same
+///   doses and *higher* alias density (15.2-26.7 vs 11.8-13.8 per 100
+///   chars) and stays at 14/15, p=1.
+///
+/// Family-dependent hazard, not an oracle: at or above this many entries,
+/// reasoning that must *join across* the legend has been observed to
+/// degrade for at least one reader-and-task family, and an operational
+/// threshold this low means most non-trivial mine/deep artifacts carry the
+/// flag — which is exactly what an info-level hazard is for.
 pub const LEGEND_LOAD_STEP: usize = 15;
 
 impl RiskReport {
@@ -379,9 +401,11 @@ pub fn render(r: &RiskReport) -> String {
     ));
     if r.legend_load() {
         out.push_str(&format!(
-            "legend-load: {} entries >= {} — cross-entry join/aggregation is \
-             unreliable for the codex reader family at this size \
-             (density-codex-v1; family-dependent hazard, not an oracle)\n",
+            "legend-load: {} entries >= {} — cross-entry join/aggregation \
+             degraded from this load in the cross-ref family, and only from \
+             32 in a second join family (density-codex-v1, \
+             density-decision-join-codex-v1); earliest observed onset, \
+             family-dependent, not an oracle\n",
             r.legend_entries, LEGEND_LOAD_STEP
         ));
     }

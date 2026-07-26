@@ -215,7 +215,8 @@ sampled instances (each with its own seed, path sample and answer) at
 five dose levels — independent in content, but all drawn from ONE
 semantic task family (cross-file join) and one generator. Inference is
 at the task-dose-cell level for THIS task shape; the paired analysis is
-significant, but broader cross-task-family replication remains open.
+significant, but broader cross-task-family replication remains open —
+attempted below, with a result that qualifies the threshold.
 
 **Threshold, stated exactly**: clean at 6–7 entries, failures already
 present at the first next tested dose (15), no further monotone
@@ -233,6 +234,86 @@ Encoded in `qodec risk` as the info-level `legend-load` line:
 first tested onset (hazard-not-oracle: lookups and counting survived at
 every dose; the hazard is specifically cross-entry join/aggregation,
 and it is family-dependent — Sonnet held 5/5 on this task shape).
+
+## Cross-family replication — `density-decision-join-codex-v1`, with a lookup control
+
+The density result above was the strongest claim in this directory and
+rested on one task family, so the next measurement was aimed straight at
+it. A second **join** family: intersect the FAILED sets of three retry
+blocks, rather than two marker sets over paths. Different surface (test
+names and status lines, not `path:line` comments) and a different hiding
+pattern — the miner carves the `mod::file_` stem of the join key across
+many legend entries rather than aliasing whole paths, so the key is
+fragmented rather than wholly hidden. Doses were matched on the
+**measured** legend load (6/15/22/32/44 entries, inside the same bands
+cross-ref covered), so an outcome difference is attributable to the
+family rather than to the dose.
+
+**A construction fault, caught in analysis and kept as a control.** The
+first attempt used the `decision` family exactly as the main battery
+defines it. It is not a join: its non-culprits can only fail attempts 1
+and 2, so the last block holds exactly one `FAILED` line and a
+single-block scan answers it. Measured after the fact — 1 FAILED line of
+22 and of 44 in the final block — not by design. That run is therefore
+reported as a **lookup control**, and the main battery's `decision`
+family should not be called a join either. The replication arm was
+regenerated with the degeneracy removed (a non-culprit fails a free
+subset of at most two attempts, so every block carries many FAILED lines
+and two-of-three near-misses are the standard distractor, 2 at the
+smallest dose up to 16 at the largest). Uniqueness still holds by
+construction and was verified directly: intersecting the three FAILED
+sets parsed back out of each fixture reproduces the recorded answer on
+all 15, no mismatches.
+
+Squeeze cells per dose (6 per dose; raw was 6/6 everywhere in all three
+arms), indexed by measured legend entries:
+
+| legend entries | cross-ref (join) | decision-join (join) | decision (lookup control) |
+|---|---|---|---|
+| 6–7 | 6/6 | 6/6 | 6/6 |
+| 15 | 3/6 | 6/6 | 6/6 |
+| 22–23 | 5/6 | 6/6 | 5/6 |
+| 31–34 | 5/6 | 5/6 | 6/6 |
+| 42–45 | 3/6 | 4/6 | 6/6 |
+| **pooled** | **22/30** | **27/30** | **29/30** |
+
+Both new runs are 60/60 valid calls.
+
+**Primary (paired), per family.** Raw passed 15/15 tasks in every arm.
+Squeeze: cross-ref 9/15 (b=6, c=0, McNemar **p=0.03125**), decision-join
+13/15 (b=2, c=0, **p=0.5**), lookup control 14/15 (b=1, c=0, **p=1**).
+
+**What replicated and what did not.**
+
+* *Direction* replicated. Across both join families all 8 discordant
+  task cells favor raw and none favor squeeze; pooled exact McNemar over
+  the 30 pairs gives p=0.0078. Pooling assumes a common effect, which is
+  the thing in question — so this is offered as evidence that the hazard
+  is real in general, not as a per-family rate.
+* *Magnitude* did not, at this power. The second join family alone is
+  not significant (p=0.5). The two families are also not shown to
+  **differ** (6/15 vs 2/15 failing tasks, Fisher p=0.21). The honest
+  state is that the direction is established and the rate is unresolved;
+  n=15 per family cannot settle it.
+* *The onset did not transfer.* Cross-ref failed from 15 entries up;
+  the second join family was clean at 15 and at 22, failing only at 32
+  and 44. So `LEGEND_LOAD_STEP = 15` is a **cross-ref-calibrated
+  anchor**, kept as the conservative minimum across tested families —
+  not a general onset. The flag's text says so.
+* *The hazard is join-specific.* The lookup control ran at the same
+  doses and *higher* alias density (15.2–26.7 vs 11.8–13.8 per 100
+  chars) and stayed at 14/15. So the cross-ref failures are not "the
+  artifact is unreadable at this density" — that reading is now closed
+  by measurement rather than by argument.
+
+**Failure modes.** Of the three squeeze misses in the join arm, two
+answered `None` — the intersection was lost outright. The third answered
+`dns::reader_25` where the truth was `cli::reader_17`: a key recomposed
+from the wrong module prefix and the wrong suffix around the carved
+`::reader_` stem. That is the fragmentation mechanism showing itself
+directly, and it is the same shape of error the boundary-recomposition
+mitigation targets in the encoder — here it happens inside the reader,
+where no encoder rule can prevent it.
 
 ### Uncontrolled axis: reasoning effort
 
