@@ -112,16 +112,24 @@ pub struct RiskReport {
     pub numeric_heavy_entries: usize,
 }
 
-/// Measured legend-load step (`evals/agent-g5/runs/density-codex-v1`, 60
+/// Legend-load onset (`evals/agent-g5/runs/density-codex-v1`, 60
 /// closed-world calls at five controlled doses): the codex reader's
 /// cross-file join stayed **6/6** at 6-7 legend entries and dropped to
-/// 16/24 cells across 15-45 entries — a step, not a gradient — while raw
-/// stayed perfect at every dose (task-level Fisher vs raw p=0.017, n=15).
-/// The Sonnet reader held 5/5 on the same task shape in `g5-sonnet-v1`.
-/// Family-dependent hazard, not an oracle: at or above this many entries,
-/// reasoning that must *join across* the legend becomes unreliable for at
-/// least one reader family, and a threshold this low means most non-trivial
-/// mine/deep artifacts carry it — which is exactly what the flag is for.
+/// 16/24 cells across 15-45 entries, while raw stayed perfect at every
+/// dose. Primary paired analysis: 15/15 vs 9/15 task-dose cells, all six
+/// discordant cells favoring raw, exact two-sided McNemar p=0.03125.
+///
+/// Precisely what this constant is: **the first tested legend load at
+/// which failures appeared**, not an estimated causal breakpoint — the
+/// observed onset lies in (7, 15], and six calls per dose cannot pin the
+/// curve's shape beyond "compatible with a step/plateau". All cells share
+/// one semantic task family (cross-file join), so cross-family
+/// replication remains open. The Sonnet reader held 5/5 on the same task
+/// shape in `g5-sonnet-v1`. Family-dependent hazard, not an oracle: at or
+/// above this many entries, reasoning that must *join across* the legend
+/// becomes unreliable for at least one reader family, and an operational
+/// threshold this low means most non-trivial mine/deep artifacts carry
+/// the flag — which is exactly what an info-level hazard is for.
 pub const LEGEND_LOAD_STEP: usize = 15;
 
 impl RiskReport {

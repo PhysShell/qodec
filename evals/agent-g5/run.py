@@ -205,6 +205,23 @@ def envelope_tokens(env: dict) -> dict:
     }
 
 
+def mcnemar_exact(b: int, c: int) -> float:
+    """Exact two-sided McNemar on discordant pair counts (binomial p=0.5).
+
+    The PRIMARY test for arm comparisons here: raw and encoded run on the
+    same tasks, so observations are paired, and Fisher's independent-table
+    assumption overstates evidence (review on the density battery). With b
+    discordant pairs favoring the first arm and c the second, the two-sided
+    exact p is 2 * P(Binom(b+c, 1/2) <= min(b, c)), capped at 1.
+    """
+    n = b + c
+    if n == 0:
+        return 1.0
+    k = min(b, c)
+    tail = sum(math.comb(n, i) for i in range(0, k + 1)) / 2 ** n
+    return min(1.0, 2 * tail)
+
+
 def fisher_two_sided(a_hit: int, a_n: int, b_hit: int, b_n: int) -> float:
     """Two-sided Fisher exact on a 2x2 (hits/misses per arm), stdlib only.
 
@@ -370,14 +387,30 @@ def main() -> int:
             sum(1 for oks in per_task.values() if all(oks)),
             len(per_task),
         )
+    per_task_pass = {}
+    for a, cs in by_arm.items():
+        outcomes = {}
+        for c in cs:
+            outcomes.setdefault(c["task"], []).append(c["correct"] == c["total"])
+        per_task_pass[a] = {t: all(oks) for t, oks in outcomes.items()}
     for a in by_arm:
         hit, n = pooled[a]
         thit, tn = collapsed[a]
         extra = ""
         if a != "raw" and "raw" in collapsed:
+            # Paired by task: the primary test is exact McNemar over
+            # discordant task cells; Fisher on the collapsed table is kept
+            # as a supplementary independent-table calculation only.
+            shared = sorted(set(per_task_pass["raw"]) & set(per_task_pass[a]))
+            b = sum(1 for t in shared if per_task_pass["raw"][t] and not per_task_pass[a][t])
+            c = sum(1 for t in shared if not per_task_pass["raw"][t] and per_task_pass[a][t])
             rh, rn = collapsed["raw"]
-            p = fisher_two_sided(rh, rn, thit, tn)
-            extra = f" · task-level Fisher vs raw p={p:.3g}"
+            p_mc = mcnemar_exact(b, c)
+            p_f = fisher_two_sided(rh, rn, thit, tn)
+            extra = (
+                f" · paired exact McNemar vs raw p={p_mc:.3g} (b={b} c={c}; primary)"
+                f" · Fisher p={p_f:.3g} (supplementary)"
+            )
         lines.append(
             f"pooled {a}: {hit}/{n} (descriptive) · tasks all-repeats-correct: {thit}/{tn}{extra}"
         )
