@@ -248,12 +248,36 @@ fn meter_mismatch_fails_closed_to_baseline() -> Result<()> {
 
     let (artifact, report) = mosaic::encode_predicted_report(&text, &meter, &model, &[]);
     anyhow::ensure!(report.meter_mismatch, "approx model under o200k must trip");
-    anyhow::ensure!(report.fell_back, "mismatch must count as a fallback");
+    anyhow::ensure!(
+        report.skipped && !report.fell_back,
+        "a mismatch is a skip, not an arbitration verdict"
+    );
     anyhow::ensure!(
         report.predicted_cost.is_none() && report.realized_tokens.is_none(),
         "no predicted path may run under a mismatched meter"
     );
     anyhow::ensure!(decode(&artifact)? == text, "fallback stays byte-exact");
+    Ok(())
+}
+
+#[test]
+fn over_cap_input_skips_without_counting_as_fallback() -> Result<()> {
+    // Codex review on PR #9: a file over MAX_PREDICTED_LINES is a capacity
+    // skip, not a model misordering — it must not inflate the drift rate.
+    let text = synthetic_log();
+    let rows = harvest("synthetic", &text, &Approx, &[], 300);
+    let model = fit(&rows, "approx").ok_or_else(|| anyhow::anyhow!("fit failed"))?;
+    let mut big = String::new();
+    for i in 0..2100 {
+        big.push_str(&format!("unique line number {i} with no structure\n"));
+    }
+    let (artifact, report) = mosaic::encode_predicted_report(&big, &Approx, &model, &[]);
+    anyhow::ensure!(!report.meter_mismatch, "stamps match");
+    anyhow::ensure!(
+        report.skipped && !report.fell_back,
+        "over-cap input must be a skip, not a fallback"
+    );
+    anyhow::ensure!(decode(&artifact)? == big, "skip path stays byte-exact");
     Ok(())
 }
 

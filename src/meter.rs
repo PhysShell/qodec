@@ -11,6 +11,15 @@ use anyhow::{bail, Result};
 
 pub trait TokenMeter {
     fn name(&self) -> &str;
+    /// Stable identity for drift stamps (`cost` datasets/models). For bundled
+    /// meters the name is the identity — "o200k" always means the same BPE.
+    /// File-backed meters must override this to bind the stamp to the
+    /// tokenizer's *contents*, not its path: a `tokenizer.json` swapped in
+    /// place after harvesting would otherwise pass the fail-closed check
+    /// while counting with a different tokenizer (Codex review on PR #9).
+    fn identity(&self) -> String {
+        self.name().to_string()
+    }
     fn count(&self, text: &str) -> usize;
     /// `true` once a `count` has failed. A fail-closed meter (the HF tokenizer)
     /// never returns a guessed count on error — it marks itself poisoned and the
@@ -75,6 +84,8 @@ impl TokenMeter for Approx {
 /// `tokenizers` crate), so a count costs no subprocess.
 pub struct HfMeter {
     name: String,
+    /// `hf:<path>#<fnv1a64 of file bytes>` — see [`TokenMeter::identity`].
+    identity: String,
     tokenizer: tokenizers::Tokenizer,
     /// Interior mutability: `count` takes `&self` but must record a failure.
     /// Single-threaded CLI use, so a `Cell` is enough (no `Sync` needed).
@@ -87,6 +98,8 @@ impl HfMeter {
     /// A probe encode runs at load so a structurally-valid-but-unusable
     /// tokenizer fails here rather than mid-run.
     pub fn from_file(path: &str) -> Result<Self> {
+        let bytes =
+            std::fs::read(path).map_err(|e| anyhow::anyhow!("reading tokenizer {path}: {e}"))?;
         let tokenizer = tokenizers::Tokenizer::from_file(path)
             .map_err(|e| anyhow::anyhow!("loading tokenizer {path}: {e}"))?;
         tokenizer
@@ -94,15 +107,32 @@ impl HfMeter {
             .map_err(|e| anyhow::anyhow!("tokenizer {path} cannot encode a probe string: {e}"))?;
         Ok(Self {
             name: format!("hf:{path}"),
+            identity: format!("hf:{path}#{:016x}", fnv1a64(&bytes)),
             tokenizer,
             poisoned: std::cell::Cell::new(false),
         })
     }
 }
 
+/// FNV-1a 64 over the tokenizer file bytes. An *accident* detector for drift
+/// stamps — catches a `tokenizer.json` silently replaced under the same path
+/// — not a security boundary; no crypto dependency is worth that here.
+fn fnv1a64(bytes: &[u8]) -> u64 {
+    let mut h = 0xcbf2_9ce4_8422_2325u64;
+    for &b in bytes {
+        h ^= u64::from(b);
+        h = h.wrapping_mul(0x0000_0100_0000_01b3);
+    }
+    h
+}
+
 impl TokenMeter for HfMeter {
     fn name(&self) -> &str {
         &self.name
+    }
+
+    fn identity(&self) -> String {
+        self.identity.clone()
     }
 
     fn count(&self, text: &str) -> usize {

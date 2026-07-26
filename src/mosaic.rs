@@ -338,10 +338,16 @@ pub fn encode_predicted(
 /// re-harvest signal; `meter_mismatch` is the tokenizer-drift trip wire.
 #[derive(Debug, Clone)]
 pub struct PredictReport {
-    /// The model's meter stamp does not match the live meter: predicted
-    /// routing was skipped entirely and the baseline shipped. Fail closed —
-    /// a model trained under one tokenizer must not order spans for another.
+    /// The model's meter stamp does not match the live meter's identity:
+    /// predicted routing was skipped entirely and the baseline shipped. Fail
+    /// closed — a model trained under one tokenizer must not order spans for
+    /// another.
     pub meter_mismatch: bool,
+    /// Predicted routing never ran — meter mismatch, empty input, over the
+    /// line cap, or an unsplittable path. Not a model verdict: skips must not
+    /// count toward the drift fallback rate (Codex review on PR #9 — a
+    /// corpus of oversized files would otherwise read as domain drift).
+    pub skipped: bool,
     /// The DP's own predicted cost of the selected path (frames included).
     pub predicted_cost: Option<f64>,
     /// Exact meter count of the assembled predicted path, pre-arbitration.
@@ -349,8 +355,9 @@ pub struct PredictReport {
     pub realized_tokens: Option<usize>,
     /// Segments in the predicted path (1 = declined to split).
     pub segments: usize,
-    /// Arbitration shipped the whole-payload baseline instead of the
-    /// predicted path — the model misordered, at zero cost to the artifact.
+    /// A **realized** predicted path lost arbitration to the whole-payload
+    /// baseline — the model misordered, at zero cost to the artifact. This
+    /// is the domain-drift signal; always `false` when `skipped`.
     pub fell_back: bool,
 }
 
@@ -365,14 +372,15 @@ pub fn encode_predicted_report(
 ) -> (String, PredictReport) {
     let mut report = PredictReport {
         meter_mismatch: false,
+        skipped: false,
         predicted_cost: None,
         realized_tokens: None,
         segments: 0,
         fell_back: false,
     };
-    if model.meter != meter.name() {
+    if model.meter != meter.identity() {
         report.meter_mismatch = true;
-        report.fell_back = true;
+        report.skipped = true;
         return (best_span(text, meter, templates).0, report);
     }
     // Fail closed: a boundary that does not slice cleanly (impossible for the
@@ -402,7 +410,7 @@ pub fn encode_predicted_report(
             }
         }
         None => {
-            report.fell_back = true;
+            report.skipped = true;
             (baseline, report)
         }
     }

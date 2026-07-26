@@ -98,17 +98,23 @@ out from under it?" has three answers, each with its own mechanism:
    refit, update the pins here and in the test.
 2. **Tokenizer drift** (a model trained under one meter asked to rank for
    another): fail-closed stamps through the whole chain. `cost harvest`
-   writes the meter name into the dataset envelope (`qodec-cost-dataset-v2`),
-   `cost fit` copies it into the model (`qodec-cost-model-v2`), and
-   `encode_predicted` skips predicted routing entirely on mismatch —
-   baseline ships, `PredictReport::meter_mismatch` says why. Unstamped
-   legacy files refuse to load; `cost bench` makes the mismatch a hard
-   error.
+   writes the meter *identity* into the dataset envelope
+   (`qodec-cost-dataset-v2`) — for bundled BPEs that is the name, for
+   `hf:` meters it includes a content digest of the `tokenizer.json`, so a
+   file swapped in place under the same path still trips the check (Codex
+   review on PR #9). `cost fit` copies the stamp into the model
+   (`qodec-cost-model-v2`), and `encode_predicted` skips predicted routing
+   entirely on mismatch — baseline ships, `PredictReport::meter_mismatch`
+   says why. Unstamped legacy files refuse to load; `cost bench` makes the
+   mismatch a hard error.
 3. **Domain drift** (real inputs stop resembling the training corpus):
    monitored from work arbitration already pays for — zero extra encodes.
    `encode_predicted_report` returns the DP's predicted path cost, the
    exact realized tokens of that path, and whether arbitration fell back
-   to the baseline. `cost bench` prints the two indicators (`resid`, `fb`
+   to the baseline. Capacity skips (empty input, over the line cap) are
+   reported separately and never count toward the fallback rate — only a
+   *realized* path that lost arbitration is a model verdict (Codex review
+   on PR #9). `cost bench` prints the two indicators (`resid`, `fb`
    columns and a `drift:` summary line); a mean relative residual or
    fallback rate that climbs on a new corpus is the re-harvest signal.
    This is the `docs/secondary-calibration.md` shadow mode: measurement
