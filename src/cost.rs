@@ -48,6 +48,16 @@ const LAMBDA: f64 = 1.0;
 /// Below this many training rows the fit is refused.
 const MIN_SAMPLES: usize = 256;
 
+/// The model predicts a *compressibility ratio* — `cost / size` where size is
+/// the char-token estimate — and the prediction is `clamp(ratio) × size`.
+/// Measured reason: fitting absolute cost on long-span synthetics drove the
+/// effective per-byte slope negative for grep-dense content, and a held-out
+/// file's span ordering came back **inverted** (Spearman −0.97). A clamped
+/// ratio makes cost structurally increasing in size: the model chooses how
+/// compressible content is, never whether more bytes cost less.
+const RATIO_MIN: f64 = 0.02;
+const RATIO_MAX: f64 = 1.2;
+
 /// Per-line counters, prefix-summed so any span's features cost O(1).
 pub struct SpanStats {
     /// Byte offset where each line starts; `offsets[n]` = text length.
@@ -86,15 +96,39 @@ impl SpanStats {
             acc += u.len();
             offsets.push(acc);
             push(&mut bytes, u.len() as u64);
-            push(&mut digits, u.bytes().filter(u8::is_ascii_digit).count() as u64);
+            push(
+                &mut digits,
+                u.bytes().filter(u8::is_ascii_digit).count() as u64,
+            );
             push(
                 &mut punct,
                 u.bytes()
-                    .filter(|b| matches!(b, b'/' | b'\\' | b'.' | b':' | b';' | b',' | b'(' | b')' | b'[' | b']' | b'{' | b'}'))
+                    .filter(|b| {
+                        matches!(
+                            b,
+                            b'/' | b'\\'
+                                | b'.'
+                                | b':'
+                                | b';'
+                                | b','
+                                | b'('
+                                | b')'
+                                | b'['
+                                | b']'
+                                | b'{'
+                                | b'}'
+                        )
+                    })
                     .count() as u64,
             );
-            push(&mut ws, u.bytes().filter(u8::is_ascii_whitespace).count() as u64);
-            push(&mut upper, u.bytes().filter(u8::is_ascii_uppercase).count() as u64);
+            push(
+                &mut ws,
+                u.bytes().filter(u8::is_ascii_whitespace).count() as u64,
+            );
+            push(
+                &mut upper,
+                u.bytes().filter(u8::is_ascii_uppercase).count() as u64,
+            );
             push(&mut grep_shaped, u64::from(is_grep_shaped(u)));
             push(&mut dup_prev, u64::from(prev == Some(*u)));
             prev = Some(*u);
@@ -116,10 +150,7 @@ impl SpanStats {
     }
 
     pub fn byte_range(&self, i: usize, j: usize) -> Option<(usize, usize)> {
-        Some((
-            self.offsets.get(i).copied()?,
-            self.offsets.get(j).copied()?,
-        ))
+        Some((self.offsets.get(i).copied()?, self.offsets.get(j).copied()?))
     }
 
     fn sum(v: &[u64], i: usize, j: usize) -> f64 {
@@ -233,7 +264,8 @@ impl CostModel {
             let z = if k == 0 { xi } else { (xi - m) / s };
             acc += self.weights.get(k).copied().unwrap_or(0.0) * z;
         }
-        acc.max(1.0)
+        let size = x.get(1).copied().unwrap_or(1.0).max(1.0);
+        (acc.clamp(RATIO_MIN, RATIO_MAX) * size).max(1.0)
     }
 
     pub fn to_json(&self) -> Value {
@@ -331,9 +363,12 @@ pub fn fit(rows: &[Row]) -> Option<CostModel> {
     let mut xty = vec![0.0f64; DIM];
     for r in rows {
         let z = standardize(&r.features);
+        // Ratio target, matching `predict`'s clamp(ratio) × size shape.
+        let size = r.features.get(1).copied().unwrap_or(1.0).max(1.0);
+        let ratio = (r.target / size).clamp(RATIO_MIN, RATIO_MAX);
         for (a, &za) in z.iter().enumerate() {
             if let Some(slot) = xty.get_mut(a) {
-                *slot += za * r.target;
+                *slot += za * ratio;
             }
             for (b, &zb) in z.iter().enumerate() {
                 if let Some(slot) = xtx.get_mut(a * DIM + b) {

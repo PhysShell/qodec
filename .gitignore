@@ -8,3 +8,7 @@ evals/interop/v2/private/
 # tokenizer-matrix downloaded tokenizer files — pinned by tokenizers.lock.json, never committed
 evals/tokenizer-matrix/.cache/
 __pycache__/
+
+# cost-model harvested datasets — deterministic, pinned by sha256 in the README
+evals/cost-model/dataset-synth.json
+evals/cost-model/dataset-all.json

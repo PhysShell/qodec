@@ -392,7 +392,11 @@ fn predicted_boundaries(text: &str, model: &CostModel) -> Option<Vec<(usize, usi
 /// seeded with the profile `templates` so the routing stage clusters exactly as
 /// `squeeze` would. `pub(crate)` so the `cost` harvester labels spans with the
 /// exact same ground truth the router pays for.
-pub(crate) fn best_span(span: &str, meter: &dyn TokenMeter, templates: &[Vec<String>]) -> (String, usize) {
+pub(crate) fn best_span(
+    span: &str,
+    meter: &dyn TokenMeter,
+    templates: &[Vec<String>],
+) -> (String, usize) {
     let mut best = container::raw(span);
     let mut best_weight = meter.count(&best);
     for candidate in [

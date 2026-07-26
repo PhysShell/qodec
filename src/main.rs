@@ -1164,9 +1164,8 @@ fn cmd_cost_fit(a: &CostFitArgs) -> Result<()> {
 
 fn cmd_cost_bench(a: &CostBenchArgs) -> Result<()> {
     let meter = by_name(&a.meter)?;
-    let model = qodec::cost::CostModel::from_json(&serde_json::from_str(&fs::read_to_string(
-        &a.model,
-    )?)?)?;
+    let model =
+        qodec::cost::CostModel::from_json(&serde_json::from_str(&fs::read_to_string(&a.model)?)?)?;
     println!(
         "| file | raw tok | measured all-span | ms | predicted all-span | ms | geometric | ms |"
     );
