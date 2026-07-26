@@ -140,8 +140,21 @@ def call_codex(prompt: str, model: str | None, timeout: int) -> dict:
             return {"error": "codex CLI not installed"}
         if proc.returncode != 0 or not last_msg.exists():
             return {"error": proc.stderr.strip()[:500] or "codex produced no last message"}
-        # No usage envelope from codex — record what exists, honestly.
+        # No usage envelope from codex — record what exists, honestly. The
+        # session header (model, reasoning effort) prints at the START of the
+        # stream; keeping only a tail dropped it and made the committed runs'
+        # model/effort unverifiable (Codex review on PR #11) — parse it out
+        # and keep the head too.
+        header = {}
+        for line in (proc.stderr + "\n" + proc.stdout).splitlines():
+            line = line.strip()
+            if line.startswith("model:"):
+                header["model"] = line.removeprefix("model:").strip()
+            elif line.startswith("reasoning effort:"):
+                header["reasoning_effort"] = line.removeprefix("reasoning effort:").strip()
         return {"result": last_msg.read_text(), "provider": "codex",
+                **header,
+                "stderr_head": proc.stderr.strip()[:600],
                 "stderr_tail": proc.stderr.strip()[-300:]}
 
 
@@ -335,17 +348,37 @@ def main() -> int:
         tok_pair = "/".join(str(toks.get(a, "?")) for a in by_arm)
         lines.append("| " + " | ".join(row) + f" | {tok_pair} |")
     lines.append("")
+    # Pooled cell counts are DESCRIPTIVE only: repeats of one task are not
+    # independent observations (a deterministic failure repeats verbatim),
+    # so running Fisher over cells pseudo-replicates and overstates
+    # significance (Codex review on PR #11 — p=0.0219 over cells collapsed
+    # to p≈0.217 over tasks). The inferential unit is the TASK: an arm gets
+    # a task credit only when every valid repeat is correct (conservative),
+    # and Fisher runs on those.
     pooled = {
         a: (sum(c["correct"] for c in cs), sum(c["total"] for c in cs))
         for a, cs in by_arm.items()
     }
-    for a, (hit, n) in pooled.items():
+    collapsed = {}
+    for a, cs in by_arm.items():
+        per_task = {}
+        for c in cs:
+            per_task.setdefault(c["task"], []).append(c["correct"] == c["total"])
+        collapsed[a] = (
+            sum(1 for oks in per_task.values() if all(oks)),
+            len(per_task),
+        )
+    for a in by_arm:
+        hit, n = pooled[a]
+        thit, tn = collapsed[a]
         extra = ""
-        if a != "raw" and "raw" in pooled:
-            rh, rn = pooled["raw"]
-            p = fisher_two_sided(rh, rn, hit, n)
-            extra = f" · Fisher vs raw p={p:.3g}"
-        lines.append(f"pooled {a}: {hit}/{n}{extra}")
+        if a != "raw" and "raw" in collapsed:
+            rh, rn = collapsed["raw"]
+            p = fisher_two_sided(rh, rn, thit, tn)
+            extra = f" · task-level Fisher vs raw p={p:.3g}"
+        lines.append(
+            f"pooled {a}: {hit}/{n} (descriptive) · tasks all-repeats-correct: {thit}/{tn}{extra}"
+        )
     failed = [c for c in record["cells"] if c.get("status") != "ok"]
     if failed:
         lines.append(
