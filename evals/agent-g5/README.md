@@ -169,3 +169,25 @@ legend-driven counting suits codex; high-alias-density join/aggregation
 breaks it. `qodec risk`'s hazard-not-oracle framing now has live
 evidence on both sides, and alias *density* is a measurable hazard axis
 the metric does not yet score — a concrete next item, not a claim.
+
+### Uncontrolled axis: reasoning effort
+
+Recorded, not yet varied. What the panels actually ran with:
+
+* claude reader: `claude-sonnet-5` via `claude -p`, **no thinking
+  requested** — the closed-world flag set carries no effort knob and the
+  envelope records no thinking configuration.
+* codex reader: `gpt-5.6-sol` with **`reasoning effort: none`** (the
+  `codex exec` default under `--ignore-user-config`; the session header
+  states it — captured 2026-07-26).
+
+So every comprehension number above — Sonnet's paper-trap failures AND
+codex's 16/16 encoded counting AND codex's deterministic
+high-alias-density join failures — was produced at the readers' floor
+effort. Mentally dealiasing a 45-entry legend is multi-step work, so the
+hypothesis that effort level interacts with codec comprehension (e.g.
+`-c model_reasoning_effort=high` recovering the cross-ref joins) is
+plausible in both directions and cheap to test: codex exposes the knob
+per call; `claude -p` has no equivalent flag, so the claude side of such
+a matrix needs a different mechanism and should be scoped honestly. An
+open measurement, deliberately not run yet.
