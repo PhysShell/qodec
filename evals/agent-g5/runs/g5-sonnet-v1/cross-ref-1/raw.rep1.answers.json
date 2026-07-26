@@ -1,0 +1,5 @@
+**fs/cursor.rs** — it has both TODO(remove_before_ship) markers (lines 65, 245) and unwrap_unchecked markers (lines 153, 265).
+
+```json
+{"t1": "src/fs/cursor.rs"}
+```

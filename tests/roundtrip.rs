@@ -147,13 +147,18 @@ fn sigil_mode_commits_multiple_entries() -> Result<()> {
 #[test]
 fn deep_beats_words_on_boundary_straddling_repeats() -> Result<()> {
     // The suffix-automaton miner's reason to exist: repeats that no word or
-    // separator boundary exposes — here a shared stem *inside* snake_case
-    // identifiers that differ only in their numeric tail.
+    // separator boundary exposes — kebab stems inside whitespace-words that
+    // `segment_prefixes` (which only splits at `/ \ . :`) never surfaces.
+    // The cut lands on `-`, a token-safe edge. The previous fixture used
+    // snake_case stems with numeric tails (`..._run{i}`) — exactly the
+    // `codec::pool_28` hazard the G5 panel caught — and the miner now
+    // *correctly refuses* to carve those, so it can no longer power this
+    // test.
     let meter = Bpe::o200k()?;
     let mut text = String::new();
     for i in 0..20 {
         text.push_str(&format!(
-            "measurement_batch_processor_run{i} emitted checkpoint_fingerprint_hash{i}\n"
+            "deploy-service-batch-run-{i} emitted checkpoint-fingerprint-hash-{i}\n"
         ));
     }
     let words = encode(&text, CodecKind::Mine, &meter, Alphabet::Auto);

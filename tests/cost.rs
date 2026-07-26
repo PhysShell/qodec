@@ -306,6 +306,10 @@ fn ground_truth_canary_pins_span_labels() -> Result<()> {
         .iter()
         .map(|r| format!("{}-{}:{}", r.i, r.j, r.target))
         .collect();
+    // The canary's first live catch was during the G5 boundary-snap work: a
+    // draft rule that also refused single-`:` cuts moved spans [1,7)/[1,8)
+    // by +1 token, and this pin caught it. The shipped rule (W-runs and
+    // `::` glue only) leaves these labels exactly as first pinned.
     let pinned = "0-1:22 0-2:34 0-3:31 0-4:31 0-5:44 0-6:57 0-7:70 0-8:80 1-2:22 1-3:34 \
                   1-4:31 1-5:44 1-6:57 1-7:69 1-8:79 2-3:22 2-4:34 2-5:47 2-6:60 2-7:73 \
                   2-8:83 3-4:22 3-5:35 3-6:48 3-7:61 3-8:71 4-5:23 4-6:36 4-7:49 4-8:59 \

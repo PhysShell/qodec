@@ -186,9 +186,12 @@ fn all_span_dp_declines_to_segment() -> Result<()> {
             decode(&report.artifact)? == text,
             "DP artifact roundtrip for {name}"
         );
-        // The strong claim, provable only via the pre-arbitration report: the
-        // DP *chose* a single segment (no split), and it exactly ties the
-        // whole-span baseline.
+        // The strong claim, provable only via the pre-arbitration report:
+        // the DP *chose* a single segment (no split), and it exactly ties
+        // the whole-span baseline. (During the G5 boundary-snap work a
+        // draft rule briefly flipped `hetero` into a misranked split that
+        // arbitration clamped — the shipped single-`:`-safe rule restores
+        // the decline on all four payloads.)
         anyhow::ensure!(
             report.segments == 1,
             "all-span DP for {name} split into {} segments (additive {}, exact {})",

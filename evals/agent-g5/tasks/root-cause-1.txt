@@ -1,0 +1,224 @@
+   Compiling qodec-lab v0.1.0 (/work/qodec-lab)
+warning: unused import `crate::cache::writer`
+warning: unused import `crate::cache::writer`
+warning: unused import `crate::sched::cursor`
+warning: unused import `crate::cache::writer`
+warning: unused import `crate::auth::pool`
+warning: unused import `crate::cache::writer`
+warning: unused import `crate::auth::pool`
+warning: unused import `crate::auth::pool`
+warning: unused import `crate::cache::writer`
+warning: unused import `crate::cache::writer`
+warning: unused import `crate::cache::writer`
+warning: unused import `crate::sched::cursor`
+warning: unused import `crate::cache::writer`
+warning: unused import `crate::cache::writer`
+warning: unused import `crate::cache::writer`
+warning: unused import `crate::cache::writer`
+warning: unused import `crate::cache::writer`
+warning: unused import `crate::auth::pool`
+warning: unused import `crate::cache::writer`
+warning: unused import `crate::cache::writer`
+warning: unused import `crate::cache::writer`
+warning: unused import `crate::auth::pool`
+warning: unused import `crate::auth::pool`
+warning: unused import `crate::cache::writer`
+warning: unused import `crate::auth::pool`
+warning: unused import `crate::cache::writer`
+warning: unused import `crate::sched::cursor`
+warning: unused import `crate::cache::writer`
+warning: unused import `crate::auth::pool`
+warning: unused import `crate::auth::pool`
+warning: unused import `crate::sched::cursor`
+warning: unused import `crate::sched::cursor`
+warning: unused import `crate::cache::writer`
+warning: unused import `crate::auth::pool`
+warning: unused import `crate::cache::writer`
+warning: unused import `crate::cache::writer`
+warning: unused import `crate::sched::cursor`
+warning: unused import `crate::auth::pool`
+warning: unused import `crate::sched::cursor`
+warning: unused import `crate::sched::cursor`
+warning: unused import `crate::auth::pool`
+warning: unused import `crate::sched::cursor`
+warning: unused import `crate::auth::pool`
+warning: unused import `crate::auth::pool`
+warning: unused import `crate::auth::pool`
+warning: unused import `crate::cache::writer`
+warning: unused import `crate::auth::pool`
+warning: unused import `crate::auth::pool`
+warning: unused import `crate::sched::cursor`
+warning: unused import `crate::cache::writer`
+warning: unused import `crate::sched::cursor`
+warning: unused import `crate::auth::pool`
+warning: unused import `crate::auth::pool`
+warning: unused import `crate::cache::writer`
+warning: unused import `crate::sched::cursor`
+warning: unused import `crate::auth::pool`
+warning: unused import `crate::cache::writer`
+warning: unused import `crate::auth::pool`
+warning: unused import `crate::auth::pool`
+warning: unused import `crate::sched::cursor`
+warning: unused import `crate::sched::cursor`
+warning: unused import `crate::auth::pool`
+warning: unused import `crate::auth::pool`
+warning: unused import `crate::cache::writer`
+warning: unused import `crate::sched::cursor`
+warning: unused import `crate::cache::writer`
+warning: unused import `crate::auth::pool`
+warning: unused import `crate::auth::pool`
+warning: unused import `crate::cache::writer`
+warning: unused import `crate::auth::pool`
+warning: unused import `crate::auth::pool`
+warning: unused import `crate::cache::writer`
+warning: unused import `crate::cache::writer`
+warning: unused import `crate::sched::cursor`
+warning: unused import `crate::sched::cursor`
+warning: unused import `crate::auth::pool`
+warning: unused import `crate::cache::writer`
+warning: unused import `crate::cache::writer`
+warning: unused import `crate::sched::cursor`
+warning: unused import `crate::auth::pool`
+warning: unused import `crate::cache::writer`
+warning: unused import `crate::auth::pool`
+warning: unused import `crate::auth::pool`
+warning: unused import `crate::auth::pool`
+warning: unused import `crate::cache::writer`
+warning: unused import `crate::sched::cursor`
+warning: unused import `crate::cache::writer`
+warning: unused import `crate::sched::cursor`
+warning: unused import `crate::sched::cursor`
+warning: unused import `crate::auth::pool`
+warning: unused import `crate::auth::pool`
+warning: unused import `crate::auth::pool`
+warning: unused import `crate::auth::pool`
+warning: unused import `crate::sched::cursor`
+warning: unused import `crate::auth::pool`
+warning: unused import `crate::cache::writer`
+warning: unused import `crate::cache::writer`
+warning: unused import `crate::sched::cursor`
+warning: unused import `crate::auth::pool`
+warning: unused import `crate::auth::pool`
+warning: unused import `crate::cache::writer`
+warning: unused import `crate::sched::cursor`
+warning: unused import `crate::cache::writer`
+warning: unused import `crate::sched::cursor`
+warning: unused import `crate::sched::cursor`
+warning: unused import `crate::auth::pool`
+warning: unused import `crate::sched::cursor`
+warning: unused import `crate::sched::cursor`
+warning: unused import `crate::sched::cursor`
+warning: unused import `crate::sched::cursor`
+warning: unused import `crate::sched::cursor`
+warning: unused import `crate::sched::cursor`
+warning: unused import `crate::cache::writer`
+warning: unused import `crate::cache::writer`
+warning: unused import `crate::sched::cursor`
+warning: unused import `crate::cache::writer`
+warning: unused import `crate::auth::pool`
+warning: unused import `crate::auth::pool`
+warning: unused import `crate::sched::cursor`
+warning: unused import `crate::auth::pool`
+warning: unused import `crate::cache::writer`
+warning: unused import `crate::auth::pool`
+warning: unused import `crate::auth::pool`
+warning: unused import `crate::auth::pool`
+warning: unused import `crate::sched::cursor`
+warning: unused import `crate::cache::writer`
+warning: unused import `crate::sched::cursor`
+warning: unused import `crate::auth::pool`
+warning: unused import `crate::auth::pool`
+warning: unused import `crate::auth::pool`
+warning: unused import `crate::auth::pool`
+warning: unused import `crate::auth::pool`
+warning: unused import `crate::cache::writer`
+error[E0308]: mismatched types
+ --> src/net/cursor.rs:141:17
+  = note: expected `u64`, found `Option<u64>`
+error[E0599]: no method named `commit` found — aborted expansion
+ --> src/auth/handshake.rs:75:5
+  = note: this error is a consequence of the previous error
+error[E0599]: no method named `commit` found — aborted expansion
+ --> src/fs/writer.rs:77:5
+  = note: this error is a consequence of the previous error
+error[E0599]: no method named `commit` found — aborted expansion
+ --> src/auth/writer.rs:17:5
+  = note: this error is a consequence of the previous error
+error[E0599]: no method named `commit` found — aborted expansion
+ --> src/index/reader.rs:77:5
+  = note: this error is a consequence of the previous error
+error[E0599]: no method named `commit` found — aborted expansion
+ --> src/net/frame.rs:18:5
+  = note: this error is a consequence of the previous error
+error[E0599]: no method named `commit` found — aborted expansion
+ --> src/auth/writer.rs:40:5
+  = note: this error is a consequence of the previous error
+error[E0599]: no method named `commit` found — aborted expansion
+ --> src/index/frame.rs:66:5
+  = note: this error is a consequence of the previous error
+error[E0599]: no method named `commit` found — aborted expansion
+ --> src/cache/handshake.rs:86:5
+  = note: this error is a consequence of the previous error
+error[E0599]: no method named `commit` found — aborted expansion
+ --> src/auth/reader.rs:45:5
+  = note: this error is a consequence of the previous error
+warning: unused import `crate::sched::cursor`
+warning: unused import `crate::sched::cursor`
+warning: unused import `crate::cache::writer`
+warning: unused import `crate::auth::pool`
+warning: unused import `crate::sched::cursor`
+warning: unused import `crate::auth::pool`
+warning: unused import `crate::sched::cursor`
+warning: unused import `crate::sched::cursor`
+warning: unused import `crate::sched::cursor`
+warning: unused import `crate::cache::writer`
+warning: unused import `crate::sched::cursor`
+warning: unused import `crate::auth::pool`
+warning: unused import `crate::auth::pool`
+warning: unused import `crate::sched::cursor`
+warning: unused import `crate::auth::pool`
+warning: unused import `crate::sched::cursor`
+warning: unused import `crate::cache::writer`
+warning: unused import `crate::sched::cursor`
+warning: unused import `crate::cache::writer`
+warning: unused import `crate::auth::pool`
+warning: unused import `crate::auth::pool`
+warning: unused import `crate::cache::writer`
+warning: unused import `crate::cache::writer`
+warning: unused import `crate::cache::writer`
+warning: unused import `crate::sched::cursor`
+warning: unused import `crate::cache::writer`
+warning: unused import `crate::cache::writer`
+warning: unused import `crate::cache::writer`
+warning: unused import `crate::sched::cursor`
+warning: unused import `crate::sched::cursor`
+warning: unused import `crate::auth::pool`
+warning: unused import `crate::cache::writer`
+warning: unused import `crate::auth::pool`
+warning: unused import `crate::auth::pool`
+warning: unused import `crate::cache::writer`
+warning: unused import `crate::auth::pool`
+warning: unused import `crate::sched::cursor`
+warning: unused import `crate::auth::pool`
+warning: unused import `crate::sched::cursor`
+warning: unused import `crate::sched::cursor`
+warning: unused import `crate::cache::writer`
+warning: unused import `crate::auth::pool`
+warning: unused import `crate::auth::pool`
+warning: unused import `crate::cache::writer`
+warning: unused import `crate::cache::writer`
+warning: unused import `crate::cache::writer`
+warning: unused import `crate::sched::cursor`
+warning: unused import `crate::sched::cursor`
+warning: unused import `crate::cache::writer`
+warning: unused import `crate::sched::cursor`
+warning: unused import `crate::sched::cursor`
+warning: unused import `crate::auth::pool`
+warning: unused import `crate::cache::writer`
+warning: unused import `crate::auth::pool`
+warning: unused import `crate::sched::cursor`
+warning: unused import `crate::cache::writer`
+warning: unused import `crate::cache::writer`
+warning: unused import `crate::cache::writer`
+warning: unused import `crate::sched::cursor`
+error: could not compile `qodec-lab` (lib) due to previous errors

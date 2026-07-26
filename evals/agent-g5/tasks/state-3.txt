@@ -1,0 +1,100 @@
+--- a/src/index/config.rs
++++ b/src/index/config.rs
+@@ -23,4 +23,4 @@
+     /// Segment size; was 327680 before the 2024 compaction rework.
+-    pub const WAL_SEGMENT_BYTES: u64 = 327680;
++    pub const WAL_SEGMENT_BYTES: u64 = 8192000;
+     pub const WAL_DIR: &str = "wal";
+@@ -99,4 +99,4 @@
+     // tuning pass 3
+-    pub const POOL_CAP: u32 = 156;
++    pub const POOL_CAP: u32 = 1432;
+     // end tuning
+@@ -73,4 +73,4 @@
+     // tuning pass 3
+-    pub const FSYNC_EVERY: u32 = 645;
++    pub const FSYNC_EVERY: u32 = 8444;
+     // end tuning
+@@ -47,4 +47,4 @@
+     // tuning pass 3
+-    pub const RETRY_BUDGET_MS: u32 = 202;
++    pub const RETRY_BUDGET_MS: u32 = 7266;
+     // end tuning
+@@ -191,4 +191,4 @@
+     // tuning pass 3
+-    pub const RETRY_BUDGET_MS: u32 = 160;
++    pub const RETRY_BUDGET_MS: u32 = 1377;
+     // end tuning
+--- a/src/codec/config.rs
++++ b/src/codec/config.rs
+@@ -101,4 +101,4 @@
+     // tuning pass 3
+-    pub const FSYNC_EVERY: u32 = 578;
++    pub const FSYNC_EVERY: u32 = 5963;
+     // end tuning
+@@ -158,4 +158,4 @@
+     // tuning pass 3
+-    pub const RETRY_BUDGET_MS: u32 = 856;
++    pub const RETRY_BUDGET_MS: u32 = 4170;
+     // end tuning
+@@ -172,4 +172,4 @@
+     // tuning pass 3
+-    pub const RETRY_BUDGET_MS: u32 = 224;
++    pub const RETRY_BUDGET_MS: u32 = 7595;
+     // end tuning
+--- a/src/cache/config.rs
++++ b/src/cache/config.rs
+@@ -133,4 +133,4 @@
+     // tuning pass 3
+-    pub const FSYNC_EVERY: u32 = 620;
++    pub const FSYNC_EVERY: u32 = 6776;
+     // end tuning
+@@ -85,4 +85,4 @@
+     // tuning pass 3
+-    pub const RETRY_BUDGET_MS: u32 = 235;
++    pub const RETRY_BUDGET_MS: u32 = 2766;
+     // end tuning
+@@ -122,4 +122,4 @@
+     // tuning pass 3
+-    pub const FSYNC_EVERY: u32 = 340;
++    pub const FSYNC_EVERY: u32 = 1206;
+     // end tuning
+--- a/src/wal/config.rs
++++ b/src/wal/config.rs
+@@ -169,4 +169,4 @@
+     // tuning pass 3
+-    pub const FSYNC_EVERY: u32 = 406;
++    pub const FSYNC_EVERY: u32 = 2048;
+     // end tuning
+@@ -144,4 +144,4 @@
+     // tuning pass 3
+-    pub const RETRY_BUDGET_MS: u32 = 220;
++    pub const RETRY_BUDGET_MS: u32 = 7559;
+     // end tuning
+@@ -176,4 +176,4 @@
+     // tuning pass 3
+-    pub const RETRY_BUDGET_MS: u32 = 811;
++    pub const RETRY_BUDGET_MS: u32 = 1476;
+     // end tuning
+@@ -171,4 +171,4 @@
+     // tuning pass 3
+-    pub const POOL_CAP: u32 = 561;
++    pub const POOL_CAP: u32 = 3752;
+     // end tuning
+--- a/src/net/config.rs
++++ b/src/net/config.rs
+@@ -46,4 +46,4 @@
+     // tuning pass 3
+-    pub const RETRY_BUDGET_MS: u32 = 434;
++    pub const RETRY_BUDGET_MS: u32 = 1403;
+     // end tuning
+@@ -92,4 +92,4 @@
+     // tuning pass 3
+-    pub const RETRY_BUDGET_MS: u32 = 455;
++    pub const RETRY_BUDGET_MS: u32 = 7262;
+     // end tuning
+@@ -134,4 +134,4 @@
+     // tuning pass 3
+-    pub const RETRY_BUDGET_MS: u32 = 592;
++    pub const RETRY_BUDGET_MS: u32 = 5823;
+     // end tuning

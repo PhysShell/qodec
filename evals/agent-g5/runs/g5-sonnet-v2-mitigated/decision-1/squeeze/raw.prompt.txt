@@ -1,0 +1,113 @@
+Answer the questions below using ONLY the payload in this message.
+Do not use any tools, do not read any files, do not guess beyond the
+payload. Reply with ONLY a JSON object mapping each question id to a
+short answer string, e.g. {"q1": "...", "q2": "..."}.
+
+# Payload
+
+running retry harness (max 3 attempts per test)
+--- attempt 1 ---
+test cache::writer_00 ... FAILED
+test index::writer_01 ... FAILED
+test fs::frame_02 ... FAILED
+test fs::frame_03 ... ok
+test index::cursor_04 ... ok
+test codec::pool_05 ... FAILED
+test fs::writer_06 ... FAILED
+test codec::cursor_07 ... FAILED
+test cache::session_08 ... FAILED
+test auth::writer_09 ... FAILED
+test auth::session_10 ... FAILED
+test codec::handshake_11 ... FAILED
+test cache::pool_12 ... ok
+test net::cursor_13 ... FAILED
+test index::cursor_14 ... FAILED
+test wal::session_15 ... ok
+test codec::reader_16 ... FAILED
+test net::cursor_17 ... ok
+test auth::writer_18 ... ok
+test net::reader_19 ... ok
+test index::cursor_20 ... ok
+test fs::cursor_21 ... ok
+test index::cursor_22 ... ok
+test cache::writer_23 ... ok
+test auth::frame_24 ... ok
+test fs::session_25 ... ok
+test cache::frame_26 ... ok
+test codec::cursor_27 ... FAILED
+test index::cursor_28 ... FAILED
+test net::frame_29 ... FAILED
+test index::reader_30 ... FAILED
+test net::pool_31 ... ok
+--- attempt 2 ---
+test cache::writer_00 ... ok
+test index::writer_01 ... FAILED
+test fs::frame_02 ... ok
+test fs::frame_03 ... ok
+test index::cursor_04 ... ok
+test codec::pool_05 ... FAILED
+test fs::writer_06 ... ok
+test codec::cursor_07 ... ok
+test cache::session_08 ... ok
+test auth::writer_09 ... ok
+test auth::session_10 ... ok
+test codec::handshake_11 ... ok
+test cache::pool_12 ... ok
+test net::cursor_13 ... ok
+test index::cursor_14 ... ok
+test wal::session_15 ... ok
+test codec::reader_16 ... ok
+test net::cursor_17 ... ok
+test auth::writer_18 ... ok
+test net::reader_19 ... ok
+test index::cursor_20 ... ok
+test fs::cursor_21 ... ok
+test index::cursor_22 ... ok
+test cache::writer_23 ... ok
+test auth::frame_24 ... ok
+test fs::session_25 ... ok
+test cache::frame_26 ... ok
+test codec::cursor_27 ... ok
+test index::cursor_28 ... ok
+test net::frame_29 ... FAILED
+test index::reader_30 ... ok
+test net::pool_31 ... ok
+--- attempt 3 ---
+test cache::writer_00 ... ok
+test index::writer_01 ... FAILED
+test fs::frame_02 ... ok
+test fs::frame_03 ... ok
+test index::cursor_04 ... ok
+test codec::pool_05 ... ok
+test fs::writer_06 ... ok
+test codec::cursor_07 ... ok
+test cache::session_08 ... ok
+test auth::writer_09 ... ok
+test auth::session_10 ... ok
+test codec::handshake_11 ... ok
+test cache::pool_12 ... ok
+test net::cursor_13 ... ok
+test index::cursor_14 ... ok
+test wal::session_15 ... ok
+test codec::reader_16 ... ok
+test net::cursor_17 ... ok
+test auth::writer_18 ... ok
+test net::reader_19 ... ok
+test index::cursor_20 ... ok
+test fs::cursor_21 ... ok
+test index::cursor_22 ... ok
+test cache::writer_23 ... ok
+test auth::frame_24 ... ok
+test fs::session_25 ... ok
+test cache::frame_26 ... ok
+test codec::cursor_27 ... ok
+test index::cursor_28 ... ok
+test net::frame_29 ... ok
+test index::reader_30 ... ok
+test net::pool_31 ... ok
+retry harness done
+
+
+# Questions
+
+t1: Flaky tests recover on retry. Which test failed on EVERY attempt (genuinely failing, not flaky)? Reply with the full test name.

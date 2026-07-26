@@ -7,3 +7,8 @@ reviews:
   path_filters:
     - "!evals/reader-cli/runs/**"
     - "!evals/tokenizer-matrix/results/**"
+    # PR #10 repeated the lesson with agent-g5 panel runs (220 files) —
+    # exclude every eval's runs/ directory generically, and the generated
+    # task fixtures (gen_tasks.py output; the generator is the code).
+    - "!evals/**/runs/**"
+    - "!evals/agent-g5/tasks/**"

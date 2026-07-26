@@ -147,17 +147,21 @@ fn tmpl_seeds_rescue_misrouted_templates_and_pin_legend_bytes() -> Result<()> {
     profile.learn_from(&family("delta", "task", 16));
     profile.learn_from(&family("epsilon", "job", 16));
     let templates = profile.seed_templates(64);
+    // Since PR #10 the learner snaps refined affixes to token boundaries:
+    // pulling `task`/`job` into the parts would leave bare digits in the
+    // rows (the G5 recomposition hazard), so both families come back as
+    // whole-word-slot templates — still one clean template per family.
     anyhow::ensure!(
         templates
             .iter()
             .filter(|parts| {
                 parts.first().is_some_and(|p| {
-                    p == "worker thread pool delta task" || p == "worker thread pool epsilon job"
+                    p == "worker thread pool delta " || p == "worker thread pool epsilon "
                 })
             })
             .count()
             == 2,
-        "profile must hold both clean sub-word-refined templates, got {templates:?}"
+        "profile must hold both clean per-family templates, got {templates:?}"
     );
     let seeds = Seeds {
         templates,
@@ -184,9 +188,9 @@ fn tmpl_seeds_rescue_misrouted_templates_and_pin_legend_bytes() -> Result<()> {
     let seeded = encode_seeded(&mixed, CodecKind::Tmpl, &meter, Alphabet::Auto, &seeds);
     anyhow::ensure!(seeded.starts_with("%q1 tmpl"), "seeded must commit");
     anyhow::ensure!(
-        seeded.contains("=worker thread pool delta task¿ spawned")
-            && seeded.contains("=worker thread pool epsilon job¿ spawned"),
-        "seeded legend must pin both sub-word profile templates byte-exactly: {seeded:?}"
+        seeded.contains("=worker thread pool delta ¿ spawned")
+            && seeded.contains("=worker thread pool epsilon ¿ spawned"),
+        "seeded legend must pin both profile templates byte-exactly: {seeded:?}"
     );
     anyhow::ensure!(
         meter.count(&seeded) < meter.count(&plain),

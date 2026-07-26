@@ -1,0 +1,80 @@
+{
+  "is_error": false,
+  "duration_api_ms": 12913,
+  "num_turns": 1,
+  "stop_reason": "end_turn",
+  "session_id": "7e07d6be-b5fc-53d1-9dbd-3a72cdd573d7",
+  "total_cost_usd": 0.0528502,
+  "usage": {
+    "input_tokens": 2,
+    "cache_creation_input_tokens": 4628,
+    "cache_read_input_tokens": 4794,
+    "output_tokens": 1305,
+    "server_tool_use": {
+      "web_search_requests": 0,
+      "web_fetch_requests": 0
+    },
+    "service_tier": "standard",
+    "cache_creation": {
+      "ephemeral_1h_input_tokens": 4628,
+      "ephemeral_5m_input_tokens": 0
+    },
+    "inference_geo": "not_available",
+    "iterations": [
+      {
+        "input_tokens": 2,
+        "output_tokens": 1305,
+        "cache_read_input_tokens": 4794,
+        "cache_creation_input_tokens": 4628,
+        "cache_creation": {
+          "ephemeral_5m_input_tokens": 0,
+          "ephemeral_1h_input_tokens": 4628
+        },
+        "type": "message"
+      }
+    ],
+    "speed": "standard"
+  },
+  "modelUsage": {
+    "claude-haiku-4-5-20251001": {
+      "inputTokens": 3988,
+      "outputTokens": 15,
+      "cacheReadInputTokens": 0,
+      "cacheCreationInputTokens": 0,
+      "webSearchRequests": 0,
+      "costUSD": 0.004063000000000001,
+      "contextWindow": 200000,
+      "maxOutputTokens": 32000,
+      "canonicalModel": "claude-haiku-4-5",
+      "provider": "firstParty"
+    },
+    "claude-sonnet-5": {
+      "inputTokens": 2,
+      "outputTokens": 1305,
+      "cacheReadInputTokens": 4794,
+      "cacheCreationInputTokens": 4628,
+      "webSearchRequests": 0,
+      "costUSD": 0.0487872,
+      "contextWindow": 1000000,
+      "maxOutputTokens": 64000,
+      "canonicalModel": "claude-sonnet-5",
+      "provider": "firstParty"
+    }
+  },
+  "permission_denials": [],
+  "terminal_reason": "completed",
+  "fast_mode_state": "off",
+  "fast_mode_disabled_reason": "sdk_opt_in_required",
+  "subtype": "success",
+  "api_error_status": null,
+  "result": "**fs/cursor.rs** \u2014 it has both TODO(remove_before_ship) markers (lines 65, 245) and unwrap_unchecked markers (lines 153, 265).\n\n```json\n{\"t1\": \"src/fs/cursor.rs\"}\n```",
+  "ttft_ms": 10520,
+  "ttft_stream_ms": 1403,
+  "time_to_request_ms": 35,
+  "time_to_request_from_spawn_ms": 630061,
+  "warm_spare_claimed": false,
+  "time_origin_ms": 1785054347285.8225,
+  "type": "result",
+  "duration_ms": 11954,
+  "uuid": "22e096c5-3802-4c55-8264-7bde14843378"
+}

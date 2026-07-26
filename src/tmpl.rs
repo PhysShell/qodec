@@ -193,6 +193,51 @@ fn common_affixes(words: &[&str]) -> (usize, usize) {
     (pre, suf)
 }
 
+/// Shrink refined affixes until the template/slot boundary never splits an
+/// identifier or number run in ANY member (`risk::splits_token`). The G5
+/// panel made the hazard live: values `327680` and `8192000` share a
+/// trailing `0`, `common_affixes` pulled it into the template literal, and
+/// a reader recomposing slot `819200` + literal `0` answered `819200`.
+/// Compression impact is arbitrated as before — `choose_template` still
+/// measures refined vs bare and keeps the cheaper artifact.
+fn snap_affixes(words: &[&str], mut pre: usize, mut suf: usize) -> (usize, usize) {
+    let Some(&first) = words.first() else {
+        return (pre, suf);
+    };
+    // Prefix boundary: template literal `first[..pre]` against each member's
+    // remainder. The literal is common, the right-hand side varies.
+    loop {
+        if pre == 0 {
+            break;
+        }
+        let literal = first.get(..pre).unwrap_or_default();
+        let unsafe_cut = words
+            .iter()
+            .any(|w| crate::risk::splits_token(literal, w.get(pre..).unwrap_or_default()));
+        if !unsafe_cut {
+            break;
+        }
+        pre -= literal.chars().next_back().map_or(1, char::len_utf8);
+    }
+    // Suffix boundary: each member's slot tail against the common suffix
+    // literal. The literal is common, the left-hand side varies.
+    loop {
+        if suf == 0 {
+            break;
+        }
+        let literal = first.get(first.len() - suf..).unwrap_or_default();
+        let unsafe_cut = words.iter().any(|w| {
+            let cut = w.len().saturating_sub(suf);
+            crate::risk::splits_token(w.get(..cut).unwrap_or_default(), literal)
+        });
+        if !unsafe_cut {
+            break;
+        }
+        suf -= literal.chars().next().map_or(1, char::len_utf8);
+    }
+    (pre, suf)
+}
+
 /// One emitted row: the cluster alias plus, per wildcard, the seg position
 /// and how many bytes of the word the template already carries as its
 /// common prefix/suffix (0/0 = the bare whole-word slot).
@@ -242,6 +287,7 @@ fn choose_template(
             .map(|s| s.segs.get(pos).copied().unwrap_or_default())
             .collect();
         let (pre, suf) = common_affixes(&words);
+        let (pre, suf) = snap_affixes(&words, pre, suf);
         refined_slots.push((pos, pre, suf));
     }
     if refined_slots
@@ -333,6 +379,21 @@ fn glob_match<'a>(line: &'a str, parts: &[String]) -> Option<Vec<&'a str>> {
         }
     }
     debug_assert!(rest.is_empty());
+    // Frozen templates bypass `choose_template`'s snapping (Codex review on
+    // PR #10): a pre-mitigation profile or an extern file may carry parts
+    // that end or start inside a token run. Refuse the *match* when any
+    // part/value boundary would split (`risk::splits_token`) — the template
+    // stays usable wherever its boundaries are clean, and refused lines
+    // travel verbatim instead of recomposing a carved token.
+    let mut left = first.as_str();
+    for (value, right) in values.iter().zip(rest_parts) {
+        if !value.is_empty()
+            && (crate::risk::splits_token(left, value) || crate::risk::splits_token(value, right))
+        {
+            return None;
+        }
+        left = right.as_str();
+    }
     Some(values)
 }
 
@@ -411,7 +472,14 @@ pub(crate) fn learn_templates(text: &str) -> Vec<(Vec<String>, usize)> {
                         .iter()
                         .map(|s| s.segs.get(idx).copied().unwrap_or_default())
                         .collect();
+                    // Same snap as `choose_template` (Codex review on
+                    // PR #10): a learned profile must never carry parts
+                    // that cut inside a token — `glob_match` would refuse
+                    // every such match anyway, making the entry dead
+                    // weight at best and a recomposition hazard through
+                    // pre-fix decoders at worst.
                     let (pre, suf) = common_affixes(&words);
+                    let (pre, suf) = snap_affixes(&words, pre, suf);
                     let word = words.first().copied().unwrap_or_default();
                     let end = word.len().saturating_sub(suf);
                     if let Some(part) = refined.last_mut() {

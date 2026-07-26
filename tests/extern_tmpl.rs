@@ -46,11 +46,14 @@ fn template_legend_generates_parses_and_pins_bytes() -> Result<()> {
         !legend.entries.is_empty(),
         "must freeze at least one template"
     );
+    // Since PR #10 the learner snaps affixes to token boundaries, so the
+    // `task{i}` family freezes as a whole-word slot (`task` may not be
+    // carved off its digits — the G5 recomposition hazard).
     anyhow::ensure!(
         legend.entries.iter().any(|(_, parts)| parts
             .first()
-            .is_some_and(|p| p == "worker thread pool delta task")),
-        "the learned template must survive the file roundtrip sub-word refined: {:?}",
+            .is_some_and(|p| p == "worker thread pool delta ")),
+        "the learned template must survive the file roundtrip: {:?}",
         legend.entries,
     );
     let again = TemplateLegend::parse(&text)?;
@@ -266,16 +269,20 @@ fn extern_rows_survive_crlf() -> Result<()> {
 
 #[test]
 fn subword_extern_template_leaves_only_the_varying_bytes_in_rows() -> Result<()> {
-    // The file's parts start and end mid-word — exactly what the seg-based
-    // matcher could never represent. Rows must carry just the digits.
+    // The file's parts start and end mid-*word* (inside one whitespace
+    // word) — exactly what the seg-based matcher could never represent —
+    // while every cut stays on a token-safe edge (`-`, `\`): since PR #10
+    // the matcher refuses cuts inside identifier/number runs, so mid-word
+    // no longer may mean mid-token (the old `Proj¿` fixture recomposed
+    // `Proj` + `3`, the G5 slip shape). Rows must carry just the digits.
     let meter = Bpe::o200k()?;
     let text = "# qodec extern templates v1 slot=quest\n\
-                码=  Restoring C:\\build\\src\\Proj¿\\obj\\project.assets.json (in ¿ ms)\n";
+                码=  Restoring C:\\build\\src\\proj-¿\\obj\\project.assets.json (in ¿ ms)\n";
     let legend = TemplateLegend::parse(text)?;
     let mut payload = String::new();
     for i in 0..14 {
         payload.push_str(&format!(
-            "  Restoring C:\\build\\src\\Proj{i}\\obj\\project.assets.json (in {} ms)\n",
+            "  Restoring C:\\build\\src\\proj-{i}\\obj\\project.assets.json (in {} ms)\n",
             40 + i * 3,
         ));
     }

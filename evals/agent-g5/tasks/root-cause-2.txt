@@ -1,0 +1,213 @@
+   Compiling qodec-lab v0.2.0 (/work/qodec-lab)
+warning: unused import `crate::auth::frame`
+warning: unused import `crate::cache::reader`
+warning: unused import `crate::cache::reader`
+warning: unused import `crate::cache::reader`
+warning: unused import `crate::cache::reader`
+warning: unused import `crate::fs::handshake`
+warning: unused import `crate::cache::reader`
+warning: unused import `crate::auth::frame`
+warning: unused import `crate::auth::frame`
+warning: unused import `crate::auth::frame`
+warning: unused import `crate::cache::reader`
+warning: unused import `crate::auth::frame`
+warning: unused import `crate::cache::reader`
+warning: unused import `crate::fs::handshake`
+warning: unused import `crate::fs::handshake`
+warning: unused import `crate::auth::frame`
+warning: unused import `crate::auth::frame`
+warning: unused import `crate::fs::handshake`
+warning: unused import `crate::cache::reader`
+warning: unused import `crate::auth::frame`
+warning: unused import `crate::auth::frame`
+warning: unused import `crate::auth::frame`
+warning: unused import `crate::auth::frame`
+warning: unused import `crate::fs::handshake`
+warning: unused import `crate::auth::frame`
+warning: unused import `crate::fs::handshake`
+warning: unused import `crate::auth::frame`
+warning: unused import `crate::cache::reader`
+warning: unused import `crate::cache::reader`
+warning: unused import `crate::fs::handshake`
+warning: unused import `crate::auth::frame`
+warning: unused import `crate::cache::reader`
+warning: unused import `crate::auth::frame`
+warning: unused import `crate::cache::reader`
+warning: unused import `crate::fs::handshake`
+warning: unused import `crate::fs::handshake`
+warning: unused import `crate::auth::frame`
+warning: unused import `crate::cache::reader`
+warning: unused import `crate::auth::frame`
+warning: unused import `crate::fs::handshake`
+warning: unused import `crate::cache::reader`
+warning: unused import `crate::fs::handshake`
+warning: unused import `crate::cache::reader`
+warning: unused import `crate::auth::frame`
+warning: unused import `crate::auth::frame`
+warning: unused import `crate::cache::reader`
+warning: unused import `crate::cache::reader`
+warning: unused import `crate::cache::reader`
+warning: unused import `crate::cache::reader`
+warning: unused import `crate::fs::handshake`
+warning: unused import `crate::cache::reader`
+warning: unused import `crate::fs::handshake`
+warning: unused import `crate::cache::reader`
+warning: unused import `crate::fs::handshake`
+warning: unused import `crate::fs::handshake`
+warning: unused import `crate::cache::reader`
+warning: unused import `crate::cache::reader`
+warning: unused import `crate::cache::reader`
+warning: unused import `crate::cache::reader`
+warning: unused import `crate::auth::frame`
+warning: unused import `crate::cache::reader`
+warning: unused import `crate::auth::frame`
+warning: unused import `crate::cache::reader`
+warning: unused import `crate::cache::reader`
+warning: unused import `crate::cache::reader`
+warning: unused import `crate::cache::reader`
+warning: unused import `crate::cache::reader`
+warning: unused import `crate::cache::reader`
+warning: unused import `crate::cache::reader`
+warning: unused import `crate::fs::handshake`
+warning: unused import `crate::fs::handshake`
+warning: unused import `crate::auth::frame`
+warning: unused import `crate::fs::handshake`
+warning: unused import `crate::fs::handshake`
+warning: unused import `crate::cache::reader`
+warning: unused import `crate::fs::handshake`
+warning: unused import `crate::cache::reader`
+warning: unused import `crate::fs::handshake`
+warning: unused import `crate::auth::frame`
+warning: unused import `crate::cache::reader`
+warning: unused import `crate::auth::frame`
+warning: unused import `crate::fs::handshake`
+warning: unused import `crate::cache::reader`
+warning: unused import `crate::cache::reader`
+warning: unused import `crate::cache::reader`
+warning: unused import `crate::fs::handshake`
+warning: unused import `crate::auth::frame`
+warning: unused import `crate::auth::frame`
+warning: unused import `crate::fs::handshake`
+warning: unused import `crate::fs::handshake`
+warning: unused import `crate::cache::reader`
+warning: unused import `crate::auth::frame`
+warning: unused import `crate::fs::handshake`
+warning: unused import `crate::fs::handshake`
+warning: unused import `crate::auth::frame`
+warning: unused import `crate::auth::frame`
+warning: unused import `crate::cache::reader`
+warning: unused import `crate::cache::reader`
+warning: unused import `crate::fs::handshake`
+warning: unused import `crate::auth::frame`
+warning: unused import `crate::fs::handshake`
+warning: unused import `crate::cache::reader`
+warning: unused import `crate::fs::handshake`
+warning: unused import `crate::cache::reader`
+warning: unused import `crate::auth::frame`
+warning: unused import `crate::auth::frame`
+warning: unused import `crate::cache::reader`
+warning: unused import `crate::auth::frame`
+warning: unused import `crate::auth::frame`
+warning: unused import `crate::auth::frame`
+warning: unused import `crate::fs::handshake`
+warning: unused import `crate::cache::reader`
+warning: unused import `crate::cache::reader`
+warning: unused import `crate::cache::reader`
+warning: unused import `crate::auth::frame`
+warning: unused import `crate::fs::handshake`
+warning: unused import `crate::fs::handshake`
+warning: unused import `crate::fs::handshake`
+warning: unused import `crate::auth::frame`
+warning: unused import `crate::fs::handshake`
+warning: unused import `crate::auth::frame`
+warning: unused import `crate::auth::frame`
+warning: unused import `crate::fs::handshake`
+warning: unused import `crate::auth::frame`
+warning: unused import `crate::fs::handshake`
+warning: unused import `crate::auth::frame`
+warning: unused import `crate::cache::reader`
+warning: unused import `crate::auth::frame`
+warning: unused import `crate::cache::reader`
+warning: unused import `crate::fs::handshake`
+warning: unused import `crate::cache::reader`
+warning: unused import `crate::cache::reader`
+warning: unused import `crate::fs::handshake`
+warning: unused import `crate::auth::frame`
+warning: unused import `crate::fs::handshake`
+warning: unused import `crate::cache::reader`
+warning: unused import `crate::auth::frame`
+error[E0308]: mismatched types
+ --> src/sched/handshake.rs:113:17
+  = note: expected `u64`, found `Option<u64>`
+error[E0599]: no method named `commit` found — aborted expansion
+ --> src/wal/writer.rs:67:5
+  = note: this error is a consequence of the previous error
+error[E0599]: no method named `commit` found — aborted expansion
+ --> src/net/frame.rs:53:5
+  = note: this error is a consequence of the previous error
+error[E0599]: no method named `commit` found — aborted expansion
+ --> src/codec/handshake.rs:70:5
+  = note: this error is a consequence of the previous error
+error[E0599]: no method named `commit` found — aborted expansion
+ --> src/auth/reader.rs:78:5
+  = note: this error is a consequence of the previous error
+error[E0599]: no method named `commit` found — aborted expansion
+ --> src/auth/handshake.rs:31:5
+  = note: this error is a consequence of the previous error
+error[E0599]: no method named `commit` found — aborted expansion
+ --> src/auth/handshake.rs:54:5
+  = note: this error is a consequence of the previous error
+error[E0599]: no method named `commit` found — aborted expansion
+ --> src/sched/reader.rs:43:5
+  = note: this error is a consequence of the previous error
+error[E0599]: no method named `commit` found — aborted expansion
+ --> src/cache/session.rs:86:5
+  = note: this error is a consequence of the previous error
+error[E0599]: no method named `commit` found — aborted expansion
+ --> src/sched/session.rs:47:5
+  = note: this error is a consequence of the previous error
+error[E0599]: no method named `commit` found — aborted expansion
+ --> src/index/session.rs:77:5
+  = note: this error is a consequence of the previous error
+warning: unused import `crate::cache::reader`
+warning: unused import `crate::cache::reader`
+warning: unused import `crate::auth::frame`
+warning: unused import `crate::cache::reader`
+warning: unused import `crate::fs::handshake`
+warning: unused import `crate::fs::handshake`
+warning: unused import `crate::auth::frame`
+warning: unused import `crate::auth::frame`
+warning: unused import `crate::fs::handshake`
+warning: unused import `crate::fs::handshake`
+warning: unused import `crate::cache::reader`
+warning: unused import `crate::auth::frame`
+warning: unused import `crate::fs::handshake`
+warning: unused import `crate::fs::handshake`
+warning: unused import `crate::auth::frame`
+warning: unused import `crate::cache::reader`
+warning: unused import `crate::fs::handshake`
+warning: unused import `crate::auth::frame`
+warning: unused import `crate::auth::frame`
+warning: unused import `crate::fs::handshake`
+warning: unused import `crate::cache::reader`
+warning: unused import `crate::auth::frame`
+warning: unused import `crate::auth::frame`
+warning: unused import `crate::cache::reader`
+warning: unused import `crate::fs::handshake`
+warning: unused import `crate::fs::handshake`
+warning: unused import `crate::auth::frame`
+warning: unused import `crate::cache::reader`
+warning: unused import `crate::auth::frame`
+warning: unused import `crate::auth::frame`
+warning: unused import `crate::cache::reader`
+warning: unused import `crate::fs::handshake`
+warning: unused import `crate::cache::reader`
+warning: unused import `crate::fs::handshake`
+warning: unused import `crate::fs::handshake`
+warning: unused import `crate::cache::reader`
+warning: unused import `crate::cache::reader`
+warning: unused import `crate::fs::handshake`
+warning: unused import `crate::fs::handshake`
+warning: unused import `crate::cache::reader`
+warning: unused import `crate::auth::frame`
+error: could not compile `qodec-lab` (lib) due to previous errors

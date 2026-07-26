@@ -36,8 +36,8 @@ to commit (11 MB), so its identity is pinned instead — regeneration must
 reproduce these exact bytes:
 
 ```
-dataset-corpus.json  sha256  4e632988162b959e36e70d304a2240af051daed3a6aa857a90bdf5c4335023d9
-dataset-synth.json   sha256  6173177e156577cdebd69e21f20d6e908d0955fb17351202597afd9e53201775
+dataset-corpus.json  sha256  0b1407c36c57b510f021fe7849afd7f4a9ebfc89d1f25bb6cdc5e20eca9ad289
+dataset-synth.json   sha256  01f8cfd8ff91d15018dafc8c53d26d751ae4a00f37faa42234c733036a9b16c9
 ```
 
 `model.json` (committed, 4 KB) is the fitted v2 model;
@@ -69,20 +69,25 @@ dataset-synth.json   sha256  6173177e156577cdebd69e21f20d6e908d0955fb17351202597
    start's extensions, O(1) per edge. Holdout Spearman: build-log 0.918,
    rg-output 0.994 (refit after the dup-boundary feature fix from review).
 
-## Results (v2)
+## Results (v2, re-measured after the G5 boundary-snap mitigation)
+
+Ground truth shifted when `tmpl` learned to keep slot cuts on token
+boundaries (the mitigation for the G5 panel's recomposition slips);
+datasets were re-harvested and the model refit — holdout Spearman
+build-log 0.943, rg-output 0.994:
 
 | fixture | raw tok | measured all-span | predicted | geometric |
 |---|---:|---:|---:|---:|
-| offgrid-250 (250 lines) | 4599 | **2013** · 349 s | **2013** · **0.071 s** | 2119 · 6.8 s |
-| offgrid-900 (864 lines) | 16015 | refuses (>300) | 7613 · **0.23 s** | **7445** · 23.7 s |
-| corpus ×6 | — | = predicted | token-identical, 3–9 ms | = predicted |
+| offgrid-250 (250 lines) | 4599 | **2092** · 487 s | **2092** · **0.092 s** | 2198 · 10.4 s |
+| offgrid-900 (864 lines) | 16015 | refuses (>300) | 7897 · **0.37 s** | **7760** · 37.7 s |
+| corpus ×6 | — | = predicted | token-identical, 4–15 ms | = predicted |
 
-Honest reading: after the review-driven dup-boundary feature fix, predicted
-routing reproduces the measured truth **token-for-token** where truth is
-computable (4900× faster, beating the geometric router there), and lands
-within **2.3%** of geometric at 102× less search time where truth is not.
-On the 6 real corpus files all three agree token-for-token. The measured
-meter remains the only authority — this model never accepts anything.
+Honest reading: predicted routing reproduces the measured truth
+**token-for-token** where truth is computable (5300× faster, beating the
+geometric router there), and lands within **1.8%** of geometric at 102×
+less search time where truth is not. On the 6 real corpus files all three
+agree token-for-token. The measured meter remains the only authority —
+this model never accepts anything.
 
 ## Drift tracking
 

@@ -160,6 +160,9 @@ pub fn encode(text: &str, meter: &dyn TokenMeter, opts: &MineOptions) -> String 
             if opts.guard_lexical && is_guarded_lexical(&phrase) {
                 continue; // guarded: never alias a guarded lexical span
             }
+            if !boundary_safe(&current, &phrase) {
+                continue; // an alias edge would split an identifier/number run
+            }
             let replaced = current.replace(&phrase, &alias);
             let legend_line = format!("{alias}={phrase}\n");
             let gain =
@@ -327,6 +330,27 @@ pub fn train_pass(
         observed += 1;
     }
     observed
+}
+
+/// True when every occurrence of `phrase` in `text` sits on token-safe
+/// edges (`risk::splits_token`): an alias must never begin or end inside an
+/// identifier or number run, or against its `:`/`::` glue. The narrow,
+/// default-on sibling of the blunt eval-only `guard_lexical`: the guard
+/// refuses to alias identifiers at all; this rule only refuses to *cut*
+/// them — `codec::pool_28` may vanish whole into one alias, but `::pool_`
+/// may not be carved out of it (G5 panel: a reader recomposing
+/// `codec` + `::pool_` + `28` dropped the `::`). Alias glyphs already in
+/// `text` from earlier rounds are non-ASCII, so boundaries next to them
+/// are safe by construction.
+fn boundary_safe(text: &str, phrase: &str) -> bool {
+    for (pos, _) in text.match_indices(phrase) {
+        let before = text.get(..pos).unwrap_or_default();
+        let after = text.get(pos + phrase.len()..).unwrap_or_default();
+        if crate::risk::splits_token(before, phrase) || crate::risk::splits_token(phrase, after) {
+            return false;
+        }
+    }
+    true
 }
 
 /// Same-line context around the first occurrence of `phrase` — the window

@@ -1,0 +1,137 @@
+# G5 — work-task utility of the compressed artifact
+
+The program's central unclosed gate, at the level the milestone left it:
+token savings are proven at the wire/tokenizer level (stage B, full-request
+G2), reader *recall* is measured (reader-cli panels v1-v5, `qodec risk`
+hazards) — but nobody had shown that a reader can do an agent's *work* from
+the squeeze artifact instead of raw. This stand measures exactly that gap.
+
+## Design
+
+Four task families (`gen_tasks.py`, deterministic, ground truth known by
+construction — no LLM judge anywhere), three instances each:
+
+| family | payload | the work | answer |
+|---|---|---|---|
+| root-cause | failed build log: one primary error among ~150 repeated warnings and 8-12 cascade errors marked "consequence of the previous error" | separate cause from consequence | `path:line` |
+| cross-ref | matcher output over 40 files, each carrying one marker kind except one carrying both | join two match sets | file path |
+| state | unified diff over 5 files, tuning-noise hunks, a stale-value distractor in a comment | apply the diff mentally, report the post-state | constant value |
+| decision | 3-attempt retry harness over ~30 tests, half flaky on attempt 1 | aggregate across attempts: flaky vs genuinely failing | test name |
+
+Families 1-2 lean on the codecs' strengths (fold/tmpl noise). Families 3-4
+sit deliberately in `qodec risk`'s flagged territory — aggregation over
+repeated structure is where counting panels showed encoded readers failing.
+Payload sizes are tuned so the notation brief amortizes: wire savings
+(o200k, cold) run 60.5% / 58.2% / 13.0% / 5.4% per family instance 1.
+
+Answers are multi-character distinctive strings (paths, `path:line`,
+values like `262144`, zero-padded test names) so `qodec ab grade`'s
+substring matching cannot false-positive.
+
+## Runner
+
+`run.py` — the reader-cli runner adapted to task fixtures: `qodec ab emit`
+builds paired prompts, the closed-world `claude -p` configuration from
+PhysShell/007 answers them (no tools, no MCP, no ambient settings,
+`--max-budget-usd 0.50`), `qodec ab grade` scores, envelopes are recorded
+verbatim, and the pooled raw-vs-codec comparison gets a two-sided Fisher
+exact test before any difference is claimed.
+
+```bash
+cargo build --release
+python3 evals/agent-g5/gen_tasks.py
+python3 evals/agent-g5/run.py --name g5-v1 --repeats 2
+```
+
+## Honest scope
+
+* Closed-world readers over emitted prompts measure the artifact **as
+  context** — qodec's actual use. This is NOT a tool-loop agent harness;
+  interop L3 stays open regardless of this panel's outcome.
+* The CLI wraps readers in Claude Code's system prompt — identical across
+  arms, so paired deltas isolate the payload representation; absolute
+  scores are "reader inside Claude Code", not bare-model numbers.
+* No temperature/seed control in `claude -p`; repeats + paired design +
+  verbatim envelopes.
+* The codex backend from reader-cli remains implemented but
+  environment-blocked here (no `codex` binary in this container) — a second
+  reader family is still the recorded next step, not a claim.
+
+Runs live under `runs/<name>/` with `record.json` (hashes, envelopes,
+per-cell grades) and `summary.md`.
+
+**Completion criterion**: the runner writes `record.json` and `summary.md`
+only after the last cell finishes — a run directory without `record.json`
+is an in-progress or aborted run and must not be read as evidence (cell
+files land incrementally and can be swept into interim commits).
+
+## Result — `g5-sonnet-v1` (2026-07-26, claude 2.1.220, repeats 2)
+
+| pooled | score | note |
+|---|---|---|
+| raw | 24/24 | |
+| squeeze | 21/23 | Fisher vs raw p=0.234 — no significant difference |
+
+One squeeze cell (cross-ref-2 rep 1) timed out at 300 s and is recorded as
+a failed cell, not a wrong answer; its repeat passed. Cold wire savings
+across the 12 tasks: 22 481 → 12 500 prompt tokens (**−44.4%**).
+
+The two squeeze misses (each recovered on the repeat) are the finding:
+
+* `decision-3`: answered `codecpool_28` for `codec::pool_28` — the
+  aggregation was **correct** (right test out of ~30 across 3 attempts);
+  the `::` separator was lost reconstructing the aliased name.
+* `state-3`: answered `819200` for `8192000` — right hunk, right constant,
+  a digit dropped reproducing the value.
+
+Both are surface-reconstruction slips at alias/legend boundaries — the
+`boundary-recomposed` class `qodec risk` flags — not task-logic failures.
+Read precisely: on this battery, work-task utility survives compression
+(p=0.234, n small — "no significant difference", not "proven equal"), and
+the residual error mode is the one the risk metric already names, which
+means mitigation is representational (safer aliasing of `::`-joined
+identifiers and long numerals), not "compress less".
+
+What this does NOT show: tool-loop agent behavior (L3), other reader
+families (codex backend still environment-blocked), non-synthetic payloads.
+Those remain the recorded next steps.
+
+## Mitigation (landed after this run)
+
+`risk::splits_token` + the miners now keep alias edges and template/slot
+cuts on whole-token boundaries: no cut inside a `[A-Za-z0-9_]` run, no cut
+against `::` glue (`mine::boundary_safe`, `tmpl::snap_affixes`). Scoped to
+the evidence: a single `:` stays a legal cut — the counting panels measured
+readers holding on `"key":`/`path:`-shaped aliases, and a draft rule that
+refused those cuts fragmented previously uniform representations into the
+worse `split` risk class (caught by `deep_same_predicate_is_not_split` and
+the cost-model label canary during development). Cost on this battery:
+wire savings 44.4% → 43.8%. Pinned by `tests/boundary.rs`; whether the
+slips actually disappear needs a fresh panel, not a claim.
+
+### Validation — `g5-sonnet-v2-mitigated` (decision + state, the two
+### families that slipped)
+
+* **Valid calls**: 24/24 (12 raw, 12 squeeze; no timeouts, no reader
+  errors).
+* **Prior slip types**: 0 of either. The two previously-failing cells are
+  now exact on both repeats — decision-3 answers `codec::pool_28` with the
+  `::` intact, state-3 answers `8192000` with all digits.
+* **New error classes**: none — all 24 answers are exact matches.
+* **Per family**: decision raw 6/6, squeeze 6/6; state raw 6/6,
+  squeeze 6/6.
+* **Against `g5-sonnet-v1`**: same families were squeeze 10/12 with the
+  two recomposition slips; now 12/12.
+* **Cost surfaced by the fix**: keeping identifiers whole makes the
+  decision payloads nearly incompressible — encoded prompts now cost
+  slightly *more* than raw there (1010/1034/969 vs 1000/1006/922 tokens;
+  the notation brief no longer amortizes at this payload size). State
+  keeps its ~13% saving. Payload-level arbitration still guarantees the
+  artifact never exceeds raw; the brief is a per-prompt overhead that
+  amortizes with payload size and prefix caching.
+
+**Evidence, not proof**: the original slips were stochastic (each hit 1
+of 2 repeats), so 12 clean squeeze calls bound the residual rate — they
+do not prove impossibility. Whether a larger repeat is worth the
+subscription budget is a separate decision now that the mitigation slice
+is closed.
