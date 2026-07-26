@@ -161,13 +161,30 @@ def gen_decision_join(dose: int, idx: int, rng: random.Random) -> None:
         f"{rng.choice(MODS)}::{rng.choice(FILES)}_{k:02d}" for k in range(dose)
     ]
     culprit = rng.choice(suites)
-    fails: dict[str, set[int]] = {}
-    for s in suites:
-        if s == culprit:
-            fails[s] = set(range(1, ATTEMPTS + 1))
-            continue
-        how_many = rng.choices([0, 1, 2], weights=[0.25, 0.35, 0.40])[0]
-        fails[s] = set(rng.sample(range(1, ATTEMPTS + 1), how_many))
+    def draw() -> dict[str, set[int]]:
+        out: dict[str, set[int]] = {}
+        for s in suites:
+            if s == culprit:
+                out[s] = set(range(1, ATTEMPTS + 1))
+                continue
+            how_many = rng.choices([0, 1, 2], weights=[0.25, 0.35, 0.40])[0]
+            out[s] = set(rng.sample(range(1, ATTEMPTS + 1), how_many))
+        return out
+
+    # Bounding each non-culprit at two failures is NOT enough on its own:
+    # if some attempt happens to fail for the culprit alone, that block
+    # answers the question by itself and the intersection is never
+    # exercised — the very degeneracy this variant exists to remove.
+    # Sampling independently per suite makes it likely at small doses, and
+    # it did occur (`decj-d06-1`, Codex review on PR #13). Require every
+    # attempt to fail for at least one non-culprit, redrawing until it
+    # holds; a draw that already satisfied it is left untouched.
+    fails = draw()
+    while any(
+        not any(a in fails[s] for s in suites if s != culprit)
+        for a in range(1, ATTEMPTS + 1)
+    ):
+        fails = draw()
     lines = [f"running retry harness (max {ATTEMPTS} attempts per test)\n"]
     for attempt in range(1, ATTEMPTS + 1):
         lines.append(f"--- attempt {attempt} ---\n")

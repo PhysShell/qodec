@@ -127,9 +127,10 @@ pub struct RiskReport {
 /// `g5-sonnet-v1`.
 ///
 /// Cross-family replication has since been attempted, and the constant
-/// must be read in its light (`density-decision-join-codex-v1`, a second
+/// must be read in its light (`density-decision-join-codex-v2`, a second
 /// join family — intersect three retry blocks — at the same *measured*
-/// legend doses):
+/// legend doses, with every attempt required to fail for at least one
+/// non-culprit so no single block can answer it):
 ///
 /// * Across two independently generated join-task families, all eight
 ///   discordant paired cells favored raw over squeeze — evidence for a
@@ -141,15 +142,21 @@ pub struct RiskReport {
 ///   underpowered: the second family alone gives 13/15 vs 15/15, McNemar
 ///   p=0.5, and the 6/15 vs 2/15 difference between families is not
 ///   statistically established (Fisher p=0.21).
-/// * **The onset does not transfer.** Cross-ref failed from 15 entries up;
-///   the second join family was clean at 15 and 22 and failed only at 32
-///   and 44. 15 remains an info-level conservative warning anchor because
+/// * **The onset does not transfer.** Cross-ref failed at every dose from
+///   15 entries up; the second join family was clean at 15, 22 *and* 44,
+///   with both its misses at 32 — no monotone dose response at all.
+///   15 remains an info-level conservative warning anchor because
 ///   it is the earliest tested onset observed in either family. It is not
 ///   a universal breakpoint and does not drive encode-path behavior.
-/// * The hazard is join-specific, not "the artifact is unreadable":
-///   `density-decision-codex-v1` runs a lookup-shaped task at the same
-///   doses and *higher* alias density (15.2-26.7 vs 11.8-13.8 per 100
-///   chars) and stays at 14/15, p=1.
+/// * **Alias density does not order the outcomes**, so it is not the
+///   confound. Measured over all 45 fixtures, cross-ref fails from legend
+///   15 up at 11.1-14.7 alias occurrences per 100 body chars, while both
+///   decision-family arms *pass* those same legend loads at 14.9-19.2:
+///   the failing arm is the least dense one at every dose where it fails.
+///   The lookup control additionally holds 14/15 (p=1) across 7.7-26.7.
+///   "The artifact is unreadable at this density" is therefore closed by
+///   measurement. (An earlier draft quoted a subset range as if it
+///   characterized the arms — Codex review on PR #13.)
 ///
 /// Family-dependent hazard, not an oracle: at or above this many entries,
 /// reasoning that must *join across* the legend has been observed to
@@ -406,9 +413,9 @@ pub fn render(r: &RiskReport) -> String {
     if r.legend_load() {
         out.push_str(&format!(
             "legend-load: {} entries >= {} — cross-entry join/aggregation \
-             degraded from this load in the cross-ref family, and only from \
-             32 in a second join family (density-codex-v1, \
-             density-decision-join-codex-v1); earliest observed onset, \
+             degraded from this load in the cross-ref family, while a second \
+             join family missed only at 32 (density-codex-v1, \
+             density-decision-join-codex-v2); earliest observed onset, \
              family-dependent, not an oracle\n",
             r.legend_entries, LEGEND_LOAD_STEP
         ));
