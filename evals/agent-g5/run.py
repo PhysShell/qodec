@@ -379,18 +379,10 @@ def main() -> int:
         for a, cs in by_arm.items()
     }
     collapsed = {}
-    for a, cs in by_arm.items():
-        per_task = {}
-        for c in cs:
-            per_task.setdefault(c["task"], []).append(c["correct"] == c["total"])
-        collapsed[a] = (
-            sum(1 for oks in per_task.values() if all(oks)),
-            len(per_task),
-        )
     per_task_pass = {}
     per_task_complete = {}
     for a, cs in by_arm.items():
-        outcomes = {}
+        outcomes: dict[str, list[bool]] = {}
         for c in cs:
             outcomes.setdefault(c["task"], []).append(c["correct"] == c["total"])
         per_task_pass[a] = {t: all(oks) for t, oks in outcomes.items()}
@@ -400,6 +392,18 @@ def main() -> int:
         # review on PR #12), so incomplete tasks are excluded from the
         # inferential test (they stay visible in the failed-cells line).
         per_task_complete[a] = {t: len(oks) == args.repeats for t, oks in outcomes.items()}
+        # "All repeats correct" is only claimable on full evidence: a task
+        # with an ungraded repeat can't earn the credit (CodeRabbit review
+        # on PR #12) — it counts as observed but not passed here too, not
+        # just in the McNemar gate above.
+        collapsed[a] = (
+            sum(
+                1
+                for t, oks in outcomes.items()
+                if all(oks) and per_task_complete[a][t]
+            ),
+            len(outcomes),
+        )
     for a in by_arm:
         hit, n = pooled[a]
         thit, tn = collapsed[a]
