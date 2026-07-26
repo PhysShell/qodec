@@ -1,0 +1,23 @@
+running retry harness (max 3 attempts per test)
+--- attempt 1 ---
+test sched::mount_00 ... ok
+test auth::handshake_01 ... ok
+test vm::cursor_02 ... ok
+test ipc::session_03 ... FAILED
+test auth::frame_04 ... FAILED
+test vm::mount_05 ... FAILED
+--- attempt 2 ---
+test sched::mount_00 ... ok
+test auth::handshake_01 ... ok
+test vm::cursor_02 ... ok
+test ipc::session_03 ... ok
+test auth::frame_04 ... ok
+test vm::mount_05 ... FAILED
+--- attempt 3 ---
+test sched::mount_00 ... ok
+test auth::handshake_01 ... ok
+test vm::cursor_02 ... ok
+test ipc::session_03 ... ok
+test auth::frame_04 ... ok
+test vm::mount_05 ... FAILED
+retry harness done
