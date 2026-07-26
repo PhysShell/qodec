@@ -1,0 +1,1 @@
+[{"id": "t1", "question": "After applying this diff, what is the value of `WAL_SEGMENT_BYTES`? Reply with the number only.", "accept": ["8192000"]}]

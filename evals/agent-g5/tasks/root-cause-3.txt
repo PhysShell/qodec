@@ -1,0 +1,185 @@
+   Compiling qodec-lab v0.3.0 (/work/qodec-lab)
+warning: unused import `crate::fs::writer`
+warning: unused import `crate::fs::writer`
+warning: unused import `crate::index::frame`
+warning: unused import `crate::fs::writer`
+warning: unused import `crate::fs::writer`
+warning: unused import `crate::fs::writer`
+warning: unused import `crate::fs::writer`
+warning: unused import `crate::index::frame`
+warning: unused import `crate::fs::writer`
+warning: unused import `crate::fs::writer`
+warning: unused import `crate::fs::writer`
+warning: unused import `crate::fs::writer`
+warning: unused import `crate::fs::writer`
+warning: unused import `crate::fs::writer`
+warning: unused import `crate::fs::writer`
+warning: unused import `crate::index::frame`
+warning: unused import `crate::fs::writer`
+warning: unused import `crate::index::frame`
+warning: unused import `crate::fs::writer`
+warning: unused import `crate::fs::writer`
+warning: unused import `crate::fs::writer`
+warning: unused import `crate::index::frame`
+warning: unused import `crate::fs::writer`
+warning: unused import `crate::index::frame`
+warning: unused import `crate::fs::writer`
+warning: unused import `crate::fs::writer`
+warning: unused import `crate::fs::writer`
+warning: unused import `crate::index::frame`
+warning: unused import `crate::index::frame`
+warning: unused import `crate::fs::writer`
+warning: unused import `crate::fs::writer`
+warning: unused import `crate::index::frame`
+warning: unused import `crate::fs::writer`
+warning: unused import `crate::index::frame`
+warning: unused import `crate::fs::writer`
+warning: unused import `crate::fs::writer`
+warning: unused import `crate::index::frame`
+warning: unused import `crate::fs::writer`
+warning: unused import `crate::fs::writer`
+warning: unused import `crate::index::frame`
+warning: unused import `crate::fs::writer`
+warning: unused import `crate::fs::writer`
+warning: unused import `crate::fs::writer`
+warning: unused import `crate::index::frame`
+warning: unused import `crate::index::frame`
+warning: unused import `crate::fs::writer`
+warning: unused import `crate::fs::writer`
+warning: unused import `crate::index::frame`
+warning: unused import `crate::fs::writer`
+warning: unused import `crate::index::frame`
+warning: unused import `crate::index::frame`
+warning: unused import `crate::fs::writer`
+warning: unused import `crate::fs::writer`
+warning: unused import `crate::fs::writer`
+warning: unused import `crate::fs::writer`
+warning: unused import `crate::index::frame`
+warning: unused import `crate::index::frame`
+warning: unused import `crate::fs::writer`
+warning: unused import `crate::index::frame`
+warning: unused import `crate::fs::writer`
+warning: unused import `crate::fs::writer`
+warning: unused import `crate::fs::writer`
+warning: unused import `crate::fs::writer`
+warning: unused import `crate::fs::writer`
+warning: unused import `crate::index::frame`
+warning: unused import `crate::fs::writer`
+warning: unused import `crate::fs::writer`
+warning: unused import `crate::fs::writer`
+warning: unused import `crate::fs::writer`
+warning: unused import `crate::index::frame`
+warning: unused import `crate::index::frame`
+warning: unused import `crate::index::frame`
+warning: unused import `crate::fs::writer`
+warning: unused import `crate::fs::writer`
+warning: unused import `crate::index::frame`
+warning: unused import `crate::fs::writer`
+warning: unused import `crate::fs::writer`
+warning: unused import `crate::fs::writer`
+warning: unused import `crate::index::frame`
+warning: unused import `crate::index::frame`
+warning: unused import `crate::fs::writer`
+warning: unused import `crate::fs::writer`
+warning: unused import `crate::fs::writer`
+warning: unused import `crate::fs::writer`
+warning: unused import `crate::fs::writer`
+warning: unused import `crate::fs::writer`
+warning: unused import `crate::fs::writer`
+warning: unused import `crate::fs::writer`
+warning: unused import `crate::fs::writer`
+warning: unused import `crate::fs::writer`
+warning: unused import `crate::fs::writer`
+warning: unused import `crate::index::frame`
+warning: unused import `crate::fs::writer`
+warning: unused import `crate::index::frame`
+warning: unused import `crate::fs::writer`
+warning: unused import `crate::fs::writer`
+warning: unused import `crate::fs::writer`
+warning: unused import `crate::fs::writer`
+warning: unused import `crate::index::frame`
+warning: unused import `crate::index::frame`
+warning: unused import `crate::fs::writer`
+warning: unused import `crate::fs::writer`
+warning: unused import `crate::index::frame`
+warning: unused import `crate::index::frame`
+warning: unused import `crate::fs::writer`
+warning: unused import `crate::fs::writer`
+warning: unused import `crate::fs::writer`
+warning: unused import `crate::fs::writer`
+warning: unused import `crate::fs::writer`
+warning: unused import `crate::fs::writer`
+warning: unused import `crate::fs::writer`
+error[E0308]: mismatched types
+ --> src/fs/pool.rs:224:17
+  = note: expected `u64`, found `Option<u64>`
+error[E0599]: no method named `commit` found — aborted expansion
+ --> src/index/cursor.rs:67:5
+  = note: this error is a consequence of the previous error
+error[E0599]: no method named `commit` found — aborted expansion
+ --> src/codec/frame.rs:62:5
+  = note: this error is a consequence of the previous error
+error[E0599]: no method named `commit` found — aborted expansion
+ --> src/sched/cursor.rs:63:5
+  = note: this error is a consequence of the previous error
+error[E0599]: no method named `commit` found — aborted expansion
+ --> src/cache/reader.rs:18:5
+  = note: this error is a consequence of the previous error
+error[E0599]: no method named `commit` found — aborted expansion
+ --> src/codec/pool.rs:50:5
+  = note: this error is a consequence of the previous error
+error[E0599]: no method named `commit` found — aborted expansion
+ --> src/net/session.rs:56:5
+  = note: this error is a consequence of the previous error
+error[E0599]: no method named `commit` found — aborted expansion
+ --> src/net/writer.rs:16:5
+  = note: this error is a consequence of the previous error
+error[E0599]: no method named `commit` found — aborted expansion
+ --> src/auth/cursor.rs:74:5
+  = note: this error is a consequence of the previous error
+warning: unused import `crate::index::frame`
+warning: unused import `crate::fs::writer`
+warning: unused import `crate::fs::writer`
+warning: unused import `crate::index::frame`
+warning: unused import `crate::fs::writer`
+warning: unused import `crate::fs::writer`
+warning: unused import `crate::index::frame`
+warning: unused import `crate::fs::writer`
+warning: unused import `crate::fs::writer`
+warning: unused import `crate::fs::writer`
+warning: unused import `crate::fs::writer`
+warning: unused import `crate::index::frame`
+warning: unused import `crate::fs::writer`
+warning: unused import `crate::index::frame`
+warning: unused import `crate::fs::writer`
+warning: unused import `crate::fs::writer`
+warning: unused import `crate::fs::writer`
+warning: unused import `crate::fs::writer`
+warning: unused import `crate::index::frame`
+warning: unused import `crate::fs::writer`
+warning: unused import `crate::index::frame`
+warning: unused import `crate::fs::writer`
+warning: unused import `crate::fs::writer`
+warning: unused import `crate::fs::writer`
+warning: unused import `crate::index::frame`
+warning: unused import `crate::fs::writer`
+warning: unused import `crate::index::frame`
+warning: unused import `crate::fs::writer`
+warning: unused import `crate::index::frame`
+warning: unused import `crate::fs::writer`
+warning: unused import `crate::index::frame`
+warning: unused import `crate::fs::writer`
+warning: unused import `crate::fs::writer`
+warning: unused import `crate::fs::writer`
+warning: unused import `crate::index::frame`
+warning: unused import `crate::fs::writer`
+warning: unused import `crate::index::frame`
+warning: unused import `crate::index::frame`
+warning: unused import `crate::index::frame`
+warning: unused import `crate::fs::writer`
+warning: unused import `crate::fs::writer`
+warning: unused import `crate::fs::writer`
+warning: unused import `crate::index::frame`
+warning: unused import `crate::fs::writer`
+warning: unused import `crate::index::frame`
+error: could not compile `qodec-lab` (lib) due to previous errors
