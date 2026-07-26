@@ -39,7 +39,7 @@ from pathlib import Path
 HERE = Path(__file__).resolve().parent
 ROOT = HERE.parent.parent
 QODEC = ROOT / "target" / "release" / "qodec"
-TASKS_DIR = HERE / "tasks"
+DEFAULT_TASKS_DIR = "tasks"
 
 # PhysShell/007 `invoke.rs::call_claude`'s proven closed-world flag set —
 # byte-identical to evals/reader-cli/run.py.
@@ -72,9 +72,9 @@ CODEX_FLAGS = [
 ]
 
 
-def discover_tasks() -> dict[str, tuple[Path, Path]]:
+def discover_tasks(tasks_dir: Path) -> dict[str, tuple[Path, Path]]:
     tasks = {}
-    for payload in sorted(TASKS_DIR.glob("*.txt")):
+    for payload in sorted(tasks_dir.glob("*.txt")):
         questions = payload.with_name(payload.stem + ".questions.json")
         if questions.exists():
             tasks[payload.stem] = (payload, questions)
@@ -233,13 +233,15 @@ def main() -> int:
     ap.add_argument("--model", default=None)
     ap.add_argument("--provider", default="claude", choices=["claude", "codex"],
                     help="reader CLI backend (codex: read-only sandbox, no usage envelope)")
+    ap.add_argument("--tasks-dir", default=DEFAULT_TASKS_DIR,
+                    help="fixture directory under evals/agent-g5/ (tasks | tasks-density)")
     ap.add_argument("--timeout", type=int, default=300)
     args = ap.parse_args()
 
     if not QODEC.exists():
         print("build first: cargo build --release", file=sys.stderr)
         return 1
-    tasks = discover_tasks()
+    tasks = discover_tasks(HERE / args.tasks_dir)
     if not tasks:
         print("no tasks — run gen_tasks.py first", file=sys.stderr)
         return 1
