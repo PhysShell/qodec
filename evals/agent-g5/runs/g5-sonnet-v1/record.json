@@ -1,0 +1,931 @@
+{
+  "date": "2026-07-26T08:25:45Z",
+  "provider": "claude",
+  "reader_version": "2.1.220 (Claude Code)",
+  "model_arg": null,
+  "closed_world_argv": [
+    "-p",
+    "--output-format",
+    "json",
+    "--input-format",
+    "text",
+    "--tools",
+    "",
+    "--strict-mcp-config",
+    "--setting-sources",
+    "",
+    "--permission-mode",
+    "default",
+    "--no-session-persistence",
+    "--max-budget-usd",
+    "0.50"
+  ],
+  "qodec_sha256": "1cbbec663a821bc295dd3b3ac505be2477317b547a12cf943f1f719ac567ed12",
+  "git_commit": "2d2d2d5eddb4f4f9fbf4dd6aeee2e69ce490045d",
+  "repeats": 2,
+  "inputs": {
+    "cross-ref-1": {
+      "payload_sha256": "245d87edc71d9a94ca5d02c0719059551c154276fe2ac7b5f869950f12b1b7b5",
+      "questions_sha256": "5e6dd754e913f829610f4a2fee522ba4f29ff884a4853673eb2063b7af2d8621"
+    },
+    "cross-ref-2": {
+      "payload_sha256": "28c94c88d5d382f10f8236714bebfa2c6e0d62174f5664d64d48ac1a645a493e",
+      "questions_sha256": "32082765d1acac16493280d59e46020044654167a163e018f27849d43b38adf1"
+    },
+    "cross-ref-3": {
+      "payload_sha256": "f25493c86fbd6b3036e373c0d703e114a664b5acc4eee31f89e9565a4fce9707",
+      "questions_sha256": "2990346db13467b39b7210a7a4b4571cfa193e4a9f11a82ccfbd724f17f8a999"
+    },
+    "decision-1": {
+      "payload_sha256": "d9deee2f6cfcdcb17c204554ea8eee9677fb1fed9f8f79e01ca0483977fa5667",
+      "questions_sha256": "1c26b8695a468811d636a97fc887cc3a8e1c6f0204908545d212a45a9f6ecaf1"
+    },
+    "decision-2": {
+      "payload_sha256": "f5fe52596c4f98e2e3d615f3408b23243bc94554ade40242b207e2d6706c708d",
+      "questions_sha256": "41eceb22d7e644fbbe3d9ba57e45bd9e7b9742bc611ebbd66f987b52bd3a6fd8"
+    },
+    "decision-3": {
+      "payload_sha256": "f8ad555e80eee92661e0de91d5cc7c071e9882d8b0648b1049b85bb7966c6c07",
+      "questions_sha256": "85bd36363902e31b4e7f089a1b8f2ab508b9d0e1d7e9799014e8982d2740611f"
+    },
+    "root-cause-1": {
+      "payload_sha256": "e2e1c813846400c27b8a1aa244e7c7633a48d196fc15ae9b741f051d4d4ac240",
+      "questions_sha256": "20c495131f1a8f912de266b6ba719f6fc9dbec60ef8b93383e77f61ff19ec22a"
+    },
+    "root-cause-2": {
+      "payload_sha256": "bb6cc0605db586bf73b1eabfd1b7b34c4a1d6de954beceee895aa94b3f81a449",
+      "questions_sha256": "a19159be6b3f083223b9d9fb4f7130422884e3523dc2822c51d89062a4207435"
+    },
+    "root-cause-3": {
+      "payload_sha256": "e6fff7351060af81e1b68cbc0b86d92416f87a97d830d88887b6114a5d0b14e2",
+      "questions_sha256": "29b14f3f2bf5cc4b19800cce54dd0a26b79962640a9ba5d5fd871373502a6ac6"
+    },
+    "state-1": {
+      "payload_sha256": "fac9ad4d07478632827ca799afaf001b5eda54e86e291a1f096c9a23e377e68c",
+      "questions_sha256": "0f4f8e8479399ee5324f1cf4be6ce19578d26e0dd93caa64ab061df69367d8e9"
+    },
+    "state-2": {
+      "payload_sha256": "ff021277bc41a22b3f5db104987c64f91206dc47b6a432d4c2d90c661bc43800",
+      "questions_sha256": "a69132decd9a5f87af2edfb4856195e002400cfaa0b79383b2211399eabaed47"
+    },
+    "state-3": {
+      "payload_sha256": "d905043434b9cbe71cc6893e0586aba4ed7ce182b77883f67211a9550aab0c1a",
+      "questions_sha256": "74b16e9c5972e0f789ebec73cf416f78b86b757ab876b0d5a7b1d99e44c51843"
+    }
+  },
+  "cells": [
+    {
+      "task": "cross-ref-1",
+      "arm": "raw",
+      "rep": 1,
+      "status": "ok",
+      "correct": 1,
+      "total": 1,
+      "prompt_tokens_o200k": 2744,
+      "envelope": {
+        "model": "claude-sonnet-5",
+        "input_tokens": 2,
+        "cache_creation": 4628,
+        "cache_read": 4794,
+        "output_tokens": 1305,
+        "cost_usd": 0.0528502
+      },
+      "grade_output": "PASS t1: src/fs/cursor.rs\nscore: 1/1\nprompt: 2744 tokens [o200k]   accuracy/1k tokens: 36.4\n"
+    },
+    {
+      "task": "cross-ref-1",
+      "arm": "raw",
+      "rep": 2,
+      "status": "ok",
+      "correct": 1,
+      "total": 1,
+      "prompt_tokens_o200k": 2744,
+      "envelope": {
+        "model": "claude-sonnet-5",
+        "input_tokens": 2,
+        "cache_creation": 0,
+        "cache_read": 9422,
+        "output_tokens": 1222,
+        "cost_usd": 0.025215599999999998
+      },
+      "grade_output": "PASS t1: src/fs/cursor.rs\nscore: 1/1\nprompt: 2744 tokens [o200k]   accuracy/1k tokens: 36.4\n"
+    },
+    {
+      "task": "cross-ref-1",
+      "arm": "squeeze",
+      "rep": 1,
+      "status": "ok",
+      "correct": 1,
+      "total": 1,
+      "prompt_tokens_o200k": 1147,
+      "envelope": {
+        "model": "claude-sonnet-5",
+        "input_tokens": 2,
+        "cache_creation": 1769,
+        "cache_read": 4794,
+        "output_tokens": 19043,
+        "cost_usd": 0.29968220000000007
+      },
+      "grade_output": "PASS t1: src/fs/cursor.rs\nscore: 1/1\nprompt: 1147 tokens [o200k]   accuracy/1k tokens: 87.2\n"
+    },
+    {
+      "task": "cross-ref-1",
+      "arm": "squeeze",
+      "rep": 2,
+      "status": "ok",
+      "correct": 1,
+      "total": 1,
+      "prompt_tokens_o200k": 1147,
+      "envelope": {
+        "model": "claude-sonnet-5",
+        "input_tokens": 2,
+        "cache_creation": 0,
+        "cache_read": 6563,
+        "output_tokens": 12653,
+        "cost_usd": 0.1937639
+      },
+      "grade_output": "PASS t1: src/fs/cursor.rs\nscore: 1/1\nprompt: 1147 tokens [o200k]   accuracy/1k tokens: 87.2\n"
+    },
+    {
+      "task": "cross-ref-2",
+      "arm": "raw",
+      "rep": 1,
+      "status": "ok",
+      "correct": 1,
+      "total": 1,
+      "prompt_tokens_o200k": 2836,
+      "envelope": {
+        "model": "claude-sonnet-5",
+        "input_tokens": 2,
+        "cache_creation": 4802,
+        "cache_read": 4794,
+        "output_tokens": 727,
+        "cost_usd": 0.045351199999999994
+      },
+      "grade_output": "PASS t1: src/net/session.rs\nscore: 1/1\nprompt: 2836 tokens [o200k]   accuracy/1k tokens: 35.3\n"
+    },
+    {
+      "task": "cross-ref-2",
+      "arm": "raw",
+      "rep": 2,
+      "status": "ok",
+      "correct": 1,
+      "total": 1,
+      "prompt_tokens_o200k": 2836,
+      "envelope": {
+        "model": "claude-sonnet-5",
+        "input_tokens": 2,
+        "cache_creation": 0,
+        "cache_read": 9596,
+        "output_tokens": 2410,
+        "cost_usd": 0.04324979999999999
+      },
+      "grade_output": "PASS t1: src/net/session.rs\nscore: 1/1\nprompt: 2836 tokens [o200k]   accuracy/1k tokens: 35.3\n"
+    },
+    {
+      "task": "cross-ref-2",
+      "arm": "squeeze",
+      "rep": 1,
+      "status": "reader-error",
+      "error": "reader timed out after 300s"
+    },
+    {
+      "task": "cross-ref-2",
+      "arm": "squeeze",
+      "rep": 2,
+      "status": "ok",
+      "correct": 1,
+      "total": 1,
+      "prompt_tokens_o200k": 1174,
+      "envelope": {
+        "model": "claude-sonnet-5",
+        "input_tokens": 2,
+        "cache_creation": 0,
+        "cache_read": 6667,
+        "output_tokens": 26452,
+        "cost_usd": 0.40084610000000004
+      },
+      "grade_output": "PASS t1: src/net/session.rs\nscore: 1/1\nprompt: 1174 tokens [o200k]   accuracy/1k tokens: 85.2\n"
+    },
+    {
+      "task": "cross-ref-3",
+      "arm": "raw",
+      "rep": 1,
+      "status": "ok",
+      "correct": 1,
+      "total": 1,
+      "prompt_tokens_o200k": 2870,
+      "envelope": {
+        "model": "claude-sonnet-5",
+        "input_tokens": 2,
+        "cache_creation": 4840,
+        "cache_read": 4794,
+        "output_tokens": 1786,
+        "cost_usd": 0.0615092
+      },
+      "grade_output": "PASS t1: src/index/pool.rs\nscore: 1/1\nprompt: 2870 tokens [o200k]   accuracy/1k tokens: 34.8\n"
+    },
+    {
+      "task": "cross-ref-3",
+      "arm": "raw",
+      "rep": 2,
+      "status": "ok",
+      "correct": 1,
+      "total": 1,
+      "prompt_tokens_o200k": 2870,
+      "envelope": {
+        "model": "claude-sonnet-5",
+        "input_tokens": 2,
+        "cache_creation": 0,
+        "cache_read": 9634,
+        "output_tokens": 1419,
+        "cost_usd": 0.028416199999999996
+      },
+      "grade_output": "PASS t1: src/index/pool.rs\nscore: 1/1\nprompt: 2870 tokens [o200k]   accuracy/1k tokens: 34.8\n"
+    },
+    {
+      "task": "cross-ref-3",
+      "arm": "squeeze",
+      "rep": 1,
+      "status": "ok",
+      "correct": 1,
+      "total": 1,
+      "prompt_tokens_o200k": 1184,
+      "envelope": {
+        "model": "claude-sonnet-5",
+        "input_tokens": 2,
+        "cache_creation": 1886,
+        "cache_read": 4794,
+        "output_tokens": 15751,
+        "cost_usd": 0.2511022
+      },
+      "grade_output": "PASS t1: src/index/pool.rs\nscore: 1/1\nprompt: 1184 tokens [o200k]   accuracy/1k tokens: 84.5\n"
+    },
+    {
+      "task": "cross-ref-3",
+      "arm": "squeeze",
+      "rep": 2,
+      "status": "ok",
+      "correct": 1,
+      "total": 1,
+      "prompt_tokens_o200k": 1184,
+      "envelope": {
+        "model": "claude-sonnet-5",
+        "input_tokens": 2,
+        "cache_creation": 0,
+        "cache_read": 6680,
+        "output_tokens": 23841,
+        "cost_usd": 0.361702
+      },
+      "grade_output": "PASS t1: src/index/pool.rs\nscore: 1/1\nprompt: 1184 tokens [o200k]   accuracy/1k tokens: 84.5\n"
+    },
+    {
+      "task": "decision-1",
+      "arm": "raw",
+      "rep": 1,
+      "status": "ok",
+      "correct": 1,
+      "total": 1,
+      "prompt_tokens_o200k": 1000,
+      "envelope": {
+        "model": "claude-sonnet-5",
+        "input_tokens": 2,
+        "cache_creation": 1753,
+        "cache_read": 4794,
+        "output_tokens": 16,
+        "cost_usd": 0.0139362
+      },
+      "grade_output": "PASS t1: index::writer_01\nscore: 1/1\nprompt: 1000 tokens [o200k]   accuracy/1k tokens: 100.0\n"
+    },
+    {
+      "task": "decision-1",
+      "arm": "raw",
+      "rep": 2,
+      "status": "ok",
+      "correct": 1,
+      "total": 1,
+      "prompt_tokens_o200k": 1000,
+      "envelope": {
+        "model": "claude-sonnet-5",
+        "input_tokens": 2,
+        "cache_creation": 0,
+        "cache_read": 6547,
+        "output_tokens": 16,
+        "cost_usd": 0.0039591
+      },
+      "grade_output": "PASS t1: index::writer_01\nscore: 1/1\nprompt: 1000 tokens [o200k]   accuracy/1k tokens: 100.0\n"
+    },
+    {
+      "task": "decision-1",
+      "arm": "squeeze",
+      "rep": 1,
+      "status": "ok",
+      "correct": 1,
+      "total": 1,
+      "prompt_tokens_o200k": 946,
+      "envelope": {
+        "model": "claude-sonnet-5",
+        "input_tokens": 2,
+        "cache_creation": 1341,
+        "cache_read": 4794,
+        "output_tokens": 16057,
+        "cost_usd": 0.2519462
+      },
+      "grade_output": "PASS t1: index::writer_01\nscore: 1/1\nprompt: 946 tokens [o200k]   accuracy/1k tokens: 105.7\n"
+    },
+    {
+      "task": "decision-1",
+      "arm": "squeeze",
+      "rep": 2,
+      "status": "ok",
+      "correct": 1,
+      "total": 1,
+      "prompt_tokens_o200k": 946,
+      "envelope": {
+        "model": "claude-sonnet-5",
+        "input_tokens": 2,
+        "cache_creation": 0,
+        "cache_read": 6135,
+        "output_tokens": 12771,
+        "cost_usd": 0.19501249999999998
+      },
+      "grade_output": "PASS t1: index::writer_01\nscore: 1/1\nprompt: 946 tokens [o200k]   accuracy/1k tokens: 105.7\n"
+    },
+    {
+      "task": "decision-2",
+      "arm": "raw",
+      "rep": 1,
+      "status": "ok",
+      "correct": 1,
+      "total": 1,
+      "prompt_tokens_o200k": 1006,
+      "envelope": {
+        "model": "claude-sonnet-5",
+        "input_tokens": 2,
+        "cache_creation": 1742,
+        "cache_read": 4794,
+        "output_tokens": 17,
+        "cost_usd": 0.013923199999999998
+      },
+      "grade_output": "PASS t1: cache::writer_18\nscore: 1/1\nprompt: 1006 tokens [o200k]   accuracy/1k tokens: 99.4\n"
+    },
+    {
+      "task": "decision-2",
+      "arm": "raw",
+      "rep": 2,
+      "status": "ok",
+      "correct": 1,
+      "total": 1,
+      "prompt_tokens_o200k": 1006,
+      "envelope": {
+        "model": "claude-sonnet-5",
+        "input_tokens": 2,
+        "cache_creation": 0,
+        "cache_read": 6536,
+        "output_tokens": 17,
+        "cost_usd": 0.0039938
+      },
+      "grade_output": "PASS t1: cache::writer_18\nscore: 1/1\nprompt: 1006 tokens [o200k]   accuracy/1k tokens: 99.4\n"
+    },
+    {
+      "task": "decision-2",
+      "arm": "squeeze",
+      "rep": 1,
+      "status": "ok",
+      "correct": 1,
+      "total": 1,
+      "prompt_tokens_o200k": 936,
+      "envelope": {
+        "model": "claude-sonnet-5",
+        "input_tokens": 2,
+        "cache_creation": 1344,
+        "cache_read": 4794,
+        "output_tokens": 17889,
+        "cost_usd": 0.2794452
+      },
+      "grade_output": "PASS t1: cache::writer_18\nscore: 1/1\nprompt: 936 tokens [o200k]   accuracy/1k tokens: 106.8\n"
+    },
+    {
+      "task": "decision-2",
+      "arm": "squeeze",
+      "rep": 2,
+      "status": "ok",
+      "correct": 1,
+      "total": 1,
+      "prompt_tokens_o200k": 936,
+      "envelope": {
+        "model": "claude-sonnet-5",
+        "input_tokens": 2,
+        "cache_creation": 0,
+        "cache_read": 6138,
+        "output_tokens": 9537,
+        "cost_usd": 0.1465044
+      },
+      "grade_output": "PASS t1: cache::writer_18\nscore: 1/1\nprompt: 936 tokens [o200k]   accuracy/1k tokens: 106.8\n"
+    },
+    {
+      "task": "decision-3",
+      "arm": "raw",
+      "rep": 1,
+      "status": "ok",
+      "correct": 1,
+      "total": 1,
+      "prompt_tokens_o200k": 922,
+      "envelope": {
+        "model": "claude-sonnet-5",
+        "input_tokens": 2,
+        "cache_creation": 1637,
+        "cache_read": 4794,
+        "output_tokens": 17,
+        "cost_usd": 0.0131962
+      },
+      "grade_output": "PASS t1: codec::pool_28\nscore: 1/1\nprompt: 922 tokens [o200k]   accuracy/1k tokens: 108.5\n"
+    },
+    {
+      "task": "decision-3",
+      "arm": "raw",
+      "rep": 2,
+      "status": "ok",
+      "correct": 1,
+      "total": 1,
+      "prompt_tokens_o200k": 922,
+      "envelope": {
+        "model": "claude-sonnet-5",
+        "input_tokens": 2,
+        "cache_creation": 0,
+        "cache_read": 6431,
+        "output_tokens": 17,
+        "cost_usd": 0.0038603
+      },
+      "grade_output": "PASS t1: codec::pool_28\nscore: 1/1\nprompt: 922 tokens [o200k]   accuracy/1k tokens: 108.5\n"
+    },
+    {
+      "task": "decision-3",
+      "arm": "squeeze",
+      "rep": 1,
+      "status": "ok",
+      "correct": 0,
+      "total": 1,
+      "prompt_tokens_o200k": 914,
+      "envelope": {
+        "model": "claude-sonnet-5",
+        "input_tokens": 2,
+        "cache_creation": 1304,
+        "cache_read": 4794,
+        "output_tokens": 13455,
+        "cost_usd": 0.2126612
+      },
+      "grade_output": "FAIL t1: codecpool_28\nscore: 0/1\nprompt: 914 tokens [o200k]   accuracy/1k tokens: 0.0\n"
+    },
+    {
+      "task": "decision-3",
+      "arm": "squeeze",
+      "rep": 2,
+      "status": "ok",
+      "correct": 1,
+      "total": 1,
+      "prompt_tokens_o200k": 914,
+      "envelope": {
+        "model": "claude-sonnet-5",
+        "input_tokens": 2,
+        "cache_creation": 0,
+        "cache_read": 6098,
+        "output_tokens": 9195,
+        "cost_usd": 0.14132840000000002
+      },
+      "grade_output": "PASS t1: codec::pool_28\nscore: 1/1\nprompt: 914 tokens [o200k]   accuracy/1k tokens: 109.4\n"
+    },
+    {
+      "task": "root-cause-1",
+      "arm": "raw",
+      "rep": 1,
+      "status": "ok",
+      "correct": 1,
+      "total": 1,
+      "prompt_tokens_o200k": 2657,
+      "envelope": {
+        "model": "claude-sonnet-5",
+        "input_tokens": 2,
+        "cache_creation": 4266,
+        "cache_read": 4794,
+        "output_tokens": 22,
+        "cost_usd": 0.031149200000000002
+      },
+      "grade_output": "PASS t1: src/net/cursor.rs:141\nscore: 1/1\nprompt: 2657 tokens [o200k]   accuracy/1k tokens: 37.6\n"
+    },
+    {
+      "task": "root-cause-1",
+      "arm": "raw",
+      "rep": 2,
+      "status": "ok",
+      "correct": 1,
+      "total": 1,
+      "prompt_tokens_o200k": 2657,
+      "envelope": {
+        "model": "claude-sonnet-5",
+        "input_tokens": 2,
+        "cache_creation": 0,
+        "cache_read": 9060,
+        "output_tokens": 22,
+        "cost_usd": 0.006828
+      },
+      "grade_output": "PASS t1: src/net/cursor.rs:141\nscore: 1/1\nprompt: 2657 tokens [o200k]   accuracy/1k tokens: 37.6\n"
+    },
+    {
+      "task": "root-cause-1",
+      "arm": "squeeze",
+      "rep": 1,
+      "status": "ok",
+      "correct": 1,
+      "total": 1,
+      "prompt_tokens_o200k": 1049,
+      "envelope": {
+        "model": "claude-sonnet-5",
+        "input_tokens": 2,
+        "cache_creation": 1482,
+        "cache_read": 4794,
+        "output_tokens": 304,
+        "cost_usd": 0.0166162
+      },
+      "grade_output": "PASS t1: src/net/cursor.rs:141\nscore: 1/1\nprompt: 1049 tokens [o200k]   accuracy/1k tokens: 95.3\n"
+    },
+    {
+      "task": "root-cause-1",
+      "arm": "squeeze",
+      "rep": 2,
+      "status": "ok",
+      "correct": 1,
+      "total": 1,
+      "prompt_tokens_o200k": 1049,
+      "envelope": {
+        "model": "claude-sonnet-5",
+        "input_tokens": 2,
+        "cache_creation": 0,
+        "cache_read": 6276,
+        "output_tokens": 219,
+        "cost_usd": 0.0069138
+      },
+      "grade_output": "PASS t1: src/net/cursor.rs:141\nscore: 1/1\nprompt: 1049 tokens [o200k]   accuracy/1k tokens: 95.3\n"
+    },
+    {
+      "task": "root-cause-2",
+      "arm": "raw",
+      "rep": 1,
+      "status": "ok",
+      "correct": 1,
+      "total": 1,
+      "prompt_tokens_o200k": 2604,
+      "envelope": {
+        "model": "claude-sonnet-5",
+        "input_tokens": 2,
+        "cache_creation": 4083,
+        "cache_read": 4794,
+        "output_tokens": 23,
+        "cost_usd": 0.0299752
+      },
+      "grade_output": "PASS t1: src/sched/handshake.rs:113\nscore: 1/1\nprompt: 2604 tokens [o200k]   accuracy/1k tokens: 38.4\n"
+    },
+    {
+      "task": "root-cause-2",
+      "arm": "raw",
+      "rep": 2,
+      "status": "ok",
+      "correct": 1,
+      "total": 1,
+      "prompt_tokens_o200k": 2604,
+      "envelope": {
+        "model": "claude-sonnet-5",
+        "input_tokens": 2,
+        "cache_creation": 0,
+        "cache_read": 8877,
+        "output_tokens": 23,
+        "cost_usd": 0.0067021
+      },
+      "grade_output": "PASS t1: src/sched/handshake.rs:113\nscore: 1/1\nprompt: 2604 tokens [o200k]   accuracy/1k tokens: 38.4\n"
+    },
+    {
+      "task": "root-cause-2",
+      "arm": "squeeze",
+      "rep": 1,
+      "status": "ok",
+      "correct": 1,
+      "total": 1,
+      "prompt_tokens_o200k": 1037,
+      "envelope": {
+        "model": "claude-sonnet-5",
+        "input_tokens": 2,
+        "cache_creation": 1464,
+        "cache_read": 4794,
+        "output_tokens": 136,
+        "cost_usd": 0.0139952
+      },
+      "grade_output": "PASS t1: src/sched/handshake.rs:113\nscore: 1/1\nprompt: 1037 tokens [o200k]   accuracy/1k tokens: 96.4\n"
+    },
+    {
+      "task": "root-cause-2",
+      "arm": "squeeze",
+      "rep": 2,
+      "status": "ok",
+      "correct": 1,
+      "total": 1,
+      "prompt_tokens_o200k": 1037,
+      "envelope": {
+        "model": "claude-sonnet-5",
+        "input_tokens": 2,
+        "cache_creation": 0,
+        "cache_read": 6258,
+        "output_tokens": 166,
+        "cost_usd": 0.0061004
+      },
+      "grade_output": "PASS t1: src/sched/handshake.rs:113\nscore: 1/1\nprompt: 1037 tokens [o200k]   accuracy/1k tokens: 96.4\n"
+    },
+    {
+      "task": "root-cause-3",
+      "arm": "raw",
+      "rep": 1,
+      "status": "ok",
+      "correct": 1,
+      "total": 1,
+      "prompt_tokens_o200k": 2221,
+      "envelope": {
+        "model": "claude-sonnet-5",
+        "input_tokens": 2,
+        "cache_creation": 3488,
+        "cache_read": 4794,
+        "output_tokens": 22,
+        "cost_usd": 0.025891200000000003
+      },
+      "grade_output": "PASS t1: src/fs/pool.rs:224\nscore: 1/1\nprompt: 2221 tokens [o200k]   accuracy/1k tokens: 45.0\n"
+    },
+    {
+      "task": "root-cause-3",
+      "arm": "raw",
+      "rep": 2,
+      "status": "ok",
+      "correct": 1,
+      "total": 1,
+      "prompt_tokens_o200k": 2221,
+      "envelope": {
+        "model": "claude-sonnet-5",
+        "input_tokens": 2,
+        "cache_creation": 0,
+        "cache_read": 8282,
+        "output_tokens": 22,
+        "cost_usd": 0.006014599999999999
+      },
+      "grade_output": "PASS t1: src/fs/pool.rs:224\nscore: 1/1\nprompt: 2221 tokens [o200k]   accuracy/1k tokens: 45.0\n"
+    },
+    {
+      "task": "root-cause-3",
+      "arm": "squeeze",
+      "rep": 1,
+      "status": "ok",
+      "correct": 1,
+      "total": 1,
+      "prompt_tokens_o200k": 957,
+      "envelope": {
+        "model": "claude-sonnet-5",
+        "input_tokens": 2,
+        "cache_creation": 1377,
+        "cache_read": 4794,
+        "output_tokens": 2699,
+        "cost_usd": 0.0518172
+      },
+      "grade_output": "PASS t1: src/fs/pool.rs:224 \u2014 the initial `error[E0308]: mismatched types` (expected `u64`, found `Option<u64>`); all following `E0599` errors are explicitly noted as consequences of this one.\nscore: 1/1\nprompt: 957 tokens [o200k]   accuracy/1k tokens: 104.5\n"
+    },
+    {
+      "task": "root-cause-3",
+      "arm": "squeeze",
+      "rep": 2,
+      "status": "ok",
+      "correct": 1,
+      "total": 1,
+      "prompt_tokens_o200k": 957,
+      "envelope": {
+        "model": "claude-sonnet-5",
+        "input_tokens": 2,
+        "cache_creation": 0,
+        "cache_read": 6171,
+        "output_tokens": 2959,
+        "cost_usd": 0.047873299999999994
+      },
+      "grade_output": "PASS t1: src/fs/pool.rs:224\nscore: 1/1\nprompt: 957 tokens [o200k]   accuracy/1k tokens: 104.5\n"
+    },
+    {
+      "task": "state-1",
+      "arm": "raw",
+      "rep": 1,
+      "status": "ok",
+      "correct": 1,
+      "total": 1,
+      "prompt_tokens_o200k": 1226,
+      "envelope": {
+        "model": "claude-sonnet-5",
+        "input_tokens": 2,
+        "cache_creation": 2059,
+        "cache_read": 4794,
+        "output_tokens": 12,
+        "cost_usd": 0.0161062
+      },
+      "grade_output": "PASS t1: 262144\nscore: 1/1\nprompt: 1226 tokens [o200k]   accuracy/1k tokens: 81.6\n"
+    },
+    {
+      "task": "state-1",
+      "arm": "raw",
+      "rep": 2,
+      "status": "ok",
+      "correct": 1,
+      "total": 1,
+      "prompt_tokens_o200k": 1226,
+      "envelope": {
+        "model": "claude-sonnet-5",
+        "input_tokens": 2,
+        "cache_creation": 0,
+        "cache_read": 6853,
+        "output_tokens": 12,
+        "cost_usd": 0.0043799
+      },
+      "grade_output": "PASS t1: 262144\nscore: 1/1\nprompt: 1226 tokens [o200k]   accuracy/1k tokens: 81.6\n"
+    },
+    {
+      "task": "state-1",
+      "arm": "squeeze",
+      "rep": 1,
+      "status": "ok",
+      "correct": 1,
+      "total": 1,
+      "prompt_tokens_o200k": 1067,
+      "envelope": {
+        "model": "claude-sonnet-5",
+        "input_tokens": 2,
+        "cache_creation": 1605,
+        "cache_read": 4794,
+        "output_tokens": 12,
+        "cost_usd": 0.0130692
+      },
+      "grade_output": "PASS t1: 262144\nscore: 1/1\nprompt: 1067 tokens [o200k]   accuracy/1k tokens: 93.7\n"
+    },
+    {
+      "task": "state-1",
+      "arm": "squeeze",
+      "rep": 2,
+      "status": "ok",
+      "correct": 1,
+      "total": 1,
+      "prompt_tokens_o200k": 1067,
+      "envelope": {
+        "model": "claude-sonnet-5",
+        "input_tokens": 2,
+        "cache_creation": 0,
+        "cache_read": 6399,
+        "output_tokens": 12,
+        "cost_usd": 0.0039207
+      },
+      "grade_output": "PASS t1: 262144\nscore: 1/1\nprompt: 1067 tokens [o200k]   accuracy/1k tokens: 93.7\n"
+    },
+    {
+      "task": "state-2",
+      "arm": "raw",
+      "rep": 1,
+      "status": "ok",
+      "correct": 1,
+      "total": 1,
+      "prompt_tokens_o200k": 1194,
+      "envelope": {
+        "model": "claude-sonnet-5",
+        "input_tokens": 2,
+        "cache_creation": 2003,
+        "cache_read": 4794,
+        "output_tokens": 12,
+        "cost_usd": 0.0157192
+      },
+      "grade_output": "PASS t1: 49152\nscore: 1/1\nprompt: 1194 tokens [o200k]   accuracy/1k tokens: 83.8\n"
+    },
+    {
+      "task": "state-2",
+      "arm": "raw",
+      "rep": 2,
+      "status": "ok",
+      "correct": 1,
+      "total": 1,
+      "prompt_tokens_o200k": 1194,
+      "envelope": {
+        "model": "claude-sonnet-5",
+        "input_tokens": 2,
+        "cache_creation": 0,
+        "cache_read": 6797,
+        "output_tokens": 12,
+        "cost_usd": 0.0042971
+      },
+      "grade_output": "PASS t1: 49152\nscore: 1/1\nprompt: 1194 tokens [o200k]   accuracy/1k tokens: 83.8\n"
+    },
+    {
+      "task": "state-2",
+      "arm": "squeeze",
+      "rep": 1,
+      "status": "ok",
+      "correct": 1,
+      "total": 1,
+      "prompt_tokens_o200k": 1044,
+      "envelope": {
+        "model": "claude-sonnet-5",
+        "input_tokens": 2,
+        "cache_creation": 1578,
+        "cache_read": 4794,
+        "output_tokens": 12,
+        "cost_usd": 0.0128882
+      },
+      "grade_output": "PASS t1: 49152\nscore: 1/1\nprompt: 1044 tokens [o200k]   accuracy/1k tokens: 95.8\n"
+    },
+    {
+      "task": "state-2",
+      "arm": "squeeze",
+      "rep": 2,
+      "status": "ok",
+      "correct": 1,
+      "total": 1,
+      "prompt_tokens_o200k": 1044,
+      "envelope": {
+        "model": "claude-sonnet-5",
+        "input_tokens": 2,
+        "cache_creation": 0,
+        "cache_read": 6372,
+        "output_tokens": 12,
+        "cost_usd": 0.0038935999999999997
+      },
+      "grade_output": "PASS t1: 49152\nscore: 1/1\nprompt: 1044 tokens [o200k]   accuracy/1k tokens: 95.8\n"
+    },
+    {
+      "task": "state-3",
+      "arm": "raw",
+      "rep": 1,
+      "status": "ok",
+      "correct": 1,
+      "total": 1,
+      "prompt_tokens_o200k": 1201,
+      "envelope": {
+        "model": "claude-sonnet-5",
+        "input_tokens": 2,
+        "cache_creation": 2022,
+        "cache_read": 4794,
+        "output_tokens": 13,
+        "cost_usd": 0.0158582
+      },
+      "grade_output": "PASS t1: 8192000\nscore: 1/1\nprompt: 1201 tokens [o200k]   accuracy/1k tokens: 83.3\n"
+    },
+    {
+      "task": "state-3",
+      "arm": "raw",
+      "rep": 2,
+      "status": "ok",
+      "correct": 1,
+      "total": 1,
+      "prompt_tokens_o200k": 1201,
+      "envelope": {
+        "model": "claude-sonnet-5",
+        "input_tokens": 2,
+        "cache_creation": 0,
+        "cache_read": 6816,
+        "output_tokens": 13,
+        "cost_usd": 0.0043278
+      },
+      "grade_output": "PASS t1: 8192000\nscore: 1/1\nprompt: 1201 tokens [o200k]   accuracy/1k tokens: 83.3\n"
+    },
+    {
+      "task": "state-3",
+      "arm": "squeeze",
+      "rep": 1,
+      "status": "ok",
+      "correct": 0,
+      "total": 1,
+      "prompt_tokens_o200k": 1045,
+      "envelope": {
+        "model": "claude-sonnet-5",
+        "input_tokens": 2,
+        "cache_creation": 1579,
+        "cache_read": 4794,
+        "output_tokens": 4495,
+        "cost_usd": 0.0801382
+      },
+      "grade_output": "FAIL t1: 819200\nscore: 0/1\nprompt: 1045 tokens [o200k]   accuracy/1k tokens: 0.0\n"
+    },
+    {
+      "task": "state-3",
+      "arm": "squeeze",
+      "rep": 2,
+      "status": "ok",
+      "correct": 1,
+      "total": 1,
+      "prompt_tokens_o200k": 1045,
+      "envelope": {
+        "model": "claude-sonnet-5",
+        "input_tokens": 2,
+        "cache_creation": 0,
+        "cache_read": 6373,
+        "output_tokens": 2856,
+        "cost_usd": 0.0465529
+      },
+      "grade_output": "PASS t1: 8192000\nscore: 1/1\nprompt: 1045 tokens [o200k]   accuracy/1k tokens: 95.7\n"
+    }
+  ]
+}

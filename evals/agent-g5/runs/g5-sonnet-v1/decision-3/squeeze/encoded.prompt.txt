@@ -1,0 +1,156 @@
+Answer the questions below using ONLY the payload in this message.
+Do not use any tools, do not read any files, do not guess beyond the
+payload. Reply with ONLY a JSON object mapping each question id to a
+short answer string, e.g. {"q1": "...", "q2": "..."}.
+
+The payload is encoded as a `%q1` container. Format: first line
+`%q1 <codec> ...` (parameters), then legend lines `<alias>=<phrase>`
+(each alias is a short stand-in for that exact phrase), then a
+`%q1 body` line, then the body. `%q1 xN` after a line means that line
+occurs N times in total. A `toon` body is a table: first line is a JSON
+array of keys, each following line is one object, cells are JSON values
+joined by the separator named in the header. A `grep` body is grouped
+matcher output: a marker line names a file path and the lines after it
+are `line:text` hits in that file (a bare marker starts verbatim
+lines). A `diag` body line starting with an alias expands to: the head
+after the alias, then that alias's legend template with each slot
+placeholder filled by the sep-joined values in order. A `tmpl` body
+line starting with an alias is its legend template with the slot
+placeholders filled by the sep-joined values that follow the alias.
+Mentally decode the body via the legend before answering; never emit
+alias characters in answers.
+
+# Payload
+
+%q1 mine n=28
+类=::writer_
+函=::cursor_
+值=::pool_
+错=::session_
+试=|cache::reader_
+件=::frame_
+组=::handshake_
+标=|wal类
+记=|index
+链=|codec
+节=|auth函
+层=码|auth类25
+块=码|auth类13
+表=码|wal件20
+行=码|net函01
+列=码|net值12
+键=码|fs组08
+名=码链错10
+数=码记类27
+串=引链值28
+图=|sched错14
+树=|auth值18
+点=|auth件04
+边=|wal错07
+库=|wal函11
+包=|net错23
+版=|fs值19
+构=|fs件17
+%q1 body
+%q1 tmpl sep=pipe slot=quest n=3 nl=1
+码=test ¿ ... ok
+引=test ¿ ... FAILED
+路=--- attempt ¿ ---
+%q1 body
+running retry harness (max 3 attempts per test)
+路|1
+引记组00
+行
+码节02
+引标03
+引点
+引试05
+引节06
+引边
+键
+码试09
+名
+引库
+列
+块
+码图
+码标15
+引链函16
+引构
+引树
+码版
+表
+引记类21
+引标22
+引包
+引记函24
+层
+引链值26
+数
+串
+路|2
+码记组00
+行
+码节02
+引标03
+引点
+码试05
+引节06
+码边
+键
+码试09
+名
+码库
+列
+块
+引图
+码标15
+码链函16
+码构
+码树
+引版
+表
+码记类21
+码标22
+码包
+码记函24
+层
+码链值26
+数
+串
+路|3
+码记组00
+行
+码节02
+码标03
+码点
+码试05
+码节06
+码边
+键
+码试09
+名
+码库
+列
+块
+码图
+码标15
+码链函16
+码构
+码树
+码版
+表
+码记类21
+码标22
+码包
+码记函24
+层
+码链值26
+数
+串
+retry harness done
+
+
+# Questions
+
+t1: Flaky tests recover on retry. Which test failed on EVERY attempt (genuinely failing, not flaky)? Reply with the full test name.

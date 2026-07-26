@@ -1,0 +1,117 @@
+Answer the questions below using ONLY the payload in this message.
+Do not use any tools, do not read any files, do not guess beyond the
+payload. Reply with ONLY a JSON object mapping each question id to a
+short answer string, e.g. {"q1": "...", "q2": "..."}.
+
+# Payload
+
+--- a/src/fs/config.rs
++++ b/src/fs/config.rs
+@@ -183,4 +183,4 @@
+     /// Segment size; was 327680 before the 2024 compaction rework.
+-    pub const WAL_SEGMENT_BYTES: u64 = 327680;
++    pub const WAL_SEGMENT_BYTES: u64 = 262144;
+     pub const WAL_DIR: &str = "wal";
+@@ -95,4 +95,4 @@
+     // tuning pass 1
+-    pub const POOL_CAP: u32 = 390;
++    pub const POOL_CAP: u32 = 8776;
+     // end tuning
+@@ -108,4 +108,4 @@
+     // tuning pass 1
+-    pub const FSYNC_EVERY: u32 = 752;
++    pub const FSYNC_EVERY: u32 = 4022;
+     // end tuning
+@@ -64,4 +64,4 @@
+     // tuning pass 1
+-    pub const RETRY_BUDGET_MS: u32 = 712;
++    pub const RETRY_BUDGET_MS: u32 = 6322;
+     // end tuning
+--- a/src/auth/config.rs
++++ b/src/auth/config.rs
+@@ -185,4 +185,4 @@
+     // tuning pass 1
+-    pub const FSYNC_EVERY: u32 = 124;
++    pub const FSYNC_EVERY: u32 = 4591;
+     // end tuning
+@@ -123,4 +123,4 @@
+     // tuning pass 1
+-    pub const RETRY_BUDGET_MS: u32 = 366;
++    pub const RETRY_BUDGET_MS: u32 = 4360;
+     // end tuning
+@@ -125,4 +125,4 @@
+     // tuning pass 1
+-    pub const POOL_CAP: u32 = 115;
++    pub const POOL_CAP: u32 = 3785;
+     // end tuning
+--- a/src/cache/config.rs
++++ b/src/cache/config.rs
+@@ -60,4 +60,4 @@
+     // tuning pass 1
+-    pub const POOL_CAP: u32 = 367;
++    pub const POOL_CAP: u32 = 7058;
+     // end tuning
+@@ -101,4 +101,4 @@
+     // tuning pass 1
+-    pub const FSYNC_EVERY: u32 = 269;
++    pub const FSYNC_EVERY: u32 = 4067;
+     // end tuning
+@@ -118,4 +118,4 @@
+     // tuning pass 1
+-    pub const FSYNC_EVERY: u32 = 202;
++    pub const FSYNC_EVERY: u32 = 6736;
+     // end tuning
+@@ -31,4 +31,4 @@
+     // tuning pass 1
+-    pub const FSYNC_EVERY: u32 = 401;
++    pub const FSYNC_EVERY: u32 = 4454;
+     // end tuning
+--- a/src/sched/config.rs
++++ b/src/sched/config.rs
+@@ -105,4 +105,4 @@
+     // tuning pass 1
+-    pub const RETRY_BUDGET_MS: u32 = 871;
++    pub const RETRY_BUDGET_MS: u32 = 8093;
+     // end tuning
+@@ -110,4 +110,4 @@
+     // tuning pass 1
+-    pub const FSYNC_EVERY: u32 = 375;
++    pub const FSYNC_EVERY: u32 = 7557;
+     // end tuning
+@@ -169,4 +169,4 @@
+     // tuning pass 1
+-    pub const FSYNC_EVERY: u32 = 890;
++    pub const FSYNC_EVERY: u32 = 8435;
+     // end tuning
+@@ -47,4 +47,4 @@
+     // tuning pass 1
+-    pub const FSYNC_EVERY: u32 = 711;
++    pub const FSYNC_EVERY: u32 = 3514;
+     // end tuning
+@@ -54,4 +54,4 @@
+     // tuning pass 1
+-    pub const FSYNC_EVERY: u32 = 833;
++    pub const FSYNC_EVERY: u32 = 4041;
+     // end tuning
+--- a/src/codec/config.rs
++++ b/src/codec/config.rs
+@@ -164,4 +164,4 @@
+     // tuning pass 1
+-    pub const FSYNC_EVERY: u32 = 667;
++    pub const FSYNC_EVERY: u32 = 6294;
+     // end tuning
+@@ -51,4 +51,4 @@
+     // tuning pass 1
+-    pub const POOL_CAP: u32 = 298;
++    pub const POOL_CAP: u32 = 6880;
+     // end tuning
+@@ -17,4 +17,4 @@
+     // tuning pass 1
+-    pub const RETRY_BUDGET_MS: u32 = 465;
++    pub const RETRY_BUDGET_MS: u32 = 6823;
+     // end tuning
+
+
+# Questions
+
+t1: After applying this diff, what is the value of `WAL_SEGMENT_BYTES`? Reply with the number only.

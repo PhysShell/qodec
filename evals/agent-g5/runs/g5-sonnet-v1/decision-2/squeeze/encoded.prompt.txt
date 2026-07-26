@@ -1,0 +1,158 @@
+Answer the questions below using ONLY the payload in this message.
+Do not use any tools, do not read any files, do not guess beyond the
+payload. Reply with ONLY a JSON object mapping each question id to a
+short answer string, e.g. {"q1": "...", "q2": "..."}.
+
+The payload is encoded as a `%q1` container. Format: first line
+`%q1 <codec> ...` (parameters), then legend lines `<alias>=<phrase>`
+(each alias is a short stand-in for that exact phrase), then a
+`%q1 body` line, then the body. `%q1 xN` after a line means that line
+occurs N times in total. A `toon` body is a table: first line is a JSON
+array of keys, each following line is one object, cells are JSON values
+joined by the separator named in the header. A `grep` body is grouped
+matcher output: a marker line names a file path and the lines after it
+are `line:text` hits in that file (a bare marker starts verbatim
+lines). A `diag` body line starting with an alias expands to: the head
+after the alias, then that alias's legend template with each slot
+placeholder filled by the sep-joined values in order. A `tmpl` body
+line starting with an alias is its legend template with the slot
+placeholders filled by the sep-joined values that follow the alias.
+Mentally decode the body via the legend before answering; never emit
+alias characters in answers.
+
+# Payload
+
+%q1 mine n=21
+类=码|index::
+函=码|net::
+值=码|wal::
+错=码|fs::
+试=码|sched::
+件=码|auth::
+组=handshake_
+标=引|net::
+记=session_
+链=writer_
+节=cursor_
+层=reader_
+块=frame_
+表=引|cache::链18
+行=引|fs::
+列=引|index::
+数=引|wal::
+名=试pool_11
+键=类pool_29
+串=值pool_04
+图=引|auth::层12
+%q1 body
+%q1 tmpl sep=pipe slot=quest n=3 nl=1
+码=test ¿ ... ok
+引=test ¿ ... FAILED
+路=--- attempt ¿ ---
+%q1 body
+running retry harness (max 3 attempts per test)
+路|1
+行节00
+件记01
+类节02
+标记03
+串
+行节05
+标pool_06
+数组07
+数块08
+标节09
+错块10
+名
+图
+标节13
+件链14
+类块15
+行pool_16
+类记17
+表
+件组19
+类记20
+错链21
+值链22
+函层23
+引|sched::pool_24
+引|sched::链25
+试记26
+列块27
+标层28
+键
+值组30
+标层31
+路|2
+错节00
+件记01
+类节02
+函记03
+串
+错节05
+函pool_06
+数组07
+值块08
+函节09
+错块10
+名
+图
+函节13
+件链14
+类块15
+行pool_16
+列记17
+表
+件组19
+列记20
+错链21
+值链22
+函层23
+试pool_24
+试链25
+试记26
+类块27
+函层28
+键
+值组30
+函层31
+路|3
+错节00
+件记01
+类节02
+函记03
+串
+错节05
+函pool_06
+值组07
+值块08
+函节09
+错块10
+名
+件层12
+函节13
+件链14
+类块15
+错pool_16
+类记17
+表
+件组19
+类记20
+错链21
+值链22
+函层23
+试pool_24
+试链25
+试记26
+类块27
+函层28
+键
+值组30
+函层31
+retry harness done
+
+
+# Questions
+
+t1: Flaky tests recover on retry. Which test failed on EVERY attempt (genuinely failing, not flaky)? Reply with the full test name.

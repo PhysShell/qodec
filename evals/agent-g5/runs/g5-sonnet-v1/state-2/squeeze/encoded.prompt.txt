@@ -1,0 +1,142 @@
+Answer the questions below using ONLY the payload in this message.
+Do not use any tools, do not read any files, do not guess beyond the
+payload. Reply with ONLY a JSON object mapping each question id to a
+short answer string, e.g. {"q1": "...", "q2": "..."}.
+
+The payload is encoded as a `%q1` container. Format: first line
+`%q1 <codec> ...` (parameters), then legend lines `<alias>=<phrase>`
+(each alias is a short stand-in for that exact phrase), then a
+`%q1 body` line, then the body. `%q1 xN` after a line means that line
+occurs N times in total. A `toon` body is a table: first line is a JSON
+array of keys, each following line is one object, cells are JSON values
+joined by the separator named in the header. A `grep` body is grouped
+matcher output: a marker line names a file path and the lines after it
+are `line:text` hits in that file (a bare marker starts verbatim
+lines). A `diag` body line starting with an alias expands to: the head
+after the alias, then that alias's legend template with each slot
+placeholder filled by the sep-joined values in order. A `tmpl` body
+line starting with an alias is its legend template with the slot
+placeholders filled by the sep-joined values that follow the alias.
+Mentally decode the body via the legend before answering; never emit
+alias characters in answers.
+
+# Payload
+
+%q1 mine n=3
+错==¿    pub const 
+试=/config.rs
+件=: u32 = ¿;
+%q1 body
+%q1 tmpl sep=pipe slot=quest n=6 nl=1
+码错RETRY_BUDGET_MS件
+引=     // tuning pass 2
+路=     // end tuning
+类错POOL_CAP件
+函错FSYNC_EVERY件
+值错WAL_SEGMENT_BYTES: u64 = ¿;
+%q1 body
+--- a/src/sched试
++++ b/src/sched试
+@@ -22,4 +22,4 @@
+     /// Segment size; was 327680 before the 2024 compaction rework.
+值|-|327680
+值|+|49152
+     pub const WAL_DIR: &str = "wal";
+@@ -10,4 +10,4 @@
+引
+码|-|432
+码|+|1088
+路
+@@ -162,4 +162,4 @@
+引
+类|-|541
+类|+|2008
+路
+@@ -147,4 +147,4 @@
+引
+类|-|548
+类|+|6031
+路
+@@ -59,4 +59,4 @@
+引
+码|-|208
+码|+|4856
+路
+--- a/src/net试
++++ b/src/net试
+@@ -120,4 +120,4 @@
+引
+类|-|423
+类|+|5246
+路
+@@ -175,4 +175,4 @@
+引
+码|-|169
+码|+|3710
+路
+@@ -68,4 +68,4 @@
+引
+类|-|346
+类|+|1007
+路
+@@ -121,4 +121,4 @@
+引
+码|-|704
+码|+|1659
+路
+--- a/src/fs试
++++ b/src/fs试
+@@ -25,4 +25,4 @@
+引
+函|-|269
+函|+|1744
+路
+@@ -24,4 +24,4 @@
+引
+码|-|857
+码|+|4590
+路
+@@ -144,4 +144,4 @@
+引
+码|-|475
+码|+|7688
+路
+--- a/src/index试
++++ b/src/index试
+@@ -103,4 +103,4 @@
+引
+码|-|736
+码|+|1197
+路
+@@ -96,4 +96,4 @@
+引
+函|-|202
+函|+|7820
+路
+@@ -93,4 +93,4 @@
+引
+码|-|190
+码|+|2151
+路
+--- a/src/wal试
++++ b/src/wal试
+@@ -92,4 +92,4 @@
+引
+码|-|649
+码|+|4626
+路
+@@ -85,4 +85,4 @@
+引
+类|-|242
+类|+|7982
+路
+@@ -36,4 +36,4 @@
+引
+码|-|694
+码|+|8821
+路
+
+
+# Questions
+
+t1: After applying this diff, what is the value of `WAL_SEGMENT_BYTES`? Reply with the number only.

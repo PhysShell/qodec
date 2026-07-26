@@ -1,0 +1,80 @@
+{
+  "is_error": false,
+  "duration_api_ms": 114035,
+  "num_turns": 1,
+  "stop_reason": "end_turn",
+  "session_id": "7e07d6be-b5fc-53d1-9dbd-3a72cdd573d7",
+  "total_cost_usd": 0.19501249999999998,
+  "usage": {
+    "input_tokens": 2,
+    "cache_creation_input_tokens": 0,
+    "cache_read_input_tokens": 6135,
+    "output_tokens": 12771,
+    "server_tool_use": {
+      "web_search_requests": 0,
+      "web_fetch_requests": 0
+    },
+    "service_tier": "standard",
+    "cache_creation": {
+      "ephemeral_1h_input_tokens": 0,
+      "ephemeral_5m_input_tokens": 0
+    },
+    "inference_geo": "not_available",
+    "iterations": [
+      {
+        "input_tokens": 2,
+        "output_tokens": 12771,
+        "cache_read_input_tokens": 6135,
+        "cache_creation_input_tokens": 0,
+        "cache_creation": {
+          "ephemeral_5m_input_tokens": 0,
+          "ephemeral_1h_input_tokens": 0
+        },
+        "type": "message"
+      }
+    ],
+    "speed": "standard"
+  },
+  "modelUsage": {
+    "claude-haiku-4-5-20251001": {
+      "inputTokens": 1526,
+      "outputTokens": 15,
+      "cacheReadInputTokens": 0,
+      "cacheCreationInputTokens": 0,
+      "webSearchRequests": 0,
+      "costUSD": 0.001601,
+      "contextWindow": 200000,
+      "maxOutputTokens": 32000,
+      "canonicalModel": "claude-haiku-4-5",
+      "provider": "firstParty"
+    },
+    "claude-sonnet-5": {
+      "inputTokens": 2,
+      "outputTokens": 12771,
+      "cacheReadInputTokens": 6135,
+      "cacheCreationInputTokens": 0,
+      "webSearchRequests": 0,
+      "costUSD": 0.1934115,
+      "contextWindow": 1000000,
+      "maxOutputTokens": 64000,
+      "canonicalModel": "claude-sonnet-5",
+      "provider": "firstParty"
+    }
+  },
+  "permission_denials": [],
+  "terminal_reason": "completed",
+  "fast_mode_state": "off",
+  "fast_mode_disabled_reason": "sdk_opt_in_required",
+  "subtype": "success",
+  "api_error_status": null,
+  "result": "{\"t1\": \"index::writer_01\"}",
+  "ttft_ms": 112851,
+  "ttft_stream_ms": 1399,
+  "time_to_request_ms": 39,
+  "time_to_request_from_spawn_ms": 2206728,
+  "warm_spare_claimed": false,
+  "time_origin_ms": 1785055926003.5378,
+  "type": "result",
+  "duration_ms": 114365,
+  "uuid": "356e8636-5915-4f33-af76-a5234db3d541"
+}

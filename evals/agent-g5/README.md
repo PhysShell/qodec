@@ -59,3 +59,34 @@ python3 evals/agent-g5/run.py --name g5-v1 --repeats 2
 
 Runs live under `runs/<name>/` with `record.json` (hashes, envelopes,
 per-cell grades) and `summary.md`.
+
+## Result — `g5-sonnet-v1` (2026-07-26, claude 2.1.220, repeats 2)
+
+| pooled | score | note |
+|---|---|---|
+| raw | 24/24 | |
+| squeeze | 21/23 | Fisher vs raw p=0.234 — no significant difference |
+
+One squeeze cell (cross-ref-2 rep 1) timed out at 300 s and is recorded as
+a failed cell, not a wrong answer; its repeat passed. Cold wire savings
+across the 12 tasks: 22 481 → 12 500 prompt tokens (**−44.4%**).
+
+The two squeeze misses (each recovered on the repeat) are the finding:
+
+* `decision-3`: answered `codecpool_28` for `codec::pool_28` — the
+  aggregation was **correct** (right test out of ~30 across 3 attempts);
+  the `::` separator was lost reconstructing the aliased name.
+* `state-3`: answered `819200` for `8192000` — right hunk, right constant,
+  a digit dropped reproducing the value.
+
+Both are surface-reconstruction slips at alias/legend boundaries — the
+`boundary-recomposed` class `qodec risk` flags — not task-logic failures.
+Read precisely: on this battery, work-task utility survives compression
+(p=0.234, n small — "no significant difference", not "proven equal"), and
+the residual error mode is the one the risk metric already names, which
+means mitigation is representational (safer aliasing of `::`-joined
+identifiers and long numerals), not "compress less".
+
+What this does NOT show: tool-loop agent behavior (L3), other reader
+families (codex backend still environment-blocked), non-synthetic payloads.
+Those remain the recorded next steps.
