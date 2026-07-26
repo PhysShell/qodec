@@ -388,11 +388,18 @@ def main() -> int:
             len(per_task),
         )
     per_task_pass = {}
+    per_task_complete = {}
     for a, cs in by_arm.items():
         outcomes = {}
         for c in cs:
             outcomes.setdefault(c["task"], []).append(c["correct"] == c["total"])
         per_task_pass[a] = {t: all(oks) for t, oks in outcomes.items()}
+        # A task is a valid McNemar member only when every requested repeat
+        # produced a graded cell — a reader-error/grade-failed repeat leaves
+        # the arm's outcome observed on weaker evidence than its pair (Codex
+        # review on PR #12), so incomplete tasks are excluded from the
+        # inferential test (they stay visible in the failed-cells line).
+        per_task_complete[a] = {t: len(oks) == args.repeats for t, oks in outcomes.items()}
     for a in by_arm:
         hit, n = pooled[a]
         thit, tn = collapsed[a]
@@ -401,14 +408,22 @@ def main() -> int:
             # Paired by task: the primary test is exact McNemar over
             # discordant task cells; Fisher on the collapsed table is kept
             # as a supplementary independent-table calculation only.
-            shared = sorted(set(per_task_pass["raw"]) & set(per_task_pass[a]))
+            union = set(per_task_pass["raw"]) | set(per_task_pass[a])
+            shared = sorted(
+                t
+                for t in set(per_task_pass["raw"]) & set(per_task_pass[a])
+                if per_task_complete["raw"].get(t) and per_task_complete[a].get(t)
+            )
+            dropped = len(union) - len(shared)
             b = sum(1 for t in shared if per_task_pass["raw"][t] and not per_task_pass[a][t])
             c = sum(1 for t in shared if not per_task_pass["raw"][t] and per_task_pass[a][t])
             rh, rn = collapsed["raw"]
             p_mc = mcnemar_exact(b, c)
             p_f = fisher_two_sided(rh, rn, thit, tn)
+            note = f", {dropped} incomplete excluded" if dropped else ""
             extra = (
-                f" · paired exact McNemar vs raw p={p_mc:.3g} (b={b} c={c}; primary)"
+                f" · paired exact McNemar vs raw p={p_mc:.3g}"
+                f" (b={b} c={c} over {len(shared)} complete pairs{note}; primary)"
                 f" · Fisher p={p_f:.3g} (supplementary)"
             )
         lines.append(
