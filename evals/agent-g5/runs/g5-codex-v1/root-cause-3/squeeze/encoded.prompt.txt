@@ -1,0 +1,188 @@
+Answer the questions below using ONLY the payload in this message.
+Do not use any tools, do not read any files, do not guess beyond the
+payload. Reply with ONLY a JSON object mapping each question id to a
+short answer string, e.g. {"q1": "...", "q2": "..."}.
+
+The payload is encoded as a `%q1` container. Format: first line
+`%q1 <codec> ...` (parameters), then legend lines `<alias>=<phrase>`
+(each alias is a short stand-in for that exact phrase), then a
+`%q1 body` line, then the body. `%q1 xN` after a line means that line
+occurs N times in total. A `toon` body is a table: first line is a JSON
+array of keys, each following line is one object, cells are JSON values
+joined by the separator named in the header. A `grep` body is grouped
+matcher output: a marker line names a file path and the lines after it
+are `line:text` hits in that file (a bare marker starts verbatim
+lines). A `diag` body line starting with an alias expands to: the head
+after the alias, then that alias's legend template with each slot
+placeholder filled by the sep-joined values in order. A `tmpl` body
+line starting with an alias is its legend template with the slot
+placeholders filled by the sep-joined values that follow the alias.
+Mentally decode the body via the legend before answering; never emit
+alias characters in answers.
+
+# Payload
+
+%q1 mine n=13
+码=warning: unused import `crate::index::frame`
+引=warning: unused import `crate::fs::writer`
+路=error[E0599]: no method named `commit` found — aborted
+类== note: this error is a consequence of
+函=%q1 x2
+值=%q1 x3
+错=%q1 x4
+件=类 the previous error
+试=/cursor.rs:
+组=路 expansion
+标=qodec-lab
+记=%q1 x7
+链=/pool.rs:
+%q1 body
+%q1 fold nl=1
+%q1 body
+   Compiling 标 v0.3.0 (/work/标)
+引
+函
+码
+引
+错
+码
+引
+记
+码
+引
+码
+引
+值
+码
+引
+码
+引
+值
+码
+函
+引
+函
+码
+引
+码
+引
+函
+码
+引
+函
+码
+引
+值
+码
+函
+引
+函
+码
+引
+码
+函
+引
+错
+码
+函
+引
+码
+引
+%q1 x5
+码
+引
+错
+码
+值
+引
+函
+码
+引
+值
+码
+函
+引
+%q1 x11
+码
+引
+码
+引
+错
+码
+函
+引
+函
+码
+函
+引
+记
+error[E0308]: mismatched types
+ --> src/fs链224:17
+  = note: expected `u64`, found `Option<u64>`
+组
+ --> src/index试67:5
+  件
+组
+ --> src/codec/frame.rs:62:5
+  件
+组
+ --> src/sched试63:5
+  件
+组
+ --> src/cache/reader.rs:18:5
+  件
+组
+ --> src/codec链50:5
+  件
+组
+ --> src/net/session.rs:56:5
+  件
+组
+ --> src/net/writer.rs:16:5
+  件
+组
+ --> src/auth试74:5
+  件
+码
+引
+函
+码
+引
+函
+码
+引
+错
+码
+引
+码
+引
+错
+码
+引
+码
+引
+值
+码
+引
+码
+引
+码
+引
+码
+引
+值
+码
+引
+码
+值
+引
+值
+码
+引
+码
+error: could not compile `标` (lib) due to previous errors
+
+
+# Questions
+
+t1: This build failed. Identify the PRIMARY error (the cause, not a consequence). Reply with its location as path:line.

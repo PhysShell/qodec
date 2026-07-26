@@ -135,3 +135,37 @@ of 2 repeats), so 12 clean squeeze calls bound the residual rate — they
 do not prove impossibility. Whether a larger repeat is worth the
 subscription budget is a separate decision now that the mitigation slice
 is closed.
+
+## Second reader — `g5-codex-v1` (codex-cli 0.145.0, ChatGPT login)
+
+The full battery under the codex reader, same closed-world discipline
+(read-only sandbox, ephemeral, no configs; no usage envelope — recorded
+as such). 48/48 valid calls:
+
+| pooled | score | note |
+|---|---|---|
+| raw | 24/24 | |
+| squeeze | 18/24 | Fisher vs raw **p=0.0219** — significant loss |
+
+The six misses are three tasks failing **deterministically** (both
+repeats, same wrong answer), and none are recomposition slips — the
+mitigation class stays absent cross-family. They are
+reasoning-over-representation failures:
+
+* `cross-ref-2`/`cross-ref-3`: a confidently wrong file path — the join
+  over two match sets fails when it must run through a large alias
+  legend. The passed `cross-ref-1` has **9** legend entries; the failed
+  ones have **45** and **43**.
+* `decision-2`: answers "None" — the across-attempts aggregation
+  collapses on the aliased retry log.
+
+Cross-family picture, both directions: the same artifacts score 24/24
+(v1) / 12/12 (v2) under the Sonnet reader, while `panel-codex-v1`
+(reader-cli) shows codex reading *counting* questions **better encoded
+than raw** (16/16 on deep/paper/squeeze including the paper trap that
+broke Sonnet at p≈2e-5, vs a consistent 5/6 on raw). Comprehension of
+compressed context is strongly model-family- and task-dependent:
+legend-driven counting suits codex; high-alias-density join/aggregation
+breaks it. `qodec risk`'s hazard-not-oracle framing now has live
+evidence on both sides, and alias *density* is a measurable hazard axis
+the metric does not yet score — a concrete next item, not a claim.
