@@ -141,7 +141,13 @@ pub fn splits_token(before: &str, after: &str) -> bool {
     let r = after.chars().next();
     match (l, r) {
         (Some(l), Some(r)) => {
-            (w(l) && w(r)) || (w(l) && after.starts_with("::")) || (before.ends_with("::") && w(r))
+            (w(l) && w(r))
+                || (w(l) && after.starts_with("::"))
+                || (before.ends_with("::") && w(r))
+                // Cutting between the two colons of `::` splits the glue
+                // itself (`auth:` + `:cursor_01`) — same class, seen in the
+                // first mitigated artifacts.
+                || (l == ':' && r == ':')
         }
         _ => false,
     }

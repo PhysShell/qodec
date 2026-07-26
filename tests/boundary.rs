@@ -17,9 +17,10 @@ fn splits_token_table() {
     assert!(splits_token("pool", "_28"));
     assert!(splits_token("pool_", "28"));
     assert!(splits_token("819200", "0;"));
-    // `::` path glue, either side (the dropped `::` in `codecpool_28`).
+    // `::` path glue: either side, and between its own two colons.
     assert!(splits_token("codec", "::pool_28"));
     assert!(splits_token("codec::", "pool_28"));
+    assert!(splits_token("auth:", ":cursor_01"));
     // A single `:` is a SAFE cut — measured: counting panels held 6/6 on
     // `"key":`-shaped aliases, G5 root-cause held 6/6 through `path:`
     // prefixes, and refusing these cuts fragments uniform representations
