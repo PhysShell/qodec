@@ -55,6 +55,22 @@ CLOSED_WORLD = [
     "--max-budget-usd", "0.50",
 ]
 
+# The codex analogue, byte-identical to evals/reader-cli/run.py: read-only
+# sandbox, ephemeral, no user config or rule files, shell tool off, prompt on
+# stdin, answer from --output-last-message, cwd = a fresh empty dir. NOTE:
+# read-only denies writes but NOT network — prefer the claude backend for
+# untrusted payloads (007 docs/security-layers.md).
+CODEX_FLAGS = [
+    "exec",
+    "--sandbox", "read-only",
+    "--skip-git-repo-check",
+    "--ephemeral",
+    "--color", "never",
+    "-c", "features.shell_tool=false",
+    "--ignore-user-config",
+    "--ignore-rules",
+]
+
 
 def discover_tasks() -> dict[str, tuple[Path, Path]]:
     tasks = {}
@@ -102,6 +118,37 @@ def call_claude(prompt: str, model: str | None, timeout: int) -> dict:
         return json.loads(proc.stdout)
     except json.JSONDecodeError:
         return {"error": f"non-JSON envelope: {proc.stdout[:300]}"}
+
+
+def call_codex(prompt: str, model: str | None, timeout: int) -> dict:
+    import tempfile
+
+    with tempfile.TemporaryDirectory(prefix="qodec-codex-") as cwd:
+        last_msg = Path(cwd) / "last-message.txt"
+        cmd = ["codex", *CODEX_FLAGS, "--output-last-message", str(last_msg)]
+        if model:
+            cmd += ["--model", model]
+        cmd.append("-")  # prompt on stdin
+        try:
+            proc = subprocess.run(
+                cmd, input=prompt, capture_output=True, text=True,
+                timeout=timeout, cwd=cwd,
+            )
+        except subprocess.TimeoutExpired:
+            return {"error": f"reader timed out after {timeout}s"}
+        except FileNotFoundError:
+            return {"error": "codex CLI not installed"}
+        if proc.returncode != 0 or not last_msg.exists():
+            return {"error": proc.stderr.strip()[:500] or "codex produced no last message"}
+        # No usage envelope from codex — record what exists, honestly.
+        return {"result": last_msg.read_text(), "provider": "codex",
+                "stderr_tail": proc.stderr.strip()[-300:]}
+
+
+def call_reader(provider: str, prompt: str, model: str | None, timeout: int) -> dict:
+    if provider == "codex":
+        return call_codex(prompt, model, timeout)
+    return call_claude(prompt, model, timeout)
 
 
 def grade(questions: Path, answers_path: Path, prompt_path: Path) -> dict:
@@ -171,6 +218,8 @@ def main() -> int:
     ap.add_argument("--codecs", default="squeeze", help="encoded arms")
     ap.add_argument("--repeats", type=int, default=2)
     ap.add_argument("--model", default=None)
+    ap.add_argument("--provider", default="claude", choices=["claude", "codex"],
+                    help="reader CLI backend (codex: read-only sandbox, no usage envelope)")
     ap.add_argument("--timeout", type=int, default=300)
     args = ap.parse_args()
 
@@ -187,17 +236,17 @@ def main() -> int:
 
     try:
         reader_version = subprocess.run(
-            ["claude", "--version"], capture_output=True, text=True
+            [args.provider, "--version"], capture_output=True, text=True
         ).stdout.strip()
     except FileNotFoundError:
         reader_version = "not-installed"
 
     record: dict = {
         "date": datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ"),
-        "provider": "claude",
+        "provider": args.provider,
         "reader_version": reader_version,
         "model_arg": args.model,
-        "closed_world_argv": CLOSED_WORLD,
+        "closed_world_argv": CLOSED_WORLD if args.provider == "claude" else CODEX_FLAGS,
         "qodec_sha256": sha256_file(QODEC),
         "git_commit": subprocess.run(
             ["git", "-C", str(ROOT), "rev-parse", "HEAD"], capture_output=True, text=True
@@ -234,7 +283,7 @@ def main() -> int:
             prompt = prompt_path.read_text()
             for rep in range(1, args.repeats + 1):
                 print(f"  {task}/{arm} rep {rep} …", file=sys.stderr, flush=True)
-                env = call_claude(prompt, args.model, args.timeout)
+                env = call_reader(args.provider, prompt, args.model, args.timeout)
                 cell = {"task": task, "arm": arm, "rep": rep}
                 if "error" in env:
                     cell.update(status="reader-error", error=env["error"])
@@ -266,7 +315,7 @@ def main() -> int:
     lines = [
         f"# G5 work-task A/B — run `{args.name}`",
         "",
-        f"date {record['date']} · claude {reader_version} · qodec `{record['git_commit'][:12]}` · "
+        f"date {record['date']} · {args.provider} {reader_version} · qodec `{record['git_commit'][:12]}` · "
         f"repeats {args.repeats} · closed-world flags as in 007 judge",
         "",
         "| task | " + " | ".join(f"{a}" for a in by_arm) + " | prompt tok raw/enc |",
