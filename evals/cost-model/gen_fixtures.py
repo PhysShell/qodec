@@ -55,7 +55,7 @@ HERE = os.path.dirname(os.path.abspath(__file__))
 
 
 def write(path, lines):
-    with open(os.path.join(HERE, path), "w") as f:
+    with open(os.path.join(HERE, path), "w", encoding="utf-8", newline="\n") as f:
         f.write("".join(lines))
     print(f"{path}: {len(lines)} lines")
 

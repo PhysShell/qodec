@@ -494,10 +494,12 @@ pub fn rows_to_json(rows: &[Row]) -> String {
     let mut out = String::from("[\n");
     for (k, r) in rows.iter().enumerate() {
         let features: Vec<String> = r.features.iter().map(|f| format!("{f:.6}")).collect();
+        // Rust's `{:?}` escaping is not JSON (non-ASCII, control chars);
+        // serde_json's string encoder is.
         let _ = write!(
             out,
-            "{{\"file\":{:?},\"i\":{},\"j\":{},\"target\":{},\"features\":[{}]}}",
-            r.file,
+            "{{\"file\":{},\"i\":{},\"j\":{},\"target\":{},\"features\":[{}]}}",
+            Value::String(r.file.clone()),
             r.i,
             r.j,
             r.target,

@@ -1133,10 +1133,21 @@ fn cmd_cost_harvest(a: &CostHarvestArgs) -> Result<()> {
 
 fn cmd_cost_fit(a: &CostFitArgs) -> Result<()> {
     let rows = qodec::cost::rows_from_json(&fs::read_to_string(&a.input)?)?;
-    let holdout: Vec<&str> = a.holdout.split(',').filter(|s| !s.is_empty()).collect();
+    let holdout: Vec<&str> = a
+        .holdout
+        .split(',')
+        .map(str::trim)
+        .filter(|s| !s.is_empty())
+        .collect();
     let (train, held): (Vec<_>, Vec<_>) = rows
         .into_iter()
         .partition(|r| !holdout.contains(&r.file.as_str()));
+    for name in &holdout {
+        anyhow::ensure!(
+            held.iter().any(|r| r.file == *name),
+            "holdout file {name:?} matches no rows in the dataset (check the exact file name)"
+        );
+    }
     let model = qodec::cost::fit(&train)
         .ok_or_else(|| anyhow::anyhow!("fit refused (too few samples or degenerate system)"))?;
     let m = qodec::cost::evaluate(&model, &train);

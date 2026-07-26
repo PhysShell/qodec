@@ -187,13 +187,22 @@ fn spearman_averages_tied_ranks() -> Result<()> {
 #[test]
 fn dataset_json_roundtrips() -> Result<()> {
     let text = synthetic_log();
-    let rows = harvest("synthetic", &text, &Approx, &[], 300);
+    let mut rows = harvest("synthetic", &text, &Approx, &[], 300);
+    // CodeRabbit review on PR #8: file names must survive as valid JSON —
+    // non-ASCII, quotes, backslashes and tabs all appear in real paths.
+    if let Some(hostile) = rows.first_mut() {
+        hostile.file = "логи/\"β\"\tback\\slash.txt".to_string();
+    }
     let json = rows_to_json(&rows);
+    anyhow::ensure!(
+        serde_json::from_str::<serde_json::Value>(&json).is_ok(),
+        "rows_to_json must emit valid JSON"
+    );
     let back = rows_from_json(&json)?;
     anyhow::ensure!(rows.len() == back.len());
     let a = rows.first().ok_or_else(|| anyhow::anyhow!("empty rows"))?;
     let b = back.first().ok_or_else(|| anyhow::anyhow!("empty back"))?;
-    anyhow::ensure!(a.file == b.file);
+    anyhow::ensure!(a.file == b.file, "hostile file name must roundtrip");
     anyhow::ensure!((a.target - b.target).abs() < 1e-9);
     Ok(())
 }

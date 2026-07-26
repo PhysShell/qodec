@@ -320,18 +320,23 @@ fn candidate_ends(i: usize, n: usize, exhaustive: bool) -> Vec<usize> {
 /// arbitration then clamps to the baseline; it can never ship an artifact the
 /// meter rejects. This is what makes the all-span graph affordable beyond
 /// [`MAX_ALL_SPAN_LINES`]: the measured DP pays four encodes per edge, this
-/// one pays twelve multiplications.
+/// one pays fourteen multiplications.
 pub fn encode_predicted(
     text: &str,
     meter: &dyn TokenMeter,
     model: &CostModel,
     templates: &[Vec<String>],
 ) -> String {
-    let path = predicted_boundaries(text, model).map(|cuts| {
+    // Fail closed: a boundary that does not slice cleanly (impossible for the
+    // line-aligned cuts the DP emits, but not proven by types) drops the whole
+    // predicted path, and arbitration ships the baseline instead.
+    let path = predicted_boundaries(text, model).and_then(|cuts| {
         cuts.iter()
-            .filter_map(|&(start, end)| text.get(start..end))
-            .map(|span| best_span(span, meter, templates).0)
-            .collect::<Vec<_>>()
+            .map(|&(start, end)| {
+                text.get(start..end)
+                    .map(|span| best_span(span, meter, templates).0)
+            })
+            .collect::<Option<Vec<_>>>()
     });
     routed_or_baseline(text, meter, path, templates)
 }

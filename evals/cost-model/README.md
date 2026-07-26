@@ -31,8 +31,8 @@ to commit (11 MB), so its identity is pinned instead — regeneration must
 reproduce these exact bytes:
 
 ```
-dataset-corpus.json  sha256  b9f4b37e13126c325608678de6c5ccd8e49d3f3c8ea646948bf18f4be8bd3849
-dataset-synth.json   sha256  666d644cfec40c3ef7315000f74b3ec505836c6a8b0e6ebe11fa26c1a6216c50
+dataset-corpus.json  sha256  35719cda702270b9892ab4c84c395bf3ae05f700470d5bef9171caf71b5b20cb
+dataset-synth.json   sha256  ed9bd2ee3315146087b8ea3e7559de93138d3122e6cf58436acedb524074f1e1
 ```
 
 `model.json` (committed, 4 KB) is the fitted v2 model;
@@ -61,20 +61,21 @@ dataset-synth.json   sha256  666d644cfec40c3ef7315000f74b3ec505836c6a8b0e6ebe11f
    extension, since the ratio reads size-dependent features. The physical
    law "extending a span never makes its artifact cheaper" is enforced in
    the DP instead: the predicted router applies a running max over each
-   start's extensions, O(1) per edge. Holdout Spearman: build-log 0.917,
-   rg-output 0.994.
+   start's extensions, O(1) per edge. Holdout Spearman: build-log 0.918,
+   rg-output 0.994 (refit after the dup-boundary feature fix from review).
 
 ## Results (v2)
 
 | fixture | raw tok | measured all-span | predicted | geometric |
 |---|---:|---:|---:|---:|
-| offgrid-250 (250 lines) | 4599 | **2013** · 489 s | 2108 · **0.097 s** | 2119 · 10.4 s |
-| offgrid-900 (864 lines) | 16015 | refuses (>300) | 7555 · **0.34 s** | **7445** · 38.8 s |
-| corpus ×6 | — | = predicted | token-identical, 4–16 ms | = predicted |
+| offgrid-250 (250 lines) | 4599 | **2013** · 349 s | **2013** · **0.071 s** | 2119 · 6.8 s |
+| offgrid-900 (864 lines) | 16015 | refuses (>300) | 7613 · **0.23 s** | **7445** · 23.7 s |
+| corpus ×6 | — | = predicted | token-identical, 3–9 ms | = predicted |
 
-Honest reading: predicted routing lands within **4.7%** of the measured
-truth where truth is computable (beating the geometric router there), and
-within **1.5%** of geometric at 113× less search time where truth is not.
+Honest reading: after the review-driven dup-boundary feature fix, predicted
+routing reproduces the measured truth **token-for-token** where truth is
+computable (4900× faster, beating the geometric router there), and lands
+within **2.3%** of geometric at 102× less search time where truth is not.
 On the 6 real corpus files all three agree token-for-token. The measured
 meter remains the only authority — this model never accepts anything.
 
