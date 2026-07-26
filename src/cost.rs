@@ -265,6 +265,11 @@ pub struct CostModel {
     std: Vec<f64>,
     weights: Vec<f64>,
     pub trained_on: Vec<String>,
+    /// Name of the meter whose counts labeled the training data. Stamped from
+    /// the dataset at fit time and enforced at prediction time: a model
+    /// trained under o200k silently ranking spans for cl100k is exactly the
+    /// tokenizer-drift failure this field exists to catch.
+    pub meter: String,
 }
 
 impl CostModel {
@@ -283,8 +288,9 @@ impl CostModel {
 
     pub fn to_json(&self) -> Value {
         json!({
-            "format": "qodec-cost-model-v1",
+            "format": "qodec-cost-model-v2",
             "d": DIM,
+            "meter": self.meter,
             "mean": self.mean,
             "std": self.std,
             "weights": self.weights,
@@ -297,6 +303,14 @@ impl CostModel {
         if d != DIM {
             bail!("cost model dimension {d} != {DIM} (feature set changed)");
         }
+        // Fail closed on an unstamped model: without knowing which meter's
+        // counts it was trained on, its predictions cannot be trusted to
+        // order spans for any meter.
+        let meter = v
+            .get("meter")
+            .and_then(Value::as_str)
+            .context("cost model has no meter stamp (predates v2) — re-fit from a stamped dataset")?
+            .to_string();
         let read = |key: &str| -> Result<Vec<f64>> {
             let arr = v
                 .get(key)
@@ -324,13 +338,17 @@ impl CostModel {
             std: read("std")?,
             weights: read("weights")?,
             trained_on,
+            meter,
         })
     }
 }
 
 /// Fit a standardized ridge model on `rows`. Refuses on too few samples or a
-/// degenerate system — the caller keeps using measured mosaic.
-pub fn fit(rows: &[Row]) -> Option<CostModel> {
+/// degenerate system — the caller keeps using measured mosaic. `meter` names
+/// the tokenizer that produced the targets (take it from the dataset stamp,
+/// not from a CLI flag — the chain harvest → fit → predict must not be
+/// re-statable by hand).
+pub fn fit(rows: &[Row], meter: &str) -> Option<CostModel> {
     if rows.len() < MIN_SAMPLES {
         return None;
     }
@@ -399,6 +417,7 @@ pub fn fit(rows: &[Row]) -> Option<CostModel> {
         std,
         weights,
         trained_on,
+        meter: meter.to_string(),
     })
 }
 
@@ -489,9 +508,15 @@ fn ranks(v: &[f64]) -> Vec<f64> {
     out
 }
 
-/// Serialize rows deterministically (JSON lines inside one array).
-pub fn rows_to_json(rows: &[Row]) -> String {
-    let mut out = String::from("[\n");
+/// Serialize a harvested dataset deterministically: a v2 envelope carrying
+/// the meter stamp, rows as JSON lines inside one array. The stamp is written
+/// where the meter is actually known — at harvest — and flows to the model at
+/// fit time, so a model can never claim a tokenizer its labels never saw.
+pub fn dataset_to_json(meter: &str, rows: &[Row]) -> String {
+    let mut out = format!(
+        "{{\"format\":\"qodec-cost-dataset-v2\",\"meter\":{},\"rows\":[\n",
+        Value::String(meter.to_string())
+    );
     for (k, r) in rows.iter().enumerate() {
         let features: Vec<String> = r.features.iter().map(|f| format!("{f:.6}")).collect();
         // Rust's `{:?}` escaping is not JSON (non-ASCII, control chars);
@@ -507,13 +532,29 @@ pub fn rows_to_json(rows: &[Row]) -> String {
         );
         out.push_str(if k + 1 == rows.len() { "\n" } else { ",\n" });
     }
-    out.push(']');
+    out.push_str("]}");
     out
 }
 
-pub fn rows_from_json(text: &str) -> Result<Vec<Row>> {
+/// Parse a v2 dataset: `(meter, rows)`. A legacy bare-array dataset (v1, no
+/// meter stamp) is refused — fail closed, re-harvest rather than guess which
+/// tokenizer produced the labels.
+pub fn dataset_from_json(text: &str) -> Result<(String, Vec<Row>)> {
     let v: Value = serde_json::from_str(text).context("parsing cost dataset")?;
-    let arr = v.as_array().context("cost dataset must be a JSON array")?;
+    if v.is_array() {
+        bail!(
+            "legacy cost dataset without a meter stamp (v1) — re-harvest with `qodec cost harvest`"
+        );
+    }
+    let meter = v
+        .get("meter")
+        .and_then(Value::as_str)
+        .context("cost dataset missing meter stamp")?
+        .to_string();
+    let arr = v
+        .get("rows")
+        .and_then(Value::as_array)
+        .context("cost dataset missing rows array")?;
     let mut rows = Vec::with_capacity(arr.len());
     for item in arr {
         let feats = item
@@ -539,5 +580,5 @@ pub fn rows_from_json(text: &str) -> Result<Vec<Row>> {
             target: item.get("target").and_then(Value::as_f64).unwrap_or(0.0),
         });
     }
-    Ok(rows)
+    Ok((meter, rows))
 }
