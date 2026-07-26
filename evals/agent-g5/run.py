@@ -39,7 +39,7 @@ from pathlib import Path
 HERE = Path(__file__).resolve().parent
 ROOT = HERE.parent.parent
 QODEC = ROOT / "target" / "release" / "qodec"
-TASKS_DIR = HERE / "tasks"
+DEFAULT_TASKS_DIR = "tasks"
 
 # PhysShell/007 `invoke.rs::call_claude`'s proven closed-world flag set —
 # byte-identical to evals/reader-cli/run.py.
@@ -72,9 +72,9 @@ CODEX_FLAGS = [
 ]
 
 
-def discover_tasks() -> dict[str, tuple[Path, Path]]:
+def discover_tasks(tasks_dir: Path) -> dict[str, tuple[Path, Path]]:
     tasks = {}
-    for payload in sorted(TASKS_DIR.glob("*.txt")):
+    for payload in sorted(tasks_dir.glob("*.txt")):
         questions = payload.with_name(payload.stem + ".questions.json")
         if questions.exists():
             tasks[payload.stem] = (payload, questions)
@@ -205,6 +205,23 @@ def envelope_tokens(env: dict) -> dict:
     }
 
 
+def mcnemar_exact(b: int, c: int) -> float:
+    """Exact two-sided McNemar on discordant pair counts (binomial p=0.5).
+
+    The PRIMARY test for arm comparisons here: raw and encoded run on the
+    same tasks, so observations are paired, and Fisher's independent-table
+    assumption overstates evidence (review on the density battery). With b
+    discordant pairs favoring the first arm and c the second, the two-sided
+    exact p is 2 * P(Binom(b+c, 1/2) <= min(b, c)), capped at 1.
+    """
+    n = b + c
+    if n == 0:
+        return 1.0
+    k = min(b, c)
+    tail = sum(math.comb(n, i) for i in range(0, k + 1)) / 2 ** n
+    return min(1.0, 2 * tail)
+
+
 def fisher_two_sided(a_hit: int, a_n: int, b_hit: int, b_n: int) -> float:
     """Two-sided Fisher exact on a 2x2 (hits/misses per arm), stdlib only.
 
@@ -233,13 +250,15 @@ def main() -> int:
     ap.add_argument("--model", default=None)
     ap.add_argument("--provider", default="claude", choices=["claude", "codex"],
                     help="reader CLI backend (codex: read-only sandbox, no usage envelope)")
+    ap.add_argument("--tasks-dir", default=DEFAULT_TASKS_DIR,
+                    help="fixture directory under evals/agent-g5/ (tasks | tasks-density)")
     ap.add_argument("--timeout", type=int, default=300)
     args = ap.parse_args()
 
     if not QODEC.exists():
         print("build first: cargo build --release", file=sys.stderr)
         return 1
-    tasks = discover_tasks()
+    tasks = discover_tasks(HERE / args.tasks_dir)
     if not tasks:
         print("no tasks — run gen_tasks.py first", file=sys.stderr)
         return 1
@@ -360,22 +379,57 @@ def main() -> int:
         for a, cs in by_arm.items()
     }
     collapsed = {}
+    per_task_pass = {}
+    per_task_complete = {}
     for a, cs in by_arm.items():
-        per_task = {}
+        outcomes: dict[str, list[bool]] = {}
         for c in cs:
-            per_task.setdefault(c["task"], []).append(c["correct"] == c["total"])
+            outcomes.setdefault(c["task"], []).append(c["correct"] == c["total"])
+        per_task_pass[a] = {t: all(oks) for t, oks in outcomes.items()}
+        # A task is a valid McNemar member only when every requested repeat
+        # produced a graded cell — a reader-error/grade-failed repeat leaves
+        # the arm's outcome observed on weaker evidence than its pair (Codex
+        # review on PR #12), so incomplete tasks are excluded from the
+        # inferential test (they stay visible in the failed-cells line).
+        per_task_complete[a] = {t: len(oks) == args.repeats for t, oks in outcomes.items()}
+        # "All repeats correct" is only claimable on full evidence: a task
+        # with an ungraded repeat can't earn the credit (CodeRabbit review
+        # on PR #12) — it counts as observed but not passed here too, not
+        # just in the McNemar gate above.
         collapsed[a] = (
-            sum(1 for oks in per_task.values() if all(oks)),
-            len(per_task),
+            sum(
+                1
+                for t, oks in outcomes.items()
+                if all(oks) and per_task_complete[a][t]
+            ),
+            len(outcomes),
         )
     for a in by_arm:
         hit, n = pooled[a]
         thit, tn = collapsed[a]
         extra = ""
         if a != "raw" and "raw" in collapsed:
+            # Paired by task: the primary test is exact McNemar over
+            # discordant task cells; Fisher on the collapsed table is kept
+            # as a supplementary independent-table calculation only.
+            union = set(per_task_pass["raw"]) | set(per_task_pass[a])
+            shared = sorted(
+                t
+                for t in set(per_task_pass["raw"]) & set(per_task_pass[a])
+                if per_task_complete["raw"].get(t) and per_task_complete[a].get(t)
+            )
+            dropped = len(union) - len(shared)
+            b = sum(1 for t in shared if per_task_pass["raw"][t] and not per_task_pass[a][t])
+            c = sum(1 for t in shared if not per_task_pass["raw"][t] and per_task_pass[a][t])
             rh, rn = collapsed["raw"]
-            p = fisher_two_sided(rh, rn, thit, tn)
-            extra = f" · task-level Fisher vs raw p={p:.3g}"
+            p_mc = mcnemar_exact(b, c)
+            p_f = fisher_two_sided(rh, rn, thit, tn)
+            note = f", {dropped} incomplete excluded" if dropped else ""
+            extra = (
+                f" · paired exact McNemar vs raw p={p_mc:.3g}"
+                f" (b={b} c={c} over {len(shared)} complete pairs{note}; primary)"
+                f" · Fisher p={p_f:.3g} (supplementary)"
+            )
         lines.append(
             f"pooled {a}: {hit}/{n} (descriptive) · tasks all-repeats-correct: {thit}/{tn}{extra}"
         )

@@ -186,6 +186,54 @@ alias *density* is a measurable hazard axis the metric does not yet
 score — a concrete next item and the right axis for a bigger battery
 that could actually power a significance claim.
 
+## Alias-density dose-response — `density-codex-v1`
+
+The bigger battery the codex results called for: the same cross-file join
+task (`gen_density.py`, ground truth by construction) at five controlled
+doses, three instances each, measured squeeze legend sizes as the dose
+variable. Codex reader, raw + squeeze, 2 repeats — 60/60 valid calls:
+
+| dose | legend entries (measured) | raw cells | squeeze cells |
+|---|---|---|---|
+| d06 | 6–7 | 6/6 | **6/6** |
+| d12 | 15 | 6/6 | 3/6 |
+| d20 | 22–23 | 6/6 | 5/6 |
+| d30 | 31–34 | 6/6 | 5/6 |
+| d40 | 42–45 | 6/6 | 3/6 |
+
+**Primary analysis (paired)**: across 15 paired task-dose cells, raw
+passed 15/15 and squeeze 9/15; all six discordant cells favored raw.
+Exact two-sided McNemar **p=0.03125**. (Fisher on the collapsed table
+gives 0.0169, kept as a supplementary independent-table calculation
+only — raw and squeeze ran on the same tasks, so the observations are
+paired and McNemar is the normative test. The run's `summary.md` line
+predates this correction; `record.json` is the data, and the runner now
+prints McNemar as primary.)
+
+**Unit of independence, stated exactly**: the 15 cells are 15 freshly
+sampled instances (each with its own seed, path sample and answer) at
+five dose levels — independent in content, but all drawn from ONE
+semantic task family (cross-file join) and one generator. Inference is
+at the task-dose-cell level for THIS task shape; the paired analysis is
+significant, but broader cross-task-family replication remains open.
+
+**Threshold, stated exactly**: clean at 6–7 entries, failures already
+present at the first next tested dose (15), no further monotone
+worsening to 45. The observed onset therefore lies in the interval
+**(7, 15]** — 15 is the first *tested* legend load at which failures
+appeared, not a precisely estimated causal breakpoint. The shape is
+compatible with a step/plateau, but six calls per dose cannot establish
+that form conclusively. The prior 9-pass/43-fail anchors were
+consistent with this and put the onset far too high.
+
+Raw stays perfect at every dose while costing 2.6× the tokens at d40
+(3176 vs 1222) — the failure is representational, not task difficulty.
+Encoded in `qodec risk` as the info-level `legend-load` line:
+`LEGEND_LOAD_STEP = 15` is an operational, conservative anchor at the
+first tested onset (hazard-not-oracle: lookups and counting survived at
+every dose; the hazard is specifically cross-entry join/aggregation,
+and it is family-dependent — Sonnet held 5/5 on this task shape).
+
 ### Uncontrolled axis: reasoning effort
 
 Recorded, not yet varied. What the panels actually ran with:

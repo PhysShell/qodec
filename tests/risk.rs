@@ -55,6 +55,33 @@ fn deep_same_predicate_is_not_split() -> Result<()> {
 }
 
 #[test]
+fn legend_load_flags_at_the_measured_step() -> Result<()> {
+    // density-codex-v1 (60 calls, five doses): the codex reader's join was
+    // clean at 6-7 legend entries and unreliable from the first next
+    // tested dose (15) up — observed onset in (7, 15]. The flag anchors
+    // conservatively at that first tested onset and must trip on a
+    // >=15-entry artifact and stay silent on a small one. Uses the density
+    // fixtures themselves, whose measured legend sizes are recorded in the
+    // run.
+    let meter = Bpe::o200k()?;
+    let small = std::fs::read_to_string("evals/agent-g5/tasks-density/xref-d06-1.txt")?;
+    let large = std::fs::read_to_string("evals/agent-g5/tasks-density/xref-d12-1.txt")?;
+    let small_report = analyze(&encode(&small, CodecKind::Squeeze, &meter, Alphabet::Auto))?;
+    let large_report = analyze(&encode(&large, CodecKind::Squeeze, &meter, Alphabet::Auto))?;
+    anyhow::ensure!(
+        !small_report.legend_load(),
+        "6-7 entries measured clean — must not flag ({} entries)",
+        small_report.legend_entries
+    );
+    anyhow::ensure!(
+        large_report.legend_load(),
+        "15 entries is the measured step — must flag ({} entries)",
+        large_report.legend_entries
+    );
+    Ok(())
+}
+
+#[test]
 fn fold_run_hiding_is_split_by_design() -> Result<()> {
     // fold's `%q1 xN` hides N-1 copies behind an explicit counter. The L2
     // evidence says readers miscount folded runs anyway, so the report

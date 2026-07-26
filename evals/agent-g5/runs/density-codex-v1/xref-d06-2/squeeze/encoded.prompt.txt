@@ -1,0 +1,65 @@
+Answer the questions below using ONLY the payload in this message.
+Do not use any tools, do not read any files, do not guess beyond the
+payload. Reply with ONLY a JSON object mapping each question id to a
+short answer string, e.g. {"q1": "...", "q2": "..."}.
+
+The payload is encoded as a `%q1` container. Format: first line
+`%q1 <codec> ...` (parameters), then legend lines `<alias>=<phrase>`
+(each alias is a short stand-in for that exact phrase), then a
+`%q1 body` line, then the body. `%q1 xN` after a line means that line
+occurs N times in total. A `toon` body is a table: first line is a JSON
+array of keys, each following line is one object, cells are JSON values
+joined by the separator named in the header. A `grep` body is grouped
+matcher output: a marker line names a file path and the lines after it
+are `line:text` hits in that file (a bare marker starts verbatim
+lines). A `diag` body line starting with an alias expands to: the head
+after the alias, then that alias's legend template with each slot
+placeholder filled by the sep-joined values in order. A `tmpl` body
+line starting with an alias is its legend template with the slot
+placeholders filled by the sep-joined values that follow the alias.
+Mentally decode the body via the legend before answering; never emit
+alias characters in answers.
+
+# Payload
+
+%q1 mine n=6
+路=码src/dns/reader.rs:
+类=src/log/probe.rs:
+函=引src/wal/ledger.rs:
+值=码src/fs/ledger.rs:
+错=引src/fmt/frame.rs:
+试=码src/gc/frame.rs:
+%q1 body
+%q1 diag sep=pipe slot=quest n=2 nl=1
+码=    // TODO(remove_before_ship) — see review notes
+引=    // unwrap_unchecked — see review notes
+%q1 body
+错36:
+函113:
+值49:
+试264:
+路199:
+函166:
+试76:
+路25:
+路57:
+错254:
+值211:
+函229:
+码类84:
+码类79:
+路299:
+试70:
+值91:
+引类23:
+函236:
+错263:
+路282:
+引类53:
+引类206:
+引类102:
+
+
+# Questions
+
+t1: Which single file contains BOTH `TODO(remove_before_ship)` and `unwrap_unchecked` markers? Reply with the file path.

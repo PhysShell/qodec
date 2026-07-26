@@ -1,0 +1,220 @@
+Answer the questions below using ONLY the payload in this message.
+Do not use any tools, do not read any files, do not guess beyond the
+payload. Reply with ONLY a JSON object mapping each question id to a
+short answer string, e.g. {"q1": "...", "q2": "..."}.
+
+The payload is encoded as a `%q1` container. Format: first line
+`%q1 <codec> ...` (parameters), then legend lines `<alias>=<phrase>`
+(each alias is a short stand-in for that exact phrase), then a
+`%q1 body` line, then the body. `%q1 xN` after a line means that line
+occurs N times in total. A `toon` body is a table: first line is a JSON
+array of keys, each following line is one object, cells are JSON values
+joined by the separator named in the header. A `grep` body is grouped
+matcher output: a marker line names a file path and the lines after it
+are `line:text` hits in that file (a bare marker starts verbatim
+lines). A `diag` body line starting with an alias expands to: the head
+after the alias, then that alias's legend template with each slot
+placeholder filled by the sep-joined values in order. A `tmpl` body
+line starting with an alias is its legend template with the slot
+placeholders filled by the sep-joined values that follow the alias.
+Mentally decode the body via the legend before answering; never emit
+alias characters in answers.
+
+# Payload
+
+%q1 mine n=42
+路=引src/
+类=码src/
+函=路tls/reader.rs:
+值=路tls/ledger.rs:
+错=类wal/reader.rs:
+试=类cli/mount.rs:
+件=路log/pool.rs:
+组=路gc/pool.rs:
+标=路sched/handshake.rs:
+记=路cache/session.rs:
+链=路index/frame.rs:
+节=类net/session.rs:
+层=路ipc/frame.rs:
+块=类dns/
+表=路index/ledger.rs:
+行=类auth/ledger.rs:
+列=路wal/cursor.rs:
+键=类index/pool.rs:
+名=类codec/pool.rs:
+数=路net/probe.rs:
+串=类fs/cursor.rs:
+图=路net/pool.rs:
+树=类index/session.rs:
+点=类net/frame.rs:
+边=类sched/reader.rs:
+库=路cache/mount.rs:
+包=路fmt/mount.rs:
+版=路vm/probe.rs:
+构=路fs/mount.rs:
+建=类cli/session.rs:
+测=块writer.rs:
+例=块cursor.rs:
+警=类cache/
+告=块mount.rs:
+异=路ipc/ledger.rs:
+常=路cli/ledger.rs:
+态=类gc/
+流=类ipc/ledger.rs:
+程=路wal/mount.rs:
+入=类log/mount.rs:
+出=类cli/frame.rs:
+参=路fs/frame.rs:
+%q1 body
+%q1 diag sep=pipe slot=quest n=2 nl=1
+码=    // TODO(remove_before_ship) — see review notes
+引=    // unwrap_unchecked — see review notes
+%q1 body
+点230:
+函279:
+件182:
+图34:
+树253:
+串46:
+参177:
+名276:
+组274:
+节131:
+点75:
+件237:
+包87:
+库182:
+态probe.rs:22:
+错15:
+标164:
+例239:
+包175:
+试283:
+边205:
+组125:
+节148:
+常228:
+程55:
+态probe.rs:52:
+列165:
+层177:
+值48:
+试85:
+件157:
+测111:
+键126:
+数232:
+标131:
+组273:
+行78:
+名274:
+警reader.rs:261:
+链35:
+链71:
+行104:
+记37:
+试275:
+告23:
+试81:
+入79:
+值130:
+参252:
+错57:
+层213:
+记281:
+版235:
+错40:
+串123:
+图11:
+边189:
+流247:
+列286:
+版271:
+构80:
+键222:
+函274:
+表164:
+出273:
+列87:
+建121:
+件234:
+树169:
+记242:
+节111:
+链104:
+警reader.rs:154:
+点21:
+表290:
+数41:
+层104:
+树265:
+警ledger.rs:64:
+串102:
+名213:
+层44:
+函8:
+入151:
+记237:
+链12:
+告278:
+数220:
+态mount.rs:154:
+链168:
+测215:
+串190:
+值118:
+函198:
+例91:
+值192:
+组91:
+异106:
+记156:
+常81:
+函79:
+库154:
+错245:
+版51:
+层223:
+库124:
+构158:
+标291:
+构253:
+行233:
+试15:
+键263:
+键286:
+标260:
+异297:
+名297:
+节258:
+表45:
+列280:
+图104:
+图158:
+件110:
+点242:
+警ledger.rs:199:
+建123:
+态mount.rs:106:
+值108:
+边79:
+出28:
+告194:
+错121:
+例52:
+测217:
+程268:
+表239:
+数191:
+行295:
+节77:
+组47:
+包119:
+流181:
+树211:
+建87:
+
+
+# Questions
+
+t1: Which single file contains BOTH `TODO(remove_before_ship)` and `unwrap_unchecked` markers? Reply with the file path.
