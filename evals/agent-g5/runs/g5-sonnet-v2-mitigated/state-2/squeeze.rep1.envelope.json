@@ -1,0 +1,80 @@
+{
+  "is_error": false,
+  "duration_api_ms": 4285,
+  "num_turns": 1,
+  "stop_reason": "end_turn",
+  "session_id": "7e07d6be-b5fc-53d1-9dbd-3a72cdd573d7",
+  "total_cost_usd": 0.0128882,
+  "usage": {
+    "input_tokens": 2,
+    "cache_creation_input_tokens": 1578,
+    "cache_read_input_tokens": 4794,
+    "output_tokens": 12,
+    "server_tool_use": {
+      "web_search_requests": 0,
+      "web_fetch_requests": 0
+    },
+    "service_tier": "standard",
+    "cache_creation": {
+      "ephemeral_1h_input_tokens": 1578,
+      "ephemeral_5m_input_tokens": 0
+    },
+    "inference_geo": "not_available",
+    "iterations": [
+      {
+        "input_tokens": 2,
+        "output_tokens": 12,
+        "cache_read_input_tokens": 4794,
+        "cache_creation_input_tokens": 1578,
+        "cache_creation": {
+          "ephemeral_5m_input_tokens": 0,
+          "ephemeral_1h_input_tokens": 1578
+        },
+        "type": "message"
+      }
+    ],
+    "speed": "standard"
+  },
+  "modelUsage": {
+    "claude-haiku-4-5-20251001": {
+      "inputTokens": 1721,
+      "outputTokens": 15,
+      "cacheReadInputTokens": 0,
+      "cacheCreationInputTokens": 0,
+      "webSearchRequests": 0,
+      "costUSD": 0.001796,
+      "contextWindow": 200000,
+      "maxOutputTokens": 32000,
+      "canonicalModel": "claude-haiku-4-5",
+      "provider": "firstParty"
+    },
+    "claude-sonnet-5": {
+      "inputTokens": 2,
+      "outputTokens": 12,
+      "cacheReadInputTokens": 4794,
+      "cacheCreationInputTokens": 1578,
+      "webSearchRequests": 0,
+      "costUSD": 0.0110922,
+      "contextWindow": 1000000,
+      "maxOutputTokens": 64000,
+      "canonicalModel": "claude-sonnet-5",
+      "provider": "firstParty"
+    }
+  },
+  "permission_denials": [],
+  "terminal_reason": "completed",
+  "fast_mode_state": "off",
+  "fast_mode_disabled_reason": "sdk_opt_in_required",
+  "subtype": "success",
+  "api_error_status": null,
+  "result": "{\"t1\": \"49152\"}",
+  "ttft_ms": 2444,
+  "ttft_stream_ms": 2015,
+  "time_to_request_ms": 42,
+  "time_to_request_from_spawn_ms": 7876408,
+  "warm_spare_claimed": false,
+  "time_origin_ms": 1785061595625.7112,
+  "type": "result",
+  "duration_ms": 4527,
+  "uuid": "cb3f6c2e-9ee8-4daa-9c95-8cb61293ba17"
+}

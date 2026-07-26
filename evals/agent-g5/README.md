@@ -108,3 +108,30 @@ worse `split` risk class (caught by `deep_same_predicate_is_not_split` and
 the cost-model label canary during development). Cost on this battery:
 wire savings 44.4% → 43.8%. Pinned by `tests/boundary.rs`; whether the
 slips actually disappear needs a fresh panel, not a claim.
+
+### Validation — `g5-sonnet-v2-mitigated` (decision + state, the two
+### families that slipped)
+
+* **Valid calls**: 24/24 (12 raw, 12 squeeze; no timeouts, no reader
+  errors).
+* **Prior slip types**: 0 of either. The two previously-failing cells are
+  now exact on both repeats — decision-3 answers `codec::pool_28` with the
+  `::` intact, state-3 answers `8192000` with all digits.
+* **New error classes**: none — all 24 answers are exact matches.
+* **Per family**: decision raw 6/6, squeeze 6/6; state raw 6/6,
+  squeeze 6/6.
+* **Against `g5-sonnet-v1`**: same families were squeeze 10/12 with the
+  two recomposition slips; now 12/12.
+* **Cost surfaced by the fix**: keeping identifiers whole makes the
+  decision payloads nearly incompressible — encoded prompts now cost
+  slightly *more* than raw there (1010/1034/969 vs 1000/1006/922 tokens;
+  the notation brief no longer amortizes at this payload size). State
+  keeps its ~13% saving. Payload-level arbitration still guarantees the
+  artifact never exceeds raw; the brief is a per-prompt overhead that
+  amortizes with payload size and prefix caching.
+
+**Evidence, not proof**: the original slips were stochastic (each hit 1
+of 2 repeats), so 12 clean squeeze calls bound the residual rate — they
+do not prove impossibility. Whether a larger repeat is worth the
+subscription budget is a separate decision now that the mitigation slice
+is closed.
