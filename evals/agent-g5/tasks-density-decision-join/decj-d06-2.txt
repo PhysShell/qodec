@@ -1,0 +1,23 @@
+running retry harness (max 3 attempts per test)
+--- attempt 1 ---
+test cli::reader_00 ... FAILED
+test dns::probe_01 ... FAILED
+test tls::ledger_02 ... ok
+test ipc::cursor_03 ... FAILED
+test index::probe_04 ... ok
+test auth::frame_05 ... ok
+--- attempt 2 ---
+test cli::reader_00 ... FAILED
+test dns::probe_01 ... ok
+test tls::ledger_02 ... ok
+test ipc::cursor_03 ... FAILED
+test index::probe_04 ... FAILED
+test auth::frame_05 ... ok
+--- attempt 3 ---
+test cli::reader_00 ... ok
+test dns::probe_01 ... FAILED
+test tls::ledger_02 ... ok
+test ipc::cursor_03 ... FAILED
+test index::probe_04 ... ok
+test auth::frame_05 ... ok
+retry harness done

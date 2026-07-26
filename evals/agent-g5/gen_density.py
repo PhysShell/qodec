@@ -11,19 +11,32 @@ legend size. Ground truth stays known by construction; grading stays
 substring; the runner and closed-world discipline are unchanged.
 
 `density-codex-v1` then measured an onset in (7, 15] for that ONE task
-family, which is exactly the scope limit the finding carries. The
-`decision` family here is the replication arm: a different join shape
-(intersect the FAILED sets of three retry attempts, rather than two marker
-sets over paths), a different surface (test names + status lines rather
-than `path:line` comments), and a different hiding pattern — the miner
-carves the `mod::file_` stem of the join key across many legend entries
-instead of aliasing whole paths. Same reader, same doses by *measured*
-legend load, so a difference in outcome is attributable to the family and
-not to the dose.
+family, which is exactly the scope limit the finding carries. Two further
+families probe that limit, both dosed by *measured* legend load into the
+same bands the cross-ref battery covered, so an outcome difference is
+attributable to the family and not to the dose:
 
-Fixtures land in `tasks-density/` and `tasks-density-decision/` (not
-`tasks/`) so the main 12-task battery keeps its identity; run with
-    python3 evals/agent-g5/gen_density.py --family decision
+* `decision` — the retry-harness shape the main battery uses. It reads
+  like a three-way intersection but is NOT one: its non-culprits can only
+  fail attempts 1 and 2, so the last block holds exactly one FAILED line
+  and a single-block scan answers it. Measured after the fact, not by
+  design — which makes it a *lookup control* rather than a join
+  replication, and means the main battery's "decision" family should not
+  be described as a join either.
+* `decision-join` — the same surface with the degeneracy removed: a
+  non-culprit fails a free subset of at most two attempts, so every block
+  carries many FAILED lines and two-of-three near-misses are the standard
+  distractor. This is the actual join replication arm.
+
+Both share a hiding pattern that differs from cross-ref: the miner carves
+the `mod::file_` stem of the join key across many legend entries instead
+of aliasing whole paths, so the key is fragmented rather than wholly
+hidden.
+
+Fixtures land in `tasks-density/`, `tasks-density-decision/` and
+`tasks-density-decision-join/` (not `tasks/`) so the main 12-task battery
+keeps its identity; run with
+    python3 evals/agent-g5/gen_density.py --family decision-join
     python3 evals/agent-g5/run.py --name <run> --tasks-dir tasks-density ...
 
 Legend size is a *consequence* of mining, not a dial we set directly —
@@ -42,6 +55,7 @@ import random
 HERE = os.path.dirname(os.path.abspath(__file__))
 TASKS = os.path.join(HERE, "tasks-density")
 TASKS_DECISION = os.path.join(HERE, "tasks-density-decision")
+TASKS_DECISION_JOIN = os.path.join(HERE, "tasks-density-decision-join")
 
 MODS = ["net", "auth", "cache", "index", "wal", "codec", "sched", "fs",
         "gc", "tls", "dns", "log", "cli", "fmt", "vm", "ipc"]
@@ -57,6 +71,7 @@ DOSES = [6, 12, 20, 30, 40]
 # bands the cross-ref battery covered (6-7 / 15 / 22-23 / 31-34 / 42-45);
 # for this shape one suite mines to exactly one entry across the range.
 DECISION_DOSES = [6, 15, 22, 32, 44]
+DECISION_JOIN_DOSES = [6, 15, 22, 32, 44]
 INSTANCES = 3
 ATTEMPTS = 3
 
@@ -133,18 +148,82 @@ def gen_decision(dose: int, idx: int, rng: random.Random) -> None:
     print(f"{name}: {dose} suites, {len(lines)} lines -> {culprit!r}")
 
 
+def gen_decision_join(dose: int, idx: int, rng: random.Random) -> None:
+    # `decision` as the main battery defines it is NOT a join: its
+    # non-culprits can only fail attempts 1 and 2, so the last block holds
+    # exactly one FAILED line and the answer falls out of a single-block
+    # scan. This variant fixes that — a non-culprit fails a random subset
+    # of AT MOST two attempts, chosen freely, so every block carries many
+    # FAILED lines and tests failing two of three are common distractors.
+    # Uniqueness still holds by construction: only the culprit can reach
+    # three. Answering requires intersecting all three blocks.
+    suites = [
+        f"{rng.choice(MODS)}::{rng.choice(FILES)}_{k:02d}" for k in range(dose)
+    ]
+    culprit = rng.choice(suites)
+    fails: dict[str, set[int]] = {}
+    for s in suites:
+        if s == culprit:
+            fails[s] = set(range(1, ATTEMPTS + 1))
+            continue
+        how_many = rng.choices([0, 1, 2], weights=[0.25, 0.35, 0.40])[0]
+        fails[s] = set(rng.sample(range(1, ATTEMPTS + 1), how_many))
+    lines = [f"running retry harness (max {ATTEMPTS} attempts per test)\n"]
+    for attempt in range(1, ATTEMPTS + 1):
+        lines.append(f"--- attempt {attempt} ---\n")
+        for s in suites:
+            verdict = "FAILED" if attempt in fails[s] else "ok"
+            lines.append(f"test {s} ... {verdict}\n")
+    lines.append("retry harness done\n")
+    name = f"decj-d{dose:02d}-{idx}"
+    os.makedirs(TASKS_DECISION_JOIN, exist_ok=True)
+    with open(
+        os.path.join(TASKS_DECISION_JOIN, f"{name}.txt"),
+        "w",
+        encoding="utf-8",
+        newline="\n",
+    ) as f:
+        f.write("".join(lines))
+    question = (
+        "A flaky test passes at least one attempt. Which test failed on "
+        "EVERY attempt? Reply with the full test name."
+    )
+    with open(
+        os.path.join(TASKS_DECISION_JOIN, f"{name}.questions.json"),
+        "w",
+        encoding="utf-8",
+        newline="\n",
+    ) as f:
+        json.dump([{"id": "t1", "question": question, "accept": [culprit]}], f)
+        f.write("\n")
+    per_block = [
+        sum(1 for s in suites if a in fails[s]) for a in range(1, ATTEMPTS + 1)
+    ]
+    two_of_three = sum(1 for s in suites if s != culprit and len(fails[s]) == 2)
+    print(
+        f"{name}: {dose} suites -> {culprit!r} "
+        f"(FAILED per block {per_block}, two-of-three distractors {two_of_three})"
+    )
+
+
 def main() -> None:
     ap = argparse.ArgumentParser(description=__doc__)
-    ap.add_argument("--family", choices=("xref", "decision"), default="xref")
+    ap.add_argument(
+        "--family", choices=("xref", "decision", "decision-join"), default="xref"
+    )
     args = ap.parse_args()
     if args.family == "xref":
         for dose in DOSES:
             for idx in range(1, INSTANCES + 1):
                 gen(dose, idx, random.Random(dose * 100 + idx))
-    else:
+    elif args.family == "decision":
         for dose in DECISION_DOSES:
             for idx in range(1, INSTANCES + 1):
                 gen_decision(dose, idx, random.Random(dose * 100 + idx))
+    else:
+        for dose in DECISION_JOIN_DOSES:
+            for idx in range(1, INSTANCES + 1):
+                gen_decision_join(dose, idx, random.Random(dose * 100 + idx))
 
 
 if __name__ == "__main__":
