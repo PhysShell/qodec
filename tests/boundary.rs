@@ -76,6 +76,40 @@ fn mine_keeps_alias_edges_on_token_boundaries() -> Result<()> {
     Ok(())
 }
 
+/// Codex review on PR #10: profile/extern templates bypass
+/// `choose_template`'s snapping — a pre-mitigation legend can carry parts
+/// that cut inside a number. The matcher (`glob_match`, the one funnel all
+/// frozen templates go through) must refuse such a match: lines travel
+/// verbatim, the template stays usable wherever its boundaries are clean.
+#[test]
+fn frozen_templates_cannot_recompose_carved_tokens() -> Result<()> {
+    let meter = Bpe::o200k()?;
+    let legend = qodec::legend::TemplateLegend::parse(
+        "# qodec extern templates v1 slot=quest\nT1=+    pub const ¿: u64 = ¿0;\n",
+    )?;
+    let mut text = String::new();
+    for (name, value) in [
+        ("WAL_SEGMENT_BYTES", "8192000"),
+        ("RETRY_BUDGET_MS", "327680"),
+        ("POOL_CAP_HINT", "1024000"),
+    ] {
+        text.push_str(&format!("+    pub const {name}: u64 = {value};\n"));
+    }
+    let artifact = qodec::tmpl::encode_extern(&text, &meter, &legend);
+    anyhow::ensure!(
+        !artifact.contains("ext="),
+        "a template whose slot boundary carves a number must never match: {artifact:?}"
+    );
+    anyhow::ensure!(decode(&artifact)? == text, "roundtrip");
+    for value in ["8192000", "327680", "1024000"] {
+        anyhow::ensure!(
+            artifact.contains(value),
+            "value {value} must survive contiguous in the artifact"
+        );
+    }
+    Ok(())
+}
+
 /// The state-family shape: numeric slot values sharing a trailing digit must
 /// not have that digit pulled into the template literal. With the snap, the
 /// full number survives contiguously somewhere in the artifact; before it,

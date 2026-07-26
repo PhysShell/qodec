@@ -379,6 +379,21 @@ fn glob_match<'a>(line: &'a str, parts: &[String]) -> Option<Vec<&'a str>> {
         }
     }
     debug_assert!(rest.is_empty());
+    // Frozen templates bypass `choose_template`'s snapping (Codex review on
+    // PR #10): a pre-mitigation profile or an extern file may carry parts
+    // that end or start inside a token run. Refuse the *match* when any
+    // part/value boundary would split (`risk::splits_token`) — the template
+    // stays usable wherever its boundaries are clean, and refused lines
+    // travel verbatim instead of recomposing a carved token.
+    let mut left = first.as_str();
+    for (value, right) in values.iter().zip(rest_parts) {
+        if !value.is_empty()
+            && (crate::risk::splits_token(left, value) || crate::risk::splits_token(value, right))
+        {
+            return None;
+        }
+        left = right.as_str();
+    }
     Some(values)
 }
 
@@ -457,7 +472,14 @@ pub(crate) fn learn_templates(text: &str) -> Vec<(Vec<String>, usize)> {
                         .iter()
                         .map(|s| s.segs.get(idx).copied().unwrap_or_default())
                         .collect();
+                    // Same snap as `choose_template` (Codex review on
+                    // PR #10): a learned profile must never carry parts
+                    // that cut inside a token — `glob_match` would refuse
+                    // every such match anyway, making the entry dead
+                    // weight at best and a recomposition hazard through
+                    // pre-fix decoders at worst.
                     let (pre, suf) = common_affixes(&words);
+                    let (pre, suf) = snap_affixes(&words, pre, suf);
                     let word = words.first().copied().unwrap_or_default();
                     let end = word.len().saturating_sub(suf);
                     if let Some(part) = refined.last_mut() {
