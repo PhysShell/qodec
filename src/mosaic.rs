@@ -64,6 +64,7 @@
 use anyhow::{bail, Context, Result};
 
 use crate::container::{self, Container};
+use crate::cost::{CostModel, SpanStats};
 use crate::meter::TokenMeter;
 use crate::{diag, fold, grep, tmpl};
 
@@ -74,6 +75,12 @@ const MAX_LINES: usize = 4000;
 /// The exhaustive [`all_span_dp`] is `O(N²)` spans × structural codecs; keep it
 /// to small payloads where truth is cheap enough. Larger inputs return `None`.
 const MAX_ALL_SPAN_LINES: usize = 300;
+
+/// The predicted exhaustive DP ([`encode_predicted`]) prices each of the
+/// `O(N²)` edges with O(1) arithmetic — no encodes, no tokenizer — so it can
+/// afford far more lines than the measured all-span DP. Still bounded: the
+/// DP itself is `O(N²)` memory-light but not free.
+const MAX_PREDICTED_LINES: usize = 2000;
 
 /// Geometric window sizes (in lines) tried from every start in the production
 /// router. `1` guarantees the DAG is always connected; the larger sizes let a
@@ -305,12 +312,87 @@ fn candidate_ends(i: usize, n: usize, exhaustive: bool) -> Vec<usize> {
     ends
 }
 
+/// The exhaustive-graph DP on **predicted** edge weights (the `cost` model):
+/// no encodes during the search, real encodes only for the spans of the
+/// selected path, and the assembled result is arbitrated against the
+/// whole-payload single-codec baseline by the exact meter — identical to the
+/// measured router's guarantee. A wrong model can pick a worse path, which
+/// arbitration then clamps to the baseline; it can never ship an artifact the
+/// meter rejects. This is what makes the all-span graph affordable beyond
+/// [`MAX_ALL_SPAN_LINES`]: the measured DP pays four encodes per edge, this
+/// one pays twelve multiplications.
+pub fn encode_predicted(
+    text: &str,
+    meter: &dyn TokenMeter,
+    model: &CostModel,
+    templates: &[Vec<String>],
+) -> String {
+    let path = predicted_boundaries(text, model).map(|cuts| {
+        cuts.iter()
+            .filter_map(|&(start, end)| text.get(start..end))
+            .map(|span| best_span(span, meter, templates).0)
+            .collect::<Vec<_>>()
+    });
+    routed_or_baseline(text, meter, path, templates)
+}
+
+/// Shortest path over every span `[i, j)` with predicted weights; returns the
+/// chosen segmentation as byte ranges. `None` when the input is empty, over
+/// the line cap, or unsplittable — callers fall back to measured routing.
+fn predicted_boundaries(text: &str, model: &CostModel) -> Option<Vec<(usize, usize)>> {
+    let stats = SpanStats::build(text);
+    let n = stats.lines();
+    if n == 0 || n > MAX_PREDICTED_LINES {
+        return None;
+    }
+    let inf = f64::INFINITY;
+    let mut dp = vec![inf; n + 1];
+    let mut back: Vec<usize> = vec![usize::MAX; n + 1];
+    if let Some(slot) = dp.first_mut() {
+        *slot = 0.0;
+    }
+    for i in 0..n {
+        let dp_i = dp.get(i).copied().unwrap_or(inf);
+        if !dp_i.is_finite() {
+            continue;
+        }
+        for j in (i + 1)..=n {
+            let weight = model.predict(&stats.features(i, j));
+            let cand = dp_i + weight + FRAME_COST as f64;
+            if cand < dp.get(j).copied().unwrap_or(inf) {
+                if let Some(slot) = dp.get_mut(j) {
+                    *slot = cand;
+                }
+                if let Some(slot) = back.get_mut(j) {
+                    *slot = i;
+                }
+            }
+        }
+    }
+    if !dp.get(n).copied().unwrap_or(inf).is_finite() {
+        return None;
+    }
+    let mut cuts = Vec::new();
+    let mut j = n;
+    while j > 0 {
+        let i = back.get(j).copied().unwrap_or(usize::MAX);
+        if i == usize::MAX || i >= j {
+            return None;
+        }
+        cuts.push(stats.byte_range(i, j)?);
+        j = i;
+    }
+    cuts.reverse();
+    Some(cuts)
+}
+
 /// The cheapest byte-exact artifact for one span, and its measured token cost.
 /// Every candidate already falls back to `raw` internally, so the raw floor is
 /// always in the running and the measured minimum is safe to take. `tmpl` is
 /// seeded with the profile `templates` so the routing stage clusters exactly as
-/// `squeeze` would.
-fn best_span(span: &str, meter: &dyn TokenMeter, templates: &[Vec<String>]) -> (String, usize) {
+/// `squeeze` would. `pub(crate)` so the `cost` harvester labels spans with the
+/// exact same ground truth the router pays for.
+pub(crate) fn best_span(span: &str, meter: &dyn TokenMeter, templates: &[Vec<String>]) -> (String, usize) {
     let mut best = container::raw(span);
     let mut best_weight = meter.count(&best);
     for candidate in [

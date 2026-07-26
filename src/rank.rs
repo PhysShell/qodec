@@ -98,89 +98,14 @@ impl Stats {
         self.n += other.n;
     }
 
-    /// Solve `(XᵀX + λI) w = Xᵀy` by Gaussian elimination with partial
-    /// pivoting. Refuses on too few samples or a degenerate system —
-    /// callers fall back to the count×len heuristic.
+    /// Solve `(XᵀX + λI) w = Xᵀy`. Refuses on too few samples or a
+    /// degenerate system — callers fall back to the count×len heuristic.
     pub fn solve(&self) -> Option<Ranker> {
         if self.n < MIN_SAMPLES {
             return None;
         }
-        // Augmented matrix [A | b], A = XᵀX + λI.
-        let mut a: Vec<f64> = self.xtx.clone();
-        for i in 0..DIM {
-            if let Some(slot) = a.get_mut(i * DIM + i) {
-                *slot += LAMBDA;
-            }
-        }
-        let mut b: Vec<f64> = self.xty.clone();
-        for col in 0..DIM {
-            // Pivot: largest |value| in this column at or below the diagonal.
-            let pivot = (col..DIM)
-                .max_by(|&r1, &r2| {
-                    let v1 = a.get(r1 * DIM + col).copied().unwrap_or(0.0).abs();
-                    let v2 = a.get(r2 * DIM + col).copied().unwrap_or(0.0).abs();
-                    v1.total_cmp(&v2)
-                })
-                .unwrap_or(col);
-            let pivot_val = a.get(pivot * DIM + col).copied().unwrap_or(0.0);
-            if pivot_val.abs() < 1e-9 {
-                return None; // degenerate — refuse rather than extrapolate
-            }
-            if pivot != col {
-                for k in 0..DIM {
-                    let hi = a.get(pivot * DIM + k).copied().unwrap_or(0.0);
-                    let lo = a.get(col * DIM + k).copied().unwrap_or(0.0);
-                    if let Some(slot) = a.get_mut(pivot * DIM + k) {
-                        *slot = lo;
-                    }
-                    if let Some(slot) = a.get_mut(col * DIM + k) {
-                        *slot = hi;
-                    }
-                }
-                let hi = b.get(pivot).copied().unwrap_or(0.0);
-                let lo = b.get(col).copied().unwrap_or(0.0);
-                if let Some(slot) = b.get_mut(pivot) {
-                    *slot = lo;
-                }
-                if let Some(slot) = b.get_mut(col) {
-                    *slot = hi;
-                }
-            }
-            let diag = a.get(col * DIM + col).copied().unwrap_or(1.0);
-            for row in (col + 1)..DIM {
-                let factor = a.get(row * DIM + col).copied().unwrap_or(0.0) / diag;
-                if factor == 0.0 {
-                    continue;
-                }
-                for k in col..DIM {
-                    let upper = a.get(col * DIM + k).copied().unwrap_or(0.0);
-                    if let Some(slot) = a.get_mut(row * DIM + k) {
-                        *slot -= factor * upper;
-                    }
-                }
-                let upper_b = b.get(col).copied().unwrap_or(0.0);
-                if let Some(slot) = b.get_mut(row) {
-                    *slot -= factor * upper_b;
-                }
-            }
-        }
-        // Back-substitution.
-        let mut w = vec![0.0f64; DIM];
-        for col in (0..DIM).rev() {
-            let mut acc = b.get(col).copied().unwrap_or(0.0);
-            for k in (col + 1)..DIM {
-                acc -=
-                    a.get(col * DIM + k).copied().unwrap_or(0.0) * w.get(k).copied().unwrap_or(0.0);
-            }
-            let diag = a.get(col * DIM + col).copied().unwrap_or(1.0);
-            if let Some(slot) = w.get_mut(col) {
-                *slot = acc / diag;
-            }
-        }
-        if w.iter().any(|v| !v.is_finite()) {
-            return None;
-        }
-        Some(Ranker { weights: w })
+        let weights = ridge_solve(DIM, &self.xtx, &self.xty, LAMBDA)?;
+        Some(Ranker { weights })
     }
 
     pub fn to_json(&self) -> Value {
@@ -210,6 +135,91 @@ impl Stats {
             n: v.get("n").and_then(Value::as_u64).unwrap_or(0),
         })
     }
+}
+
+/// Solve `(XᵀX + λI) w = Xᵀy` for an arbitrary dimension by Gaussian
+/// elimination with partial pivoting. Shared by the probe ranker (DIM=8)
+/// and the mosaic cost model (`cost.rs`); returns `None` on a degenerate
+/// system or non-finite weights — refusing beats extrapolating.
+pub(crate) fn ridge_solve(dim: usize, xtx: &[f64], xty: &[f64], lambda: f64) -> Option<Vec<f64>> {
+    if xtx.len() != dim * dim || xty.len() != dim {
+        return None;
+    }
+    // Augmented matrix [A | b], A = XᵀX + λI.
+    let mut a: Vec<f64> = xtx.to_vec();
+    for i in 0..dim {
+        if let Some(slot) = a.get_mut(i * dim + i) {
+            *slot += lambda;
+        }
+    }
+    let mut b: Vec<f64> = xty.to_vec();
+    for col in 0..dim {
+        // Pivot: largest |value| in this column at or below the diagonal.
+        let pivot = (col..dim)
+            .max_by(|&r1, &r2| {
+                let v1 = a.get(r1 * dim + col).copied().unwrap_or(0.0).abs();
+                let v2 = a.get(r2 * dim + col).copied().unwrap_or(0.0).abs();
+                v1.total_cmp(&v2)
+            })
+            .unwrap_or(col);
+        let pivot_val = a.get(pivot * dim + col).copied().unwrap_or(0.0);
+        if pivot_val.abs() < 1e-9 {
+            return None; // degenerate — refuse rather than extrapolate
+        }
+        if pivot != col {
+            for k in 0..dim {
+                let hi = a.get(pivot * dim + k).copied().unwrap_or(0.0);
+                let lo = a.get(col * dim + k).copied().unwrap_or(0.0);
+                if let Some(slot) = a.get_mut(pivot * dim + k) {
+                    *slot = lo;
+                }
+                if let Some(slot) = a.get_mut(col * dim + k) {
+                    *slot = hi;
+                }
+            }
+            let hi = b.get(pivot).copied().unwrap_or(0.0);
+            let lo = b.get(col).copied().unwrap_or(0.0);
+            if let Some(slot) = b.get_mut(pivot) {
+                *slot = lo;
+            }
+            if let Some(slot) = b.get_mut(col) {
+                *slot = hi;
+            }
+        }
+        let diag = a.get(col * dim + col).copied().unwrap_or(1.0);
+        for row in (col + 1)..dim {
+            let factor = a.get(row * dim + col).copied().unwrap_or(0.0) / diag;
+            if factor == 0.0 {
+                continue;
+            }
+            for k in col..dim {
+                let upper = a.get(col * dim + k).copied().unwrap_or(0.0);
+                if let Some(slot) = a.get_mut(row * dim + k) {
+                    *slot -= factor * upper;
+                }
+            }
+            let upper_b = b.get(col).copied().unwrap_or(0.0);
+            if let Some(slot) = b.get_mut(row) {
+                *slot -= factor * upper_b;
+            }
+        }
+    }
+    // Back-substitution.
+    let mut w = vec![0.0f64; dim];
+    for col in (0..dim).rev() {
+        let mut acc = b.get(col).copied().unwrap_or(0.0);
+        for k in (col + 1)..dim {
+            acc -= a.get(col * dim + k).copied().unwrap_or(0.0) * w.get(k).copied().unwrap_or(0.0);
+        }
+        let diag = a.get(col * dim + col).copied().unwrap_or(1.0);
+        if let Some(slot) = w.get_mut(col) {
+            *slot = acc / diag;
+        }
+    }
+    if w.iter().any(|v| !v.is_finite()) {
+        return None;
+    }
+    Some(w)
 }
 
 /// Fitted linear weights: score = w · features. Higher is better.
