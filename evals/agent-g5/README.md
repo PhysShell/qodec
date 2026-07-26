@@ -347,14 +347,30 @@ Squeeze: cross-ref 9/15 (b=6, c=0, McNemar **p=0.03125**), decision-join
   | d32 (31–34) | 12.8 14.3 14.4 | 14.3 16.6 17.8 | 16.2 16.5 17.7 |
   | d44 (42–45) | 13.8 14.0 14.7 | 13.4 13.8 14.1 | 15.5 26.2 26.7 |
 
-  Cross-ref fails from legend 15 up at 11.1–14.7, while both
-  decision-family arms **pass** those same legend loads at 14.9–19.2 —
-  the failing arm is the *least* dense at every dose where it fails, and
-  the lookup control holds 14/15 across 7.7–26.7. "The artifact is
-  unreadable at this density" is closed by measurement rather than by
-  argument. (An earlier draft of this section quoted 15.2–26.7 vs
-  11.8–13.8, which were instance-1 subsets stated as if they
-  characterized the arms — Codex review on PR #13.)
+  Outcomes and density are not aligned, in both directions:
+
+  * Cross-ref's worst dose (3/6 at d15) sits at 11.1–11.8, the *lowest*
+    failing density in the battery, while the two decision-family arms
+    pass 6/6 at 14.9–19.2 over d15–d22.
+  * At d44 the two join arms **overlap in density with opposite
+    outcomes**: decision-join passes 6/6 at 13.4–14.1 while cross-ref
+    passes only 3/6 at 13.8–14.7 — so density does not separate them
+    there, and it is not true that the failing arm is uniformly the
+    sparser one.
+  * The densest fixtures measured anywhere (the lookup control at d44,
+    26.2 and 26.7) are passes.
+
+  Density therefore does not track the outcome: at overlapping densities
+  the results go both ways, and the extremes of the density range are
+  clean. That is what closes "the artifact is unreadable at this
+  density" — by measurement rather than by argument — and it is a weaker
+  and more accurate closure than a monotone density ordering would be.
+
+  (Two earlier drafts of this paragraph overstated it. The first quoted
+  15.2–26.7 vs 11.8–13.8, which were instance-1 subsets presented as if
+  they characterized the arms — Codex review on PR #13. The replacement
+  then claimed the failing arm was least dense at every failing dose,
+  which the d44 row contradicts — CodeRabbit review on the same PR.)
 
 **Failure modes.** Both squeeze misses answered a suite name that really
 occurs in the payload, so neither is a fabrication — the reader lost the

@@ -77,6 +77,7 @@ ATTEMPTS = 3
 
 
 def gen(dose: int, idx: int, rng: random.Random) -> None:
+    """Emit one cross-ref fixture: exactly one file carries both markers."""
     pool = [f"src/{m}/{f}.rs" for m in MODS for f in FILES]
     paths = rng.sample(pool, dose)
     both = rng.choice(paths)
@@ -106,6 +107,7 @@ def gen(dose: int, idx: int, rng: random.Random) -> None:
 
 
 def gen_decision(dose: int, idx: int, rng: random.Random) -> None:
+    """Emit one retry-harness fixture in the main battery's `decision` shape."""
     # The join is an intersection over the three attempt blocks: a flaky
     # suite recovers by the last attempt, so exactly one name is FAILED in
     # all of them. Uniqueness holds by construction — the non-culprit
@@ -149,6 +151,7 @@ def gen_decision(dose: int, idx: int, rng: random.Random) -> None:
 
 
 def gen_decision_join(dose: int, idx: int, rng: random.Random) -> None:
+    """Emit one retry-harness fixture that genuinely requires a 3-way join."""
     # `decision` as the main battery defines it is NOT a join: its
     # non-culprits can only fail attempts 1 and 2, so the last block holds
     # exactly one FAILED line and the answer falls out of a single-block
@@ -162,6 +165,7 @@ def gen_decision_join(dose: int, idx: int, rng: random.Random) -> None:
     ]
     culprit = rng.choice(suites)
     def draw() -> dict[str, set[int]]:
+        """Sample which attempts each suite fails; the culprit fails all."""
         out: dict[str, set[int]] = {}
         for s in suites:
             if s == culprit:
@@ -224,6 +228,7 @@ def gen_decision_join(dose: int, idx: int, rng: random.Random) -> None:
 
 
 def main() -> None:
+    """Generate every fixture of the family named on the command line."""
     ap = argparse.ArgumentParser(description=__doc__)
     ap.add_argument(
         "--family", choices=("xref", "decision", "decision-join"), default="xref"

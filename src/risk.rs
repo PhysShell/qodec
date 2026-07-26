@@ -148,15 +148,21 @@ pub struct RiskReport {
 ///   15 remains an info-level conservative warning anchor because
 ///   it is the earliest tested onset observed in either family. It is not
 ///   a universal breakpoint and does not drive encode-path behavior.
-/// * **Alias density does not order the outcomes**, so it is not the
-///   confound. Measured over all 45 fixtures, cross-ref fails from legend
-///   15 up at 11.1-14.7 alias occurrences per 100 body chars, while both
-///   decision-family arms *pass* those same legend loads at 14.9-19.2:
-///   the failing arm is the least dense one at every dose where it fails.
-///   The lookup control additionally holds 14/15 (p=1) across 7.7-26.7.
-///   "The artifact is unreadable at this density" is therefore closed by
-///   measurement. (An earlier draft quoted a subset range as if it
-///   characterized the arms — Codex review on PR #13.)
+/// * **Alias density does not track the outcomes**, so it is not the
+///   confound — measured over all 45 fixtures, in alias occurrences per
+///   100 body chars. Cross-ref's worst dose (3/6) sits at 11.1-11.8, the
+///   lowest failing density in the battery, while the decision-family
+///   arms pass 6/6 at 14.9-19.2. At the largest dose the two join arms
+///   overlap with opposite outcomes: decision-join passes 6/6 at
+///   13.4-14.1 where cross-ref passes only 3/6 at 13.8-14.7. And the
+///   densest fixtures measured anywhere (26.2-26.7, lookup control) are
+///   passes. Results at overlapping densities go both ways and the
+///   extremes are clean, which is what closes "the artifact is
+///   unreadable at this density" — a weaker closure than a monotone
+///   density ordering, and the one the data supports. (Two earlier
+///   drafts overstated this: a subset range presented as the arms'
+///   — Codex review on PR #13 — then a claim that the failing arm was
+///   always sparsest, contradicted by the largest dose — CodeRabbit.)
 ///
 /// Family-dependent hazard, not an oracle: at or above this many entries,
 /// reasoning that must *join across* the legend has been observed to
@@ -412,11 +418,11 @@ pub fn render(r: &RiskReport) -> String {
     ));
     if r.legend_load() {
         out.push_str(&format!(
-            "legend-load: {} entries >= {} — cross-entry join/aggregation \
-             degraded from this load in the cross-ref family, while a second \
-             join family missed only at 32 (density-codex-v1, \
-             density-decision-join-codex-v2); earliest observed onset, \
-             family-dependent, not an oracle\n",
+            "legend-load: {} entries >= {} — cross-entry join/aggregation has \
+             been associated with degradation at or above this load in one \
+             tested cross-ref reader/task family; a second join family missed \
+             only at 32 (density-codex-v1, density-decision-join-codex-v2). \
+             Earliest observed onset, family-dependent, not an oracle\n",
             r.legend_entries, LEGEND_LOAD_STEP
         ));
     }
