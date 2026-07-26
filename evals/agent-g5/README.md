@@ -249,21 +249,38 @@ fragmented rather than wholly hidden. Doses were matched on the
 cross-ref covered), so an outcome difference is attributable to the
 family rather than to the dose.
 
-**A construction fault, caught in analysis and kept as a control.** The
-first attempt used the `decision` family exactly as the main battery
-defines it. It is not a join: its non-culprits can only fail attempts 1
-and 2, so the last block holds exactly one `FAILED` line and a
-single-block scan answers it. Measured after the fact — 1 FAILED line of
-22 and of 44 in the final block — not by design. That run is therefore
-reported as a **lookup control**, and the main battery's `decision`
-family should not be called a join either. The replication arm was
-regenerated with the degeneracy removed (a non-culprit fails a free
-subset of at most two attempts, so every block carries many FAILED lines
-and two-of-three near-misses are the standard distractor, 2 at the
-smallest dose up to 16 at the largest). Uniqueness still holds by
-construction and was verified directly: intersecting the three FAILED
-sets parsed back out of each fixture reproduces the recorded answer on
-all 15, no mismatches.
+### The construction fault this stand caught in itself
+
+The first replication attempt was invalid, and the record keeps why.
+
+**Why `decision` was in fact a lookup.** The first attempt used the
+`decision` family exactly as the main battery defines it. It is not a
+join: a non-culprit can only fail attempts 1 and 2, so the third block
+holds exactly one `FAILED` line and a single-block scan answers the
+question. No intersection is required, and therefore nothing about the
+join mechanism could have been measured by it.
+
+**How it was found.** Not by re-reading the generator, but by counting
+`FAILED` lines per attempt block in the emitted fixtures after the run
+returned a null result: 1 of 22 and 1 of 44 in the final block. The null
+was the signal that the task, not the codec, needed inspecting.
+
+**Why the old run stays useful.** Its payloads, doses and grading are
+untouched and valid — only its *label* was wrong. Re-read as a
+**lookup control** it answers a question the join arms cannot: at the
+same measured legend doses and *higher* alias density it stays at 14/15,
+which rules out "the artifact is unreadable at this density" as the
+explanation for the cross-ref failures. The main battery's `decision`
+family should likewise not be described as a join.
+
+**How the corrected battery is checked.** The degeneracy is removed by
+letting a non-culprit fail a free subset of at most two attempts, so
+every block carries many `FAILED` lines and two-of-three near-misses
+become the standard distractor (2 at the smallest dose up to 16 at the
+largest). Uniqueness is no longer taken on faith from the generator: the
+three `FAILED` sets are parsed back out of each emitted fixture and
+intersected, and the result must equal the recorded answer — verified on
+all 15 fixtures, no mismatches.
 
 Squeeze cells per dose (6 per dose; raw was 6/6 everywhere in all three
 arms), indexed by measured legend entries:
@@ -285,11 +302,14 @@ Squeeze: cross-ref 9/15 (b=6, c=0, McNemar **p=0.03125**), decision-join
 
 **What replicated and what did not.**
 
-* *Direction* replicated. Across both join families all 8 discordant
-  task cells favor raw and none favor squeeze; pooled exact McNemar over
-  the 30 pairs gives p=0.0078. Pooling assumes a common effect, which is
-  the thing in question — so this is offered as evidence that the hazard
-  is real in general, not as a per-family rate.
+* *Direction* replicated. **Across two independently generated
+  join-task families, all eight discordant paired cells favored RAW over
+  squeeze, providing evidence for a cross-family directional hazard.
+  Failure frequency and onset varied materially by family and remain
+  underpowered.** The pooled exact two-sided McNemar over the 30 pairs
+  gives **p=0.0078125** — and that pooled test tests a shared
+  *directional* effect across the two sampled families; it is **not** an
+  estimate of failure prevalence for arbitrary join tasks.
 * *Magnitude* did not, at this power. The second join family alone is
   not significant (p=0.5). The two families are also not shown to
   **differ** (6/15 vs 2/15 failing tasks, Fisher p=0.21). The honest
@@ -297,9 +317,10 @@ Squeeze: cross-ref 9/15 (b=6, c=0, McNemar **p=0.03125**), decision-join
   n=15 per family cannot settle it.
 * *The onset did not transfer.* Cross-ref failed from 15 entries up;
   the second join family was clean at 15 and at 22, failing only at 32
-  and 44. So `LEGEND_LOAD_STEP = 15` is a **cross-ref-calibrated
-  anchor**, kept as the conservative minimum across tested families —
-  not a general onset. The flag's text says so.
+  and 44. **`LEGEND_LOAD_STEP = 15` remains an info-level conservative
+  warning anchor because it is the earliest tested onset observed in
+  either family. It is not a universal breakpoint and does not drive
+  encode-path behavior.** The flag's rendered text says so.
 * *The hazard is join-specific.* The lookup control ran at the same
   doses and *higher* alias density (15.2–26.7 vs 11.8–13.8 per 100
   chars) and stayed at 14/15. So the cross-ref failures are not "the

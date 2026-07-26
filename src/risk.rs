@@ -131,17 +131,21 @@ pub struct RiskReport {
 /// join family — intersect three retry blocks — at the same *measured*
 /// legend doses):
 ///
-/// * The direction replicates: across both join families all 8 discordant
-///   task cells favor raw and none favor squeeze (pooled exact McNemar
-///   p=0.0078 over 30 pairs).
-/// * The magnitude does not, at this power: the second family alone gives
-///   13/15 vs 15/15, McNemar p=0.5. Nor are the families shown to differ
-///   (6/15 vs 2/15 failures, Fisher p=0.21) — the honest state is that the
-///   direction is established and the rate is unresolved.
+/// * Across two independently generated join-task families, all eight
+///   discordant paired cells favored raw over squeeze — evidence for a
+///   cross-family **directional** hazard (pooled exact two-sided McNemar
+///   p=0.0078125 over 30 pairs). That pooled test tests a shared
+///   directional effect across the two sampled families; it is **not** an
+///   estimate of failure prevalence for arbitrary join tasks.
+/// * Failure frequency and onset varied materially by family and remain
+///   underpowered: the second family alone gives 13/15 vs 15/15, McNemar
+///   p=0.5, and the 6/15 vs 2/15 difference between families is not
+///   statistically established (Fisher p=0.21).
 /// * **The onset does not transfer.** Cross-ref failed from 15 entries up;
 ///   the second join family was clean at 15 and 22 and failed only at 32
-///   and 44. So 15 is a cross-ref-calibrated anchor kept as the
-///   conservative minimum across tested families, not a general onset.
+///   and 44. 15 remains an info-level conservative warning anchor because
+///   it is the earliest tested onset observed in either family. It is not
+///   a universal breakpoint and does not drive encode-path behavior.
 /// * The hazard is join-specific, not "the artifact is unreadable":
 ///   `density-decision-codex-v1` runs a lookup-shaped task at the same
 ///   doses and *higher* alias density (15.2-26.7 vs 11.8-13.8 per 100
