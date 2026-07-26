@@ -112,9 +112,30 @@ pub struct RiskReport {
     pub numeric_heavy_entries: usize,
 }
 
+/// Measured legend-load step (`evals/agent-g5/runs/density-codex-v1`, 60
+/// closed-world calls at five controlled doses): the codex reader's
+/// cross-file join stayed **6/6** at 6-7 legend entries and dropped to
+/// 16/24 cells across 15-45 entries — a step, not a gradient — while raw
+/// stayed perfect at every dose (task-level Fisher vs raw p=0.017, n=15).
+/// The Sonnet reader held 5/5 on the same task shape in `g5-sonnet-v1`.
+/// Family-dependent hazard, not an oracle: at or above this many entries,
+/// reasoning that must *join across* the legend becomes unreliable for at
+/// least one reader family, and a threshold this low means most non-trivial
+/// mine/deep artifacts carry it — which is exactly what the flag is for.
+pub const LEGEND_LOAD_STEP: usize = 15;
+
 impl RiskReport {
     pub fn high_risk(&self) -> bool {
         !self.split.is_empty()
+    }
+
+    /// Legend large enough that join/aggregation *across* entries has a
+    /// measured reliability step for at least one reader family. See
+    /// [`LEGEND_LOAD_STEP`]. Info-level: lookups and counting survived at
+    /// every measured dose; the hazard is specifically multi-entry
+    /// reasoning.
+    pub fn legend_load(&self) -> bool {
+        self.legend_entries >= LEGEND_LOAD_STEP
     }
 }
 
@@ -348,6 +369,14 @@ pub fn render(r: &RiskReport) -> String {
         r.near_duplicate_pairs.len(),
         r.numeric_heavy_entries
     ));
+    if r.legend_load() {
+        out.push_str(&format!(
+            "legend-load: {} entries >= {} — cross-entry join/aggregation is \
+             unreliable for the codex reader family at this size \
+             (density-codex-v1; family-dependent hazard, not an oracle)\n",
+            r.legend_entries, LEGEND_LOAD_STEP
+        ));
+    }
     out.push_str(if r.high_risk() {
         "verdict: HIGH-RISK representation present (count questions may fail)\n"
     } else {
@@ -384,6 +413,11 @@ pub fn to_json(r: &RiskReport) -> Value {
         "uniform_literal": r.uniform_literal,
         "near_duplicate_pairs": r.near_duplicate_pairs.len(),
         "numeric_heavy_entries": r.numeric_heavy_entries,
+        "legend_load": {
+            "entries": r.legend_entries,
+            "step": LEGEND_LOAD_STEP,
+            "flagged": r.legend_load(),
+        },
         "high_risk": r.high_risk(),
     })
 }

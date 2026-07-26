@@ -186,6 +186,40 @@ alias *density* is a measurable hazard axis the metric does not yet
 score — a concrete next item and the right axis for a bigger battery
 that could actually power a significance claim.
 
+## Alias-density dose-response — `density-codex-v1`
+
+The bigger battery the codex results called for: the same cross-file join
+task (`gen_density.py`, ground truth by construction) at five controlled
+doses, three instances each, measured squeeze legend sizes as the dose
+variable. Codex reader, raw + squeeze, 2 repeats — 60/60 valid calls:
+
+| dose | legend entries (measured) | raw cells | squeeze cells |
+|---|---|---|---|
+| d06 | 6–7 | 6/6 | **6/6** |
+| d12 | 15 | 6/6 | 3/6 |
+| d20 | 22–23 | 6/6 | 5/6 |
+| d30 | 31–34 | 6/6 | 5/6 |
+| d40 | 42–45 | 6/6 | 3/6 |
+
+Task-level (all-repeats-correct): raw 15/15, squeeze 9/15 — Fisher
+**p=0.0169** at n=15, the honest inferential unit this time. Two readings:
+
+1. **The utility loss is now statistically supported** for this reader ×
+   task-shape pair — the thing `g5-codex-v1`'s n=3 could not say.
+2. **The shape is a step, not a gradient**: clean at 6–7 entries,
+   unreliable (~1/3 of cells, mostly stochastic with deterministic
+   pockets) everywhere from 15 up, with no further worsening across
+   15→45. The prior 9-pass/43-fail anchors were consistent with this but
+   put the step far too high.
+
+Raw stays perfect at every dose while costing 2.6× the tokens at d40
+(3176 vs 1222) — the failure is representational, not task difficulty.
+Encoded in `qodec risk` as the info-level `legend-load` line
+(`LEGEND_LOAD_STEP = 15`, data-anchored, hazard-not-oracle: lookups and
+counting survived at every dose; the hazard is specifically cross-entry
+join/aggregation, and it is family-dependent — Sonnet held 5/5 on this
+task shape).
+
 ### Uncontrolled axis: reasoning effort
 
 Recorded, not yet varied. What the panels actually ran with:

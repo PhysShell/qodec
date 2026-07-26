@@ -1,0 +1,120 @@
+Answer the questions below using ONLY the payload in this message.
+Do not use any tools, do not read any files, do not guess beyond the
+payload. Reply with ONLY a JSON object mapping each question id to a
+short answer string, e.g. {"q1": "...", "q2": "..."}.
+
+# Payload
+
+src/vm/reader.rs:115:    // TODO(remove_before_ship) — see review notes
+src/ipc/probe.rs:281:    // unwrap_unchecked — see review notes
+src/ipc/writer.rs:103:    // TODO(remove_before_ship) — see review notes
+src/ipc/probe.rs:104:    // unwrap_unchecked — see review notes
+src/log/mount.rs:166:    // unwrap_unchecked — see review notes
+src/tls/handshake.rs:53:    // TODO(remove_before_ship) — see review notes
+src/gc/mount.rs:22:    // unwrap_unchecked — see review notes
+src/gc/mount.rs:298:    // unwrap_unchecked — see review notes
+src/auth/writer.rs:273:    // TODO(remove_before_ship) — see review notes
+src/cli/writer.rs:253:    // unwrap_unchecked — see review notes
+src/cli/writer.rs:284:    // unwrap_unchecked — see review notes
+src/net/session.rs:107:    // unwrap_unchecked — see review notes
+src/vm/frame.rs:172:    // TODO(remove_before_ship) — see review notes
+src/net/reader.rs:243:    // TODO(remove_before_ship) — see review notes
+src/cache/frame.rs:89:    // unwrap_unchecked — see review notes
+src/tls/handshake.rs:61:    // TODO(remove_before_ship) — see review notes
+src/log/mount.rs:17:    // unwrap_unchecked — see review notes
+src/ipc/pool.rs:18:    // unwrap_unchecked — see review notes
+src/sched/writer.rs:32:    // TODO(remove_before_ship) — see review notes
+src/ipc/probe.rs:180:    // unwrap_unchecked — see review notes
+src/vm/frame.rs:18:    // unwrap_unchecked — see review notes
+src/vm/frame.rs:65:    // TODO(remove_before_ship) — see review notes
+src/tls/session.rs:126:    // TODO(remove_before_ship) — see review notes
+src/index/handshake.rs:61:    // unwrap_unchecked — see review notes
+src/ipc/writer.rs:165:    // TODO(remove_before_ship) — see review notes
+src/index/handshake.rs:68:    // unwrap_unchecked — see review notes
+src/vm/reader.rs:294:    // TODO(remove_before_ship) — see review notes
+src/ipc/ledger.rs:65:    // unwrap_unchecked — see review notes
+src/auth/pool.rs:200:    // unwrap_unchecked — see review notes
+src/ipc/writer.rs:285:    // TODO(remove_before_ship) — see review notes
+src/codec/pool.rs:43:    // TODO(remove_before_ship) — see review notes
+src/fmt/session.rs:72:    // TODO(remove_before_ship) — see review notes
+src/sched/probe.rs:34:    // unwrap_unchecked — see review notes
+src/index/handshake.rs:283:    // unwrap_unchecked — see review notes
+src/cli/writer.rs:117:    // unwrap_unchecked — see review notes
+src/tls/handshake.rs:14:    // TODO(remove_before_ship) — see review notes
+src/sched/writer.rs:70:    // TODO(remove_before_ship) — see review notes
+src/log/mount.rs:296:    // unwrap_unchecked — see review notes
+src/cli/writer.rs:58:    // unwrap_unchecked — see review notes
+src/vm/frame.rs:169:    // unwrap_unchecked — see review notes
+src/auth/handshake.rs:218:    // TODO(remove_before_ship) — see review notes
+src/index/pool.rs:22:    // TODO(remove_before_ship) — see review notes
+src/ipc/ledger.rs:130:    // unwrap_unchecked — see review notes
+src/gc/mount.rs:76:    // unwrap_unchecked — see review notes
+src/tls/session.rs:193:    // TODO(remove_before_ship) — see review notes
+src/tls/mount.rs:177:    // unwrap_unchecked — see review notes
+src/tls/handshake.rs:134:    // TODO(remove_before_ship) — see review notes
+src/fs/frame.rs:104:    // unwrap_unchecked — see review notes
+src/fs/frame.rs:242:    // unwrap_unchecked — see review notes
+src/codec/pool.rs:278:    // TODO(remove_before_ship) — see review notes
+src/sched/probe.rs:231:    // unwrap_unchecked — see review notes
+src/index/pool.rs:141:    // TODO(remove_before_ship) — see review notes
+src/fs/frame.rs:12:    // unwrap_unchecked — see review notes
+src/ipc/frame.rs:74:    // TODO(remove_before_ship) — see review notes
+src/ipc/pool.rs:145:    // unwrap_unchecked — see review notes
+src/auth/pool.rs:161:    // unwrap_unchecked — see review notes
+src/vm/frame.rs:177:    // TODO(remove_before_ship) — see review notes
+src/gc/mount.rs:265:    // unwrap_unchecked — see review notes
+src/index/pool.rs:171:    // TODO(remove_before_ship) — see review notes
+src/vm/handshake.rs:183:    // TODO(remove_before_ship) — see review notes
+src/ipc/pool.rs:66:    // unwrap_unchecked — see review notes
+src/cache/frame.rs:52:    // unwrap_unchecked — see review notes
+src/ipc/frame.rs:270:    // TODO(remove_before_ship) — see review notes
+src/fmt/cursor.rs:256:    // TODO(remove_before_ship) — see review notes
+src/auth/frame.rs:256:    // unwrap_unchecked — see review notes
+src/index/handshake.rs:104:    // unwrap_unchecked — see review notes
+src/ipc/probe.rs:180:    // unwrap_unchecked — see review notes
+src/net/session.rs:18:    // unwrap_unchecked — see review notes
+src/vm/frame.rs:70:    // TODO(remove_before_ship) — see review notes
+src/fmt/cursor.rs:194:    // TODO(remove_before_ship) — see review notes
+src/ipc/pool.rs:204:    // unwrap_unchecked — see review notes
+src/index/pool.rs:232:    // TODO(remove_before_ship) — see review notes
+src/index/ledger.rs:232:    // unwrap_unchecked — see review notes
+src/fmt/session.rs:291:    // TODO(remove_before_ship) — see review notes
+src/ipc/writer.rs:294:    // TODO(remove_before_ship) — see review notes
+src/auth/pool.rs:41:    // unwrap_unchecked — see review notes
+src/auth/pool.rs:30:    // unwrap_unchecked — see review notes
+src/tls/handshake.rs:38:    // TODO(remove_before_ship) — see review notes
+src/vm/frame.rs:78:    // TODO(remove_before_ship) — see review notes
+src/sched/writer.rs:65:    // TODO(remove_before_ship) — see review notes
+src/fmt/session.rs:231:    // TODO(remove_before_ship) — see review notes
+src/auth/frame.rs:251:    // unwrap_unchecked — see review notes
+src/ipc/ledger.rs:140:    // unwrap_unchecked — see review notes
+src/codec/pool.rs:252:    // TODO(remove_before_ship) — see review notes
+src/net/session.rs:82:    // unwrap_unchecked — see review notes
+src/ipc/pool.rs:206:    // unwrap_unchecked — see review notes
+src/auth/writer.rs:52:    // TODO(remove_before_ship) — see review notes
+src/index/pool.rs:237:    // TODO(remove_before_ship) — see review notes
+src/sched/writer.rs:274:    // TODO(remove_before_ship) — see review notes
+src/auth/handshake.rs:178:    // TODO(remove_before_ship) — see review notes
+src/ipc/frame.rs:70:    // TODO(remove_before_ship) — see review notes
+src/tls/mount.rs:273:    // unwrap_unchecked — see review notes
+src/fs/frame.rs:35:    // unwrap_unchecked — see review notes
+src/ipc/frame.rs:162:    // TODO(remove_before_ship) — see review notes
+src/tls/session.rs:264:    // TODO(remove_before_ship) — see review notes
+src/auth/pool.rs:297:    // unwrap_unchecked — see review notes
+src/auth/frame.rs:11:    // unwrap_unchecked — see review notes
+src/auth/writer.rs:197:    // TODO(remove_before_ship) — see review notes
+src/vm/reader.rs:230:    // TODO(remove_before_ship) — see review notes
+src/vm/handshake.rs:11:    // TODO(remove_before_ship) — see review notes
+src/fmt/cursor.rs:130:    // TODO(remove_before_ship) — see review notes
+src/fmt/session.rs:143:    // TODO(remove_before_ship) — see review notes
+src/cache/frame.rs:231:    // unwrap_unchecked — see review notes
+src/ipc/frame.rs:295:    // TODO(remove_before_ship) — see review notes
+src/net/reader.rs:205:    // TODO(remove_before_ship) — see review notes
+src/gc/mount.rs:38:    // unwrap_unchecked — see review notes
+src/auth/frame.rs:253:    // unwrap_unchecked — see review notes
+src/index/ledger.rs:262:    // unwrap_unchecked — see review notes
+
+
+# Questions
+
+t1: Which single file contains BOTH `TODO(remove_before_ship)` and `unwrap_unchecked` markers? Reply with the file path.
