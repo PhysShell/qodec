@@ -135,3 +135,75 @@ of 2 repeats), so 12 clean squeeze calls bound the residual rate — they
 do not prove impossibility. Whether a larger repeat is worth the
 subscription budget is a separate decision now that the mitigation slice
 is closed.
+
+## Second reader — `g5-codex-v1` (codex-cli 0.145.0, ChatGPT login)
+
+The full battery under the codex reader, same closed-world discipline
+(read-only sandbox, ephemeral, no configs; no usage envelope — recorded
+as such). 48/48 valid calls:
+
+| pooled cells (descriptive) | tasks all-repeats-correct | note |
+|---|---|---|
+| raw 24/24 | 12/12 | |
+| squeeze 18/24 | 9/12 | task-level Fisher vs raw p≈0.217, exact McNemar p=0.25 — **not significant at n=12** |
+
+Corrected after Codex review on PR #11: an earlier wording claimed
+significance from Fisher over the 24 cells (p=0.0219), but repeats of
+one task are not independent observations — the failures repeat
+verbatim — so that number was pseudo-replication. The runner now
+reports the task-collapsed test as the inferential line. What the data
+*does* support: three tasks fail **deterministically** (both repeats,
+same wrong answer), none are recomposition slips — the mitigation class
+stays absent cross-family — and the failures are
+reasoning-over-representation:
+
+* `cross-ref-2`/`cross-ref-3`: a confidently wrong file path — the join
+  over two match sets fails when it must run through a large alias
+  legend. The passed `cross-ref-1` has **9** legend entries; the failed
+  ones have **45** and **43**.
+* `decision-2`: answers "None" — the across-attempts aggregation
+  collapses on the aliased retry log.
+
+Cross-family picture, stated with exact scores and scopes (corrected —
+an earlier wording quoted Sonnet's raw arm as if it were encoded):
+
+* Sonnet on **squeeze**: 21/23 cells in `g5-sonnet-v1` (both misses
+  stochastic recomposition slips, since mitigated), including 5/5 on the
+  cross-ref family — but those were *pre-mitigation* artifacts; codex
+  ran the current post-mitigation generation, so the cross-ref
+  comparison is same-tasks, not byte-same artifacts. On decision+state
+  the comparison is same-generation: Sonnet `g5-sonnet-v2-mitigated`
+  squeeze 12/12 vs codex failing decision-2 deterministically.
+* Codex on *counting* (`panel-codex-v1`): **better encoded than raw** —
+  16/16 on deep/paper/squeeze including the paper trap that broke
+  Sonnet at p≈2e-5, vs a consistent 5/6 on raw.
+
+Comprehension of compressed context looks strongly model-family- and
+task-dependent: legend-driven counting suits codex; high-alias-density
+join/aggregation defeats it deterministically. `qodec risk`'s
+hazard-not-oracle framing now has live evidence on both sides, and
+alias *density* is a measurable hazard axis the metric does not yet
+score — a concrete next item and the right axis for a bigger battery
+that could actually power a significance claim.
+
+### Uncontrolled axis: reasoning effort
+
+Recorded, not yet varied. What the panels actually ran with:
+
+* claude reader: `claude-sonnet-5` via `claude -p`, **no thinking
+  requested** — the closed-world flag set carries no effort knob and the
+  envelope records no thinking configuration.
+* codex reader: `gpt-5.6-sol` with **`reasoning effort: none`** (the
+  `codex exec` default under `--ignore-user-config`; the session header
+  states it — captured 2026-07-26).
+
+So every comprehension number above — Sonnet's paper-trap failures AND
+codex's 16/16 encoded counting AND codex's deterministic
+high-alias-density join failures — was produced at the readers' floor
+effort. Mentally dealiasing a 45-entry legend is multi-step work, so the
+hypothesis that effort level interacts with codec comprehension (e.g.
+`-c model_reasoning_effort=high` recovering the cross-ref joins) is
+plausible in both directions and cheap to test: codex exposes the knob
+per call; `claude -p` has no equivalent flag, so the claude side of such
+a matrix needs a different mechanism and should be scoped honestly. An
+open measurement, deliberately not run yet.

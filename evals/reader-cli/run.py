@@ -148,8 +148,21 @@ def call_codex(prompt: str, model: str | None, timeout: int) -> dict:
             return {"error": "codex CLI not installed (`codex login` on a machine that has it)"}
         if proc.returncode != 0 or not last_msg.exists():
             return {"error": proc.stderr.strip()[:500] or "codex produced no last message"}
-        # No usage envelope from codex — record what exists, honestly.
+        # No usage envelope from codex — record what exists, honestly. The
+        # session header (model, reasoning effort) prints at the START of the
+        # stream; keeping only a tail dropped it and made the committed runs'
+        # model/effort unverifiable (Codex review on PR #11) — parse it out
+        # and keep the head too.
+        header = {}
+        for line in (proc.stderr + "\n" + proc.stdout).splitlines():
+            line = line.strip()
+            if line.startswith("model:"):
+                header["model"] = line.removeprefix("model:").strip()
+            elif line.startswith("reasoning effort:"):
+                header["reasoning_effort"] = line.removeprefix("reasoning effort:").strip()
         return {"result": last_msg.read_text(), "provider": "codex",
+                **header,
+                "stderr_head": proc.stderr.strip()[:600],
                 "stderr_tail": proc.stderr.strip()[-300:]}
 
 

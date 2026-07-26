@@ -1,0 +1,55 @@
+Answer the questions below using ONLY the payload in this message.
+Do not use any tools, do not read any files, do not guess beyond the
+payload. Reply with ONLY a JSON object mapping each question id to a
+short answer string, e.g. {"q1": "...", "q2": "..."}.
+
+The payload is encoded as a `%q1` container. Format: first line
+`%q1 <codec> ...` (parameters), then legend lines `<alias>=<phrase>`
+(each alias is a short stand-in for that exact phrase), then a
+`%q1 body` line, then the body. `%q1 xN` after a line means that line
+occurs N times in total. A `toon` body is a table: first line is a JSON
+array of keys, each following line is one object, cells are JSON values
+joined by the separator named in the header. A `grep` body is grouped
+matcher output: a marker line names a file path and the lines after it
+are `line:text` hits in that file (a bare marker starts verbatim
+lines). A `diag` body line starting with an alias expands to: the head
+after the alias, then that alias's legend template with each slot
+placeholder filled by the sep-joined values in order. A `tmpl` body
+line starting with an alias is its legend template with the slot
+placeholders filled by the sep-joined values that follow the alias.
+Mentally decode the body via the legend before answering; never emit
+alias characters in answers.
+
+# Payload
+
+%q1 mine n=8
+码="src/Legacy.UI/
+引=|"event subscription without matching unsubscribe in Dispose"|"event-leak"|"medium"|
+路=|"Dispatcher.Invoke used where BeginInvoke would avoid a re-entrancy deadlock"|"dispatcher-invoke"|"medium"|
+类=|"static ObservableCollection roots every subscribed view model"|"static-observable"|"high"|false
+件=blocks the UI thread inside an async flow"|"async-over-sync"|"high"|false
+值="src/Legacy.Core/Services/
+错=码ViewModels/
+试=|"CancellationToken parameter is not forwarded to 
+%q1 body
+%q1 toon sep=pipe rows=12
+%q1 body
+["file","id","line","message","rule","severity","suspect_fp"]
+错ReportViewModel.cs"|"OWN0101"|44|"GetAwaiter().GetResult() 件
+错StationViewModel.cs"|"OWN0102"|81|"Task.Wait() 件
+错UserEditorViewModel.cs"|"OWN0201"|33引true
+错ReportViewModel.cs"|"OWN0202"|27引true
+错LoginViewModel.cs"|"OWN0203"|19引false
+值UserService.cs"|"OWN0301"|27试UpsertAsync overload"|"cancellation-not-forwarded"|"low"|false
+值SessionService.cs"|"OWN0302"|41试RequestAsync overload"|"cancellation-not-forwarded"|"low"|true
+错StationViewModel.cs"|"OWN0401"|102路false
+码Controls/GridHost.xaml.cs"|"OWN0402"|58路true
+码State/GlobalState.cs"|"OWN0501"|12类
+码State/SessionCache.cs"|"OWN0502"|21类
+值AuditLogger.cs"|"OWN0601"|16|"missing ConfigureAwait(false) in library code"|"config-await"|"info"|true
+
+
+# Questions
+
+r1: In the ORIGINAL data this payload represents, how many times does the exact character sequence "\",\"suspect_fp\":" occur?
+r2: In the ORIGINAL data this payload represents, how many times does the exact character sequence "y\":\"medium\",\"message\":\"event subscription withou" occur?

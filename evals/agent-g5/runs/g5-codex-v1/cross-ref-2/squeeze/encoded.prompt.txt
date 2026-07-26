@@ -1,0 +1,223 @@
+Answer the questions below using ONLY the payload in this message.
+Do not use any tools, do not read any files, do not guess beyond the
+payload. Reply with ONLY a JSON object mapping each question id to a
+short answer string, e.g. {"q1": "...", "q2": "..."}.
+
+The payload is encoded as a `%q1` container. Format: first line
+`%q1 <codec> ...` (parameters), then legend lines `<alias>=<phrase>`
+(each alias is a short stand-in for that exact phrase), then a
+`%q1 body` line, then the body. `%q1 xN` after a line means that line
+occurs N times in total. A `toon` body is a table: first line is a JSON
+array of keys, each following line is one object, cells are JSON values
+joined by the separator named in the header. A `grep` body is grouped
+matcher output: a marker line names a file path and the lines after it
+are `line:text` hits in that file (a bare marker starts verbatim
+lines). A `diag` body line starting with an alias expands to: the head
+after the alias, then that alias's legend template with each slot
+placeholder filled by the sep-joined values in order. A `tmpl` body
+line starting with an alias is its legend template with the slot
+placeholders filled by the sep-joined values that follow the alias.
+Mentally decode the body via the legend before answering; never emit
+alias characters in answers.
+
+# Payload
+
+%q1 mine n=45
+路=码src/
+类=引src/
+函=类codec/
+值=路wal/
+错=路cache/
+试=路codec/writer.rs:
+件=类sched/cursor.rs:
+组=类auth/
+标=类index/handshake.rs:
+记=路index/session.rs:
+链=类net/session.rs:
+节=路net/
+层=类cache/reader.rs:
+块=路fs/writer.rs:
+表=类fs/reader.rs:
+行=路codec/frame.rs:
+列=类wal/session.rs:
+键=类index/frame.rs:
+名=错cursor.rs:
+数=值reader.rs:
+串=函pool.rs:
+图=路index/cursor.rs:
+树=类index/reader.rs:
+点=路auth/cursor.rs:
+边=错writer.rs:
+库=组reader.rs:
+包=函reader.rs:
+版=函cursor.rs:
+构=值writer.rs:
+建=错frame.rs:
+测=节frame.rs:
+例=组pool.rs:
+警=值pool.rs:
+告=路sched/
+异=类wal/frame.rs:
+常=路fs/frame.rs:
+态=节writer.rs:
+流=组writer.rs:
+程=节pool.rs:
+入=类fs/
+出=类sched/writer.rs:
+参=类net/reader.rs:
+回=类cache/session.rs:
+调=路auth/session.rs:
+查=告handshake.rs:
+%q1 body
+%q1 diag sep=pipe slot=quest n=2 nl=1
+码=    // TODO(remove_before_ship) — see review notes
+引=    // unwrap_unchecked — see review notes
+%q1 body
+名215:
+警282:
+调266:
+测187:
+测231:
+图10:
+查243:
+块37:
+试32:
+入cursor.rs:213:
+边114:
+点51:
+程105:
+名203:
+表205:
+记185:
+异165:
+告pool.rs:63:
+块89:
+记293:
+列238:
+链264:
+件273:
+入pool.rs:205:
+列18:
+告session.rs:83:
+查81:
+行230:
+包51:
+数26:
+建187:
+回247:
+表75:
+构11:
+版131:
+数40:
+链227:
+异193:
+边129:
+例25:
+边216:
+版6:
+数289:
+键5:
+标190:
+键123:
+点282:
+态97:
+标258:
+参150:
+试48:
+记84:
+列111:
+版143:
+链47:
+件121:
+警143:
+名148:
+流241:
+串207:
+串87:
+表33:
+标93:
+库169:
+出124:
+数77:
+测138:
+测201:
+名239:
+包72:
+键168:
+块156:
+标203:
+告session.rs:97:
+流22:
+边164:
+名190:
+异113:
+串219:
+例143:
+程93:
+串11:
+态124:
+节session.rs:63:
+入cursor.rs:217:
+件144:
+包85:
+回68:
+建119:
+库221:
+警153:
+树206:
+记129:
+警25:
+块293:
+建82:
+记240:
+链248:
+链215:
+常132:
+包140:
+构161:
+图92:
+出91:
+调131:
+层117:
+告pool.rs:241:
+图181:
+建194:
+树130:
+键103:
+试132:
+数255:
+例117:
+件46:
+常80:
+库5:
+行108:
+串44:
+构158:
+程280:
+层75:
+树89:
+例17:
+库180:
+节session.rs:153:
+常62:
+试93:
+层124:
+层62:
+入pool.rs:249:
+列222:
+态290:
+流178:
+件50:
+表72:
+构78:
+试19:
+行191:
+版147:
+点7:
+行19:
+参274:
+
+
+# Questions
+
+t1: Which single file contains BOTH `TODO(remove_before_ship)` and `unwrap_unchecked` markers? Reply with the file path.

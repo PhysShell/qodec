@@ -1,0 +1,5 @@
+{
+  "result": "{\"t1\":\"index::writer_01\"}",
+  "provider": "codex",
+  "stderr_tail": "ng: Codex could not find bubblewrap on PATH. Install bubblewrap with your OS package manager. See the sandbox prerequisites: https://developers.openai.com/codex/concepts/sandboxing#prerequisites. Codex will use the bundled bubblewrap in the meantime.\ncodex\n{\"t1\":\"index::writer_01\"}\ntokens used\n1,848"
+}

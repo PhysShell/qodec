@@ -1,0 +1,180 @@
+Answer the questions below using ONLY the payload in this message.
+Do not use any tools, do not read any files, do not guess beyond the
+payload. Reply with ONLY a JSON object mapping each question id to a
+short answer string, e.g. {"q1": "...", "q2": "..."}.
+
+The payload is encoded as a `%q1` container. Format: first line
+`%q1 <codec> ...` (parameters), then legend lines `<alias>=<phrase>`
+(each alias is a short stand-in for that exact phrase), then a
+`%q1 body` line, then the body. `%q1 xN` after a line means that line
+occurs N times in total. A `toon` body is a table: first line is a JSON
+array of keys, each following line is one object, cells are JSON values
+joined by the separator named in the header. A `grep` body is grouped
+matcher output: a marker line names a file path and the lines after it
+are `line:text` hits in that file (a bare marker starts verbatim
+lines). A `diag` body line starting with an alias expands to: the head
+after the alias, then that alias's legend template with each slot
+placeholder filled by the sep-joined values in order. A `tmpl` body
+line starting with an alias is its legend template with the slot
+placeholders filled by the sep-joined values that follow the alias.
+Mentally decode the body via the legend before answering; never emit
+alias characters in answers.
+
+# Payload
+
+%q1 mine n=9
+路=码src/
+类=/pool.rs:
+函=引src/
+值=/handshake.rs:
+错=/writer.rs:
+试=/reader.rs:
+件=/cursor.rs:
+组=/session.rs:
+标=/frame.rs:
+%q1 body
+%q1 diag sep=pipe slot=quest n=2 nl=1
+码=    // TODO(remove_before_ship) — see review notes
+引=    // unwrap_unchecked — see review notes
+%q1 body
+函cache件45:
+函net组75:
+函cache组113:
+函fs标265:
+路net类213:
+路wal错41:
+函index组128:
+函fs错295:
+路codec试209:
+函codec件165:
+函index错252:
+函codec件298:
+函wal类212:
+函index错289:
+函fs标17:
+函index错294:
+路cache值184:
+函auth标148:
+函wal值92:
+函sched试98:
+路fs组100:
+函sched错288:
+路codec试219:
+路wal错239:
+函auth试105:
+路wal试18:
+函auth件195:
+路index值37:
+路sched类143:
+路auth组107:
+函codec标288:
+函wal值34:
+路sched类196:
+路sched类277:
+路cache值47:
+路cache标106:
+函wal值189:
+路wal错243:
+路codec错265:
+路wal错60:
+函index组116:
+函wal值139:
+函sched错185:
+函index类221:
+路codec试185:
+路auth组120:
+函auth件107:
+路cache值280:
+路index件223:
+路auth类189:
+路auth类292:
+函codec标230:
+函net标197:
+路sched标129:
+路fs类162:
+路fs组295:
+路codec试62:
+路fs组262:
+路fs件65:
+路wal件181:
+函sched错56:
+函net组151:
+路net错26:
+函sched错16:
+路sched标150:
+路fs组155:
+函codec值119:
+路fs类45:
+路fs件245:
+路index件247:
+函cache件175:
+函index类239:
+函wal类277:
+路sched类95:
+路auth类46:
+函index类76:
+路net错185:
+路sched值286:
+路net错258:
+路net试6:
+路auth类93:
+路net试174:
+路cache类219:
+函fs件265:
+函codec件296:
+函codec值271:
+函sched错133:
+函cache组173:
+路cache标264:
+函auth标143:
+路fs类70:
+路fs类53:
+函net标188:
+函cache件27:
+路wal试290:
+路net类131:
+路net试218:
+路fs组205:
+路net类271:
+函fs标42:
+函fs件153:
+路cache类194:
+路index值71:
+路index件123:
+路net试17:
+路sched标98:
+路fs类175:
+路codec错98:
+路codec错112:
+函codec值171:
+路cache值229:
+路codec试57:
+路wal错59:
+路auth类234:
+路net类74:
+函fs错145:
+路auth组199:
+函sched试222:
+函auth试107:
+路index值132:
+函net标278:
+函net组270:
+路net类88:
+函auth试53:
+函fs标171:
+路wal试48:
+路sched类235:
+路sched值195:
+路cache值195:
+函wal值174:
+路net试165:
+路codec错140:
+路wal件45:
+路net错54:
+路auth组88:
+函codec值153:
+
+
+# Questions
+
+t1: Which single file contains BOTH `TODO(remove_before_ship)` and `unwrap_unchecked` markers? Reply with the file path.

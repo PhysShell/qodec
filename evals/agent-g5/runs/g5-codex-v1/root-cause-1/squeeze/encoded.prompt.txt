@@ -1,0 +1,267 @@
+Answer the questions below using ONLY the payload in this message.
+Do not use any tools, do not read any files, do not guess beyond the
+payload. Reply with ONLY a JSON object mapping each question id to a
+short answer string, e.g. {"q1": "...", "q2": "..."}.
+
+The payload is encoded as a `%q1` container. Format: first line
+`%q1 <codec> ...` (parameters), then legend lines `<alias>=<phrase>`
+(each alias is a short stand-in for that exact phrase), then a
+`%q1 body` line, then the body. `%q1 xN` after a line means that line
+occurs N times in total. A `toon` body is a table: first line is a JSON
+array of keys, each following line is one object, cells are JSON values
+joined by the separator named in the header. A `grep` body is grouped
+matcher output: a marker line names a file path and the lines after it
+are `line:text` hits in that file (a bare marker starts verbatim
+lines). A `diag` body line starting with an alias expands to: the head
+after the alias, then that alias's legend template with each slot
+placeholder filled by the sep-joined values in order. A `tmpl` body
+line starting with an alias is its legend template with the slot
+placeholders filled by the sep-joined values that follow the alias.
+Mentally decode the body via the legend before answering; never emit
+alias characters in answers.
+
+# Payload
+
+%q1 mine n=7
+类=码|crate::auth::pool
+函=码|crate::cache::writer
+值=码|crate::sched::cursor
+错=/writer.rs:
+件=qodec-lab
+试=/handshake.rs:
+组=/reader.rs:
+%q1 body
+%q1 tmpl sep=pipe slot=quest n=3 nl=1
+码=warning: unused import `¿`
+引=error[E0599]: no method named `commit` found — aborted expansion
+路=  = note: this error is a consequence of the previous error
+%q1 body
+   Compiling 件 v0.1.0 (/work/件)
+函
+函
+值
+函
+类
+函
+类
+类
+函
+函
+函
+值
+函
+函
+函
+函
+函
+类
+函
+函
+函
+类
+类
+函
+类
+函
+值
+函
+类
+类
+值
+值
+函
+类
+函
+函
+值
+类
+值
+值
+类
+值
+类
+类
+类
+函
+类
+类
+值
+函
+值
+类
+类
+函
+值
+类
+函
+类
+类
+值
+值
+类
+类
+函
+值
+函
+类
+类
+函
+类
+类
+函
+函
+值
+值
+类
+函
+函
+值
+类
+函
+类
+类
+类
+函
+值
+函
+值
+值
+类
+类
+类
+类
+值
+类
+函
+函
+值
+类
+类
+函
+值
+函
+值
+值
+类
+值
+值
+值
+值
+值
+值
+函
+函
+值
+函
+类
+类
+值
+类
+函
+类
+类
+类
+值
+函
+值
+类
+类
+类
+类
+类
+函
+error[E0308]: mismatched types
+ --> src/net/cursor.rs:141:17
+  = note: expected `u64`, found `Option<u64>`
+引
+ --> src/auth试75:5
+路
+引
+ --> src/fs错77:5
+路
+引
+ --> src/auth错17:5
+路
+引
+ --> src/index组77:5
+路
+引
+ --> src/net/frame.rs:18:5
+路
+引
+ --> src/auth错40:5
+路
+引
+ --> src/index/frame.rs:66:5
+路
+引
+ --> src/cache试86:5
+路
+引
+ --> src/auth组45:5
+路
+值
+值
+函
+类
+值
+类
+值
+值
+值
+函
+值
+类
+类
+值
+类
+值
+函
+值
+函
+类
+类
+函
+函
+函
+值
+函
+函
+函
+值
+值
+类
+函
+类
+类
+函
+类
+值
+类
+值
+值
+函
+类
+类
+函
+函
+函
+值
+值
+函
+值
+值
+类
+函
+类
+值
+函
+函
+函
+值
+error: could not compile `件` (lib) due to previous errors
+
+
+# Questions
+
+t1: This build failed. Identify the PRIMARY error (the cause, not a consequence). Reply with its location as path:line.

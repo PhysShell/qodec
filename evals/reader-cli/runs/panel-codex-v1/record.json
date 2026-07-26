@@ -1,0 +1,210 @@
+{
+  "date": "2026-07-26T12:58:28Z",
+  "provider": "codex",
+  "reader_version": "codex-cli 0.145.0",
+  "model_arg": null,
+  "closed_world_argv": [
+    "exec",
+    "--sandbox",
+    "read-only",
+    "--skip-git-repo-check",
+    "--ephemeral",
+    "--color",
+    "never",
+    "-c",
+    "features.shell_tool=false",
+    "--ignore-user-config",
+    "--ignore-rules"
+  ],
+  "qodec_sha256": "5d632aea80a2219126600f9a9f9fad37c4c963f116f02c03a62e3913d4fb13f8",
+  "git_commit": "859fcba8546d70df5c76e97147933dec58af0f53",
+  "repeats": 2,
+  "inputs": {
+    "findings-count": {
+      "payload_sha256": "3faedbfa552e2267515a21bf2f1a322698a065e54357c0027185d398c4780d5c",
+      "questions_sha256": "45ec7fec7dab581581816182e78f7d5ee3e6e8053b551d073249790f59b7be03"
+    },
+    "findings-risk-probe": {
+      "payload_sha256": "3faedbfa552e2267515a21bf2f1a322698a065e54357c0027185d398c4780d5c",
+      "questions_sha256": "18a2e32b82eeb6ae7954c113e252da360d7aed2c2e1833c382f5d8d674980002"
+    }
+  },
+  "cells": [
+    {
+      "case": "findings-count",
+      "arm": "raw",
+      "rep": 1,
+      "status": "ok",
+      "correct": 5,
+      "total": 6,
+      "prompt_tokens_o200k": 808,
+      "envelope": {},
+      "grade_output": "PASS q1: 12\nPASS q2: 5\nFAIL q3: 4\nPASS q4: 4\nPASS q5: 3\nPASS q6: 7\nscore: 5/6\nprompt: 808 tokens [o200k]   accuracy/1k tokens: 103.1\n"
+    },
+    {
+      "case": "findings-count",
+      "arm": "raw",
+      "rep": 2,
+      "status": "ok",
+      "correct": 5,
+      "total": 6,
+      "prompt_tokens_o200k": 808,
+      "envelope": {},
+      "grade_output": "PASS q1: 12\nPASS q2: 5\nFAIL q3: 4\nPASS q4: 4\nPASS q5: 3\nPASS q6: 7\nscore: 5/6\nprompt: 808 tokens [o200k]   accuracy/1k tokens: 103.1\n"
+    },
+    {
+      "case": "findings-count",
+      "arm": "deep",
+      "rep": 1,
+      "status": "ok",
+      "correct": 6,
+      "total": 6,
+      "prompt_tokens_o200k": 848,
+      "envelope": {},
+      "grade_output": "PASS q1: 12\nPASS q2: 5\nPASS q3: 5\nPASS q4: 4\nPASS q5: 3\nPASS q6: 7\nscore: 6/6\nprompt: 848 tokens [o200k]   accuracy/1k tokens: 117.9\n"
+    },
+    {
+      "case": "findings-count",
+      "arm": "deep",
+      "rep": 2,
+      "status": "ok",
+      "correct": 6,
+      "total": 6,
+      "prompt_tokens_o200k": 848,
+      "envelope": {},
+      "grade_output": "PASS q1: 12\nPASS q2: 5\nPASS q3: 5\nPASS q4: 4\nPASS q5: 3\nPASS q6: 7\nscore: 6/6\nprompt: 848 tokens [o200k]   accuracy/1k tokens: 117.9\n"
+    },
+    {
+      "case": "findings-count",
+      "arm": "paper",
+      "rep": 1,
+      "status": "ok",
+      "correct": 6,
+      "total": 6,
+      "prompt_tokens_o200k": 1082,
+      "envelope": {},
+      "grade_output": "PASS q1: 12\nPASS q2: 5\nPASS q3: 5\nPASS q4: 4\nPASS q5: 3\nPASS q6: 7\nscore: 6/6\nprompt: 1082 tokens [o200k]   accuracy/1k tokens: 92.4\n"
+    },
+    {
+      "case": "findings-count",
+      "arm": "paper",
+      "rep": 2,
+      "status": "ok",
+      "correct": 6,
+      "total": 6,
+      "prompt_tokens_o200k": 1082,
+      "envelope": {},
+      "grade_output": "PASS q1: 12\nPASS q2: 5\nPASS q3: 5\nPASS q4: 4\nPASS q5: 3\nPASS q6: 7\nscore: 6/6\nprompt: 1082 tokens [o200k]   accuracy/1k tokens: 92.4\n"
+    },
+    {
+      "case": "findings-count",
+      "arm": "squeeze",
+      "rep": 1,
+      "status": "ok",
+      "correct": 6,
+      "total": 6,
+      "prompt_tokens_o200k": 814,
+      "envelope": {},
+      "grade_output": "PASS q1: 12\nPASS q2: 5\nPASS q3: 5\nPASS q4: 4\nPASS q5: 3\nPASS q6: 7\nscore: 6/6\nprompt: 814 tokens [o200k]   accuracy/1k tokens: 122.9\n"
+    },
+    {
+      "case": "findings-count",
+      "arm": "squeeze",
+      "rep": 2,
+      "status": "ok",
+      "correct": 6,
+      "total": 6,
+      "prompt_tokens_o200k": 814,
+      "envelope": {},
+      "grade_output": "PASS q1: 12\nPASS q2: 5\nPASS q3: 5\nPASS q4: 4\nPASS q5: 3\nPASS q6: 7\nscore: 6/6\nprompt: 814 tokens [o200k]   accuracy/1k tokens: 122.9\n"
+    },
+    {
+      "case": "findings-risk-probe",
+      "arm": "raw",
+      "rep": 1,
+      "status": "ok",
+      "correct": 2,
+      "total": 2,
+      "prompt_tokens_o200k": 791,
+      "envelope": {},
+      "grade_output": "PASS r1: 12\nPASS r2: 3\nscore: 2/2\nprompt: 791 tokens [o200k]   accuracy/1k tokens: 126.4\n"
+    },
+    {
+      "case": "findings-risk-probe",
+      "arm": "raw",
+      "rep": 2,
+      "status": "ok",
+      "correct": 2,
+      "total": 2,
+      "prompt_tokens_o200k": 791,
+      "envelope": {},
+      "grade_output": "PASS r1: 12\nPASS r2: 3\nscore: 2/2\nprompt: 791 tokens [o200k]   accuracy/1k tokens: 126.4\n"
+    },
+    {
+      "case": "findings-risk-probe",
+      "arm": "deep",
+      "rep": 1,
+      "status": "ok",
+      "correct": 2,
+      "total": 2,
+      "prompt_tokens_o200k": 831,
+      "envelope": {},
+      "grade_output": "PASS r1: 12\nPASS r2: 3\nscore: 2/2\nprompt: 831 tokens [o200k]   accuracy/1k tokens: 120.3\n"
+    },
+    {
+      "case": "findings-risk-probe",
+      "arm": "deep",
+      "rep": 2,
+      "status": "ok",
+      "correct": 2,
+      "total": 2,
+      "prompt_tokens_o200k": 831,
+      "envelope": {},
+      "grade_output": "PASS r1: 12\nPASS r2: 3\nscore: 2/2\nprompt: 831 tokens [o200k]   accuracy/1k tokens: 120.3\n"
+    },
+    {
+      "case": "findings-risk-probe",
+      "arm": "paper",
+      "rep": 1,
+      "status": "ok",
+      "correct": 2,
+      "total": 2,
+      "prompt_tokens_o200k": 1065,
+      "envelope": {},
+      "grade_output": "PASS r1: 12\nPASS r2: 3\nscore: 2/2\nprompt: 1065 tokens [o200k]   accuracy/1k tokens: 93.9\n"
+    },
+    {
+      "case": "findings-risk-probe",
+      "arm": "paper",
+      "rep": 2,
+      "status": "ok",
+      "correct": 2,
+      "total": 2,
+      "prompt_tokens_o200k": 1065,
+      "envelope": {},
+      "grade_output": "PASS r1: 12\nPASS r2: 3\nscore: 2/2\nprompt: 1065 tokens [o200k]   accuracy/1k tokens: 93.9\n"
+    },
+    {
+      "case": "findings-risk-probe",
+      "arm": "squeeze",
+      "rep": 1,
+      "status": "ok",
+      "correct": 2,
+      "total": 2,
+      "prompt_tokens_o200k": 797,
+      "envelope": {},
+      "grade_output": "PASS r1: 12\nPASS r2: 3\nscore: 2/2\nprompt: 797 tokens [o200k]   accuracy/1k tokens: 125.5\n"
+    },
+    {
+      "case": "findings-risk-probe",
+      "arm": "squeeze",
+      "rep": 2,
+      "status": "ok",
+      "correct": 2,
+      "total": 2,
+      "prompt_tokens_o200k": 797,
+      "envelope": {},
+      "grade_output": "PASS r1: 12\nPASS r2: 3\nscore: 2/2\nprompt: 797 tokens [o200k]   accuracy/1k tokens: 125.5\n"
+    }
+  ]
+}
