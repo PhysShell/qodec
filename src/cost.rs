@@ -52,9 +52,17 @@ const MIN_SAMPLES: usize = 256;
 /// the char-token estimate — and the prediction is `clamp(ratio) × size`.
 /// Measured reason: fitting absolute cost on long-span synthetics drove the
 /// effective per-byte slope negative for grep-dense content, and a held-out
-/// file's span ordering came back **inverted** (Spearman −0.97). A clamped
-/// ratio makes cost structurally increasing in size: the model chooses how
-/// compressible content is, never whether more bytes cost less.
+/// file's span ordering came back **inverted** (Spearman −0.97).
+///
+/// Precisely what the clamp guarantees, and what it does not (Codex review
+/// on PR #8 exhibited the gap with a live counterexample): it bounds any two
+/// predictions to `cost(A)/cost(B) ≥ (RATIO_MIN/RATIO_MAX)·(size_A/size_B)`,
+/// which excludes the global slope inversion above — but it does **not**
+/// make cost monotonic under span extension, because the ratio itself reads
+/// size-dependent features. The physical law "extending a span never makes
+/// its artifact cheaper" is instead enforced where it matters, in the DP:
+/// [`crate::mosaic`]'s predicted router applies a running max over each
+/// start's extensions.
 const RATIO_MIN: f64 = 0.02;
 const RATIO_MAX: f64 = 1.2;
 
@@ -163,7 +171,12 @@ impl SpanStats {
     pub fn features(&self, i: usize, j: usize) -> [f64; DIM] {
         let lines = j.saturating_sub(i).max(1) as f64;
         let bytes = Self::sum(&self.bytes, i, j).max(1.0);
-        let dup_frac = Self::sum(&self.dup_prev, i, j) / lines;
+        // `dup_prev` at line `i` compares against line `i-1`, which is
+        // OUTSIDE `[i, j)` — start the sum at `i+1` so only comparisons
+        // wholly inside the span count (Codex review on PR #8: a singleton
+        // span opening mid-run otherwise scored dup_frac=1 while fold sees
+        // one line and returns raw, underpricing boundary spans).
+        let dup_frac = Self::sum(&self.dup_prev, (i + 1).min(j), j) / lines;
         let grep_frac = Self::sum(&self.grep_shaped, i, j) / lines;
         [
             1.0,                                   // bias
@@ -437,6 +450,9 @@ fn spearman(a: &[f64], b: &[f64]) -> f64 {
     cov / (va.sqrt() * vb.sqrt())
 }
 
+/// Fractional ranks with ties averaged — required for Spearman; sequential
+/// ranks would let a constant prediction inherit the dataset's input order
+/// and report a fake correlation of 1.0 (Codex review on PR #8).
 fn ranks(v: &[f64]) -> Vec<f64> {
     let mut idx: Vec<usize> = (0..v.len()).collect();
     idx.sort_by(|&x, &y| {
@@ -445,10 +461,30 @@ fn ranks(v: &[f64]) -> Vec<f64> {
         a.total_cmp(&b)
     });
     let mut out = vec![0.0f64; v.len()];
-    for (rank, &orig) in idx.iter().enumerate() {
-        if let Some(slot) = out.get_mut(orig) {
-            *slot = rank as f64;
+    let mut pos = 0usize;
+    while pos < idx.len() {
+        let value = idx
+            .get(pos)
+            .and_then(|&orig| v.get(orig))
+            .copied()
+            .unwrap_or(0.0);
+        let mut end = pos;
+        while idx
+            .get(end)
+            .and_then(|&orig| v.get(orig))
+            .is_some_and(|&x| x == value)
+        {
+            end += 1;
         }
+        let avg = (pos + end - 1) as f64 / 2.0;
+        for k in pos..end {
+            if let Some(&orig) = idx.get(k) {
+                if let Some(slot) = out.get_mut(orig) {
+                    *slot = avg;
+                }
+            }
+        }
+        pos = end;
     }
     out
 }

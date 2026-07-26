@@ -356,9 +356,16 @@ fn predicted_boundaries(text: &str, model: &CostModel) -> Option<Vec<(usize, usi
         if !dp_i.is_finite() {
             continue;
         }
+        // Monotone envelope over extensions from this start: extending a span
+        // can never make its artifact cheaper (a physical law of every codec
+        // here), but the ratio model can locally predict otherwise (Codex
+        // review on PR #8: +1 plain line lowered a prediction). The running
+        // max costs O(1) per edge and removes exactly that inversion class
+        // from the DP's view.
+        let mut envelope = 0.0f64;
         for j in (i + 1)..=n {
-            let weight = model.predict(&stats.features(i, j));
-            let cand = dp_i + weight + FRAME_COST as f64;
+            envelope = envelope.max(model.predict(&stats.features(i, j)));
+            let cand = dp_i + envelope + FRAME_COST as f64;
             if cand < dp.get(j).copied().unwrap_or(inf) {
                 if let Some(slot) = dp.get_mut(j) {
                     *slot = cand;

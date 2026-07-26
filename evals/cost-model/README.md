@@ -53,10 +53,16 @@ dataset-synth.json   sha256  666d644cfec40c3ef7315000f74b3ec505836c6a8b0e6ebe11f
    back **inverted** (Spearman −0.97). Textbook extrapolation failure,
    caught by the by-file holdout.
 3. **v2 — ratio target.** The model predicts a clamped *compressibility
-   ratio* `cost/size`; the prediction is `clamp(ratio, 0.02, 1.2) × size`,
-   so cost is structurally increasing in size — the model chooses how
-   compressible content is, never whether more bytes cost less. Holdout
-   Spearman: build-log 0.917, rg-output 0.994.
+   ratio* `cost/size`; the prediction is `clamp(ratio, 0.02, 1.2) × size`.
+   Precisely stated (the first wording overclaimed, caught by Codex review
+   with a live counterexample): the clamp bounds any two predictions to
+   `cost(A)/cost(B) ≥ (0.02/1.2)·(size_A/size_B)` — excluding the global
+   slope inversion — but does **not** make cost monotonic under span
+   extension, since the ratio reads size-dependent features. The physical
+   law "extending a span never makes its artifact cheaper" is enforced in
+   the DP instead: the predicted router applies a running max over each
+   start's extensions, O(1) per edge. Holdout Spearman: build-log 0.917,
+   rg-output 0.994.
 
 ## Results (v2)
 

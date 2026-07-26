@@ -136,6 +136,55 @@ fn predicted_routing_roundtrips_and_never_loses_to_baseline() -> Result<()> {
 }
 
 #[test]
+fn dup_frac_counts_only_inside_span_comparisons() -> Result<()> {
+    // Codex review on PR #8: a singleton span opening mid-run must not
+    // inherit the boundary comparison against a line outside the span.
+    let stats = SpanStats::build("same line here\nsame line here\n");
+    let f = stats.features(1, 2);
+    anyhow::ensure!(
+        feat(&f, 5).abs() < 1e-9,
+        "singleton span [1,2) must have dup_frac 0, got {}",
+        feat(&f, 5)
+    );
+    // The full two-line span has exactly one interior comparison.
+    let f_full = stats.features(0, 2);
+    anyhow::ensure!((feat(&f_full, 5) - 0.5).abs() < 1e-9);
+    Ok(())
+}
+
+#[test]
+fn spearman_averages_tied_ranks() -> Result<()> {
+    // Codex review on PR #8: constant predictions must not inherit the
+    // dataset's input order — build rows where targets are already sorted,
+    // hand the evaluator a model that predicts a constant (all features
+    // zeroed except bias -> same standardized input -> same output), and
+    // require correlation ~0, not 1.
+    let text = synthetic_log();
+    let rows = harvest("synthetic", &text, &Approx, &[], 300);
+    let model = fit(&rows).ok_or_else(|| anyhow::anyhow!("fit failed"))?;
+    let mut sorted: Vec<_> = rows.clone();
+    sorted.sort_by(|a, b| a.target.total_cmp(&b.target));
+    let constant_rows: Vec<_> = sorted
+        .iter()
+        .map(|r| {
+            let mut r2 = r.clone();
+            r2.features = [0.0; qodec::cost::DIM];
+            if let Some(bias) = r2.features.get_mut(0) {
+                *bias = 1.0;
+            }
+            r2
+        })
+        .collect();
+    let m = evaluate(&model, &constant_rows);
+    anyhow::ensure!(
+        m.spearman.abs() < 0.05,
+        "constant predictions must score ~0 correlation, got {}",
+        m.spearman
+    );
+    Ok(())
+}
+
+#[test]
 fn dataset_json_roundtrips() -> Result<()> {
     let text = synthetic_log();
     let rows = harvest("synthetic", &text, &Approx, &[], 300);
