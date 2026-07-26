@@ -1126,13 +1126,18 @@ fn cmd_cost_harvest(a: &CostHarvestArgs) -> Result<()> {
     if meter.poisoned() {
         bail!("meter failed during harvest — no dataset");
     }
-    fs::write(&a.out, qodec::cost::rows_to_json(&rows))?;
-    eprintln!("wrote {} rows to {}", rows.len(), a.out.display());
+    fs::write(&a.out, qodec::cost::dataset_to_json(meter.name(), &rows))?;
+    eprintln!(
+        "wrote {} rows ({}) to {}",
+        rows.len(),
+        meter.name(),
+        a.out.display()
+    );
     Ok(())
 }
 
 fn cmd_cost_fit(a: &CostFitArgs) -> Result<()> {
-    let rows = qodec::cost::rows_from_json(&fs::read_to_string(&a.input)?)?;
+    let (dataset_meter, rows) = qodec::cost::dataset_from_json(&fs::read_to_string(&a.input)?)?;
     let holdout: Vec<&str> = a
         .holdout
         .split(',')
@@ -1148,12 +1153,12 @@ fn cmd_cost_fit(a: &CostFitArgs) -> Result<()> {
             "holdout file {name:?} matches no rows in the dataset (check the exact file name)"
         );
     }
-    let model = qodec::cost::fit(&train)
+    let model = qodec::cost::fit(&train, &dataset_meter)
         .ok_or_else(|| anyhow::anyhow!("fit refused (too few samples or degenerate system)"))?;
     let m = qodec::cost::evaluate(&model, &train);
     println!(
-        "train:   n={} mae={:.1} mean_target={:.1} spearman={:.3}",
-        m.n, m.mae, m.mean_target, m.spearman
+        "train:   n={} meter={} mae={:.1} mean_target={:.1} spearman={:.3}",
+        m.n, dataset_meter, m.mae, m.mean_target, m.spearman
     );
     // Per-held-out-file metrics: ordering quality within a file is what the
     // DP actually consumes.
@@ -1177,10 +1182,21 @@ fn cmd_cost_bench(a: &CostBenchArgs) -> Result<()> {
     let meter = by_name(&a.meter)?;
     let model =
         qodec::cost::CostModel::from_json(&serde_json::from_str(&fs::read_to_string(&a.model)?)?)?;
-    println!(
-        "| file | raw tok | measured all-span | ms | predicted all-span | ms | geometric | ms |"
+    // The stamp check `encode_predicted` performs silently (fail closed to
+    // baseline) is a hard error here: a bench under the wrong meter would
+    // measure nothing but the fallback path.
+    anyhow::ensure!(
+        model.meter == meter.name(),
+        "model was trained under meter {:?} but bench runs {:?} — refit or pass --meter {}",
+        model.meter,
+        meter.name(),
+        model.meter
     );
-    println!("|---|---:|---:|---:|---:|---:|---:|---:|");
+    println!(
+        "| file | raw tok | measured all-span | ms | predicted all-span | ms | geometric | ms | resid | fb |"
+    );
+    println!("|---|---:|---:|---:|---:|---:|---:|---:|---:|---:|");
+    let (mut resid_sum, mut resid_n, mut fallbacks, mut files) = (0.0f64, 0usize, 0usize, 0usize);
     for (name, text) in corpus_files(&a.corpus)? {
         let raw_tokens = meter.count(&text);
         let clock = std::time::Instant::now;
@@ -1191,7 +1207,8 @@ fn cmd_cost_bench(a: &CostBenchArgs) -> Result<()> {
         let t_measured = t0.elapsed().as_millis();
 
         let t1 = clock();
-        let predicted = qodec::mosaic::encode_predicted(&text, meter.as_ref(), &model, &[]);
+        let (predicted, report) =
+            qodec::mosaic::encode_predicted_report(&text, meter.as_ref(), &model, &[]);
         let predicted_tokens = meter.count(&predicted);
         let t_predicted = t1.elapsed().as_millis();
 
@@ -1202,13 +1219,40 @@ fn cmd_cost_bench(a: &CostBenchArgs) -> Result<()> {
         let geometric_tokens = meter.count(&geometric);
         let t_geometric = t2.elapsed().as_millis();
 
+        // The two drift indicators, from work arbitration already did:
+        // realized − predicted on the selected path, and whether the
+        // predicted path lost to the whole-payload baseline.
+        let resid = match (report.realized_tokens, report.predicted_cost) {
+            (Some(real), Some(pred)) => {
+                let r = real as f64 - pred;
+                resid_sum += r.abs() / (real.max(1) as f64);
+                resid_n += 1;
+                format!("{r:+.0}")
+            }
+            _ => "-".to_string(),
+        };
+        files += 1;
+        fallbacks += usize::from(report.fell_back);
         println!(
-            "| {name} | {raw_tokens} | {} | {t_measured} | {predicted_tokens} | {t_predicted} | {geometric_tokens} | {t_geometric} |",
+            "| {name} | {raw_tokens} | {} | {t_measured} | {predicted_tokens} | {t_predicted} | {geometric_tokens} | {t_geometric} | {resid} | {} |",
             measured.map_or("-".to_string(), |t| t.to_string()),
+            if report.fell_back { "y" } else { "" },
         );
     }
     if meter.poisoned() {
         bail!("meter failed during bench");
+    }
+    // Shadow drift summary (measurement only, docs/secondary-calibration.md):
+    // a mean relative residual or fallback rate that climbs on a new corpus
+    // is the re-harvest signal.
+    if resid_n > 0 {
+        println!(
+            "\ndrift: mean |realized-predicted| = {:.1}% of realized over {resid_n} files; fallback {fallbacks}/{files}; meter {} ok",
+            100.0 * resid_sum / resid_n as f64,
+            model.meter
+        );
+    } else {
+        println!("\ndrift: no predicted paths ran (fallback {fallbacks}/{files})");
     }
     Ok(())
 }

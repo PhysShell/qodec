@@ -21,7 +21,12 @@ cargo build --release
 python3 evals/cost-model/gen_fixtures.py          # byte-identical fixtures
 ./target/release/qodec cost harvest --corpus corpus -o evals/cost-model/dataset-corpus.json
 ./target/release/qodec cost harvest --corpus evals/cost-model/train-synth -o evals/cost-model/dataset-synth.json   # ~9 min: 54k spans, exact labels
-python3 -c "import json; json.dump(json.load(open('evals/cost-model/dataset-corpus.json'))+json.load(open('evals/cost-model/dataset-synth.json')), open('evals/cost-model/dataset-all.json','w'))"
+python3 -c "
+import json
+a=json.load(open('evals/cost-model/dataset-corpus.json'))
+b=json.load(open('evals/cost-model/dataset-synth.json'))
+assert a['meter']==b['meter'] and a['format']==b['format']
+json.dump({'format':a['format'],'meter':a['meter'],'rows':a['rows']+b['rows']}, open('evals/cost-model/dataset-all.json','w'))"
 ./target/release/qodec cost fit -i evals/cost-model/dataset-all.json --holdout build-log.txt,rg-output.txt -o evals/cost-model/model.json
 ./target/release/qodec cost bench --corpus evals/cost-model/demo --model evals/cost-model/model.json
 ```
@@ -31,8 +36,8 @@ to commit (11 MB), so its identity is pinned instead — regeneration must
 reproduce these exact bytes:
 
 ```
-dataset-corpus.json  sha256  35719cda702270b9892ab4c84c395bf3ae05f700470d5bef9171caf71b5b20cb
-dataset-synth.json   sha256  ed9bd2ee3315146087b8ea3e7559de93138d3122e6cf58436acedb524074f1e1
+dataset-corpus.json  sha256  4e632988162b959e36e70d304a2240af051daed3a6aa857a90bdf5c4335023d9
+dataset-synth.json   sha256  6173177e156577cdebd69e21f20d6e908d0955fb17351202597afd9e53201775
 ```
 
 `model.json` (committed, 4 KB) is the fitted v2 model;
@@ -78,6 +83,36 @@ computable (4900× faster, beating the geometric router there), and lands
 within **2.3%** of geometric at 102× less search time where truth is not.
 On the 6 real corpus files all three agree token-for-token. The measured
 meter remains the only authority — this model never accepts anything.
+
+## Drift tracking
+
+The model is a static artifact, so the question "when has the world moved
+out from under it?" has three answers, each with its own mechanism:
+
+1. **Codec drift** (someone improves `fold`/`grep`/`diag`/`tmpl`, shifting
+   the ground truth the labels encode): caught in CI by the label canary
+   (`tests/cost.rs::ground_truth_canary_pins_span_labels`), which harvests a
+   small multi-regime text with the exact o200k meter and compares every
+   span label against a pinned string. When it fails, the committed
+   datasets and `model.json` no longer describe the code — re-harvest,
+   refit, update the pins here and in the test.
+2. **Tokenizer drift** (a model trained under one meter asked to rank for
+   another): fail-closed stamps through the whole chain. `cost harvest`
+   writes the meter name into the dataset envelope (`qodec-cost-dataset-v2`),
+   `cost fit` copies it into the model (`qodec-cost-model-v2`), and
+   `encode_predicted` skips predicted routing entirely on mismatch —
+   baseline ships, `PredictReport::meter_mismatch` says why. Unstamped
+   legacy files refuse to load; `cost bench` makes the mismatch a hard
+   error.
+3. **Domain drift** (real inputs stop resembling the training corpus):
+   monitored from work arbitration already pays for — zero extra encodes.
+   `encode_predicted_report` returns the DP's predicted path cost, the
+   exact realized tokens of that path, and whether arbitration fell back
+   to the baseline. `cost bench` prints the two indicators (`resid`, `fb`
+   columns and a `drift:` summary line); a mean relative residual or
+   fallback rate that climbs on a new corpus is the re-harvest signal.
+   This is the `docs/secondary-calibration.md` shadow mode: measurement
+   only, nothing feeds back into the model at runtime.
 
 ## Scope guards
 

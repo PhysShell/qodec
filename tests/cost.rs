@@ -5,7 +5,9 @@
 
 use anyhow::Result;
 
-use qodec::cost::{evaluate, fit, harvest, rows_from_json, rows_to_json, CostModel, SpanStats};
+use qodec::cost::{
+    dataset_from_json, dataset_to_json, evaluate, fit, harvest, CostModel, SpanStats,
+};
 use qodec::meter::{Approx, Bpe, TokenMeter};
 use qodec::{decode, mosaic};
 
@@ -62,10 +64,13 @@ fn fit_refuses_tiny_samples_and_is_deterministic() -> Result<()> {
     let rows = harvest("synthetic", &text, &Approx, &[], 300);
     anyhow::ensure!(rows.len() > 256, "harvest yields all spans");
     let tiny: Vec<_> = rows.iter().take(10).cloned().collect();
-    anyhow::ensure!(fit(&tiny).is_none(), "tiny sample must be refused");
+    anyhow::ensure!(
+        fit(&tiny, "approx").is_none(),
+        "tiny sample must be refused"
+    );
 
-    let a = fit(&rows).ok_or_else(|| anyhow::anyhow!("fit failed"))?;
-    let b = fit(&rows).ok_or_else(|| anyhow::anyhow!("fit failed"))?;
+    let a = fit(&rows, "approx").ok_or_else(|| anyhow::anyhow!("fit failed"))?;
+    let b = fit(&rows, "approx").ok_or_else(|| anyhow::anyhow!("fit failed"))?;
     anyhow::ensure!(
         serde_json::to_string(&a.to_json())? == serde_json::to_string(&b.to_json())?,
         "fit must be deterministic"
@@ -84,7 +89,7 @@ fn model_learns_ordering_within_a_file() -> Result<()> {
     // ordering). Threshold is deliberately loose.
     let text = synthetic_log();
     let rows = harvest("synthetic", &text, &Approx, &[], 300);
-    let model = fit(&rows).ok_or_else(|| anyhow::anyhow!("fit failed"))?;
+    let model = fit(&rows, "approx").ok_or_else(|| anyhow::anyhow!("fit failed"))?;
     let m = evaluate(&model, &rows);
     anyhow::ensure!(
         m.spearman > 0.9,
@@ -99,11 +104,19 @@ fn predicted_routing_roundtrips_and_never_loses_to_baseline() -> Result<()> {
     let meter = Bpe::o200k()?;
     let text = synthetic_log();
     let rows = harvest("synthetic", &text, &meter, &[], 300);
-    let model = fit(&rows).ok_or_else(|| anyhow::anyhow!("fit failed"))?;
+    let model = fit(&rows, meter.name()).ok_or_else(|| anyhow::anyhow!("fit failed"))?;
 
-    let artifact = mosaic::encode_predicted(&text, &meter, &model, &[]);
+    let (artifact, report) = mosaic::encode_predicted_report(&text, &meter, &model, &[]);
     let back = decode(&artifact)?;
     anyhow::ensure!(back == text, "predicted mosaic must stay byte-exact");
+    anyhow::ensure!(
+        !report.meter_mismatch,
+        "stamps match, mismatch must be false"
+    );
+    anyhow::ensure!(
+        report.predicted_cost.is_some() && report.realized_tokens.is_some(),
+        "matching meters must produce the shadow residual pair"
+    );
 
     // The exact-meter arbitration guarantee: whatever the model picked, the
     // shipped artifact is never worse than the whole-payload single-codec
@@ -161,7 +174,7 @@ fn spearman_averages_tied_ranks() -> Result<()> {
     // require correlation ~0, not 1.
     let text = synthetic_log();
     let rows = harvest("synthetic", &text, &Approx, &[], 300);
-    let model = fit(&rows).ok_or_else(|| anyhow::anyhow!("fit failed"))?;
+    let model = fit(&rows, "approx").ok_or_else(|| anyhow::anyhow!("fit failed"))?;
     let mut sorted: Vec<_> = rows.clone();
     sorted.sort_by(|a, b| a.target.total_cmp(&b.target));
     let constant_rows: Vec<_> = sorted
@@ -193,16 +206,91 @@ fn dataset_json_roundtrips() -> Result<()> {
     if let Some(hostile) = rows.first_mut() {
         hostile.file = "логи/\"β\"\tback\\slash.txt".to_string();
     }
-    let json = rows_to_json(&rows);
+    let json = dataset_to_json("approx", &rows);
     anyhow::ensure!(
         serde_json::from_str::<serde_json::Value>(&json).is_ok(),
-        "rows_to_json must emit valid JSON"
+        "dataset_to_json must emit valid JSON"
     );
-    let back = rows_from_json(&json)?;
+    let (meter, back) = dataset_from_json(&json)?;
+    anyhow::ensure!(meter == "approx", "meter stamp must roundtrip");
     anyhow::ensure!(rows.len() == back.len());
     let a = rows.first().ok_or_else(|| anyhow::anyhow!("empty rows"))?;
     let b = back.first().ok_or_else(|| anyhow::anyhow!("empty back"))?;
     anyhow::ensure!(a.file == b.file, "hostile file name must roundtrip");
     anyhow::ensure!((a.target - b.target).abs() < 1e-9);
+    // Fail closed on unstamped inputs: a legacy bare-array dataset and a
+    // model JSON without a meter field must both refuse to load.
+    anyhow::ensure!(
+        dataset_from_json("[]").is_err(),
+        "legacy v1 dataset must be refused"
+    );
+    let model = fit(&rows, "approx").ok_or_else(|| anyhow::anyhow!("fit failed"))?;
+    let mut unstamped = model.to_json();
+    if let Some(obj) = unstamped.as_object_mut() {
+        obj.remove("meter");
+    }
+    anyhow::ensure!(
+        CostModel::from_json(&unstamped).is_err(),
+        "model without a meter stamp must be refused"
+    );
+    Ok(())
+}
+
+#[test]
+fn meter_mismatch_fails_closed_to_baseline() -> Result<()> {
+    // A model stamped for one tokenizer must never order spans for another:
+    // predicted routing is skipped, the report says why, and the shipped
+    // artifact is exactly the measured whole-payload baseline — byte-exact.
+    let meter = Bpe::o200k()?;
+    let text = synthetic_log();
+    let rows = harvest("synthetic", &text, &Approx, &[], 300);
+    let model = fit(&rows, "approx").ok_or_else(|| anyhow::anyhow!("fit failed"))?;
+
+    let (artifact, report) = mosaic::encode_predicted_report(&text, &meter, &model, &[]);
+    anyhow::ensure!(report.meter_mismatch, "approx model under o200k must trip");
+    anyhow::ensure!(report.fell_back, "mismatch must count as a fallback");
+    anyhow::ensure!(
+        report.predicted_cost.is_none() && report.realized_tokens.is_none(),
+        "no predicted path may run under a mismatched meter"
+    );
+    anyhow::ensure!(decode(&artifact)? == text, "fallback stays byte-exact");
+    Ok(())
+}
+
+/// The label canary: pinned exact o200k ground truth for one multi-regime
+/// text. Any change to a structural codec (fold/grep/diag/tmpl), the meter,
+/// or `best_span` arbitration that shifts span economics breaks this pin —
+/// which is the point. On failure: the committed `evals/cost-model` datasets
+/// and `model.json` no longer describe the code; re-harvest, refit, update
+/// the README's SHA-256 pins, then update this pin from the test output.
+#[test]
+fn ground_truth_canary_pins_span_labels() -> Result<()> {
+    let meter = Bpe::o200k()?;
+    let mut text = String::new();
+    for _ in 0..4 {
+        text.push_str("error: lock timeout on shard 7, retrying\n");
+    }
+    for i in 0..3 {
+        text.push_str(&format!(
+            "src/db/pool.rs:{}:5: connection dropped\n",
+            88 + i
+        ));
+    }
+    text.push_str("A unique closing line that no codec can compress.\n");
+    let rows = harvest("canary", &text, &meter, &[], 300);
+    let got: Vec<String> = rows
+        .iter()
+        .map(|r| format!("{}-{}:{}", r.i, r.j, r.target))
+        .collect();
+    let pinned = "0-1:22 0-2:34 0-3:31 0-4:31 0-5:44 0-6:57 0-7:70 0-8:80 1-2:22 1-3:34 \
+                  1-4:31 1-5:44 1-6:57 1-7:69 1-8:79 2-3:22 2-4:34 2-5:47 2-6:60 2-7:73 \
+                  2-8:83 3-4:22 3-5:35 3-6:48 3-7:61 3-8:71 4-5:23 4-6:36 4-7:49 4-8:59 \
+                  5-6:23 5-7:36 5-8:46 6-7:23 6-8:33 7-8:20";
+    anyhow::ensure!(
+        got.join(" ") == pinned,
+        "ground-truth labels moved — codec/meter change shifted span economics.\n\
+         Re-harvest datasets, refit model.json, update README pins, then update this pin to:\n{}",
+        got.join(" ")
+    );
     Ok(())
 }
