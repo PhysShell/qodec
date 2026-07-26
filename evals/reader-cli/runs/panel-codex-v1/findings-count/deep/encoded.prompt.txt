@@ -1,0 +1,65 @@
+Answer the questions below using ONLY the payload in this message.
+Do not use any tools, do not read any files, do not guess beyond the
+payload. Reply with ONLY a JSON object mapping each question id to a
+short answer string, e.g. {"q1": "...", "q2": "..."}.
+
+The payload is encoded as a `%q1` container. Format: first line
+`%q1 <codec> ...` (parameters), then legend lines `<alias>=<phrase>`
+(each alias is a short stand-in for that exact phrase), then a
+`%q1 body` line, then the body. `%q1 xN` after a line means that line
+occurs N times in total. A `toon` body is a table: first line is a JSON
+array of keys, each following line is one object, cells are JSON values
+joined by the separator named in the header. A `grep` body is grouped
+matcher output: a marker line names a file path and the lines after it
+are `line:text` hits in that file (a bare marker starts verbatim
+lines). A `diag` body line starting with an alias expands to: the head
+after the alias, then that alias's legend template with each slot
+placeholder filled by the sep-joined values in order. A `tmpl` body
+line starting with an alias is its legend template with the slot
+placeholders filled by the sep-joined values that follow the alias.
+Mentally decode the body via the legend before answering; never emit
+alias characters in answers.
+
+# Payload
+
+%q1 mine n=15
+码=,"severity":"medium","message":"event subscription without matching unsubscribe in Dispose","suspect_fp":
+引=","file":"src/Legacy.
+路=,"severity":"medium","message":"Dispatcher.Invoke used where BeginInvoke would avoid a re-entrancy deadlock","suspect_fp":
+类=,"severity":"high","message":"static ObservableCollection roots every subscribed view model","suspect_fp":false},
+函=.cs","line":
+值=,"severity":"low","message":"CancellationToken parameter is not forwarded to 
+错=","rule":"
+试=引UI/ViewModels/
+件=blocks the UI thread inside an async flow","suspect_fp":false},
+组=错cancellation-not-forwarded引Core/Services/
+标={"id":
+记=错static-observable引UI/State/
+链=错event-leak试
+节=","suspect_fp":
+层=,"severity":"high","message":"
+%q1 body
+[
+  标"OWN0101错async-over-sync试ReportViewModel函44层GetAwaiter().GetResult() 件
+  标"OWN0102错async-over-sync试StationViewModel函81层Task.Wait() 件
+  标"OWN0201链UserEditorViewModel函33码true},
+  标"OWN0202链ReportViewModel函27码true},
+  标"OWN0203链LoginViewModel函19码false},
+  标"OWN0301组UserService函27值UpsertAsync overload节false},
+  标"OWN0302组SessionService函41值RequestAsync overload节true},
+  标"OWN0401错dispatcher-invoke试StationViewModel函102路false},
+  标"OWN0402错dispatcher-invoke引UI/Controls/GridHost.xaml函58路true},
+  标"OWN0501记GlobalState函12类
+  标"OWN0502记SessionCache函21类
+  标"OWN0601错config-await引Core/Services/AuditLogger函16,"severity":"info","message":"missing ConfigureAwait(false) in library code节true}
+]
+
+
+# Questions
+
+q1: How many findings are in the report in total?
+q2: How many findings are marked suspect_fp = true?
+q3: How many findings have severity "medium"?
+q4: How many findings have severity "high"?
+q5: How many findings have the rule "event-leak"?
+q6: How many findings are marked suspect_fp = false?
