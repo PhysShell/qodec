@@ -1,0 +1,62 @@
+Answer the questions below using ONLY the payload in this message.
+Do not use any tools, do not read any files, do not guess beyond the
+payload. Reply with ONLY a JSON object mapping each question id to a
+short answer string, e.g. {"q1": "...", "q2": "..."}.
+
+# Payload
+
+running retry harness (max 3 attempts per test)
+--- attempt 1 ---
+test vm::reader_00 ... FAILED
+test codec::mount_01 ... ok
+test index::ledger_02 ... ok
+test log::mount_03 ... ok
+test sched::probe_04 ... FAILED
+test index::reader_05 ... FAILED
+test vm::reader_06 ... ok
+test index::pool_07 ... FAILED
+test tls::probe_08 ... FAILED
+test gc::pool_09 ... FAILED
+test fs::handshake_10 ... FAILED
+test log::session_11 ... ok
+test cache::reader_12 ... ok
+test fmt::cursor_13 ... ok
+test tls::writer_14 ... ok
+--- attempt 2 ---
+test vm::reader_00 ... ok
+test codec::mount_01 ... ok
+test index::ledger_02 ... ok
+test log::mount_03 ... ok
+test sched::probe_04 ... ok
+test index::reader_05 ... FAILED
+test vm::reader_06 ... FAILED
+test index::pool_07 ... ok
+test tls::probe_08 ... ok
+test gc::pool_09 ... ok
+test fs::handshake_10 ... ok
+test log::session_11 ... ok
+test cache::reader_12 ... FAILED
+test fmt::cursor_13 ... FAILED
+test tls::writer_14 ... ok
+--- attempt 3 ---
+test vm::reader_00 ... FAILED
+test codec::mount_01 ... ok
+test index::ledger_02 ... ok
+test log::mount_03 ... ok
+test sched::probe_04 ... ok
+test index::reader_05 ... FAILED
+test vm::reader_06 ... FAILED
+test index::pool_07 ... ok
+test tls::probe_08 ... FAILED
+test gc::pool_09 ... ok
+test fs::handshake_10 ... FAILED
+test log::session_11 ... ok
+test cache::reader_12 ... FAILED
+test fmt::cursor_13 ... FAILED
+test tls::writer_14 ... ok
+retry harness done
+
+
+# Questions
+
+t1: A flaky test passes at least one attempt. Which test failed on EVERY attempt? Reply with the full test name.

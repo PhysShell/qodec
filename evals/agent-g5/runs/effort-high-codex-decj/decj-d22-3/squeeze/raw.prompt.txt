@@ -1,0 +1,83 @@
+Answer the questions below using ONLY the payload in this message.
+Do not use any tools, do not read any files, do not guess beyond the
+payload. Reply with ONLY a JSON object mapping each question id to a
+short answer string, e.g. {"q1": "...", "q2": "..."}.
+
+# Payload
+
+running retry harness (max 3 attempts per test)
+--- attempt 1 ---
+test tls::cursor_00 ... FAILED
+test auth::session_01 ... ok
+test wal::handshake_02 ... ok
+test cli::mount_03 ... ok
+test fs::probe_04 ... ok
+test log::handshake_05 ... ok
+test fmt::frame_06 ... ok
+test tls::mount_07 ... FAILED
+test auth::ledger_08 ... ok
+test fmt::mount_09 ... FAILED
+test cache::handshake_10 ... ok
+test fs::cursor_11 ... FAILED
+test codec::mount_12 ... FAILED
+test fmt::probe_13 ... ok
+test sched::reader_14 ... FAILED
+test log::cursor_15 ... ok
+test ipc::cursor_16 ... ok
+test wal::ledger_17 ... ok
+test gc::pool_18 ... FAILED
+test wal::mount_19 ... FAILED
+test cache::writer_20 ... ok
+test codec::pool_21 ... FAILED
+--- attempt 2 ---
+test tls::cursor_00 ... ok
+test auth::session_01 ... FAILED
+test wal::handshake_02 ... FAILED
+test cli::mount_03 ... ok
+test fs::probe_04 ... FAILED
+test log::handshake_05 ... ok
+test fmt::frame_06 ... FAILED
+test tls::mount_07 ... FAILED
+test auth::ledger_08 ... FAILED
+test fmt::mount_09 ... ok
+test cache::handshake_10 ... ok
+test fs::cursor_11 ... ok
+test codec::mount_12 ... FAILED
+test fmt::probe_13 ... FAILED
+test sched::reader_14 ... FAILED
+test log::cursor_15 ... FAILED
+test ipc::cursor_16 ... ok
+test wal::ledger_17 ... ok
+test gc::pool_18 ... FAILED
+test wal::mount_19 ... FAILED
+test cache::writer_20 ... FAILED
+test codec::pool_21 ... FAILED
+--- attempt 3 ---
+test tls::cursor_00 ... ok
+test auth::session_01 ... FAILED
+test wal::handshake_02 ... FAILED
+test cli::mount_03 ... ok
+test fs::probe_04 ... FAILED
+test log::handshake_05 ... ok
+test fmt::frame_06 ... FAILED
+test tls::mount_07 ... ok
+test auth::ledger_08 ... FAILED
+test fmt::mount_09 ... FAILED
+test cache::handshake_10 ... FAILED
+test fs::cursor_11 ... ok
+test codec::mount_12 ... ok
+test fmt::probe_13 ... ok
+test sched::reader_14 ... ok
+test log::cursor_15 ... FAILED
+test ipc::cursor_16 ... ok
+test wal::ledger_17 ... ok
+test gc::pool_18 ... ok
+test wal::mount_19 ... ok
+test cache::writer_20 ... ok
+test codec::pool_21 ... FAILED
+retry harness done
+
+
+# Questions
+
+t1: A flaky test passes at least one attempt. Which test failed on EVERY attempt? Reply with the full test name.

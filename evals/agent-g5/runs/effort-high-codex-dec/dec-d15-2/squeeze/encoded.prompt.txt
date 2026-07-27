@@ -1,0 +1,101 @@
+Answer the questions below using ONLY the payload in this message.
+Do not use any tools, do not read any files, do not guess beyond the
+payload. Reply with ONLY a JSON object mapping each question id to a
+short answer string, e.g. {"q1": "...", "q2": "..."}.
+
+The payload is encoded as a `%q1` container. Format: first line
+`%q1 <codec> ...` (parameters), then legend lines `<alias>=<phrase>`
+(each alias is a short stand-in for that exact phrase), then a
+`%q1 body` line, then the body. `%q1 xN` after a line means that line
+occurs N times in total. A `toon` body is a table: first line is a JSON
+array of keys, each following line is one object, cells are JSON values
+joined by the separator named in the header. A `grep` body is grouped
+matcher output: a marker line names a file path and the lines after it
+are `line:text` hits in that file (a bare marker starts verbatim
+lines). A `diag` body line starting with an alias expands to: the head
+after the alias, then that alias's legend template with each slot
+placeholder filled by the sep-joined values in order. A `tmpl` body
+line starting with an alias is its legend template with the slot
+placeholders filled by the sep-joined values that follow the alias.
+Mentally decode the body via the legend before answering; never emit
+alias characters in answers.
+
+# Payload
+
+%q1 mine n=15
+类=码|index::ledger_06
+函=码|codec::cursor_11
+值=码|codec::probe_00
+错=码|cli::cursor_12
+试=码|log::probe_03
+件=码|gc::writer_07
+组=码|fmt::probe_02
+标=码|ipc::pool_01
+记=引|log::pool_10
+链=|index::handshake_14
+节=|index::mount_13
+层=|vm::session_08
+块=|log::reader_09
+表=|auth::mount_04
+行=|vm::pool_05
+%q1 body
+%q1 tmpl sep=pipe slot=quest n=3 nl=1
+码=test ¿ ... ok
+引=test ¿ ... FAILED
+路=--- attempt ¿ ---
+%q1 body
+running retry harness (max 3 attempts per test)
+路|1
+值
+标
+组
+试
+引表
+码行
+类
+件
+引层
+引块
+记
+函
+错
+引节
+引链
+路|2
+值
+标
+组
+试
+码表
+引行
+类
+件
+码层
+码块
+记
+函
+错
+码节
+码链
+路|3
+值
+标
+组
+试
+码表
+码行
+类
+件
+码层
+码块
+记
+函
+错
+码节
+码链
+retry harness done
+
+
+# Questions
+
+t1: Flaky tests recover on retry. Which test failed on EVERY attempt (genuinely failing, not flaky)? Reply with the full test name.

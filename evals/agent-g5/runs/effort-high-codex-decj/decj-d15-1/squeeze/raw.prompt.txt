@@ -1,0 +1,62 @@
+Answer the questions below using ONLY the payload in this message.
+Do not use any tools, do not read any files, do not guess beyond the
+payload. Reply with ONLY a JSON object mapping each question id to a
+short answer string, e.g. {"q1": "...", "q2": "..."}.
+
+# Payload
+
+running retry harness (max 3 attempts per test)
+--- attempt 1 ---
+test fs::cursor_00 ... FAILED
+test codec::session_01 ... FAILED
+test tls::frame_02 ... FAILED
+test gc::session_03 ... ok
+test fs::frame_04 ... ok
+test log::ledger_05 ... FAILED
+test fs::pool_06 ... FAILED
+test sched::session_07 ... ok
+test ipc::frame_08 ... FAILED
+test fs::handshake_09 ... ok
+test fmt::writer_10 ... ok
+test wal::writer_11 ... FAILED
+test auth::frame_12 ... ok
+test fmt::handshake_13 ... ok
+test sched::reader_14 ... ok
+--- attempt 2 ---
+test fs::cursor_00 ... ok
+test codec::session_01 ... ok
+test tls::frame_02 ... ok
+test gc::session_03 ... ok
+test fs::frame_04 ... ok
+test log::ledger_05 ... FAILED
+test fs::pool_06 ... FAILED
+test sched::session_07 ... ok
+test ipc::frame_08 ... ok
+test fs::handshake_09 ... ok
+test fmt::writer_10 ... ok
+test wal::writer_11 ... FAILED
+test auth::frame_12 ... ok
+test fmt::handshake_13 ... ok
+test sched::reader_14 ... ok
+--- attempt 3 ---
+test fs::cursor_00 ... FAILED
+test codec::session_01 ... FAILED
+test tls::frame_02 ... ok
+test gc::session_03 ... ok
+test fs::frame_04 ... ok
+test log::ledger_05 ... FAILED
+test fs::pool_06 ... ok
+test sched::session_07 ... FAILED
+test ipc::frame_08 ... FAILED
+test fs::handshake_09 ... ok
+test fmt::writer_10 ... ok
+test wal::writer_11 ... ok
+test auth::frame_12 ... FAILED
+test fmt::handshake_13 ... FAILED
+test sched::reader_14 ... ok
+retry harness done
+
+
+# Questions
+
+t1: A flaky test passes at least one attempt. Which test failed on EVERY attempt? Reply with the full test name.

@@ -128,6 +128,55 @@ task in general.
 3. **H3** — the lookup control is close to independent of representation.
 4. **H4** — the effect may differ between reader families.
 
+## Result — codex arm (`effort-high-codex-{xref,decj,dec}`, 180/180 valid)
+
+Effort confirmed from the session header on every one of the 180 cells;
+baseline is the reused `reasoning effort: none` evidence over identical
+fixtures. **Not** a clean rescue.
+
+Squeeze tasks passing (all repeats correct), baseline → elevated:
+
+| family | baseline | elevated | rescued | broken |
+|---|---|---|---|---|
+| cross-ref | 9/15 | 13/15 | 6 | 2 |
+| decision-join | 13/15 | 15/15 | 2 | 0 |
+| lookup control | 14/15 | 14/15 | 1 | 1 |
+
+**H2 is not established.** Pooled over the two join families the paired
+rescue table is 8 rescued vs 2 broken, exact McNemar **p=0.11**; under
+the strict single-candidate rule 7 vs 2, **p=0.18**. The direction is
+consistent with H1/H2 and the effect is not significant at this n.
+
+**Elevated effort also breaks cells.** `xref-d30-1` and `xref-d30-3`
+passed at baseline and failed at elevated effort. So this is a reshuffle
+with a net gain, not a repair — which matters for any escalation policy,
+because escalating is not free of regression risk.
+
+**The hedging artifact materialised, exactly where it was predicted.**
+Both decision-join "rescues" — `decj-d32-2` and `decj-d32-3` — are hedged
+at elevated effort: the reply names more than one candidate and the
+substring grader credits it anyway. Without the shape audit this family
+would have read as a clean 13/15 → 15/15 rescue. Hedged cells: 1/60 at
+baseline, 2/60 at elevated.
+
+**H3 holds.** The lookup control is flat (1 rescued, 1 broken, p=1).
+
+**The RAW control has no headroom.** RAW is 15/15 at both efforts in all
+three families, so the squeeze movement cannot be attributed to a general
+gain in task ability — but a control at ceiling cannot demonstrate that
+either, and this is a weakness of the control rather than a strength of
+the result.
+
+**Overhead.** Mean wall-clock per call rose 1.2–1.4× (cross-ref
+20.4 s → 27.3 s; decision-join 11.5 s → 15.5 s; lookup 8.8 s → 10.9 s).
+codex exposes no usage envelope, so token and cost overhead are not
+measurable on this backend and are not estimated. On the claude side the
+single probe measured a far larger jump (4.9× output tokens, 4.4× cost),
+which is a different backend and must not be read as the codex figure.
+
+**H4 is open**: the sonnet arm is not yet collected, so nothing here
+speaks to cross-family transfer of the rescue.
+
 ## Completion criteria
 
 The scope is closed when there is: a matrix with no provenance gaps; RAW

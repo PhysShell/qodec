@@ -1,0 +1,10 @@
+{
+  "result": "{\"t1\":\"src/cli/handshake.rs\"}",
+  "provider": "codex",
+  "model": "gpt-5.6-sol",
+  "reasoning_effort": "high",
+  "effort_requested": "high",
+  "effort_source": "session-header-confirmed",
+  "stderr_head": "OpenAI Codex v0.145.0\n--------\nworkdir: /tmp/qodec-codex-d5qchmg9\nmodel: gpt-5.6-sol\nprovider: openai\napproval: never\nsandbox: read-only\nreasoning effort: high\nreasoning summaries: none\nsession id: 019fa139-09ca-7250-b35c-b95a9f2e2e01\n--------\nuser\nAnswer the questions below using ONLY the payload in this message.\nDo not use any tools, do not read any files, do not guess beyond the\npayload. Reply with ONLY a JSON object mapping each question id to a\nshort answer string, e.g. {\"q1\": \"...\", \"q2\": \"...\"}.\n\n# Payload\n\nsrc/net/writer.rs:125:    // unwrap_unchecked \u2014 see review notes\nsrc/ipc/writer.",
+  "stderr_tail": "Codex could not find bubblewrap on PATH. Install bubblewrap with your OS package manager. See the sandbox prerequisites: https://developers.openai.com/codex/concepts/sandboxing#prerequisites. Codex will use the bundled bubblewrap in the meantime.\ncodex\n{\"t1\":\"src/cli/handshake.rs\"}\ntokens used\n3,763"
+}
