@@ -1,0 +1,23 @@
+running retry harness (max 3 attempts per test)
+--- attempt 1 ---
+test codec::probe_00 ... ok
+test dns::ledger_01 ... FAILED
+test net::mount_02 ... ok
+test auth::handshake_03 ... FAILED
+test vm::session_04 ... FAILED
+test vm::reader_05 ... FAILED
+--- attempt 2 ---
+test codec::probe_00 ... ok
+test dns::ledger_01 ... ok
+test net::mount_02 ... ok
+test auth::handshake_03 ... FAILED
+test vm::session_04 ... FAILED
+test vm::reader_05 ... ok
+--- attempt 3 ---
+test codec::probe_00 ... ok
+test dns::ledger_01 ... ok
+test net::mount_02 ... ok
+test auth::handshake_03 ... FAILED
+test vm::session_04 ... ok
+test vm::reader_05 ... FAILED
+retry harness done

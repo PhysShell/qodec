@@ -1,0 +1,8 @@
+{
+  "result": "{\"t1\":\"gc::ledger_11\"}",
+  "provider": "codex",
+  "model": "gpt-5.6-sol",
+  "reasoning_effort": "none",
+  "stderr_head": "OpenAI Codex v0.145.0\n--------\nworkdir: /tmp/qodec-codex-mag32d1p\nmodel: gpt-5.6-sol\nprovider: openai\napproval: never\nsandbox: read-only\nreasoning effort: none\nreasoning summaries: none\nsession id: 019f9fd6-7d36-71a1-98f8-3d4beae920d7\n--------\nuser\nAnswer the questions below using ONLY the payload in this message.\nDo not use any tools, do not read any files, do not guess beyond the\npayload. Reply with ONLY a JSON object mapping each question id to a\nshort answer string, e.g. {\"q1\": \"...\", \"q2\": \"...\"}.\n\nThe payload is encoded as a `%q1` container. Format: first line\n`%q1 <codec> ...` (paramete",
+  "stderr_tail": "se the bundled bubblewrap in the meantime.\n2026-07-26T19:11:15.580555Z ERROR codex_api::endpoint::responses_websocket: failed to connect to websocket: IO error: Connection reset by peer (os error 104), url: wss://chatgpt.com/backend-api/codex/responses\ncodex\n{\"t1\":\"gc::ledger_11\"}\ntokens used\n14,793"
+}

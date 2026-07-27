@@ -1,0 +1,169 @@
+Answer the questions below using ONLY the payload in this message.
+Do not use any tools, do not read any files, do not guess beyond the
+payload. Reply with ONLY a JSON object mapping each question id to a
+short answer string, e.g. {"q1": "...", "q2": "..."}.
+
+The payload is encoded as a `%q1` container. Format: first line
+`%q1 <codec> ...` (parameters), then legend lines `<alias>=<phrase>`
+(each alias is a short stand-in for that exact phrase), then a
+`%q1 body` line, then the body. `%q1 xN` after a line means that line
+occurs N times in total. A `toon` body is a table: first line is a JSON
+array of keys, each following line is one object, cells are JSON values
+joined by the separator named in the header. A `grep` body is grouped
+matcher output: a marker line names a file path and the lines after it
+are `line:text` hits in that file (a bare marker starts verbatim
+lines). A `diag` body line starting with an alias expands to: the head
+after the alias, then that alias's legend template with each slot
+placeholder filled by the sep-joined values in order. A `tmpl` body
+line starting with an alias is its legend template with the slot
+placeholders filled by the sep-joined values that follow the alias.
+Mentally decode the body via the legend before answering; never emit
+alias characters in answers.
+
+# Payload
+
+%q1 mine n=32
+类=码|cache::handshake_10
+函=码|vm::handshake_17
+值=码|index::reader_31
+错=码|codec::ledger_26
+试=码|index::frame_18
+件=码|ipc::cursor_05
+组=码|dns::writer_25
+标=码|net::mount_08
+记=码|fmt::frame_01
+链=码|cli::pool_09
+节=引|gc::mount_16
+层=码|index::handshake_20
+块=引|fmt::handshake_27
+表=码|sched::reader_29
+行=码|index::ledger_13
+列=码|cache::writer_23
+键=码|cache::cursor_22
+名=码|log::session_04
+数=|cache::probe_28
+串=|wal::ledger_14
+图=|tls::reader_12
+树=|tls::reader_07
+点=|tls::ledger_11
+边=|sched::pool_24
+库=|net::cursor_15
+包=|log::reader_00
+版=|fs::session_06
+构=|dns::writer_19
+建=|cli::cursor_21
+测=|auth::probe_03
+例=|cli::mount_02
+警=|log::pool_30
+%q1 body
+%q1 tmpl sep=pipe slot=quest n=3 nl=1
+码=test ¿ ... ok
+引=test ¿ ... FAILED
+路=--- attempt ¿ ---
+%q1 body
+running retry harness (max 3 attempts per test)
+路|1
+引包
+记
+引例
+码测
+引|log::session_04
+件
+引版
+码树
+标
+链
+类
+引点
+引图
+引|index::ledger_13
+引串
+引库
+节
+函
+试
+引构
+引|index::handshake_20
+引建
+引|cache::cursor_22
+引|cache::writer_23
+引边
+组
+错
+块
+引数
+引|sched::reader_29
+引警
+值
+路|2
+码包
+记
+引例
+引测
+名
+件
+码版
+引树
+标
+链
+类
+码点
+码图
+行
+码串
+码库
+节
+函
+试
+码构
+层
+码建
+键
+列
+码边
+组
+错
+块
+码数
+表
+引警
+值
+路|3
+码包
+记
+码例
+码测
+名
+件
+码版
+码树
+标
+链
+类
+码点
+码图
+行
+码串
+码库
+节
+函
+试
+码构
+层
+码建
+键
+列
+码边
+组
+错
+码|fmt::handshake_27
+码数
+表
+码警
+值
+retry harness done
+
+
+# Questions
+
+t1: Flaky tests recover on retry. Which test failed on EVERY attempt (genuinely failing, not flaky)? Reply with the full test name.

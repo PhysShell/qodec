@@ -215,7 +215,8 @@ sampled instances (each with its own seed, path sample and answer) at
 five dose levels — independent in content, but all drawn from ONE
 semantic task family (cross-file join) and one generator. Inference is
 at the task-dose-cell level for THIS task shape; the paired analysis is
-significant, but broader cross-task-family replication remains open.
+significant, but broader cross-task-family replication remains open —
+attempted below, with a result that qualifies the threshold.
 
 **Threshold, stated exactly**: clean at 6–7 entries, failures already
 present at the first next tested dose (15), no further monotone
@@ -233,6 +234,162 @@ Encoded in `qodec risk` as the info-level `legend-load` line:
 first tested onset (hazard-not-oracle: lookups and counting survived at
 every dose; the hazard is specifically cross-entry join/aggregation,
 and it is family-dependent — Sonnet held 5/5 on this task shape).
+
+## Cross-family replication — `density-decision-join-codex-v2`, with a lookup control
+
+The density result above was the strongest claim in this directory and
+rested on one task family, so the next measurement was aimed straight at
+it. A second **join** family: intersect the FAILED sets of three retry
+blocks, rather than two marker sets over paths. Different surface (test
+names and status lines, not `path:line` comments) and a different hiding
+pattern — the miner carves the `mod::file_` stem of the join key across
+many legend entries rather than aliasing whole paths, so the key is
+fragmented rather than wholly hidden. Doses were matched on the
+**measured** legend load (6/15/22/32/44 entries, inside the same bands
+cross-ref covered), so an outcome difference is attributable to the
+family rather than to the dose.
+
+### The construction fault this stand caught in itself
+
+The first replication attempt was invalid, and the record keeps why.
+
+**Why `decision` was in fact a lookup.** The first attempt used the
+`decision` family exactly as the main battery defines it. It is not a
+join: a non-culprit can only fail attempts 1 and 2, so the third block
+holds exactly one `FAILED` line and a single-block scan answers the
+question. No intersection is required, and therefore nothing about the
+join mechanism could have been measured by it.
+
+**How it was found.** Not by re-reading the generator, but by counting
+`FAILED` lines per attempt block in the emitted fixtures after the run
+returned a null result: 1 of 22 and 1 of 44 in the final block. The null
+was the signal that the task, not the codec, needed inspecting.
+
+**Why the old run stays useful.** Its payloads, doses and grading are
+untouched and valid — only its *label* was wrong. Re-read as a **lookup
+control** it answers a question the join arms cannot, holding 14/15 at
+the same measured legend doses (see the alias-density point below). The
+main battery's `decision` family should likewise not be described as a
+join.
+
+**The same fault, a second time, caught in review.** Bounding each
+non-culprit at two failures constrains *rows* and not *columns*: nothing
+prevented a whole attempt from failing for the culprit alone, which again
+makes a single block sufficient. It happened — `decj-d06-1` had a block
+of exactly one `FAILED` line, at the smallest dose where it is most
+likely (Codex review on PR #13). The generator now enforces the column
+invariant explicitly: every attempt must fail for at least one
+non-culprit, redrawing until it holds. The redraw leaves an
+already-valid draw's RNG stream untouched, so only `decj-d06-1` changed;
+the battery was re-run on the corrected set rather than carrying the old
+numbers over. That fixture had been passed by both arms, so it sat in a
+concordant pair and could not have manufactured the effect — it was
+simply not valid join evidence.
+
+**How the corrected battery is checked.** Both invariants are verified on
+the *emitted fixtures*, not assumed from the generator: the three
+`FAILED` sets are parsed back out of each file and intersected, and the
+result must equal the recorded answer; and no block's failure set may
+equal `{culprit}`. Across all 15 fixtures: `uniqueness violations=0,
+culprit-only blocks=0`. Two-of-three near-misses are the standard
+distractor, 2 at the smallest dose up to 16 at the largest.
+
+Squeeze cells per dose (6 per dose; raw was 6/6 everywhere in all three
+arms), indexed by measured legend entries:
+
+| legend entries | cross-ref (join) | decision-join (join) | decision (lookup control) |
+|---|---|---|---|
+| 6–7 | 6/6 | 6/6 | 6/6 |
+| 15 | 3/6 | 6/6 | 6/6 |
+| 22–23 | 5/6 | 6/6 | 5/6 |
+| 31–34 | 5/6 | 4/6 | 6/6 |
+| 42–45 | 3/6 | 6/6 | 6/6 |
+| **pooled** | **22/30** | **28/30** | **29/30** |
+
+Both new runs are 60/60 valid calls.
+
+**Primary (paired), per family.** Raw passed 15/15 tasks in every arm.
+Squeeze: cross-ref 9/15 (b=6, c=0, McNemar **p=0.03125**), decision-join
+13/15 (b=2, c=0, **p=0.5**), lookup control 14/15 (b=1, c=0, **p=1**).
+
+**What replicated and what did not.**
+
+* *Direction* replicated. **Across two independently generated
+  join-task families, all eight discordant paired cells favored RAW over
+  squeeze, providing evidence for a cross-family directional hazard.
+  Failure frequency and onset varied materially by family and remain
+  underpowered.** The pooled exact two-sided McNemar over the 30 pairs
+  gives **p=0.0078125** — and that pooled test tests a shared
+  *directional* effect across the two sampled families; it is **not** an
+  estimate of failure prevalence for arbitrary join tasks.
+* *Magnitude* did not, at this power. The second join family alone is
+  not significant (p=0.5). The two families are also not shown to
+  **differ** (6/15 vs 2/15 failing tasks, Fisher p=0.21). The honest
+  state is that the direction is established and the rate is unresolved;
+  n=15 per family cannot settle it.
+* *The onset did not transfer.* Cross-ref failed at every dose from 15
+  entries up; the second join family was clean at 15, at 22 **and at
+  44**, with both its misses landing at 32 — so it shows no monotone
+  dose response at all, which is another reason not to read 15 as a
+  breakpoint. **`LEGEND_LOAD_STEP = 15` remains an info-level conservative
+  warning anchor because it is the earliest tested onset observed in
+  either family. It is not a universal breakpoint and does not drive
+  encode-path behavior.** The flag's rendered text says so.
+* *Alias density does not order the outcomes*, so it is not the
+  confound. Measured across all 45 fixtures (alias occurrences per 100
+  body chars):
+
+  | dose (legend) | cross-ref | decision-join | lookup control |
+  |---|---|---|---|
+  | d06 (6–7) | 7.9 8.4 8.5 | 7.3 8.1 8.1 | 7.7 9.0 9.0 |
+  | d15 (15) | 11.1 11.3 11.8 | 14.9 15.1 15.1 | 15.1 15.2 15.5 |
+  | d22 (22–23) | 12.1 12.2 13.2 | 18.1 18.4 18.4 | 18.9 18.9 19.2 |
+  | d32 (31–34) | 12.8 14.3 14.4 | 14.3 16.6 17.8 | 16.2 16.5 17.7 |
+  | d44 (42–45) | 13.8 14.0 14.7 | 13.4 13.8 14.1 | 15.5 26.2 26.7 |
+
+  Outcomes and density are not aligned, in both directions:
+
+  * Cross-ref's worst dose (3/6 at d15) sits at 11.1–11.8, the *lowest*
+    failing density in the battery, while the two decision-family arms
+    pass 6/6 at 14.9–19.2 over d15–d22.
+  * At d44 the two join arms **overlap in density with opposite
+    outcomes**: decision-join passes 6/6 at 13.4–14.1 while cross-ref
+    passes only 3/6 at 13.8–14.7 — so density does not separate them
+    there, and it is not true that the failing arm is uniformly the
+    sparser one.
+  * The densest fixtures measured anywhere (the lookup control at d44,
+    26.2 and 26.7) are passes.
+
+  Density therefore does not track the outcome: at overlapping densities
+  the results go both ways, and the extremes of the density range are
+  clean. That is what closes "the artifact is unreadable at this
+  density" — by measurement rather than by argument — and it is a weaker
+  and more accurate closure than a monotone density ordering would be.
+
+  (Two earlier drafts of this paragraph overstated it. The first quoted
+  15.2–26.7 vs 11.8–13.8, which were instance-1 subsets presented as if
+  they characterized the arms — Codex review on PR #13. The replacement
+  then claimed the failing arm was least dense at every failing dose,
+  which the d44 row contradicts — CodeRabbit review on the same PR.)
+
+**Failure modes.** Both squeeze misses answered a suite name that really
+occurs in the payload, so neither is a fabrication — the reader lost the
+intersection and returned a plausible member of it.
+
+* `decj-d32-3`: answered `dns::reader_25` for truth `cli::reader_17`.
+  The two names share the `::reader_` stem, which the analyzer reports
+  as hidden across three legend entries — a same-stem confusion, the
+  fragmentation mechanism showing itself directly. This exact answer
+  also occurred on this fixture in the superseded run, so it reproduced
+  across two independent batteries.
+* `decj-d32-2`: answered `cache::cursor_22` for truth `gc::mount_16`.
+  Different stems, both fragmented (`::cursor_` split across four
+  entries, `::mount_` hidden across three) — a wrong pick rather than a
+  stem confusion.
+
+The first shape is the same error the boundary-recomposition mitigation
+targets in the encoder, occurring **inside the reader**, where no
+encoder-side rule can physically prevent it.
 
 ### Uncontrolled axis: reasoning effort
 
