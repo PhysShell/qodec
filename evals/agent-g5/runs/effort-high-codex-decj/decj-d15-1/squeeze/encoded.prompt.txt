@@ -1,0 +1,101 @@
+Answer the questions below using ONLY the payload in this message.
+Do not use any tools, do not read any files, do not guess beyond the
+payload. Reply with ONLY a JSON object mapping each question id to a
+short answer string, e.g. {"q1": "...", "q2": "..."}.
+
+The payload is encoded as a `%q1` container. Format: first line
+`%q1 <codec> ...` (parameters), then legend lines `<alias>=<phrase>`
+(each alias is a short stand-in for that exact phrase), then a
+`%q1 body` line, then the body. `%q1 xN` after a line means that line
+occurs N times in total. A `toon` body is a table: first line is a JSON
+array of keys, each following line is one object, cells are JSON values
+joined by the separator named in the header. A `grep` body is grouped
+matcher output: a marker line names a file path and the lines after it
+are `line:text` hits in that file (a bare marker starts verbatim
+lines). A `diag` body line starting with an alias expands to: the head
+after the alias, then that alias's legend template with each slot
+placeholder filled by the sep-joined values in order. A `tmpl` body
+line starting with an alias is its legend template with the slot
+placeholders filled by the sep-joined values that follow the alias.
+Mentally decode the body via the legend before answering; never emit
+alias characters in answers.
+
+# Payload
+
+%q1 mine n=15
+类=码|fs::handshake_09
+函=码|sched::reader_14
+值=码|gc::session_03
+错=码|fmt::writer_10
+试=引|log::ledger_05
+件=码|fs::frame_04
+组=|fmt::handshake_13
+标=|sched::session_07
+记=|codec::session_01
+链=|wal::writer_11
+节=|auth::frame_12
+层=|tls::frame_02
+块=|ipc::frame_08
+表=|fs::cursor_00
+行=|fs::pool_06
+%q1 body
+%q1 tmpl sep=pipe slot=quest n=3 nl=1
+码=test ¿ ... ok
+引=test ¿ ... FAILED
+路=--- attempt ¿ ---
+%q1 body
+running retry harness (max 3 attempts per test)
+路|1
+引表
+引记
+引层
+值
+件
+试
+引行
+码标
+引块
+类
+错
+引链
+码节
+码组
+函
+路|2
+码表
+码记
+码层
+值
+件
+试
+引行
+码标
+码块
+类
+错
+引链
+码节
+码组
+函
+路|3
+引表
+引记
+码层
+值
+件
+试
+码行
+引标
+引块
+类
+错
+码链
+引节
+引组
+函
+retry harness done
+
+
+# Questions
+
+t1: A flaky test passes at least one attempt. Which test failed on EVERY attempt? Reply with the full test name.

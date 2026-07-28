@@ -1,0 +1,63 @@
+Answer the questions below using ONLY the payload in this message.
+Do not use any tools, do not read any files, do not guess beyond the
+payload. Reply with ONLY a JSON object mapping each question id to a
+short answer string, e.g. {"q1": "...", "q2": "..."}.
+
+# Payload
+
+src/index/pool.rs:136:    // TODO(remove_before_ship) — see review notes
+src/wal/mount.rs:78:    // TODO(remove_before_ship) — see review notes
+src/index/pool.rs:296:    // TODO(remove_before_ship) — see review notes
+src/dns/frame.rs:99:    // unwrap_unchecked — see review notes
+src/net/mount.rs:22:    // TODO(remove_before_ship) — see review notes
+src/net/mount.rs:148:    // TODO(remove_before_ship) — see review notes
+src/index/pool.rs:190:    // unwrap_unchecked — see review notes
+src/index/pool.rs:113:    // TODO(remove_before_ship) — see review notes
+src/auth/session.rs:232:    // TODO(remove_before_ship) — see review notes
+src/net/mount.rs:71:    // TODO(remove_before_ship) — see review notes
+src/log/pool.rs:180:    // unwrap_unchecked — see review notes
+src/index/pool.rs:103:    // unwrap_unchecked — see review notes
+src/fs/cursor.rs:59:    // TODO(remove_before_ship) — see review notes
+src/wal/ledger.rs:163:    // unwrap_unchecked — see review notes
+src/wal/mount.rs:90:    // TODO(remove_before_ship) — see review notes
+src/index/pool.rs:221:    // unwrap_unchecked — see review notes
+src/cache/mount.rs:230:    // unwrap_unchecked — see review notes
+src/index/pool.rs:241:    // unwrap_unchecked — see review notes
+src/wal/ledger.rs:239:    // unwrap_unchecked — see review notes
+src/log/pool.rs:247:    // unwrap_unchecked — see review notes
+src/auth/session.rs:164:    // TODO(remove_before_ship) — see review notes
+src/log/pool.rs:236:    // unwrap_unchecked — see review notes
+src/log/handshake.rs:26:    // unwrap_unchecked — see review notes
+src/log/pool.rs:298:    // unwrap_unchecked — see review notes
+src/tls/mount.rs:21:    // TODO(remove_before_ship) — see review notes
+src/cache/mount.rs:33:    // unwrap_unchecked — see review notes
+src/index/pool.rs:223:    // unwrap_unchecked — see review notes
+src/net/mount.rs:118:    // TODO(remove_before_ship) — see review notes
+src/log/handshake.rs:278:    // unwrap_unchecked — see review notes
+src/tls/pool.rs:22:    // TODO(remove_before_ship) — see review notes
+src/net/mount.rs:39:    // TODO(remove_before_ship) — see review notes
+src/log/handshake.rs:204:    // unwrap_unchecked — see review notes
+src/cache/mount.rs:107:    // unwrap_unchecked — see review notes
+src/tls/pool.rs:174:    // TODO(remove_before_ship) — see review notes
+src/wal/ledger.rs:201:    // unwrap_unchecked — see review notes
+src/dns/frame.rs:40:    // unwrap_unchecked — see review notes
+src/wal/mount.rs:149:    // TODO(remove_before_ship) — see review notes
+src/wal/ledger.rs:20:    // unwrap_unchecked — see review notes
+src/tls/pool.rs:111:    // TODO(remove_before_ship) — see review notes
+src/fs/cursor.rs:87:    // TODO(remove_before_ship) — see review notes
+src/log/handshake.rs:78:    // unwrap_unchecked — see review notes
+src/log/pool.rs:114:    // unwrap_unchecked — see review notes
+src/auth/session.rs:96:    // TODO(remove_before_ship) — see review notes
+src/wal/mount.rs:135:    // TODO(remove_before_ship) — see review notes
+src/cache/mount.rs:247:    // unwrap_unchecked — see review notes
+src/dns/frame.rs:31:    // unwrap_unchecked — see review notes
+src/auth/session.rs:162:    // TODO(remove_before_ship) — see review notes
+src/index/pool.rs:128:    // TODO(remove_before_ship) — see review notes
+src/dns/frame.rs:113:    // unwrap_unchecked — see review notes
+src/tls/mount.rs:32:    // TODO(remove_before_ship) — see review notes
+src/tls/pool.rs:122:    // TODO(remove_before_ship) — see review notes
+
+
+# Questions
+
+t1: Which single file contains BOTH `TODO(remove_before_ship)` and `unwrap_unchecked` markers? Reply with the file path.

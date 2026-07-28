@@ -1,0 +1,83 @@
+Answer the questions below using ONLY the payload in this message.
+Do not use any tools, do not read any files, do not guess beyond the
+payload. Reply with ONLY a JSON object mapping each question id to a
+short answer string, e.g. {"q1": "...", "q2": "..."}.
+
+# Payload
+
+running retry harness (max 3 attempts per test)
+--- attempt 1 ---
+test net::handshake_00 ... FAILED
+test wal::reader_01 ... ok
+test cache::reader_02 ... ok
+test gc::probe_03 ... ok
+test gc::cursor_04 ... ok
+test wal::reader_05 ... FAILED
+test index::mount_06 ... FAILED
+test cli::pool_07 ... ok
+test vm::frame_08 ... FAILED
+test ipc::handshake_09 ... FAILED
+test log::mount_10 ... ok
+test sched::ledger_11 ... FAILED
+test fmt::frame_12 ... ok
+test dns::frame_13 ... FAILED
+test log::probe_14 ... ok
+test index::mount_15 ... ok
+test fs::mount_16 ... FAILED
+test vm::reader_17 ... ok
+test fmt::session_18 ... ok
+test dns::reader_19 ... ok
+test index::session_20 ... ok
+test fmt::writer_21 ... FAILED
+--- attempt 2 ---
+test net::handshake_00 ... ok
+test wal::reader_01 ... ok
+test cache::reader_02 ... ok
+test gc::probe_03 ... ok
+test gc::cursor_04 ... FAILED
+test wal::reader_05 ... ok
+test index::mount_06 ... ok
+test cli::pool_07 ... ok
+test vm::frame_08 ... FAILED
+test ipc::handshake_09 ... ok
+test log::mount_10 ... ok
+test sched::ledger_11 ... ok
+test fmt::frame_12 ... ok
+test dns::frame_13 ... FAILED
+test log::probe_14 ... ok
+test index::mount_15 ... ok
+test fs::mount_16 ... FAILED
+test vm::reader_17 ... ok
+test fmt::session_18 ... FAILED
+test dns::reader_19 ... ok
+test index::session_20 ... ok
+test fmt::writer_21 ... ok
+--- attempt 3 ---
+test net::handshake_00 ... ok
+test wal::reader_01 ... ok
+test cache::reader_02 ... ok
+test gc::probe_03 ... ok
+test gc::cursor_04 ... ok
+test wal::reader_05 ... ok
+test index::mount_06 ... ok
+test cli::pool_07 ... ok
+test vm::frame_08 ... ok
+test ipc::handshake_09 ... ok
+test log::mount_10 ... ok
+test sched::ledger_11 ... ok
+test fmt::frame_12 ... ok
+test dns::frame_13 ... FAILED
+test log::probe_14 ... ok
+test index::mount_15 ... ok
+test fs::mount_16 ... ok
+test vm::reader_17 ... ok
+test fmt::session_18 ... ok
+test dns::reader_19 ... ok
+test index::session_20 ... ok
+test fmt::writer_21 ... ok
+retry harness done
+
+
+# Questions
+
+t1: Flaky tests recover on retry. Which test failed on EVERY attempt (genuinely failing, not flaky)? Reply with the full test name.

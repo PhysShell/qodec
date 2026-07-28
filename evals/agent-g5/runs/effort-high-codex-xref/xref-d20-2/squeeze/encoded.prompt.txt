@@ -1,0 +1,136 @@
+Answer the questions below using ONLY the payload in this message.
+Do not use any tools, do not read any files, do not guess beyond the
+payload. Reply with ONLY a JSON object mapping each question id to a
+short answer string, e.g. {"q1": "...", "q2": "..."}.
+
+The payload is encoded as a `%q1` container. Format: first line
+`%q1 <codec> ...` (parameters), then legend lines `<alias>=<phrase>`
+(each alias is a short stand-in for that exact phrase), then a
+`%q1 body` line, then the body. `%q1 xN` after a line means that line
+occurs N times in total. A `toon` body is a table: first line is a JSON
+array of keys, each following line is one object, cells are JSON values
+joined by the separator named in the header. A `grep` body is grouped
+matcher output: a marker line names a file path and the lines after it
+are `line:text` hits in that file (a bare marker starts verbatim
+lines). A `diag` body line starting with an alias expands to: the head
+after the alias, then that alias's legend template with each slot
+placeholder filled by the sep-joined values in order. A `tmpl` body
+line starting with an alias is its legend template with the slot
+placeholders filled by the sep-joined values that follow the alias.
+Mentally decode the body via the legend before answering; never emit
+alias characters in answers.
+
+# Payload
+
+%q1 mine n=23
+路=码src/
+类=引src/
+函=路cache/mount.rs:
+值=路sched/pool.rs:
+错=路auth/mount.rs:
+试=类vm/pool.rs:
+件=路tls/handshake.rs:
+组=路net/session.rs:
+标=路cli/session.rs:
+记=类sched/probe.rs:
+链=类tls/reader.rs:
+节=类net/writer.rs:
+层=类ipc/writer.rs:
+块=路gc/ledger.rs:
+表=路fs/frame.rs:
+行=路fmt/handshake.rs:
+列=类sched/pool.rs:
+键=类net/cursor.rs:
+名=类fs/probe.rs:
+数=路cache/probe.rs:
+串=类auth/writer.rs:
+图=路gc/reader.rs:
+树=类cli/probe.rs:
+%q1 body
+%q1 diag sep=pipe slot=quest n=2 nl=1
+码=    // TODO(remove_before_ship) — see review notes
+引=    // unwrap_unchecked — see review notes
+%q1 body
+件216:
+表97:
+标129:
+层117:
+树280:
+列274:
+链117:
+试201:
+函25:
+函153:
+链75:
+数266:
+组299:
+标293:
+层17:
+标240:
+层143:
+表290:
+行7:
+节5:
+试138:
+数131:
+图135:
+块82:
+件129:
+串68:
+函63:
+错215:
+链62:
+行51:
+列280:
+组208:
+列29:
+试172:
+块187:
+组270:
+记221:
+层25:
+键206:
+错190:
+链124:
+值47:
+值105:
+键89:
+标84:
+值227:
+试15:
+组192:
+错239:
+记169:
+串247:
+函204:
+记180:
+表79:
+块194:
+节168:
+记5:
+表124:
+键130:
+试187:
+节123:
+块119:
+错148:
+行282:
+件164:
+树230:
+图184:
+函215:
+标185:
+名178:
+值72:
+件114:
+错203:
+名241:
+组268:
+名22:
+节103:
+值264:
+
+
+# Questions
+
+t1: Which single file contains BOTH `TODO(remove_before_ship)` and `unwrap_unchecked` markers? Reply with the file path.
