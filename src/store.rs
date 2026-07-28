@@ -250,6 +250,89 @@ impl CanonicalStore {
         &self.store_id
     }
 
+    /// Scan an index for keys present in every named section, collecting
+    /// support, and **stop** as soon as a budget would be exceeded.
+    ///
+    /// The bound is operational, not a label applied afterwards. Collecting
+    /// everything and then reporting "that was over the limit" is a very
+    /// disciplined way to run out of memory: the caller learns about the
+    /// budget only once the cost has already been paid. Nothing beyond the
+    /// budget is ever placed in the returned map.
+    ///
+    /// A candidate whose own support would not fit is not stored partially —
+    /// half the evidence for a candidate is worse than none, because it looks
+    /// like evidence.
+    pub fn scan_intersect(
+        &self,
+        index: &IndexName,
+        sections: &[SetName],
+        max_candidates: u64,
+        max_support_records: u64,
+    ) -> Result<IntersectScan> {
+        let idx = self
+            .indexes
+            .get(index)
+            .ok_or_else(|| anyhow::anyhow!("no index named {:?}", index.as_str()))?;
+        if sections.is_empty() {
+            bail!("intersect needs at least one section");
+        }
+        for s in sections {
+            if !self.sections.contains(s) {
+                bail!("no section named {:?} in this artifact", s.as_str());
+            }
+        }
+        let wanted: BTreeSet<&SetName> = sections.iter().collect();
+        let mut support: BTreeMap<KeyBytes, Vec<RecordId>> = BTreeMap::new();
+        let mut total: u64 = 0;
+        let mut stopped = None;
+
+        for (key, ids) in idx {
+            let present: BTreeSet<&SetName> = ids.iter().map(|id| &id.section).collect();
+            if !wanted.iter().all(|s| present.contains(*s)) {
+                continue;
+            }
+            // A qualifying candidate exists beyond the budget: that is the
+            // signal, and it is detected before anything more is stored.
+            if u64::try_from(support.len()).unwrap_or(u64::MAX) >= max_candidates {
+                stopped = Some(ScanStop::Candidates(max_candidates));
+                break;
+            }
+            let kept: Vec<RecordId> = ids
+                .iter()
+                .filter(|id| wanted.contains(&id.section))
+                .map(|id| self.bind(id))
+                .collect();
+            let cost = u64::try_from(kept.len()).unwrap_or(u64::MAX);
+            if total.saturating_add(cost) > max_support_records {
+                stopped = Some(ScanStop::SupportRecords(max_support_records));
+                break;
+            }
+            total = total.saturating_add(cost);
+            support.insert(key.clone(), kept);
+        }
+        Ok(IntersectScan { support, stopped })
+    }
+
+    /// Records carrying `key`, up to a budget, reporting whether more exist.
+    pub fn scan_lookup(
+        &self,
+        index: &IndexName,
+        key: &KeyBytes,
+        max_support_records: u64,
+    ) -> Result<LookupScan> {
+        let idx = self
+            .indexes
+            .get(index)
+            .ok_or_else(|| anyhow::anyhow!("no index named {:?}", index.as_str()))?;
+        let all = idx.get(key);
+        let budget = usize::try_from(max_support_records).unwrap_or(usize::MAX);
+        let stopped = all.is_some_and(|ids| ids.len() > budget);
+        let support = all
+            .map(|ids| ids.iter().take(budget).map(|id| self.bind(id)).collect())
+            .unwrap_or_default();
+        Ok(LookupScan { support, stopped })
+    }
+
     /// Execute a canonical query and issue an immutable result.
     ///
     /// Delegates to [`crate::query::execute`], which is the only place a
@@ -260,7 +343,6 @@ impl CanonicalStore {
         query: crate::canon::CanonicalQuery,
         limits: crate::query::ExecutionLimits,
     ) -> Result<crate::query::HarnessIssuedResult> {
-        crate::query::check_limits(limits)?;
         crate::query::execute(self, schema, query, limits)
     }
 
@@ -495,4 +577,27 @@ fn canonical_plan_bytes(seg: &Segmentation, specs: &[IndexSpec]) -> Result<Vec<u
         }
     }
     Ok(out)
+}
+
+/// Why a bounded scan stopped early.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum ScanStop {
+    /// Another qualifying candidate exists beyond the candidate budget.
+    Candidates(u64),
+    /// The next candidate's support would not fit in the record budget.
+    SupportRecords(u64),
+}
+
+/// What a bounded intersect scan collected, and whether it finished.
+#[derive(Debug, Clone)]
+pub struct IntersectScan {
+    pub support: BTreeMap<KeyBytes, Vec<RecordId>>,
+    pub stopped: Option<ScanStop>,
+}
+
+/// What a bounded lookup collected, and whether more records exist.
+#[derive(Debug, Clone)]
+pub struct LookupScan {
+    pub support: Vec<RecordId>,
+    pub stopped: bool,
 }

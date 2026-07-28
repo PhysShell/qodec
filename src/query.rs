@@ -29,7 +29,7 @@ use crate::canon::{
     CanonicalQueryDigest, CanonicalResult, CompleteResultDigest, KeyBytes, QueryResultId,
     ResultSupportDigest, SchemaId, StoreId, StorePlanDigest,
 };
-use crate::store::{CanonicalStore, RecordId};
+use crate::store::{CanonicalStore, RecordId, ScanStop};
 
 /// Bounds on one execution.
 ///
@@ -128,6 +128,11 @@ impl HarnessIssuedResult {
     /// A bounded view for display. Never the basis of a decision.
     pub fn preview(&self) -> &[KeyBytes] {
         &self.preview
+    }
+
+    /// The digest covering support and completion, as it enters the identity.
+    pub fn result_support_digest(&self) -> &ResultSupportDigest {
+        &self.result_support_digest
     }
 
     /// The records backing one candidate, or `None` if it is not a candidate.
@@ -310,53 +315,51 @@ fn canonical_support_bytes(
 
 /// Execute a canonical query against an open store and issue a result.
 ///
-/// The only constructor of [`HarnessIssuedResult`] anywhere.
-pub fn execute(
+/// The only constructor of [`HarnessIssuedResult`] anywhere, and `pub(crate)`
+/// so the normative path really is the only path. Leaving it public would
+/// close the door and thoughtfully leave a window beside it.
+pub(crate) fn execute(
     store: &CanonicalStore,
     schema: &SchemaId,
     query: CanonicalQuery,
     limits: ExecutionLimits,
 ) -> Result<HarnessIssuedResult> {
+    // Validated here rather than only in the wrapper: the check belongs to the
+    // execution boundary, not to one convenient entry point.
+    check_limits(limits)?;
     let mut support: BTreeMap<KeyBytes, Vec<RecordId>> = BTreeMap::new();
     let mut completion = ExecutionCompletion::Exhausted;
 
     match &query {
         CanonicalQuery::Lookup { field, value } => {
             let index = crate::canon::IndexName::parse(field.as_str())?;
-            let hits = store.lookup(&index, value)?;
-            if !hits.is_empty() {
-                support.insert(value.clone(), hits);
+            let scan = store.scan_lookup(&index, value, limits.max_support_records)?;
+            if scan.stopped {
+                completion = ExecutionCompletion::LimitReached {
+                    limit: limits.max_support_records,
+                };
+            }
+            if !scan.support.is_empty() {
+                support.insert(value.clone(), scan.support);
             }
         }
         CanonicalQuery::Intersect { key, sets } => {
             let index = crate::canon::IndexName::parse(key.as_str())?;
-            let wanted: BTreeSet<_> = sets.iter().collect();
-            let candidates = store.intersect(&index, sets)?;
-            for candidate in candidates.candidates() {
-                if u64::try_from(support.len()).unwrap_or(u64::MAX) >= limits.max_candidates {
-                    completion = ExecutionCompletion::LimitReached {
-                        limit: limits.max_candidates,
-                    };
-                    break;
+            let scan = store.scan_intersect(
+                &index,
+                sets,
+                limits.max_candidates,
+                limits.max_support_records,
+            )?;
+            completion = match scan.stopped {
+                None => ExecutionCompletion::Exhausted,
+                Some(ScanStop::Candidates(limit)) => ExecutionCompletion::LimitReached { limit },
+                Some(ScanStop::SupportRecords(limit)) => {
+                    ExecutionCompletion::LimitReached { limit }
                 }
-                let ids: Vec<RecordId> = store
-                    .lookup(&index, candidate)?
-                    .into_iter()
-                    .filter(|id| wanted.contains(id.section()))
-                    .collect();
-                support.insert(candidate.clone(), ids);
-            }
+            };
+            support = scan.support;
         }
-    }
-
-    let total_support: u64 = support
-        .values()
-        .map(|v| u64::try_from(v.len()).unwrap_or(u64::MAX))
-        .sum();
-    if total_support > limits.max_support_records {
-        completion = ExecutionCompletion::LimitReached {
-            limit: limits.max_support_records,
-        };
     }
 
     let complete_result = CanonicalResult::new(support.keys().cloned())?;
@@ -398,7 +401,7 @@ pub fn execute(
 }
 
 /// Refuse an execution whose bounds are meaningless.
-pub fn check_limits(limits: ExecutionLimits) -> Result<()> {
+pub(crate) fn check_limits(limits: ExecutionLimits) -> Result<()> {
     if limits.max_candidates == 0 || limits.max_support_records == 0 {
         bail!("execution limits must leave room for at least one candidate and one record");
     }

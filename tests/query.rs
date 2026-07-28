@@ -453,6 +453,157 @@ fn a_preview_bound_does_not_make_a_result_incomplete() -> Result<()> {
     Ok(())
 }
 
+/// The support bound is an actual budget: the result never holds more records
+/// than it was allowed to collect.
+///
+/// The first version of this layer checked the total *after* collecting
+/// everything and merely relabelled the completion — which is a very
+/// disciplined way to run out of memory, since the caller learns about the
+/// budget only once the cost has been paid. The bound now stops the scan.
+#[test]
+fn the_support_bound_limits_what_is_stored_not_only_what_is_reported() -> Result<()> {
+    let store = retry_store()?;
+    // alpha and beta each carry two records across attempts 1 and 3.
+    let two_blocks = CanonicalQuery::Intersect {
+        key: FieldName::parse("line")?,
+        sets: vec![set("attempt_1")?, set("attempt_3")?],
+    };
+    let unbounded = store.execute(&schema()?, two_blocks.clone(), ExecutionLimits::modest())?;
+    let stored_records: usize = unbounded
+        .complete_result()
+        .candidates()
+        .iter()
+        .filter_map(|c| unbounded.support_for(c))
+        .map(<[RecordId]>::len)
+        .sum();
+    assert_eq!(
+        stored_records, 4,
+        "premise: four supporting records in total"
+    );
+
+    let bounded = store.execute(
+        &schema()?,
+        two_blocks,
+        ExecutionLimits {
+            max_support_records: 3,
+            ..ExecutionLimits::modest()
+        },
+    )?;
+    let kept: usize = bounded
+        .complete_result()
+        .candidates()
+        .iter()
+        .filter_map(|c| bounded.support_for(c))
+        .map(<[RecordId]>::len)
+        .sum();
+    assert!(
+        u64::try_from(kept).unwrap_or(u64::MAX) <= 3,
+        "the result must hold no more records than the budget allowed, kept {kept}"
+    );
+    assert!(
+        kept < stored_records,
+        "and strictly fewer than the unbounded run, or the bound did nothing"
+    );
+    assert_eq!(
+        bounded.completion(),
+        ExecutionCompletion::LimitReached { limit: 3 }
+    );
+    Ok(())
+}
+
+/// The candidate bound is an actual budget too.
+#[test]
+fn the_candidate_bound_limits_what_is_stored() -> Result<()> {
+    let store = retry_store()?;
+    let bounded = store.execute(
+        &schema()?,
+        CanonicalQuery::Intersect {
+            key: FieldName::parse("line")?,
+            sets: vec![set("attempt_1")?, set("attempt_3")?],
+        },
+        ExecutionLimits {
+            max_candidates: 1,
+            ..ExecutionLimits::modest()
+        },
+    )?;
+    assert_eq!(
+        bounded.candidate_count(),
+        1,
+        "the result must hold no more candidates than the budget allowed"
+    );
+    assert_eq!(
+        bounded.completion(),
+        ExecutionCompletion::LimitReached { limit: 1 }
+    );
+    Ok(())
+}
+
+/// A lookup is bounded by the same record budget.
+#[test]
+fn a_lookup_is_bounded_by_the_support_budget() -> Result<()> {
+    let store = retry_store()?;
+    let alpha = CanonicalQuery::Lookup {
+        field: FieldName::parse("line")?,
+        value: key(b"alpha"),
+    };
+    let full = store.execute(&schema()?, alpha.clone(), ExecutionLimits::modest())?;
+    assert_eq!(
+        full.support_for(&key(b"alpha")).unwrap_or_default().len(),
+        3
+    );
+    assert_eq!(full.completion(), ExecutionCompletion::Exhausted);
+
+    let bounded = store.execute(
+        &schema()?,
+        alpha,
+        ExecutionLimits {
+            max_support_records: 2,
+            ..ExecutionLimits::modest()
+        },
+    )?;
+    assert_eq!(
+        bounded
+            .support_for(&key(b"alpha"))
+            .unwrap_or_default()
+            .len(),
+        2
+    );
+    assert_eq!(
+        bounded.completion(),
+        ExecutionCompletion::LimitReached { limit: 2 }
+    );
+    Ok(())
+}
+
+/// The preview bound changes neither the completion nor the identity: it is a
+/// representation of the result, not the result.
+#[test]
+fn the_preview_bound_does_not_touch_completion_or_identity() -> Result<()> {
+    let store = retry_store()?;
+    let two_blocks = CanonicalQuery::Intersect {
+        key: FieldName::parse("line")?,
+        sets: vec![set("attempt_1")?, set("attempt_3")?],
+    };
+    let wide = store.execute(&schema()?, two_blocks.clone(), ExecutionLimits::modest())?;
+    let narrow = store.execute(
+        &schema()?,
+        two_blocks,
+        ExecutionLimits {
+            max_preview_items: 1,
+            ..ExecutionLimits::modest()
+        },
+    )?;
+    assert_eq!(wide.preview().len(), 2);
+    assert_eq!(narrow.preview().len(), 1);
+    assert_eq!(wide.completion(), narrow.completion());
+    assert_eq!(
+        wide.query_result_id(),
+        narrow.query_result_id(),
+        "how much of a result is shown cannot change what the result is"
+    );
+    Ok(())
+}
+
 /// Limits that leave no room for a result are refused rather than silently
 /// producing an empty answer.
 #[test]
@@ -511,48 +662,48 @@ fn completion_state_is_part_of_the_identity() -> Result<()> {
     Ok(())
 }
 
-/// Completion changes the identity even when the candidate set is **identical**.
+/// The support encoding — including the completion state — matches an
+/// independent reference, byte for byte.
 ///
-/// The earlier test in this file compared an exhausted result against one
-/// truncated by a candidate bound — which also has fewer candidates, so the
-/// identities differed for a reason that had nothing to do with completion.
-/// A mutation removing the completion state from the support digest left that
-/// test green, which is the trap this file keeps warning about: a passing test
-/// that passes because of a *different* difference certifies nothing. Here the
-/// support bound is what trips, so both results hold exactly the same two
-/// candidates and only their completion differs.
+/// An earlier test tried to pin this by comparing an exhausted result against
+/// one truncated by a bound, asserting the candidate sets were identical. That
+/// scenario is no longer constructible, and for a good reason: now that the
+/// bounds actually stop the scan, a truncated result necessarily holds less
+/// support, so completion can never be the *only* difference between two
+/// executions. Pinning it therefore has to happen at the encoding, which is
+/// where a golden vector belongs anyway.
 #[test]
-fn completion_alone_changes_the_identity() -> Result<()> {
+fn the_support_encoding_matches_the_independent_reference() -> Result<()> {
+    // Support and completion computed by tests/reference/canon_reference.py.
+    const EXHAUSTED: &str =
+        "sha256:808a47072a27e38455079dd89d1a5d6b1baeb5e206743c41a1ea466386535088";
+    const LIMITED: &str = "sha256:07cdb7a863eebb11a7c7ea288e15c46f82e72869c7ceed6de2a8b217c7d084c4";
+    // The same three records as EXHAUSTED but labelled as limited: what a
+    // dropped completion byte would make indistinguishable from EXHAUSTED.
+    const MISLABELLED: &str =
+        "sha256:46e43bfdda672cdef0cd0cef0f0fccf64b5c03161405ef2df4acbbf1d190d117";
+
     let store = retry_store()?;
-    let two_blocks = CanonicalQuery::Intersect {
-        key: FieldName::parse("line")?,
-        sets: vec![set("attempt_1")?, set("attempt_3")?],
+    let alpha = CanonicalQuery::Lookup {
+        field: FieldName::parse("line")?,
+        value: key(b"alpha"),
     };
-    let exhausted = store.execute(&schema()?, two_blocks.clone(), ExecutionLimits::modest())?;
-    let truncated = store.execute(
+    let full = store.execute(&schema()?, alpha.clone(), ExecutionLimits::modest())?;
+    assert_eq!(full.result_support_digest().to_canonical_text(), EXHAUSTED);
+
+    let bounded = store.execute(
         &schema()?,
-        two_blocks,
+        alpha,
         ExecutionLimits {
-            // alpha and beta carry two support records each; three is not enough.
-            max_support_records: 3,
+            max_support_records: 2,
             ..ExecutionLimits::modest()
         },
     )?;
+    assert_eq!(bounded.result_support_digest().to_canonical_text(), LIMITED);
 
-    assert_eq!(
-        exhausted.complete_result().candidates(),
-        truncated.complete_result().candidates(),
-        "premise: the candidate sets are identical, so only completion can differ"
-    );
-    assert_eq!(exhausted.completion(), ExecutionCompletion::Exhausted);
-    assert_eq!(
-        truncated.completion(),
-        ExecutionCompletion::LimitReached { limit: 3 }
-    );
     assert_ne!(
-        exhausted.query_result_id(),
-        truncated.query_result_id(),
-        "the completion state must reach the identity on its own"
+        EXHAUSTED, MISLABELLED,
+        "the completion state must be inside the digest, not beside it"
     );
     Ok(())
 }
