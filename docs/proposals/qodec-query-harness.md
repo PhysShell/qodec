@@ -182,12 +182,13 @@ Example:
 
 ```json
 {
-  "query_result_id": "qr_01H...",
+  "query_result_id": "sha256:...",
+  "schema_id": "qodec.query.v1",
   "artifact_digest": "sha256:...",
+  "canonical_query": {"operation": "intersect", "key": "test_id", "sets": ["..."]},
   "canonical_query_digest": "sha256:...",
+  "complete_result": ["cli::reader_17"],
   "complete_result_digest": "sha256:...",
-  "operation": "intersect",
-  "key": "test_id",
   "matches": ["cli::reader_17"],
   "candidate_count": 1,
   "evidence_record_ids": ["r17", "r48", "r91"],
@@ -197,25 +198,60 @@ Example:
 
 Required properties:
 
-- `query_result_id` — immutable handle for exactly this execution;
+- `schema_id` — the result schema this record was produced under;
 - `artifact_digest` — which artifact was queried;
-- `canonical_query_digest` — the normalised operation and arguments, so a
-  later verification cannot be pointed at a different question;
-- `complete_result_digest` — digest of the **full** result set, computed
+- `canonical_query` — the **executable** normalised operation and
+  arguments, stored in full, not only as a fingerprint;
+- `canonical_query_digest` — `sha256(canonical_query_bytes)`, so a later
+  verification cannot be pointed at a different question;
+- `complete_result` — the full canonical result, persisted outside the
+  prompt when large;
+- `complete_result_digest` — `sha256(canonical_result_bytes)`, computed
   before any preview truncation, so a bounded preview can never be
   mistaken for the whole answer;
-- explicit operation from the canonical enum;
-- canonical entity identity;
+- `matches` — a possibly-truncated preview of `complete_result`, never
+  the basis of any decision;
 - exact candidate count **over the full result**, not over the preview;
 - evidence record IDs — explanatory only (§5);
 - completeness bit;
-- machine-readable error categories;
-- bounded preview with full material persisted outside the prompt when necessary.
+- machine-readable error categories.
 
-Query results are immutable and content-addressed. A handle whose stored
-result no longer matches `complete_result_digest`, or which refers to a
-different `artifact_digest` than the one presented, is `stale-result-handle`
-or `artifact-mismatch` respectively — never silently re-executed.
+### 4.1 Result identity is content-addressed, not a random handle
+
+An opaque random handle and a content-addressed deterministic identity
+are not the same thing, and Slice A requires the latter: it demands
+deterministic results and exact replay, neither of which an allocator
+counter can provide. So the identity **is** the content:
+
+```text
+canonical_query_digest  = sha256(canonical_query_bytes)
+complete_result_digest  = sha256(canonical_result_bytes)
+
+query_result_id = sha256(
+      schema_id
+   || artifact_digest
+   || canonical_query_digest
+   || complete_result_digest
+)
+```
+
+Two consequences follow, and both are wanted. Re-running the same
+canonical query over the same artifact under the same schema yields the
+**same** `query_result_id` — replay is checkable by construction rather
+than by bookkeeping. And any change to the artifact, the question, the
+result, or the schema yields a different ID, so a handle can never
+silently come to mean something else.
+
+The alternative — declaring the ID an opaque immutable handle — is
+defensible only if the `content-addressed` claim is dropped *and* exact
+replay is redefined to compare result content and digests while ignoring
+the handle. That is a coherent contract, but a weaker one, and it fits
+badly with a project whose whole discipline is exact identities.
+
+Query results are immutable. A handle whose stored result no longer
+matches `complete_result_digest`, or which refers to a different
+`artifact_digest` than the one presented, is `stale-result-handle` or
+`artifact-mismatch` respectively — never silently re-executed.
 
 An oversized result should return a preview and a retrievable handle, not dump the entire store back into the context window and thereby recreate the original problem with more ceremony.
 
@@ -228,7 +264,7 @@ Suggested answer schema:
 ```json
 {
   "answer": "cli::reader_17",
-  "query_result_id": "qr_01H...",
+  "query_result_id": "sha256:...",
   "evidence_record_ids": ["r17", "r48", "r91"]
 }
 ```
@@ -247,14 +283,48 @@ verify(evidence_for_A)            -> candidate_count = 1   # formally fine
 ```
 
 So `qodec_verify` takes a `query_result_id` and re-derives truth from the
-stored complete result — or, equivalently, re-executes the stored
-`canonical_query_digest` over the whole artifact. It never accepts an
-operation name, query arguments, or a record set from the model.
+**stored complete result**. It never accepts an operation name, query
+arguments, or a record set from the model.
+
+An earlier draft said verification could equivalently "re-execute the
+stored `canonical_query_digest`". It cannot: a digest is a fingerprint of
+a query, not a query. `sha256` does not inverse-map to an AST, and the
+two procedures it conflated are not equivalent even once the executable
+`canonical_query` is stored alongside it. They are separated here.
+
+### 5.1 Runtime verification and acceptance replay are different procedures
+
+```text
+runtime qodec_verify:
+  verifies the immutable STORED complete result
+  never re-executes anything
+  a stale or mismatched handle is a terminal state, not a repair trigger
+
+independent acceptance replay:
+  re-executes the stored canonical_query
+  over the pinned artifact_digest
+  and compares the recomputed complete_result_digest
+  (and therefore the recomputed query_result_id)
+```
+
+The distinction is not pedantry. If runtime verification were allowed to
+re-execute a stale handle, it would replace missing evidence with freshly
+manufactured evidence at exactly the moment the system had detected that
+its evidence was untrustworthy — converting a fail-closed state into a
+silent recovery. That is case 3 of the Slice A negative matrix.
+
+Acceptance replay does re-execute, deliberately, but it is an offline
+verifier over a pinned artifact answering a different question: *is this
+stored result reproducible?* It never runs in the answer path, so it can
+never rescue a live query, and a replay mismatch is a defect in the
+engine rather than a fallback for the model.
 
 The harness verifies:
 
 - the handle resolves, is not stale, and its `artifact_digest` matches;
-- the stored `canonical_query_digest` matches the query being claimed;
+- the stored `canonical_query_digest` equals `sha256` of the stored
+  `canonical_query`, and matches the query being claimed;
+- the recomputed `query_result_id` equals the handle presented;
 - the stored result is `complete`;
 - `candidate_count == 1` **over the full result**;
 - the answer equals that single canonical candidate exactly;
@@ -542,7 +612,10 @@ store and index (§2.3), and the operations `open`, `lookup`, `intersect`,
 `materialize`, `verify` over them — with:
 
 - frozen artifact format;
-- deterministic results, exact replay;
+- deterministic results, and exact replay in the §5.1 sense — replaying
+  the stored `canonical_query` over the pinned artifact reproduces
+  `complete_result_digest` and hence `query_result_id`;
+- content-addressed result identity per §4.1, not an allocator handle;
 - bounded results;
 - complete provenance.
 
@@ -566,7 +639,7 @@ test, is underspecified.
 | 9 | evidence ID absent from the artifact | `unverifiable` |
 | 10 | materialization of record IDs from a different artifact | rejected before any bytes are returned |
 | 11 | unbounded / oversized result | refused with the bound stated; never truncated silently |
-| 12 | nondeterministic ordering across replays | build fails; ordering is total and sorted |
+| 12 | nondeterministic ordering across replays | build fails; ordering is total and sorted — otherwise `complete_result_digest`, and therefore `query_result_id`, is not stable and §4.1 identity collapses |
 | 13 | incomplete result flagged `complete` | `query-digest-mismatch` |
 
 Cases 5, 6 and 13 are the ones worth stating plainly: each is an answer
