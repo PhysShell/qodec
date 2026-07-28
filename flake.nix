@@ -279,6 +279,17 @@
           qodec-tests = craneLib.cargoTest (qodecArgs // {
             cargoArtifacts = qodecDeps;
             pname = "qodec-tests";
+            # The suite reads fixtures from `corpus/`, which
+            # `cleanCargoSource` strips as non-Cargo input — the first run of
+            # this check failed on three `adapter` tests with ENOENT for
+            # exactly that reason. Dependency resolution still uses the clean
+            # source; only the test build sees the fixtures.
+            src = pkgs.lib.cleanSourceWith {
+              src = ./.;
+              filter = path: type:
+                (craneLib.filterCargoSources path type)
+                || (pkgs.lib.hasInfix "/corpus" path);
+            };
           });
 
           # ---- Interop Benchmark v2 substrate checks (no model/tokenizer net) -- #
