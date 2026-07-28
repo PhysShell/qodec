@@ -83,8 +83,8 @@ fn record_ids_are_stable_across_replays() -> Result<()> {
     let first = CanonicalStore::open(&artifact, &lines_seg()?, &whole_record_index()?)?;
     let second = CanonicalStore::open(&artifact, &lines_seg()?, &whole_record_index()?)?;
 
-    let ids_a: Vec<&RecordId> = first.record_ids().collect();
-    let ids_b: Vec<&RecordId> = second.record_ids().collect();
+    let ids_a: Vec<RecordId> = first.record_ids().collect();
+    let ids_b: Vec<RecordId> = second.record_ids().collect();
     assert_eq!(ids_a, ids_b, "ids and their order must reproduce exactly");
     assert_eq!(first.artifact_digest(), second.artifact_digest());
     Ok(())
@@ -314,7 +314,7 @@ fn unknown_section_is_an_error() -> Result<()> {
 fn materialized_bytes_equal_the_source_lines() -> Result<()> {
     let body = "first line\nsecond\u{feff} line\nthird\0line\n";
     let store = CanonicalStore::open(&raw_artifact(body), &lines_seg()?, &whole_record_index()?)?;
-    let ids: Vec<RecordId> = store.record_ids().cloned().collect();
+    let ids: Vec<RecordId> = store.record_ids().collect();
     let got = store.materialize(&ids)?;
     let want: Vec<&[u8]> = body.lines().map(str::as_bytes).collect();
     assert_eq!(got, want, "materialization must return the source bytes");
@@ -326,16 +326,144 @@ fn materialized_bytes_equal_the_source_lines() -> Result<()> {
 #[test]
 fn materialize_refuses_partial_results() -> Result<()> {
     let store = CanonicalStore::open(&raw_artifact("a\n"), &lines_seg()?, &whole_record_index()?)?;
-    let mut ids: Vec<RecordId> = store.record_ids().cloned().collect();
+    let mut ids: Vec<RecordId> = store.record_ids().collect();
     let other = CanonicalStore::open(
         &raw_artifact("a\nb\n"),
         &lines_seg()?,
         &whole_record_index()?,
     )?;
-    ids.extend(other.record_ids().cloned());
+    ids.extend(other.record_ids());
     assert!(
         store.materialize(&ids).is_err(),
         "an id this store never issued must fail the call"
+    );
+    Ok(())
+}
+
+/// A foreign id whose coordinates exist locally must be rejected on the
+/// binding alone — case 10 of the negative matrix.
+///
+/// This test exists because the previous revision failed the property while
+/// its test passed. `s#0` exists in almost every store, so a foreign id
+/// resolved against local records and returned another artifact's bytes with
+/// no error anywhere; the old test only went red later, on a second id that
+/// happened not to exist. A test that is green because of a different bug is
+/// worse than no test, so this one passes a single id whose coordinates are
+/// certainly present.
+#[test]
+fn a_foreign_id_with_local_coordinates_is_rejected() -> Result<()> {
+    let a = CanonicalStore::open(
+        &raw_artifact("alpha\n"),
+        &lines_seg()?,
+        &whole_record_index()?,
+    )?;
+    let b = CanonicalStore::open(
+        &raw_artifact("beta\n"),
+        &lines_seg()?,
+        &whole_record_index()?,
+    )?;
+
+    let from_b: Vec<RecordId> = b.record_ids().collect();
+    let local: Vec<RecordId> = a.record_ids().collect();
+    let (Some(foreign), Some(mine)) = (from_b.first(), local.first()) else {
+        anyhow::bail!("both stores must yield exactly one record");
+    };
+
+    // The coordinates unquestionably exist in A; only the binding differs.
+    assert_eq!(foreign.section(), mine.section());
+    assert_eq!(foreign.ordinal(), mine.ordinal());
+    assert_ne!(foreign.artifact_digest(), mine.artifact_digest());
+
+    let outcome = a.materialize(&from_b).map_err(|e| e.to_string());
+    assert!(
+        outcome
+            .as_ref()
+            .err()
+            .is_some_and(|e| e.contains("belongs to artifact")),
+        "a foreign id must be refused on its binding, however familiar its \
+         coordinates look; got {outcome:?}"
+    );
+    Ok(())
+}
+
+// ---------------------------------------------------------------------------
+// Declared sections
+// ---------------------------------------------------------------------------
+
+/// A section that is declared but holds no records intersects to an empty
+/// result, not to an error.
+///
+/// The two answers mean opposite things. "No such section" says the question
+/// was malformed; an empty result says the question was fine and nothing
+/// qualified. Deriving the known sections from the records that happen to
+/// exist collapses them, so a correctly spelled empty section would be
+/// reported as a typo.
+#[test]
+fn a_declared_but_empty_section_intersects_to_nothing() -> Result<()> {
+    let artifact = raw_artifact("--- attempt_1 ---\n--- attempt_2 ---\nalpha\n");
+    let seg = Segmentation::MarkedSections {
+        prefix: "--- ".into(),
+        suffix: " ---".into(),
+        preamble: set("preamble")?,
+    };
+    let store = CanonicalStore::open(&artifact, &seg, &whole_record_index()?)?;
+
+    let known: Vec<&SetName> = store.sections().collect();
+    assert!(
+        known.contains(&&set("attempt_1")?),
+        "an empty section is still a section: {known:?}"
+    );
+
+    let empty = store.intersect(&index("line")?, &[set("attempt_1")?])?;
+    assert!(
+        empty.candidates().is_empty(),
+        "intersecting an empty section yields nothing, and is not an error"
+    );
+    assert_eq!(
+        store
+            .intersect(&index("line")?, &[set("attempt_2")?])?
+            .candidates(),
+        [key(b"alpha")]
+    );
+    Ok(())
+}
+
+/// An artifact with no records still declares its single section.
+#[test]
+fn an_empty_artifact_still_declares_its_section() -> Result<()> {
+    let store = CanonicalStore::open(&raw_artifact(""), &lines_seg()?, &whole_record_index()?)?;
+    assert_eq!(store.record_count(), 0);
+    assert_eq!(store.sections().collect::<Vec<_>>(), [&set("s")?]);
+    assert!(store
+        .intersect(&index("line")?, &[set("s")?])?
+        .candidates()
+        .is_empty());
+    assert!(store.intersect(&index("line")?, &[set("other")?]).is_err());
+    Ok(())
+}
+
+/// Re-opening a section is refused explicitly rather than left to collide.
+///
+/// Resuming would need an ordinal continuation rule, and inventing one
+/// silently is how two records quietly become one. Refusing is a defensible
+/// limitation; discovering it later as a duplicate-id error would not be.
+#[test]
+fn reopening_a_section_is_refused() -> Result<()> {
+    let artifact = raw_artifact("--- a ---\nx\n--- b ---\ny\n--- a ---\nz\n");
+    let seg = Segmentation::MarkedSections {
+        prefix: "--- ".into(),
+        suffix: " ---".into(),
+        preamble: set("preamble")?,
+    };
+    let outcome = CanonicalStore::open(&artifact, &seg, &whole_record_index()?)
+        .map(|s| s.record_count())
+        .map_err(|e| e.to_string());
+    assert!(
+        outcome
+            .as_ref()
+            .err()
+            .is_some_and(|e| e.contains("opened more than once")),
+        "a re-opened section must fail the build and say what is unsupported; got {outcome:?}"
     );
     Ok(())
 }
@@ -432,7 +560,7 @@ fn stored() -> Result<StoredQueryResult> {
 /// A consistent record verifies.
 #[test]
 fn a_consistent_stored_result_verifies() -> Result<()> {
-    stored()?.verify()
+    stored()?.verify_internal_consistency()
 }
 
 /// Every field the loader could have been lied to about is recomputed, and
@@ -452,7 +580,7 @@ fn the_loader_recomputes_rather_than_believes() -> Result<()> {
         value: key(b"beta"),
     };
     assert!(
-        tampered_query.verify().is_err(),
+        tampered_query.verify_internal_consistency().is_err(),
         "query digest must be recomputed"
     );
 
@@ -460,7 +588,7 @@ fn the_loader_recomputes_rather_than_believes() -> Result<()> {
     let mut tampered_result = stored()?;
     tampered_result.complete_result = CanonicalResult::new([key(b"beta")])?;
     assert!(
-        tampered_result.verify().is_err(),
+        tampered_result.verify_internal_consistency().is_err(),
         "result digest must be recomputed"
     );
 
@@ -472,7 +600,10 @@ fn the_loader_recomputes_rather_than_believes() -> Result<()> {
         &forged_id.canonical_query_digest,
         &forged_id.complete_result_digest,
     );
-    assert!(forged_id.verify().is_err(), "identity must be recomputed");
+    assert!(
+        forged_id.verify_internal_consistency().is_err(),
+        "identity must be recomputed"
+    );
 
     // A digest that parses as the right role but describes other bytes.
     let mut wrong_role_value = stored()?;
@@ -480,21 +611,69 @@ fn the_loader_recomputes_rather_than_believes() -> Result<()> {
         &wrong_role_value.canonical_query_digest.to_canonical_text(),
     )?;
     assert!(
-        wrong_role_value.verify().is_err(),
+        wrong_role_value.verify_internal_consistency().is_err(),
         "a well-typed digest of the wrong content must still be rejected"
     );
     Ok(())
 }
 
-/// The artifact binding is part of the identity: the same query and result
-/// against a different artifact is a different result.
+/// Relabelling the artifact without recomputing the identity is caught as an
+/// internal inconsistency.
 #[test]
-fn identity_binds_the_artifact() -> Result<()> {
+fn a_relabelled_artifact_breaks_internal_consistency() -> Result<()> {
     let mut moved = stored()?;
-    moved.artifact_digest = ArtifactDigest::of_artifact_bytes(b"%q1 raw\nbeta\n");
+    moved.artifact_digest = ArtifactDigest::of_artifact_bytes(b"%q1 raw\n%q1 body\nbeta\n");
     assert!(
-        moved.verify().is_err(),
-        "a result cannot be relabelled onto another artifact"
+        moved.verify_internal_consistency().is_err(),
+        "the stored identity no longer matches the stored components"
     );
     Ok(())
+}
+
+/// Internal consistency is not provenance, and this is the case that shows it.
+///
+/// A record describing a *different* artifact, whose identity was then
+/// correctly recomputed over that artifact, is flawless by its own lights. It
+/// is simply an answer about evidence nobody opened. Only a check against the
+/// artifact actually in hand can say so, and it must report that as
+/// `artifact-mismatch` rather than as corruption — otherwise whoever reads the
+/// error goes looking for a bug in the wrong place.
+#[test]
+fn a_self_consistent_result_for_another_artifact_is_an_artifact_mismatch() -> Result<()> {
+    let other = ArtifactDigest::of_artifact_bytes(b"%q1 raw\n%q1 body\nbeta\n");
+    let mut moved = stored()?;
+    moved.artifact_digest = other;
+    // Recompute the identity so the record is entirely self-consistent.
+    moved.query_result_id = query_result_id(
+        &moved.schema,
+        &moved.artifact_digest,
+        &moved.canonical_query_digest,
+        &moved.complete_result_digest,
+    );
+    moved.verify_internal_consistency()?;
+
+    let opened = ArtifactDigest::of_artifact_bytes(b"%q1 raw\n%q1 body\nalpha\n");
+    let outcome = moved
+        .verify_for_artifact(&opened)
+        .map_err(|e| e.to_string());
+    assert!(
+        outcome
+            .as_ref()
+            .err()
+            .is_some_and(|e| e.contains("artifact-mismatch")),
+        "a result computed over another artifact must fail for this one, and be \
+         reported as artifact-mismatch rather than corruption; got {outcome:?}"
+    );
+
+    // And the record does verify for the artifact it actually describes.
+    moved.verify_for_artifact(&other)?;
+    Ok(())
+}
+
+/// The happy path binds too.
+#[test]
+fn verify_for_artifact_accepts_the_matching_artifact() -> Result<()> {
+    let record = stored()?;
+    let opened = record.artifact_digest;
+    record.verify_for_artifact(&opened)
 }

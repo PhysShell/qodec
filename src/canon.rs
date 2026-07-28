@@ -732,15 +732,22 @@ pub struct StoredQueryResult {
 }
 
 impl StoredQueryResult {
-    /// Recompute every digest from the stored canonical values and reject any
-    /// mismatch.
+    /// Check that the record agrees with itself.
     ///
     /// The compiler protects code inside this crate from role confusion. It
     /// cannot protect the crate from files, callers, and the other classical
     /// sources of entropy — so a loader that merely parses is a loader that
     /// believes whatever it is handed. Recomputation is the only step that
     /// converts a claim into evidence.
-    pub fn verify(&self) -> Result<()> {
+    ///
+    /// **This proves consistency, not provenance**, and the distinction is not
+    /// pedantic. A record naming a different artifact, whose identity was then
+    /// correctly recomputed over that artifact, is perfectly self-consistent
+    /// and still answers a question about evidence nobody opened. Binding a
+    /// result to the artifact actually in hand is
+    /// [`verify_for_artifact`](Self::verify_for_artifact), and only that
+    /// method can report `artifact-mismatch`.
+    pub fn verify_internal_consistency(&self) -> Result<()> {
         let query = canonical_query_digest(&self.schema, &self.canonical_query)?;
         if query != self.canonical_query_digest {
             bail!(
@@ -766,5 +773,24 @@ impl StoredQueryResult {
             );
         }
         Ok(())
+    }
+
+    /// Check the record against the artifact actually opened, then against
+    /// itself.
+    ///
+    /// The artifact comparison comes **first**. A record describing another
+    /// artifact is not a corrupt record — it may be flawless — it is simply an
+    /// answer about something else, and reporting that as an internal
+    /// inconsistency would send whoever reads the error looking for a bug in
+    /// the wrong place.
+    pub fn verify_for_artifact(&self, expected: &ArtifactDigest) -> Result<()> {
+        if &self.artifact_digest != expected {
+            bail!(
+                "artifact-mismatch: result was computed over {}, the opened artifact is {}",
+                self.artifact_digest.to_canonical_text(),
+                expected.to_canonical_text()
+            );
+        }
+        self.verify_internal_consistency()
     }
 }

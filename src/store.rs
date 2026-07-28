@@ -35,29 +35,62 @@ use anyhow::{bail, Result};
 
 use crate::canon::{ArtifactDigest, CanonicalResult, IndexName, KeyBytes, SetName};
 
-/// Where a record sits in the artifact.
+/// One index: key bytes to the records carrying them, in canonical order.
+type KeyIndex = BTreeMap<KeyBytes, Vec<LocalRecordId>>;
+/// Every index the store was built with, by name.
+type IndexSet = BTreeMap<IndexName, KeyIndex>;
+/// The record table: coordinates to the exact decoded bytes at them.
+type RecordTable = BTreeMap<LocalRecordId, Box<[u8]>>;
+/// What segmentation yields: the records, and every section it declared.
+type Segmented = (RecordTable, BTreeSet<SetName>);
+
+/// Coordinates inside one artifact. Never leaves this module.
 ///
-/// Deliberately **not** a hash of the record bytes. Two identical RAW records
-/// in different positions are two distinct records; identifying them by
-/// content alone would silently merge them, with no cryptographic collision
-/// involved and no error to notice. The artifact binding lives on the store,
-/// so a `RecordId` is only ever meaningful together with the store that
-/// issued it.
+/// Compact on purpose: repeating the artifact digest in every stored key would
+/// cost 32 bytes per record to restate something the store already knows.
 #[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
-pub struct RecordId {
+struct LocalRecordId {
     section: SetName,
     ordinal: u64,
 }
 
+/// A record identity, bound to the artifact that issued it.
+///
+/// Two things are deliberate here.
+///
+/// It is **not** a hash of the record bytes. Two identical RAW records in
+/// different positions are two distinct records; identifying them by content
+/// alone would silently merge them, with no cryptographic collision involved
+/// and no error to notice.
+///
+/// It carries the **artifact digest**, rather than leaving the binding as a
+/// property of the store that happens to hold it. Coordinates alone are
+/// ambiguous across artifacts: `s#0` exists in almost every store, so a
+/// foreign id would resolve against local records and return another
+/// artifact's bytes with no error anywhere — measured, not theorised, on the
+/// previous revision of this module. That is case 10 of the Slice A negative
+/// matrix, and the type now makes it unrepresentable rather than merely
+/// tested.
+#[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
+pub struct RecordId {
+    artifact_digest: ArtifactDigest,
+    local: LocalRecordId,
+}
+
 impl RecordId {
+    /// The artifact this id is valid against.
+    pub fn artifact_digest(&self) -> &ArtifactDigest {
+        &self.artifact_digest
+    }
+
     /// The section this record belongs to.
     pub fn section(&self) -> &SetName {
-        &self.section
+        &self.local.section
     }
 
     /// The zero-based position of this record within its section.
     pub fn ordinal(&self) -> u64 {
-        self.ordinal
+        self.local.ordinal
     }
 }
 
@@ -125,8 +158,15 @@ pub struct IndexSpec {
 #[derive(Debug, Clone)]
 pub struct CanonicalStore {
     artifact_digest: ArtifactDigest,
-    records: BTreeMap<RecordId, Box<[u8]>>,
-    indexes: BTreeMap<IndexName, BTreeMap<KeyBytes, Vec<RecordId>>>,
+    /// Every section the artifact declares, including ones holding no records.
+    ///
+    /// Kept separately from `records` on purpose: deriving the known sections
+    /// from the records that exist would make a declared-but-empty section
+    /// indistinguishable from a misspelled one, so intersecting over it would
+    /// report "no such section" when the correct answer is an empty result.
+    sections: BTreeSet<SetName>,
+    records: RecordTable,
+    indexes: IndexSet,
 }
 
 impl CanonicalStore {
@@ -151,14 +191,14 @@ impl CanonicalStore {
         // ONE full decode. `crate::decode` unwraps pipelines to RAW;
         // `crate::decode_once` would stop after a single container layer.
         let raw = crate::decode(artifact_text)?;
-        let records = segment(&raw, seg)?;
+        let (records, sections) = segment(&raw, seg)?;
 
-        let mut indexes: BTreeMap<IndexName, BTreeMap<KeyBytes, Vec<RecordId>>> = BTreeMap::new();
+        let mut indexes: IndexSet = BTreeMap::new();
         for spec in specs {
             if indexes.contains_key(&spec.name) {
                 bail!("duplicate index name {:?}", spec.name.as_str());
             }
-            let mut index: BTreeMap<KeyBytes, Vec<RecordId>> = BTreeMap::new();
+            let mut index: KeyIndex = BTreeMap::new();
             for (id, bytes) in &records {
                 if let Some(key) = spec.extractor.extract(bytes) {
                     index.entry(key).or_default().push(id.clone());
@@ -172,6 +212,7 @@ impl CanonicalStore {
         }
         Ok(CanonicalStore {
             artifact_digest,
+            sections,
             records,
             indexes,
         })
@@ -187,9 +228,22 @@ impl CanonicalStore {
         self.records.len()
     }
 
-    /// Every record id, in canonical order.
-    pub fn record_ids(&self) -> impl Iterator<Item = &RecordId> {
-        self.records.keys()
+    /// Every section the artifact declares, including empty ones.
+    pub fn sections(&self) -> impl Iterator<Item = &SetName> {
+        self.sections.iter()
+    }
+
+    /// Every record id, in canonical order, bound to this artifact.
+    pub fn record_ids(&self) -> impl Iterator<Item = RecordId> + '_ {
+        self.records.keys().map(|local| self.bind(local))
+    }
+
+    /// Attach this store's artifact binding to local coordinates.
+    fn bind(&self, local: &LocalRecordId) -> RecordId {
+        RecordId {
+            artifact_digest: self.artifact_digest,
+            local: local.clone(),
+        }
     }
 
     /// Records carrying `key` in `index`, in canonical order.
@@ -203,7 +257,10 @@ impl CanonicalStore {
             .indexes
             .get(index)
             .ok_or_else(|| anyhow::anyhow!("no index named {:?}", index.as_str()))?;
-        Ok(idx.get(key).cloned().unwrap_or_default())
+        Ok(idx
+            .get(key)
+            .map(|ids| ids.iter().map(|l| self.bind(l)).collect())
+            .unwrap_or_default())
     }
 
     /// Keys present in **every** named section, under `index`.
@@ -220,9 +277,12 @@ impl CanonicalStore {
         if sections.is_empty() {
             bail!("intersect needs at least one section");
         }
-        let known: BTreeSet<&SetName> = self.records.keys().map(|id| &id.section).collect();
+        // Declared sections, not merely populated ones: a section that exists
+        // and holds nothing must intersect to an empty result, while a section
+        // that does not exist must be an error. Deriving this from the records
+        // would collapse the two and let a typo read as "nothing qualifies".
         for s in sections {
-            if !known.contains(s) {
+            if !self.sections.contains(s) {
                 bail!("no section named {:?} in this artifact", s.as_str());
             }
         }
@@ -245,13 +305,28 @@ impl CanonicalStore {
     /// partial materialization would look like evidence while quietly omitting
     /// the part that did not resolve.
     pub fn materialize(&self, ids: &[RecordId]) -> Result<Vec<&[u8]>> {
+        // Artifact binding first, for every id, before any coordinate is
+        // resolved. Checking it per-id while resolving would let a foreign id
+        // whose coordinates happen to exist return this artifact's bytes, and
+        // the call would only fail later — if some *other* id happened not to
+        // resolve. That is exactly how the previous revision passed its own
+        // test for the wrong reason.
+        for id in ids {
+            if id.artifact_digest != self.artifact_digest {
+                bail!(
+                    "record id belongs to artifact {}, this store holds {}",
+                    id.artifact_digest.to_canonical_text(),
+                    self.artifact_digest.to_canonical_text()
+                );
+            }
+        }
         let mut out = Vec::with_capacity(ids.len());
         for id in ids {
-            let bytes = self.records.get(id).ok_or_else(|| {
+            let bytes = self.records.get(&id.local).ok_or_else(|| {
                 anyhow::anyhow!(
                     "record {:?}#{} is not in this store",
-                    id.section.as_str(),
-                    id.ordinal
+                    id.local.section.as_str(),
+                    id.local.ordinal
                 )
             })?;
             out.push(&**bytes);
@@ -260,11 +335,20 @@ impl CanonicalStore {
     }
 }
 
-/// Divide decoded RAW text into identified records.
-fn segment(raw: &str, seg: &Segmentation) -> Result<BTreeMap<RecordId, Box<[u8]>>> {
-    let mut out: BTreeMap<RecordId, Box<[u8]>> = BTreeMap::new();
+/// Divide decoded RAW text into identified records and declared sections.
+///
+/// Returns both, because a section that exists and holds no records is a
+/// different thing from a section that does not exist, and only the caller
+/// keeping the declared set can tell them apart afterwards.
+fn segment(raw: &str, seg: &Segmentation) -> Result<Segmented> {
+    let mut out: RecordTable = BTreeMap::new();
+    let mut sections: BTreeSet<SetName> = BTreeSet::new();
     match seg {
         Segmentation::Lines { section } => {
+            // Declared unconditionally: an artifact with an empty payload
+            // still has this section, and intersecting over it is an empty
+            // result rather than an unknown-section error.
+            sections.insert(section.clone());
             for (i, line) in raw.lines().enumerate() {
                 insert_record(&mut out, section.clone(), i, line.as_bytes())?;
             }
@@ -277,6 +361,7 @@ fn segment(raw: &str, seg: &Segmentation) -> Result<BTreeMap<RecordId, Box<[u8]>
             if prefix.is_empty() && suffix.is_empty() {
                 bail!("marked sections need a non-empty prefix or suffix");
             }
+            sections.insert(preamble.clone());
             let mut current = preamble.clone();
             let mut ordinal = 0usize;
             for line in raw.lines() {
@@ -284,7 +369,19 @@ fn segment(raw: &str, seg: &Segmentation) -> Result<BTreeMap<RecordId, Box<[u8]>
                     .strip_prefix(prefix.as_str())
                     .and_then(|r| r.strip_suffix(suffix.as_str()))
                 {
-                    current = SetName::parse(name)?;
+                    let name = SetName::parse(name)?;
+                    // Re-opening a section is refused explicitly rather than
+                    // left to collide as a duplicate id downstream. Resuming
+                    // would need an ordinal continuation rule, and inventing
+                    // one silently is how two records quietly become one.
+                    if !sections.insert(name.clone()) {
+                        bail!(
+                            "section {:?} is opened more than once; resuming a section is not \
+                             supported, so its records would collide",
+                            name.as_str()
+                        );
+                    }
+                    current = name;
                     ordinal = 0;
                     continue;
                 }
@@ -293,19 +390,19 @@ fn segment(raw: &str, seg: &Segmentation) -> Result<BTreeMap<RecordId, Box<[u8]>
             }
         }
     }
-    Ok(out)
+    Ok((out, sections))
 }
 
 /// Insert one record, refusing to overwrite an already-issued id.
 fn insert_record(
-    out: &mut BTreeMap<RecordId, Box<[u8]>>,
+    out: &mut RecordTable,
     section: SetName,
     ordinal: usize,
     bytes: &[u8],
 ) -> Result<()> {
     let ordinal = u64::try_from(ordinal)
         .map_err(|_| anyhow::anyhow!("record ordinal {ordinal} exceeds u64"))?;
-    let id = RecordId { section, ordinal };
+    let id = LocalRecordId { section, ordinal };
     if out.contains_key(&id) {
         bail!(
             "duplicate record id {:?}#{ordinal} — segmentation is not injective",
