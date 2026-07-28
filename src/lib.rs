@@ -24,6 +24,7 @@ pub mod risk;
 pub mod rules;
 pub mod sam;
 pub mod slice;
+pub mod store;
 pub mod tmpl;
 pub mod toon;
 

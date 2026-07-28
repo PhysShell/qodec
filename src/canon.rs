@@ -35,6 +35,7 @@ pub const SCHEMA_QUERY_V1: &str = "qodec.query.v1";
 const DOMAIN_CANONICAL_QUERY: &str = "qodec.canonical-query.v1";
 const DOMAIN_COMPLETE_RESULT: &str = "qodec.complete-result.v1";
 const DOMAIN_QUERY_RESULT_ID: &str = "qodec.query-result-id.v1";
+const DOMAIN_ARTIFACT: &str = "qodec.artifact.v1";
 
 /// One lowercase hex digit as a nibble; uppercase is an error, not a variant.
 fn lowercase_nibble(b: u8, text: &str) -> Result<u8> {
@@ -165,6 +166,19 @@ macro_rules! impl_digest_role {
 }
 
 impl_digest_role!(ArtifactDigest, "artifact digest");
+
+impl ArtifactDigest {
+    /// Digest the artifact's own bytes under the artifact domain.
+    ///
+    /// Domain-tagged like everything else: an artifact digest must not be
+    /// presentable as a query or result digest merely because someone hashed
+    /// the same bytes.
+    pub fn of_artifact_bytes(bytes: &[u8]) -> Self {
+        let mut preimage = domain_header(DOMAIN_ARTIFACT);
+        preimage.extend_from_slice(&length_prefixed(bytes));
+        ArtifactDigest(Digest(sha256_raw(&preimage)))
+    }
+}
 impl_digest_role!(CanonicalQueryDigest, "canonical query digest");
 impl_digest_role!(CompleteResultDigest, "complete result digest");
 impl_digest_role!(QueryResultId, "query result id");
@@ -535,8 +549,16 @@ fn encode_bytes(out: &mut Vec<u8>, bytes: &[u8]) {
 ///
 /// Wire-identical to [`encode_bytes`] on purpose: the difference between a
 /// name and a key is what is *validated on the way in*, not how it is framed.
-/// That is also why this split changed no golden vector — every previously
-/// encodable value encodes to exactly the same bytes.
+///
+/// Stated precisely, because the loose version of this claim was wrong: the
+/// wire encoding and all previously frozen non-empty-name vectors remain
+/// unchanged. The final v1 input domain additionally admits arbitrary byte
+/// values and **deliberately rejects empty protocol names**, which an
+/// intermediate commit on this branch had accepted. That is a narrowing, not
+/// a pure extension, so "fully additive" was the wrong word. It needs no
+/// `qodec.query.v2` because v1 is being defined here rather than kept
+/// compatible with a work-in-progress commit — git history is not a published
+/// standard, however much it resembles one from the inside.
 fn encode_name(out: &mut Vec<u8>, s: &str) {
     encode_bytes(out, s.as_bytes());
 }
@@ -686,4 +708,63 @@ pub fn query_result_id(
     preimage.extend_from_slice(&framed_field("query", query_digest.as_bytes()));
     preimage.extend_from_slice(&framed_field("result", result_digest.as_bytes()));
     QueryResultId(Digest(sha256_raw(&preimage)))
+}
+
+// ---------------------------------------------------------------------------
+// Loading a stored result
+// ---------------------------------------------------------------------------
+
+/// A query result as persisted, before anything about it has been believed.
+///
+/// Every field here arrived from outside — a file, a caller, a previous run —
+/// so the typed roles say what each value *claims* to be and nothing yet says
+/// the claim is true. `parse_canonical_text` asserts a role at the boundary;
+/// it cannot prove provenance, because raw bytes carry none.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct StoredQueryResult {
+    pub schema: SchemaId,
+    pub artifact_digest: ArtifactDigest,
+    pub canonical_query: CanonicalQuery,
+    pub canonical_query_digest: CanonicalQueryDigest,
+    pub complete_result: CanonicalResult,
+    pub complete_result_digest: CompleteResultDigest,
+    pub query_result_id: QueryResultId,
+}
+
+impl StoredQueryResult {
+    /// Recompute every digest from the stored canonical values and reject any
+    /// mismatch.
+    ///
+    /// The compiler protects code inside this crate from role confusion. It
+    /// cannot protect the crate from files, callers, and the other classical
+    /// sources of entropy — so a loader that merely parses is a loader that
+    /// believes whatever it is handed. Recomputation is the only step that
+    /// converts a claim into evidence.
+    pub fn verify(&self) -> Result<()> {
+        let query = canonical_query_digest(&self.schema, &self.canonical_query)?;
+        if query != self.canonical_query_digest {
+            bail!(
+                "stored canonical_query_digest {} does not match the stored query, which digests to {}",
+                self.canonical_query_digest.to_canonical_text(),
+                query.to_canonical_text()
+            );
+        }
+        let result = complete_result_digest(&self.complete_result)?;
+        if result != self.complete_result_digest {
+            bail!(
+                "stored complete_result_digest {} does not match the stored result, which digests to {}",
+                self.complete_result_digest.to_canonical_text(),
+                result.to_canonical_text()
+            );
+        }
+        let id = query_result_id(&self.schema, &self.artifact_digest, &query, &result);
+        if id != self.query_result_id {
+            bail!(
+                "stored query_result_id {} does not match the recomputed {}",
+                self.query_result_id.to_canonical_text(),
+                id.to_canonical_text()
+            );
+        }
+        Ok(())
+    }
 }
