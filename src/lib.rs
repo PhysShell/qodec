@@ -6,6 +6,7 @@ pub mod ab;
 pub mod adapter;
 pub mod alias;
 pub mod bench;
+pub mod canon;
 pub mod container;
 pub mod cost;
 pub mod diag;

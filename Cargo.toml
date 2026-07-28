@@ -24,6 +24,7 @@ tokenizers = { version = "0.21", default-features = false, features = ["onig"] }
 # Blocking HTTP for the perplexity gate (same choice as docs/fastcontext.md:
 # no async runtime for one local call).
 ureq = "2"
+sha2 = "0.10.9"
 
 [dev-dependencies]
 proptest = "1"
