@@ -270,6 +270,17 @@
             src = qodecArgs.src;
           };
 
+          # The Rust test suite. Without this the whole workflow can be green
+          # while every canonicalization, store and query contract fails: the
+          # package sets `doCheck = false`, and the only other Rust checks are
+          # clippy and fmt, neither of which runs a test. Caught by Codex on
+          # PR #18 — a gate that gates nothing is worse than no gate at all,
+          # because it gets quoted as evidence.
+          qodec-tests = craneLib.cargoTest (qodecArgs // {
+            cargoArtifacts = qodecDeps;
+            pname = "qodec-tests";
+          });
+
           # ---- Interop Benchmark v2 substrate checks (no model/tokenizer net) -- #
           qodec-build = qodec;
           rtk-pinned-build = rtk-pinned;
