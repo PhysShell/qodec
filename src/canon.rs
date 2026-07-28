@@ -107,6 +107,68 @@ impl Digest {
     }
 }
 
+// ---------------------------------------------------------------------------
+// Digest roles
+// ---------------------------------------------------------------------------
+//
+// Domain separation already makes a query digest and a result digest different
+// *values*. It does not stop anyone from assembling a role-confused record,
+// because at the type level both were merely `Digest` and the compiler had no
+// opinion about which slot they belonged in. These newtypes move that check
+// from "a negative test will catch it later" to "it does not compile".
+//
+// Each carries a `parse_canonical_text` because these values genuinely arrive
+// as text across a boundary — a pinned artifact header, a stored result
+// record, a handle presented by a caller. Parsing **asserts** a role that the
+// raw bytes do not carry, which is exactly why it is spelled out per role
+// rather than offered as one generic conversion.
+
+/// Identifies the artifact a query ran against.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
+pub struct ArtifactDigest(Digest);
+
+/// Digest of the canonical bytes of a query, under the query domain.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
+pub struct CanonicalQueryDigest(Digest);
+
+/// Digest of the canonical bytes of a complete result, under the result domain.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
+pub struct CompleteResultDigest(Digest);
+
+/// The content-addressed identity of a query result.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
+pub struct QueryResultId(Digest);
+
+macro_rules! impl_digest_role {
+    ($name:ident, $role:literal) => {
+        impl $name {
+            #[doc = concat!("The raw 32 bytes of this ", $role, ", as they enter a preimage.")]
+            pub fn as_bytes(&self) -> &[u8; 32] {
+                self.0.as_bytes()
+            }
+
+            #[doc = concat!("The canonical text form of this ", $role, ".")]
+            pub fn to_canonical_text(&self) -> String {
+                self.0.to_canonical_text()
+            }
+
+            #[doc = concat!("Parse a ", $role, " from `sha256:<64 lowercase hex>`.")]
+            ///
+            /// Asserts the role: raw bytes carry no evidence of which slot
+            /// they belong in. Use only where the value genuinely crosses a
+            /// boundary as text, never to move a digest between roles.
+            pub fn parse_canonical_text(text: &str) -> Result<Self> {
+                Ok($name(Digest::parse_canonical_text(text)?))
+            }
+        }
+    };
+}
+
+impl_digest_role!(ArtifactDigest, "artifact digest");
+impl_digest_role!(CanonicalQueryDigest, "canonical query digest");
+impl_digest_role!(CompleteResultDigest, "complete result digest");
+impl_digest_role!(QueryResultId, "query result id");
+
 /// Which schema's serialization rules apply.
 ///
 /// The schema is not a label attached after the fact: it selects the encoder
@@ -276,11 +338,17 @@ fn encode_str(out: &mut Vec<u8>, s: &str) {
 /// enters the type — [`CanonicalResult::new`] for results, and
 /// [`canonical_query_bytes`] for queries — so the encoder itself has no
 /// failure mode to swallow, and no unreachable panic to explain away.
-fn encode_seq(out: &mut Vec<u8>, items: &[String]) {
-    out.extend_from_slice(&(items.len() as u32).to_be_bytes());
+fn encode_seq(out: &mut Vec<u8>, items: &[String]) -> Result<()> {
+    // `as u32` would wrap silently, and a wrapped count is the worst possible
+    // failure here: the sequence would still encode, still hash, and still
+    // produce a confident identity for the wrong content.
+    let count = u32::try_from(items.len())
+        .map_err(|_| anyhow::anyhow!("sequence of {} items exceeds u32", items.len()))?;
+    out.extend_from_slice(&count.to_be_bytes());
     for item in items {
         encode_str(out, item);
     }
+    Ok(())
 }
 
 /// Serialize a query to its canonical bytes under the given schema.
@@ -312,7 +380,7 @@ pub fn canonical_query_bytes(schema: &SchemaId, query: &CanonicalQuery) -> Resul
             let mut sets = sets.clone();
             sets.sort_unstable();
             sets.dedup();
-            encode_seq(&mut out, &sets);
+            encode_seq(&mut out, &sets)?;
         }
     }
     Ok(out)
@@ -320,13 +388,12 @@ pub fn canonical_query_bytes(schema: &SchemaId, query: &CanonicalQuery) -> Resul
 
 /// Serialize a complete result to its canonical bytes.
 ///
-/// Infallible: [`CanonicalResult`] cannot be constructed without passing
-/// validation and being put into total order, so there is no state left here
-/// that could fail.
-pub fn canonical_result_bytes(result: &CanonicalResult) -> Vec<u8> {
+/// Fallible only in the one way that matters: a result too large to carry a
+/// `u32` count is refused rather than encoded with a truncated length.
+pub fn canonical_result_bytes(result: &CanonicalResult) -> Result<Vec<u8>> {
     let mut out = Vec::new();
-    encode_seq(&mut out, &result.candidates);
-    out
+    encode_seq(&mut out, &result.candidates)?;
+    Ok(out)
 }
 
 // ---------------------------------------------------------------------------
@@ -334,10 +401,10 @@ pub fn canonical_result_bytes(result: &CanonicalResult) -> Vec<u8> {
 // ---------------------------------------------------------------------------
 
 /// Digest canonical query bytes under the query domain.
-pub fn digest_canonical_query_bytes(bytes: &[u8]) -> Digest {
+pub fn digest_canonical_query_bytes(bytes: &[u8]) -> CanonicalQueryDigest {
     let mut preimage = domain_header(DOMAIN_CANONICAL_QUERY);
     preimage.extend_from_slice(&length_prefixed(bytes));
-    Digest(sha256_raw(&preimage))
+    CanonicalQueryDigest(Digest(sha256_raw(&preimage)))
 }
 
 /// Digest complete result bytes under the result domain.
@@ -345,22 +412,27 @@ pub fn digest_canonical_query_bytes(bytes: &[u8]) -> Digest {
 /// Distinct from [`digest_canonical_query_bytes`] even for identical input
 /// bytes: the domain string is part of the preimage, so a query digest can
 /// never be presented as a result digest by protocol provenance.
-pub fn digest_complete_result_bytes(bytes: &[u8]) -> Digest {
+pub fn digest_complete_result_bytes(bytes: &[u8]) -> CompleteResultDigest {
     let mut preimage = domain_header(DOMAIN_COMPLETE_RESULT);
     preimage.extend_from_slice(&length_prefixed(bytes));
-    Digest(sha256_raw(&preimage))
+    CompleteResultDigest(Digest(sha256_raw(&preimage)))
 }
 
 /// Digest of a query, end to end.
-pub fn canonical_query_digest(schema: &SchemaId, query: &CanonicalQuery) -> Result<Digest> {
+pub fn canonical_query_digest(
+    schema: &SchemaId,
+    query: &CanonicalQuery,
+) -> Result<CanonicalQueryDigest> {
     Ok(digest_canonical_query_bytes(&canonical_query_bytes(
         schema, query,
     )?))
 }
 
 /// Digest of a complete result, end to end.
-pub fn complete_result_digest(result: &CanonicalResult) -> Digest {
-    digest_complete_result_bytes(&canonical_result_bytes(result))
+pub fn complete_result_digest(result: &CanonicalResult) -> Result<CompleteResultDigest> {
+    Ok(digest_complete_result_bytes(&canonical_result_bytes(
+        result,
+    )?))
 }
 
 /// The content-addressed identity of a query result.
@@ -379,16 +451,19 @@ pub fn complete_result_digest(result: &CanonicalResult) -> Digest {
 /// the same canonical query over the same artifact under the same schema
 /// reproduces this value; any change to the artifact, the question, the
 /// result, or the schema changes it.
+/// The roles are distinct types, so a result digest cannot be passed where a
+/// query digest belongs. That mistake is now a compile error rather than a
+/// silently well-formed record with a confidently wrong identity.
 pub fn query_result_id(
     schema: &SchemaId,
-    artifact_digest: &Digest,
-    query_digest: &Digest,
-    result_digest: &Digest,
-) -> Digest {
+    artifact_digest: &ArtifactDigest,
+    query_digest: &CanonicalQueryDigest,
+    result_digest: &CompleteResultDigest,
+) -> QueryResultId {
     let mut preimage = domain_header(DOMAIN_QUERY_RESULT_ID);
     preimage.extend_from_slice(&framed_field("schema", schema.as_str().as_bytes()));
     preimage.extend_from_slice(&framed_field("artifact", artifact_digest.as_bytes()));
     preimage.extend_from_slice(&framed_field("query", query_digest.as_bytes()));
     preimage.extend_from_slice(&framed_field("result", result_digest.as_bytes()));
-    Digest(sha256_raw(&preimage))
+    QueryResultId(Digest(sha256_raw(&preimage)))
 }

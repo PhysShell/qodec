@@ -14,8 +14,9 @@ use anyhow::Result;
 
 use qodec::canon::{
     canonical_query_bytes, canonical_query_digest, canonical_result_bytes, complete_result_digest,
-    digest_canonical_query_bytes, digest_complete_result_bytes, query_result_id, CanonicalQuery,
-    CanonicalResult, Digest, SchemaId, SCHEMA_QUERY_V1,
+    digest_canonical_query_bytes, digest_complete_result_bytes, query_result_id, ArtifactDigest,
+    CanonicalQuery, CanonicalQueryDigest, CanonicalResult, CompleteResultDigest, QueryResultId,
+    SchemaId, SCHEMA_QUERY_V1,
 };
 
 // Golden values, computed by an independent reference implementation written
@@ -123,13 +124,20 @@ fn framing_separates_field_sets_that_naive_concat_would_collide() -> Result<()> 
 /// implementation immediately.
 #[test]
 fn identity_components_are_not_interchangeable() -> Result<()> {
-    let art = Digest::parse_canonical_text(GOLDEN_ARTIFACT)?;
+    let art = ArtifactDigest::parse_canonical_text(GOLDEN_ARTIFACT)?;
     let qd = canonical_query_digest(&v1()?, &golden_query_1())?;
-    let rd = complete_result_digest(&golden_result()?);
+    let rd = complete_result_digest(&golden_result()?)?;
+
+    // Passing `rd` where `qd` belongs no longer compiles: the roles are
+    // distinct types. The confusion can only be *expressed* by re-asserting
+    // roles across the text boundary — the one documented escape hatch — and
+    // even then the identity differs.
+    let qd_as_result = CompleteResultDigest::parse_canonical_text(&qd.to_canonical_text())?;
+    let rd_as_query = CanonicalQueryDigest::parse_canonical_text(&rd.to_canonical_text())?;
 
     assert_ne!(
         query_result_id(&v1()?, &art, &qd, &rd),
-        query_result_id(&v1()?, &art, &rd, &qd),
+        query_result_id(&v1()?, &art, &rd_as_query, &qd_as_result),
         "query and result digests must not be interchangeable within the preimage"
     );
     Ok(())
@@ -161,7 +169,7 @@ fn result_order_and_duplicates_are_canonicalized() -> Result<()> {
     let a = CanonicalResult::new(["b".to_string(), "a".to_string()])?;
     let b = CanonicalResult::new(["a".to_string(), "b".to_string(), "a".to_string()])?;
     assert_eq!(a.candidates(), ["a", "b"]);
-    assert_eq!(complete_result_digest(&a), complete_result_digest(&b));
+    assert_eq!(complete_result_digest(&a)?, complete_result_digest(&b)?);
     Ok(())
 }
 
@@ -179,8 +187,14 @@ fn identical_bytes_digest_differently_per_domain() {
     let as_query = digest_canonical_query_bytes(x);
     let as_result = digest_complete_result_bytes(x);
 
+    // Note what the compiler already says here: `assert_ne!(as_query,
+    // as_result)` does not compile, because the two are different types. That
+    // is a stronger guarantee than unequal values — the roles cannot be
+    // compared, let alone substituted. The value-level check therefore runs
+    // over the canonical text.
     assert_ne!(
-        as_query, as_result,
+        as_query.to_canonical_text(),
+        as_result.to_canonical_text(),
         "domain separation must make a query digest unusable as a result digest"
     );
     assert_eq!(as_query.to_canonical_text(), SUBST_AS_QUERY);
@@ -200,7 +214,7 @@ fn digest_text_forms_are_strictly_parsed_or_rejected() -> Result<()> {
     let upper = lower.to_uppercase();
 
     // The one accepted form.
-    let d = Digest::parse_canonical_text(&format!("sha256:{lower}"))?;
+    let d = ArtifactDigest::parse_canonical_text(&format!("sha256:{lower}"))?;
     assert_eq!(d.to_canonical_text(), format!("sha256:{lower}"));
 
     // Everything else is an error, not a silent normalization.
@@ -215,7 +229,7 @@ fn digest_text_forms_are_strictly_parsed_or_rejected() -> Result<()> {
         String::new(),
     ] {
         assert!(
-            Digest::parse_canonical_text(&bad).is_err(),
+            ArtifactDigest::parse_canonical_text(&bad).is_err(),
             "must reject non-canonical digest text {bad:?}"
         );
     }
@@ -226,8 +240,8 @@ fn digest_text_forms_are_strictly_parsed_or_rejected() -> Result<()> {
 /// preimage. Round-tripping through the canonical text must be lossless.
 #[test]
 fn digest_round_trips_through_canonical_text() -> Result<()> {
-    let art = Digest::parse_canonical_text(GOLDEN_ARTIFACT)?;
-    let again = Digest::parse_canonical_text(&art.to_canonical_text())?;
+    let art = ArtifactDigest::parse_canonical_text(GOLDEN_ARTIFACT)?;
+    let again = ArtifactDigest::parse_canonical_text(&art.to_canonical_text())?;
     assert_eq!(art, again);
     assert_eq!(art.as_bytes().len(), 32);
     Ok(())
@@ -251,7 +265,7 @@ fn canonical_bytes_match_independent_reference() -> Result<()> {
         GOLDEN_QUERY_BYTES_2
     );
     assert_eq!(
-        hex(&canonical_result_bytes(&golden_result()?)),
+        hex(&canonical_result_bytes(&golden_result()?)?),
         GOLDEN_RESULT_BYTES
     );
     Ok(())
@@ -260,10 +274,10 @@ fn canonical_bytes_match_independent_reference() -> Result<()> {
 /// Digests and the composite identity must match the independent reference.
 #[test]
 fn digests_and_identity_match_independent_reference() -> Result<()> {
-    let art = Digest::parse_canonical_text(GOLDEN_ARTIFACT)?;
+    let art = ArtifactDigest::parse_canonical_text(GOLDEN_ARTIFACT)?;
     let qd1 = canonical_query_digest(&v1()?, &golden_query_1())?;
     let qd2 = canonical_query_digest(&v1()?, &golden_query_2())?;
-    let rd = complete_result_digest(&golden_result()?);
+    let rd = complete_result_digest(&golden_result()?)?;
 
     assert_eq!(qd1.to_canonical_text(), GOLDEN_QUERY_DIGEST_1);
     assert_eq!(qd2.to_canonical_text(), GOLDEN_QUERY_DIGEST_2);
@@ -283,10 +297,10 @@ fn digests_and_identity_match_independent_reference() -> Result<()> {
 /// reproduces the same ID, with no stored state consulted.
 #[test]
 fn identity_is_reproducible_from_inputs_alone() -> Result<()> {
-    let art = Digest::parse_canonical_text(GOLDEN_ARTIFACT)?;
-    let compute = || -> Result<Digest> {
+    let art = ArtifactDigest::parse_canonical_text(GOLDEN_ARTIFACT)?;
+    let compute = || -> Result<QueryResultId> {
         let qd = canonical_query_digest(&v1()?, &golden_query_2())?;
-        let rd = complete_result_digest(&golden_result()?);
+        let rd = complete_result_digest(&golden_result()?)?;
         Ok(query_result_id(&v1()?, &art, &qd, &rd))
     };
     assert_eq!(compute()?, compute()?);
@@ -303,9 +317,9 @@ fn identity_is_reproducible_from_inputs_alone() -> Result<()> {
 /// version is declared but means nothing cryptographically.
 #[test]
 fn schema_version_changes_identity_even_with_identical_bytes() -> Result<()> {
-    let art = Digest::parse_canonical_text(GOLDEN_ARTIFACT)?;
+    let art = ArtifactDigest::parse_canonical_text(GOLDEN_ARTIFACT)?;
     let qd = canonical_query_digest(&v1()?, &golden_query_1())?;
-    let rd = complete_result_digest(&golden_result()?);
+    let rd = complete_result_digest(&golden_result()?)?;
 
     let v2 = SchemaId::identity_only("qodec.query.v2")?;
     let id_v1 = query_result_id(&v1()?, &art, &qd, &rd);
