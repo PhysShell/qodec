@@ -95,7 +95,11 @@
       "total": 1,
       "prompt_tokens_o200k": 572,
       "envelope": {},
-      "grade_output": "PASS t1: src/log/mount.rs\nscore: 1/1\nprompt: 572 tokens [o200k]   accuracy/1k tokens: 174.8\n"
+      "grade_output": "PASS t1: src/log/mount.rs\nscore: 1/1\nprompt: 572 tokens [o200k]   accuracy/1k tokens: 174.8\n",
+      "reader_model": "gpt-5.6-sol",
+      "effort_requested": "high",
+      "effort_applied": "high",
+      "effort_provenance": "session-header-confirmed"
     },
     {
       "task": "xref-d06-1",
@@ -108,7 +112,11 @@
       "total": 1,
       "prompt_tokens_o200k": 572,
       "envelope": {},
-      "grade_output": "PASS t1: src/log/mount.rs\nscore: 1/1\nprompt: 572 tokens [o200k]   accuracy/1k tokens: 174.8\n"
+      "grade_output": "PASS t1: src/log/mount.rs\nscore: 1/1\nprompt: 572 tokens [o200k]   accuracy/1k tokens: 174.8\n",
+      "reader_model": "gpt-5.6-sol",
+      "effort_requested": "high",
+      "effort_applied": "high",
+      "effort_provenance": "session-header-confirmed"
     },
     {
       "task": "xref-d06-1",
@@ -121,7 +129,11 @@
       "total": 1,
       "prompt_tokens_o200k": 558,
       "envelope": {},
-      "grade_output": "PASS t1: src/log/mount.rs\nscore: 1/1\nprompt: 558 tokens [o200k]   accuracy/1k tokens: 179.2\n"
+      "grade_output": "PASS t1: src/log/mount.rs\nscore: 1/1\nprompt: 558 tokens [o200k]   accuracy/1k tokens: 179.2\n",
+      "reader_model": "gpt-5.6-sol",
+      "effort_requested": "high",
+      "effort_applied": "high",
+      "effort_provenance": "session-header-confirmed"
     },
     {
       "task": "xref-d06-1",
@@ -134,7 +146,11 @@
       "total": 1,
       "prompt_tokens_o200k": 558,
       "envelope": {},
-      "grade_output": "PASS t1: src/log/mount.rs\nscore: 1/1\nprompt: 558 tokens [o200k]   accuracy/1k tokens: 179.2\n"
+      "grade_output": "PASS t1: src/log/mount.rs\nscore: 1/1\nprompt: 558 tokens [o200k]   accuracy/1k tokens: 179.2\n",
+      "reader_model": "gpt-5.6-sol",
+      "effort_requested": "high",
+      "effort_applied": "high",
+      "effort_provenance": "session-header-confirmed"
     },
     {
       "task": "xref-d06-2",
@@ -147,7 +163,11 @@
       "total": 1,
       "prompt_tokens_o200k": 566,
       "envelope": {},
-      "grade_output": "PASS t1: src/log/probe.rs\nscore: 1/1\nprompt: 566 tokens [o200k]   accuracy/1k tokens: 176.7\n"
+      "grade_output": "PASS t1: src/log/probe.rs\nscore: 1/1\nprompt: 566 tokens [o200k]   accuracy/1k tokens: 176.7\n",
+      "reader_model": "gpt-5.6-sol",
+      "effort_requested": "high",
+      "effort_applied": "high",
+      "effort_provenance": "session-header-confirmed"
     },
     {
       "task": "xref-d06-2",
@@ -160,7 +180,11 @@
       "total": 1,
       "prompt_tokens_o200k": 566,
       "envelope": {},
-      "grade_output": "PASS t1: src/log/probe.rs\nscore: 1/1\nprompt: 566 tokens [o200k]   accuracy/1k tokens: 176.7\n"
+      "grade_output": "PASS t1: src/log/probe.rs\nscore: 1/1\nprompt: 566 tokens [o200k]   accuracy/1k tokens: 176.7\n",
+      "reader_model": "gpt-5.6-sol",
+      "effort_requested": "high",
+      "effort_applied": "high",
+      "effort_provenance": "session-header-confirmed"
     },
     {
       "task": "xref-d06-2",
@@ -173,7 +197,11 @@
       "total": 1,
       "prompt_tokens_o200k": 554,
       "envelope": {},
-      "grade_output": "PASS t1: src/log/probe.rs\nscore: 1/1\nprompt: 554 tokens [o200k]   accuracy/1k tokens: 180.5\n"
+      "grade_output": "PASS t1: src/log/probe.rs\nscore: 1/1\nprompt: 554 tokens [o200k]   accuracy/1k tokens: 180.5\n",
+      "reader_model": "gpt-5.6-sol",
+      "effort_requested": "high",
+      "effort_applied": "high",
+      "effort_provenance": "session-header-confirmed"
     },
     {
       "task": "xref-d06-2",
@@ -186,7 +214,11 @@
       "total": 1,
       "prompt_tokens_o200k": 554,
       "envelope": {},
-      "grade_output": "PASS t1: src/log/probe.rs\nscore: 1/1\nprompt: 554 tokens [o200k]   accuracy/1k tokens: 180.5\n"
+      "grade_output": "PASS t1: src/log/probe.rs\nscore: 1/1\nprompt: 554 tokens [o200k]   accuracy/1k tokens: 180.5\n",
+      "reader_model": "gpt-5.6-sol",
+      "effort_requested": "high",
+      "effort_applied": "high",
+      "effort_provenance": "session-header-confirmed"
     },
     {
       "task": "xref-d06-3",
@@ -199,7 +231,11 @@
       "total": 1,
       "prompt_tokens_o200k": 505,
       "envelope": {},
-      "grade_output": "PASS t1: src/log/pool.rs\nscore: 1/1\nprompt: 505 tokens [o200k]   accuracy/1k tokens: 198.0\n"
+      "grade_output": "PASS t1: src/log/pool.rs\nscore: 1/1\nprompt: 505 tokens [o200k]   accuracy/1k tokens: 198.0\n",
+      "reader_model": "gpt-5.6-sol",
+      "effort_requested": "high",
+      "effort_applied": "high",
+      "effort_provenance": "session-header-confirmed"
     },
     {
       "task": "xref-d06-3",
@@ -212,7 +248,11 @@
       "total": 1,
       "prompt_tokens_o200k": 505,
       "envelope": {},
-      "grade_output": "PASS t1: src/log/pool.rs\nscore: 1/1\nprompt: 505 tokens [o200k]   accuracy/1k tokens: 198.0\n"
+      "grade_output": "PASS t1: src/log/pool.rs\nscore: 1/1\nprompt: 505 tokens [o200k]   accuracy/1k tokens: 198.0\n",
+      "reader_model": "gpt-5.6-sol",
+      "effort_requested": "high",
+      "effort_applied": "high",
+      "effort_provenance": "session-header-confirmed"
     },
     {
       "task": "xref-d06-3",
@@ -225,7 +265,11 @@
       "total": 1,
       "prompt_tokens_o200k": 549,
       "envelope": {},
-      "grade_output": "PASS t1: src/log/pool.rs\nscore: 1/1\nprompt: 549 tokens [o200k]   accuracy/1k tokens: 182.1\n"
+      "grade_output": "PASS t1: src/log/pool.rs\nscore: 1/1\nprompt: 549 tokens [o200k]   accuracy/1k tokens: 182.1\n",
+      "reader_model": "gpt-5.6-sol",
+      "effort_requested": "high",
+      "effort_applied": "high",
+      "effort_provenance": "session-header-confirmed"
     },
     {
       "task": "xref-d06-3",
@@ -238,7 +282,11 @@
       "total": 1,
       "prompt_tokens_o200k": 549,
       "envelope": {},
-      "grade_output": "PASS t1: src/log/pool.rs\nscore: 1/1\nprompt: 549 tokens [o200k]   accuracy/1k tokens: 182.1\n"
+      "grade_output": "PASS t1: src/log/pool.rs\nscore: 1/1\nprompt: 549 tokens [o200k]   accuracy/1k tokens: 182.1\n",
+      "reader_model": "gpt-5.6-sol",
+      "effort_requested": "high",
+      "effort_applied": "high",
+      "effort_provenance": "session-header-confirmed"
     },
     {
       "task": "xref-d12-1",
@@ -251,7 +299,11 @@
       "total": 1,
       "prompt_tokens_o200k": 1081,
       "envelope": {},
-      "grade_output": "PASS t1: src/index/pool.rs\nscore: 1/1\nprompt: 1081 tokens [o200k]   accuracy/1k tokens: 92.5\n"
+      "grade_output": "PASS t1: src/index/pool.rs\nscore: 1/1\nprompt: 1081 tokens [o200k]   accuracy/1k tokens: 92.5\n",
+      "reader_model": "gpt-5.6-sol",
+      "effort_requested": "high",
+      "effort_applied": "high",
+      "effort_provenance": "session-header-confirmed"
     },
     {
       "task": "xref-d12-1",
@@ -264,7 +316,11 @@
       "total": 1,
       "prompt_tokens_o200k": 1081,
       "envelope": {},
-      "grade_output": "PASS t1: src/index/pool.rs\nscore: 1/1\nprompt: 1081 tokens [o200k]   accuracy/1k tokens: 92.5\n"
+      "grade_output": "PASS t1: src/index/pool.rs\nscore: 1/1\nprompt: 1081 tokens [o200k]   accuracy/1k tokens: 92.5\n",
+      "reader_model": "gpt-5.6-sol",
+      "effort_requested": "high",
+      "effort_applied": "high",
+      "effort_provenance": "session-header-confirmed"
     },
     {
       "task": "xref-d12-1",
@@ -277,7 +333,11 @@
       "total": 1,
       "prompt_tokens_o200k": 687,
       "envelope": {},
-      "grade_output": "PASS t1: src/index/pool.rs\nscore: 1/1\nprompt: 687 tokens [o200k]   accuracy/1k tokens: 145.6\n"
+      "grade_output": "PASS t1: src/index/pool.rs\nscore: 1/1\nprompt: 687 tokens [o200k]   accuracy/1k tokens: 145.6\n",
+      "reader_model": "gpt-5.6-sol",
+      "effort_requested": "high",
+      "effort_applied": "high",
+      "effort_provenance": "session-header-confirmed"
     },
     {
       "task": "xref-d12-1",
@@ -290,7 +350,11 @@
       "total": 1,
       "prompt_tokens_o200k": 687,
       "envelope": {},
-      "grade_output": "PASS t1: src/index/pool.rs\nscore: 1/1\nprompt: 687 tokens [o200k]   accuracy/1k tokens: 145.6\n"
+      "grade_output": "PASS t1: src/index/pool.rs\nscore: 1/1\nprompt: 687 tokens [o200k]   accuracy/1k tokens: 145.6\n",
+      "reader_model": "gpt-5.6-sol",
+      "effort_requested": "high",
+      "effort_applied": "high",
+      "effort_provenance": "session-header-confirmed"
     },
     {
       "task": "xref-d12-2",
@@ -303,7 +367,11 @@
       "total": 1,
       "prompt_tokens_o200k": 921,
       "envelope": {},
-      "grade_output": "PASS t1: src/fs/writer.rs\nscore: 1/1\nprompt: 921 tokens [o200k]   accuracy/1k tokens: 108.6\n"
+      "grade_output": "PASS t1: src/fs/writer.rs\nscore: 1/1\nprompt: 921 tokens [o200k]   accuracy/1k tokens: 108.6\n",
+      "reader_model": "gpt-5.6-sol",
+      "effort_requested": "high",
+      "effort_applied": "high",
+      "effort_provenance": "session-header-confirmed"
     },
     {
       "task": "xref-d12-2",
@@ -316,7 +384,11 @@
       "total": 1,
       "prompt_tokens_o200k": 921,
       "envelope": {},
-      "grade_output": "PASS t1: src/fs/writer.rs\nscore: 1/1\nprompt: 921 tokens [o200k]   accuracy/1k tokens: 108.6\n"
+      "grade_output": "PASS t1: src/fs/writer.rs\nscore: 1/1\nprompt: 921 tokens [o200k]   accuracy/1k tokens: 108.6\n",
+      "reader_model": "gpt-5.6-sol",
+      "effort_requested": "high",
+      "effort_applied": "high",
+      "effort_provenance": "session-header-confirmed"
     },
     {
       "task": "xref-d12-2",
@@ -329,7 +401,11 @@
       "total": 1,
       "prompt_tokens_o200k": 662,
       "envelope": {},
-      "grade_output": "PASS t1: src/fs/writer.rs\nscore: 1/1\nprompt: 662 tokens [o200k]   accuracy/1k tokens: 151.1\n"
+      "grade_output": "PASS t1: src/fs/writer.rs\nscore: 1/1\nprompt: 662 tokens [o200k]   accuracy/1k tokens: 151.1\n",
+      "reader_model": "gpt-5.6-sol",
+      "effort_requested": "high",
+      "effort_applied": "high",
+      "effort_provenance": "session-header-confirmed"
     },
     {
       "task": "xref-d12-2",
@@ -342,7 +418,11 @@
       "total": 1,
       "prompt_tokens_o200k": 662,
       "envelope": {},
-      "grade_output": "PASS t1: src/fs/writer.rs\nscore: 1/1\nprompt: 662 tokens [o200k]   accuracy/1k tokens: 151.1\n"
+      "grade_output": "PASS t1: src/fs/writer.rs\nscore: 1/1\nprompt: 662 tokens [o200k]   accuracy/1k tokens: 151.1\n",
+      "reader_model": "gpt-5.6-sol",
+      "effort_requested": "high",
+      "effort_applied": "high",
+      "effort_provenance": "session-header-confirmed"
     },
     {
       "task": "xref-d12-3",
@@ -355,7 +435,11 @@
       "total": 1,
       "prompt_tokens_o200k": 988,
       "envelope": {},
-      "grade_output": "PASS t1: src/gc/probe.rs\nscore: 1/1\nprompt: 988 tokens [o200k]   accuracy/1k tokens: 101.2\n"
+      "grade_output": "PASS t1: src/gc/probe.rs\nscore: 1/1\nprompt: 988 tokens [o200k]   accuracy/1k tokens: 101.2\n",
+      "reader_model": "gpt-5.6-sol",
+      "effort_requested": "high",
+      "effort_applied": "high",
+      "effort_provenance": "session-header-confirmed"
     },
     {
       "task": "xref-d12-3",
@@ -368,7 +452,11 @@
       "total": 1,
       "prompt_tokens_o200k": 988,
       "envelope": {},
-      "grade_output": "PASS t1: src/gc/probe.rs\nscore: 1/1\nprompt: 988 tokens [o200k]   accuracy/1k tokens: 101.2\n"
+      "grade_output": "PASS t1: src/gc/probe.rs\nscore: 1/1\nprompt: 988 tokens [o200k]   accuracy/1k tokens: 101.2\n",
+      "reader_model": "gpt-5.6-sol",
+      "effort_requested": "high",
+      "effort_applied": "high",
+      "effort_provenance": "session-header-confirmed"
     },
     {
       "task": "xref-d12-3",
@@ -381,7 +469,11 @@
       "total": 1,
       "prompt_tokens_o200k": 671,
       "envelope": {},
-      "grade_output": "PASS t1: src/gc/probe.rs\nscore: 1/1\nprompt: 671 tokens [o200k]   accuracy/1k tokens: 149.0\n"
+      "grade_output": "PASS t1: src/gc/probe.rs\nscore: 1/1\nprompt: 671 tokens [o200k]   accuracy/1k tokens: 149.0\n",
+      "reader_model": "gpt-5.6-sol",
+      "effort_requested": "high",
+      "effort_applied": "high",
+      "effort_provenance": "session-header-confirmed"
     },
     {
       "task": "xref-d12-3",
@@ -394,7 +486,11 @@
       "total": 1,
       "prompt_tokens_o200k": 671,
       "envelope": {},
-      "grade_output": "PASS t1: src/gc/probe.rs\nscore: 1/1\nprompt: 671 tokens [o200k]   accuracy/1k tokens: 149.0\n"
+      "grade_output": "PASS t1: src/gc/probe.rs\nscore: 1/1\nprompt: 671 tokens [o200k]   accuracy/1k tokens: 149.0\n",
+      "reader_model": "gpt-5.6-sol",
+      "effort_requested": "high",
+      "effort_applied": "high",
+      "effort_provenance": "session-header-confirmed"
     },
     {
       "task": "xref-d20-1",
@@ -407,7 +503,11 @@
       "total": 1,
       "prompt_tokens_o200k": 1370,
       "envelope": {},
-      "grade_output": "PASS t1: src/auth/cursor.rs\nscore: 1/1\nprompt: 1370 tokens [o200k]   accuracy/1k tokens: 73.0\n"
+      "grade_output": "PASS t1: src/auth/cursor.rs\nscore: 1/1\nprompt: 1370 tokens [o200k]   accuracy/1k tokens: 73.0\n",
+      "reader_model": "gpt-5.6-sol",
+      "effort_requested": "high",
+      "effort_applied": "high",
+      "effort_provenance": "session-header-confirmed"
     },
     {
       "task": "xref-d20-1",
@@ -420,7 +520,11 @@
       "total": 1,
       "prompt_tokens_o200k": 1370,
       "envelope": {},
-      "grade_output": "PASS t1: src/auth/cursor.rs\nscore: 1/1\nprompt: 1370 tokens [o200k]   accuracy/1k tokens: 73.0\n"
+      "grade_output": "PASS t1: src/auth/cursor.rs\nscore: 1/1\nprompt: 1370 tokens [o200k]   accuracy/1k tokens: 73.0\n",
+      "reader_model": "gpt-5.6-sol",
+      "effort_requested": "high",
+      "effort_applied": "high",
+      "effort_provenance": "session-header-confirmed"
     },
     {
       "task": "xref-d20-1",
@@ -433,7 +537,11 @@
       "total": 1,
       "prompt_tokens_o200k": 792,
       "envelope": {},
-      "grade_output": "PASS t1: src/auth/cursor.rs\nscore: 1/1\nprompt: 792 tokens [o200k]   accuracy/1k tokens: 126.3\n"
+      "grade_output": "PASS t1: src/auth/cursor.rs\nscore: 1/1\nprompt: 792 tokens [o200k]   accuracy/1k tokens: 126.3\n",
+      "reader_model": "gpt-5.6-sol",
+      "effort_requested": "high",
+      "effort_applied": "high",
+      "effort_provenance": "session-header-confirmed"
     },
     {
       "task": "xref-d20-1",
@@ -446,7 +554,11 @@
       "total": 1,
       "prompt_tokens_o200k": 792,
       "envelope": {},
-      "grade_output": "PASS t1: src/auth/cursor.rs\nscore: 1/1\nprompt: 792 tokens [o200k]   accuracy/1k tokens: 126.3\n"
+      "grade_output": "PASS t1: src/auth/cursor.rs\nscore: 1/1\nprompt: 792 tokens [o200k]   accuracy/1k tokens: 126.3\n",
+      "reader_model": "gpt-5.6-sol",
+      "effort_requested": "high",
+      "effort_applied": "high",
+      "effort_provenance": "session-header-confirmed"
     },
     {
       "task": "xref-d20-2",
@@ -459,7 +571,11 @@
       "total": 1,
       "prompt_tokens_o200k": 1629,
       "envelope": {},
-      "grade_output": "PASS t1: src/sched/pool.rs\nscore: 1/1\nprompt: 1629 tokens [o200k]   accuracy/1k tokens: 61.4\n"
+      "grade_output": "PASS t1: src/sched/pool.rs\nscore: 1/1\nprompt: 1629 tokens [o200k]   accuracy/1k tokens: 61.4\n",
+      "reader_model": "gpt-5.6-sol",
+      "effort_requested": "high",
+      "effort_applied": "high",
+      "effort_provenance": "session-header-confirmed"
     },
     {
       "task": "xref-d20-2",
@@ -472,7 +588,11 @@
       "total": 1,
       "prompt_tokens_o200k": 1629,
       "envelope": {},
-      "grade_output": "PASS t1: src/sched/pool.rs\nscore: 1/1\nprompt: 1629 tokens [o200k]   accuracy/1k tokens: 61.4\n"
+      "grade_output": "PASS t1: src/sched/pool.rs\nscore: 1/1\nprompt: 1629 tokens [o200k]   accuracy/1k tokens: 61.4\n",
+      "reader_model": "gpt-5.6-sol",
+      "effort_requested": "high",
+      "effort_applied": "high",
+      "effort_provenance": "session-header-confirmed"
     },
     {
       "task": "xref-d20-2",
@@ -485,7 +605,11 @@
       "total": 1,
       "prompt_tokens_o200k": 832,
       "envelope": {},
-      "grade_output": "PASS t1: src/sched/pool.rs\nscore: 1/1\nprompt: 832 tokens [o200k]   accuracy/1k tokens: 120.2\n"
+      "grade_output": "PASS t1: src/sched/pool.rs\nscore: 1/1\nprompt: 832 tokens [o200k]   accuracy/1k tokens: 120.2\n",
+      "reader_model": "gpt-5.6-sol",
+      "effort_requested": "high",
+      "effort_applied": "high",
+      "effort_provenance": "session-header-confirmed"
     },
     {
       "task": "xref-d20-2",
@@ -498,7 +622,11 @@
       "total": 1,
       "prompt_tokens_o200k": 832,
       "envelope": {},
-      "grade_output": "PASS t1: src/sched/pool.rs\nscore: 1/1\nprompt: 832 tokens [o200k]   accuracy/1k tokens: 120.2\n"
+      "grade_output": "PASS t1: src/sched/pool.rs\nscore: 1/1\nprompt: 832 tokens [o200k]   accuracy/1k tokens: 120.2\n",
+      "reader_model": "gpt-5.6-sol",
+      "effort_requested": "high",
+      "effort_applied": "high",
+      "effort_provenance": "session-header-confirmed"
     },
     {
       "task": "xref-d20-3",
@@ -511,7 +639,11 @@
       "total": 1,
       "prompt_tokens_o200k": 1527,
       "envelope": {},
-      "grade_output": "PASS t1: src/cache/probe.rs\nscore: 1/1\nprompt: 1527 tokens [o200k]   accuracy/1k tokens: 65.5\n"
+      "grade_output": "PASS t1: src/cache/probe.rs\nscore: 1/1\nprompt: 1527 tokens [o200k]   accuracy/1k tokens: 65.5\n",
+      "reader_model": "gpt-5.6-sol",
+      "effort_requested": "high",
+      "effort_applied": "high",
+      "effort_provenance": "session-header-confirmed"
     },
     {
       "task": "xref-d20-3",
@@ -524,7 +656,11 @@
       "total": 1,
       "prompt_tokens_o200k": 1527,
       "envelope": {},
-      "grade_output": "PASS t1: src/cache/probe.rs\nscore: 1/1\nprompt: 1527 tokens [o200k]   accuracy/1k tokens: 65.5\n"
+      "grade_output": "PASS t1: src/cache/probe.rs\nscore: 1/1\nprompt: 1527 tokens [o200k]   accuracy/1k tokens: 65.5\n",
+      "reader_model": "gpt-5.6-sol",
+      "effort_requested": "high",
+      "effort_applied": "high",
+      "effort_provenance": "session-header-confirmed"
     },
     {
       "task": "xref-d20-3",
@@ -537,7 +673,11 @@
       "total": 1,
       "prompt_tokens_o200k": 819,
       "envelope": {},
-      "grade_output": "PASS t1: src/cache/probe.rs\nscore: 1/1\nprompt: 819 tokens [o200k]   accuracy/1k tokens: 122.1\n"
+      "grade_output": "PASS t1: src/cache/probe.rs\nscore: 1/1\nprompt: 819 tokens [o200k]   accuracy/1k tokens: 122.1\n",
+      "reader_model": "gpt-5.6-sol",
+      "effort_requested": "high",
+      "effort_applied": "high",
+      "effort_provenance": "session-header-confirmed"
     },
     {
       "task": "xref-d20-3",
@@ -550,7 +690,11 @@
       "total": 1,
       "prompt_tokens_o200k": 819,
       "envelope": {},
-      "grade_output": "PASS t1: src/cache/probe.rs\nscore: 1/1\nprompt: 819 tokens [o200k]   accuracy/1k tokens: 122.1\n"
+      "grade_output": "PASS t1: src/cache/probe.rs\nscore: 1/1\nprompt: 819 tokens [o200k]   accuracy/1k tokens: 122.1\n",
+      "reader_model": "gpt-5.6-sol",
+      "effort_requested": "high",
+      "effort_applied": "high",
+      "effort_provenance": "session-header-confirmed"
     },
     {
       "task": "xref-d30-1",
@@ -563,7 +707,11 @@
       "total": 1,
       "prompt_tokens_o200k": 2094,
       "envelope": {},
-      "grade_output": "PASS t1: src/dns/probe.rs\nscore: 1/1\nprompt: 2094 tokens [o200k]   accuracy/1k tokens: 47.8\n"
+      "grade_output": "PASS t1: src/dns/probe.rs\nscore: 1/1\nprompt: 2094 tokens [o200k]   accuracy/1k tokens: 47.8\n",
+      "reader_model": "gpt-5.6-sol",
+      "effort_requested": "high",
+      "effort_applied": "high",
+      "effort_provenance": "session-header-confirmed"
     },
     {
       "task": "xref-d30-1",
@@ -576,7 +724,11 @@
       "total": 1,
       "prompt_tokens_o200k": 2094,
       "envelope": {},
-      "grade_output": "PASS t1: src/dns/probe.rs\nscore: 1/1\nprompt: 2094 tokens [o200k]   accuracy/1k tokens: 47.8\n"
+      "grade_output": "PASS t1: src/dns/probe.rs\nscore: 1/1\nprompt: 2094 tokens [o200k]   accuracy/1k tokens: 47.8\n",
+      "reader_model": "gpt-5.6-sol",
+      "effort_requested": "high",
+      "effort_applied": "high",
+      "effort_provenance": "session-header-confirmed"
     },
     {
       "task": "xref-d30-1",
@@ -589,7 +741,11 @@
       "total": 1,
       "prompt_tokens_o200k": 981,
       "envelope": {},
-      "grade_output": "FAIL t1: src/cli/handshake.rs\nscore: 0/1\nprompt: 981 tokens [o200k]   accuracy/1k tokens: 0.0\n"
+      "grade_output": "FAIL t1: src/cli/handshake.rs\nscore: 0/1\nprompt: 981 tokens [o200k]   accuracy/1k tokens: 0.0\n",
+      "reader_model": "gpt-5.6-sol",
+      "effort_requested": "high",
+      "effort_applied": "high",
+      "effort_provenance": "session-header-confirmed"
     },
     {
       "task": "xref-d30-1",
@@ -602,7 +758,11 @@
       "total": 1,
       "prompt_tokens_o200k": 981,
       "envelope": {},
-      "grade_output": "PASS t1: src/dns/probe.rs\nscore: 1/1\nprompt: 981 tokens [o200k]   accuracy/1k tokens: 101.9\n"
+      "grade_output": "PASS t1: src/dns/probe.rs\nscore: 1/1\nprompt: 981 tokens [o200k]   accuracy/1k tokens: 101.9\n",
+      "reader_model": "gpt-5.6-sol",
+      "effort_requested": "high",
+      "effort_applied": "high",
+      "effort_provenance": "session-header-confirmed"
     },
     {
       "task": "xref-d30-2",
@@ -615,7 +775,11 @@
       "total": 1,
       "prompt_tokens_o200k": 2278,
       "envelope": {},
-      "grade_output": "PASS t1: src/auth/reader.rs\nscore: 1/1\nprompt: 2278 tokens [o200k]   accuracy/1k tokens: 43.9\n"
+      "grade_output": "PASS t1: src/auth/reader.rs\nscore: 1/1\nprompt: 2278 tokens [o200k]   accuracy/1k tokens: 43.9\n",
+      "reader_model": "gpt-5.6-sol",
+      "effort_requested": "high",
+      "effort_applied": "high",
+      "effort_provenance": "session-header-confirmed"
     },
     {
       "task": "xref-d30-2",
@@ -628,7 +792,11 @@
       "total": 1,
       "prompt_tokens_o200k": 2278,
       "envelope": {},
-      "grade_output": "PASS t1: src/auth/reader.rs\nscore: 1/1\nprompt: 2278 tokens [o200k]   accuracy/1k tokens: 43.9\n"
+      "grade_output": "PASS t1: src/auth/reader.rs\nscore: 1/1\nprompt: 2278 tokens [o200k]   accuracy/1k tokens: 43.9\n",
+      "reader_model": "gpt-5.6-sol",
+      "effort_requested": "high",
+      "effort_applied": "high",
+      "effort_provenance": "session-header-confirmed"
     },
     {
       "task": "xref-d30-2",
@@ -641,7 +809,11 @@
       "total": 1,
       "prompt_tokens_o200k": 1011,
       "envelope": {},
-      "grade_output": "PASS t1: src/auth/reader.rs\nscore: 1/1\nprompt: 1011 tokens [o200k]   accuracy/1k tokens: 98.9\n"
+      "grade_output": "PASS t1: src/auth/reader.rs\nscore: 1/1\nprompt: 1011 tokens [o200k]   accuracy/1k tokens: 98.9\n",
+      "reader_model": "gpt-5.6-sol",
+      "effort_requested": "high",
+      "effort_applied": "high",
+      "effort_provenance": "session-header-confirmed"
     },
     {
       "task": "xref-d30-2",
@@ -654,7 +826,11 @@
       "total": 1,
       "prompt_tokens_o200k": 1011,
       "envelope": {},
-      "grade_output": "PASS t1: src/auth/reader.rs\nscore: 1/1\nprompt: 1011 tokens [o200k]   accuracy/1k tokens: 98.9\n"
+      "grade_output": "PASS t1: src/auth/reader.rs\nscore: 1/1\nprompt: 1011 tokens [o200k]   accuracy/1k tokens: 98.9\n",
+      "reader_model": "gpt-5.6-sol",
+      "effort_requested": "high",
+      "effort_applied": "high",
+      "effort_provenance": "session-header-confirmed"
     },
     {
       "task": "xref-d30-3",
@@ -667,7 +843,11 @@
       "total": 1,
       "prompt_tokens_o200k": 2197,
       "envelope": {},
-      "grade_output": "PASS t1: src/vm/frame.rs\nscore: 1/1\nprompt: 2197 tokens [o200k]   accuracy/1k tokens: 45.5\n"
+      "grade_output": "PASS t1: src/vm/frame.rs\nscore: 1/1\nprompt: 2197 tokens [o200k]   accuracy/1k tokens: 45.5\n",
+      "reader_model": "gpt-5.6-sol",
+      "effort_requested": "high",
+      "effort_applied": "high",
+      "effort_provenance": "session-header-confirmed"
     },
     {
       "task": "xref-d30-3",
@@ -680,7 +860,11 @@
       "total": 1,
       "prompt_tokens_o200k": 2197,
       "envelope": {},
-      "grade_output": "PASS t1: src/vm/frame.rs\nscore: 1/1\nprompt: 2197 tokens [o200k]   accuracy/1k tokens: 45.5\n"
+      "grade_output": "PASS t1: src/vm/frame.rs\nscore: 1/1\nprompt: 2197 tokens [o200k]   accuracy/1k tokens: 45.5\n",
+      "reader_model": "gpt-5.6-sol",
+      "effort_requested": "high",
+      "effort_applied": "high",
+      "effort_provenance": "session-header-confirmed"
     },
     {
       "task": "xref-d30-3",
@@ -693,7 +877,11 @@
       "total": 1,
       "prompt_tokens_o200k": 997,
       "envelope": {},
-      "grade_output": "PASS t1: src/vm/frame.rs\nscore: 1/1\nprompt: 997 tokens [o200k]   accuracy/1k tokens: 100.3\n"
+      "grade_output": "PASS t1: src/vm/frame.rs\nscore: 1/1\nprompt: 997 tokens [o200k]   accuracy/1k tokens: 100.3\n",
+      "reader_model": "gpt-5.6-sol",
+      "effort_requested": "high",
+      "effort_applied": "high",
+      "effort_provenance": "session-header-confirmed"
     },
     {
       "task": "xref-d30-3",
@@ -706,7 +894,11 @@
       "total": 1,
       "prompt_tokens_o200k": 997,
       "envelope": {},
-      "grade_output": "FAIL t1: src/ipc/probe.rs\nscore: 0/1\nprompt: 997 tokens [o200k]   accuracy/1k tokens: 0.0\n"
+      "grade_output": "FAIL t1: src/ipc/probe.rs\nscore: 0/1\nprompt: 997 tokens [o200k]   accuracy/1k tokens: 0.0\n",
+      "reader_model": "gpt-5.6-sol",
+      "effort_requested": "high",
+      "effort_applied": "high",
+      "effort_provenance": "session-header-confirmed"
     },
     {
       "task": "xref-d40-1",
@@ -719,7 +911,11 @@
       "total": 1,
       "prompt_tokens_o200k": 2855,
       "envelope": {},
-      "grade_output": "PASS t1: src/ipc/ledger.rs\nscore: 1/1\nprompt: 2855 tokens [o200k]   accuracy/1k tokens: 35.0\n"
+      "grade_output": "PASS t1: src/ipc/ledger.rs\nscore: 1/1\nprompt: 2855 tokens [o200k]   accuracy/1k tokens: 35.0\n",
+      "reader_model": "gpt-5.6-sol",
+      "effort_requested": "high",
+      "effort_applied": "high",
+      "effort_provenance": "session-header-confirmed"
     },
     {
       "task": "xref-d40-1",
@@ -732,7 +928,11 @@
       "total": 1,
       "prompt_tokens_o200k": 2855,
       "envelope": {},
-      "grade_output": "PASS t1: src/ipc/ledger.rs\nscore: 1/1\nprompt: 2855 tokens [o200k]   accuracy/1k tokens: 35.0\n"
+      "grade_output": "PASS t1: src/ipc/ledger.rs\nscore: 1/1\nprompt: 2855 tokens [o200k]   accuracy/1k tokens: 35.0\n",
+      "reader_model": "gpt-5.6-sol",
+      "effort_requested": "high",
+      "effort_applied": "high",
+      "effort_provenance": "session-header-confirmed"
     },
     {
       "task": "xref-d40-1",
@@ -745,7 +945,11 @@
       "total": 1,
       "prompt_tokens_o200k": 1181,
       "envelope": {},
-      "grade_output": "PASS t1: src/ipc/ledger.rs\nscore: 1/1\nprompt: 1181 tokens [o200k]   accuracy/1k tokens: 84.7\n"
+      "grade_output": "PASS t1: src/ipc/ledger.rs\nscore: 1/1\nprompt: 1181 tokens [o200k]   accuracy/1k tokens: 84.7\n",
+      "reader_model": "gpt-5.6-sol",
+      "effort_requested": "high",
+      "effort_applied": "high",
+      "effort_provenance": "session-header-confirmed"
     },
     {
       "task": "xref-d40-1",
@@ -758,7 +962,11 @@
       "total": 1,
       "prompt_tokens_o200k": 1181,
       "envelope": {},
-      "grade_output": "PASS t1: src/ipc/ledger.rs\nscore: 1/1\nprompt: 1181 tokens [o200k]   accuracy/1k tokens: 84.7\n"
+      "grade_output": "PASS t1: src/ipc/ledger.rs\nscore: 1/1\nprompt: 1181 tokens [o200k]   accuracy/1k tokens: 84.7\n",
+      "reader_model": "gpt-5.6-sol",
+      "effort_requested": "high",
+      "effort_applied": "high",
+      "effort_provenance": "session-header-confirmed"
     },
     {
       "task": "xref-d40-2",
@@ -771,7 +979,11 @@
       "total": 1,
       "prompt_tokens_o200k": 2962,
       "envelope": {},
-      "grade_output": "PASS t1: src/cli/handshake.rs\nscore: 1/1\nprompt: 2962 tokens [o200k]   accuracy/1k tokens: 33.8\n"
+      "grade_output": "PASS t1: src/cli/handshake.rs\nscore: 1/1\nprompt: 2962 tokens [o200k]   accuracy/1k tokens: 33.8\n",
+      "reader_model": "gpt-5.6-sol",
+      "effort_requested": "high",
+      "effort_applied": "high",
+      "effort_provenance": "session-header-confirmed"
     },
     {
       "task": "xref-d40-2",
@@ -784,7 +996,11 @@
       "total": 1,
       "prompt_tokens_o200k": 2962,
       "envelope": {},
-      "grade_output": "PASS t1: src/cli/handshake.rs\nscore: 1/1\nprompt: 2962 tokens [o200k]   accuracy/1k tokens: 33.8\n"
+      "grade_output": "PASS t1: src/cli/handshake.rs\nscore: 1/1\nprompt: 2962 tokens [o200k]   accuracy/1k tokens: 33.8\n",
+      "reader_model": "gpt-5.6-sol",
+      "effort_requested": "high",
+      "effort_applied": "high",
+      "effort_provenance": "session-header-confirmed"
     },
     {
       "task": "xref-d40-2",
@@ -797,7 +1013,11 @@
       "total": 1,
       "prompt_tokens_o200k": 1188,
       "envelope": {},
-      "grade_output": "PASS t1: src/cli/handshake.rs\nscore: 1/1\nprompt: 1188 tokens [o200k]   accuracy/1k tokens: 84.2\n"
+      "grade_output": "PASS t1: src/cli/handshake.rs\nscore: 1/1\nprompt: 1188 tokens [o200k]   accuracy/1k tokens: 84.2\n",
+      "reader_model": "gpt-5.6-sol",
+      "effort_requested": "high",
+      "effort_applied": "high",
+      "effort_provenance": "session-header-confirmed"
     },
     {
       "task": "xref-d40-2",
@@ -810,7 +1030,11 @@
       "total": 1,
       "prompt_tokens_o200k": 1188,
       "envelope": {},
-      "grade_output": "PASS t1: src/cli/handshake.rs\nscore: 1/1\nprompt: 1188 tokens [o200k]   accuracy/1k tokens: 84.2\n"
+      "grade_output": "PASS t1: src/cli/handshake.rs\nscore: 1/1\nprompt: 1188 tokens [o200k]   accuracy/1k tokens: 84.2\n",
+      "reader_model": "gpt-5.6-sol",
+      "effort_requested": "high",
+      "effort_applied": "high",
+      "effort_provenance": "session-header-confirmed"
     },
     {
       "task": "xref-d40-3",
@@ -823,7 +1047,11 @@
       "total": 1,
       "prompt_tokens_o200k": 3176,
       "envelope": {},
-      "grade_output": "PASS t1: src/auth/probe.rs\nscore: 1/1\nprompt: 3176 tokens [o200k]   accuracy/1k tokens: 31.5\n"
+      "grade_output": "PASS t1: src/auth/probe.rs\nscore: 1/1\nprompt: 3176 tokens [o200k]   accuracy/1k tokens: 31.5\n",
+      "reader_model": "gpt-5.6-sol",
+      "effort_requested": "high",
+      "effort_applied": "high",
+      "effort_provenance": "session-header-confirmed"
     },
     {
       "task": "xref-d40-3",
@@ -836,7 +1064,11 @@
       "total": 1,
       "prompt_tokens_o200k": 3176,
       "envelope": {},
-      "grade_output": "PASS t1: src/auth/probe.rs\nscore: 1/1\nprompt: 3176 tokens [o200k]   accuracy/1k tokens: 31.5\n"
+      "grade_output": "PASS t1: src/auth/probe.rs\nscore: 1/1\nprompt: 3176 tokens [o200k]   accuracy/1k tokens: 31.5\n",
+      "reader_model": "gpt-5.6-sol",
+      "effort_requested": "high",
+      "effort_applied": "high",
+      "effort_provenance": "session-header-confirmed"
     },
     {
       "task": "xref-d40-3",
@@ -849,7 +1081,11 @@
       "total": 1,
       "prompt_tokens_o200k": 1222,
       "envelope": {},
-      "grade_output": "PASS t1: src/auth/probe.rs\nscore: 1/1\nprompt: 1222 tokens [o200k]   accuracy/1k tokens: 81.8\n"
+      "grade_output": "PASS t1: src/auth/probe.rs\nscore: 1/1\nprompt: 1222 tokens [o200k]   accuracy/1k tokens: 81.8\n",
+      "reader_model": "gpt-5.6-sol",
+      "effort_requested": "high",
+      "effort_applied": "high",
+      "effort_provenance": "session-header-confirmed"
     },
     {
       "task": "xref-d40-3",
@@ -862,7 +1098,11 @@
       "total": 1,
       "prompt_tokens_o200k": 1222,
       "envelope": {},
-      "grade_output": "PASS t1: src/auth/probe.rs\nscore: 1/1\nprompt: 1222 tokens [o200k]   accuracy/1k tokens: 81.8\n"
+      "grade_output": "PASS t1: src/auth/probe.rs\nscore: 1/1\nprompt: 1222 tokens [o200k]   accuracy/1k tokens: 81.8\n",
+      "reader_model": "gpt-5.6-sol",
+      "effort_requested": "high",
+      "effort_applied": "high",
+      "effort_provenance": "session-header-confirmed"
     }
   ]
 }

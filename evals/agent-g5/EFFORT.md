@@ -134,13 +134,14 @@ Effort confirmed from the session header on every one of the 180 cells;
 baseline is the reused `reasoning effort: none` evidence over identical
 fixtures. **Not** a clean rescue.
 
-Squeeze tasks passing (all repeats correct), baseline → elevated:
+Squeeze tasks passing (all repeats correct), baseline → elevated, under
+both pre-registered rules:
 
-| family | baseline | elevated | rescued | broken |
+| family | as-graded | resc/brok | strict single-candidate | resc/brok |
 |---|---|---|---|---|
-| cross-ref | 9/15 | 13/15 | 6 | 2 |
-| decision-join | 13/15 | 15/15 | 2 | 0 |
-| lookup control | 14/15 | 14/15 | 1 | 1 |
+| cross-ref | 9/15 → 13/15 | 6 / 2 | 9/15 → 13/15 | 6 / 2 |
+| decision-join | 13/15 → 15/15 | 2 / 0 | 12/15 → 13/15 | 1 / 0 |
+| lookup control | 14/15 → 14/15 | 1 / 1 | 14/15 → 14/15 | 1 / 1 |
 
 **H2 is not established.** Pooled over the two join families the paired
 rescue table is 8 rescued vs 2 broken, exact McNemar **p=0.11**; under
@@ -159,6 +160,17 @@ substring grader credits it anyway. Without the shape audit this family
 would have read as a clean 13/15 → 15/15 rescue. Hedged cells: 1/60 at
 baseline, 2/60 at elevated.
 
+**The strict rescue set is not a subset of the as-graded one**, which is
+the least obvious number in the table and the one worth spelling out. In
+decision-join the strict rule removes both as-graded rescues (`decj-d32-2`
+rep 1 and `decj-d32-3` rep 2 each name two candidates) *and* adds one the
+as-graded rule never saw: `decj-d22-3` rep 1 is hedged at **baseline**, so
+it is strict-wrong there and strict-correct at elevated effort. Strict
+decision-join is therefore 12/15 → 13/15, one rescued and none broken —
+not the zero rescues that follow from assuming the strict baseline equals
+the as-graded baseline (Codex, PR #17). Every count above is recomputed
+from the committed answer files rather than adjusted by hand.
+
 **H3 holds.** The lookup control is flat (1 rescued, 1 broken, p=1).
 
 **The RAW control has no headroom.** RAW is 15/15 at both efforts in all
@@ -167,19 +179,32 @@ gain in task ability — but a control at ceiling cannot demonstrate that
 either, and this is a weakness of the control rather than a strength of
 the result.
 
-**Overhead.** Mean wall-clock per call rose 1.2–1.4× (cross-ref
-20.4 s → 27.3 s; decision-join 11.5 s → 15.5 s; lookup 8.8 s → 10.9 s).
-codex exposes no usage envelope, so token and cost overhead are not
-measurable on this backend and are not estimated. On the claude side the
-single probe measured a far larger jump (4.9× output tokens, 4.4× cost),
-which is a different backend and must not be read as the codex figure.
+**Overhead is not reported, because this stand cannot substantiate it.**
+An earlier draft of this file quoted mean wall-clock per call rising
+1.2–1.4×. Those figures are withdrawn: `run.py` did not time `call_reader`
+at the time either arm was collected, so no per-call duration exists in
+any of the 360 committed envelopes or records, and nothing in the frozen
+artifacts can reproduce them (Codex, PR #17). The runner now records
+`duration_s` per cell, which makes the measurement available to the *next*
+arm and not to this one — the baseline is frozen reused evidence and
+cannot be retimed without recollecting it, which would forfeit the reuse.
+codex also exposes no usage envelope, so token and cost overhead are not
+measurable on this backend either. The claude-side probe (4.9× output
+tokens, 4.4× cost) is a two-call manipulation check on a different
+backend and is not an overhead estimate for anything here.
+
+Nothing in the verdict below rests on overhead: effort escalation is
+rejected as a dependable mitigation on the strength of the rescue counts
+alone, so the missing cost figure would have to be implausibly favourable
+to change the conclusion, and it is not available in either direction.
 
 **H4 is open**: the sonnet arm is not yet collected, so nothing here
 speaks to cross-family transfer of the rescue.
 
 ## Provenance of the collected arm
 
-Recorded in each `record.json`, not reconstructed afterwards:
+Captured per cell at call time in each `*.envelope.json`, never
+reconstructed from the command line:
 
 | field | value |
 |---|---|
@@ -190,6 +215,19 @@ Recorded in each `record.json`, not reconstructed afterwards:
 | fixtures | `payload_sha256` + `questions_sha256` per task, 15 per family |
 | binary | `qodec_sha256`, plus the repo `git_commit` |
 | prompts | emitted `raw.prompt.txt` / `encoded.prompt.txt` committed next to each run |
+
+The run-level `effort_provenance` in `record.json` used to be filled in
+from the *requested* level the moment the run started, which meant a
+partial or downgraded run could claim a confirmation no completed cell
+backed (CodeRabbit, PR #17) — precisely the substitution this stand exists
+to forbid. It is now derived from the cells after they finish: any cell
+that failed to confirm, or never completed, downgrades the whole run to
+`partial-run-unconfirmed`, and a backend that applied a level other than
+the requested one is reported as `downgraded-or-mixed`. The cells of the
+three arms here were backfilled from their own committed envelopes by
+`backfill_cell_provenance.py`, which invents nothing and re-verifies with
+`--check`; all 180 confirm `high` from the session header, and all 180
+baseline cells confirm `none` the same way.
 
 ## Operational verdict
 
@@ -232,3 +270,10 @@ a recomposition-slip taxonomy; latency and usage overhead; explicit
 handling of timeouts and grade failures; frozen run artifacts; a README
 stating claims **and** non-claims; and no change to the production encode
 path.
+
+One criterion is **not met and is recorded as unmet rather than waived**:
+latency and usage overhead. The instrumentation now exists (`duration_s`
+per cell) but postdates both arms, and retiming the baseline would mean
+recollecting frozen evidence. The effort question is nonetheless closed on
+the rescue counts, which do not depend on it; the first arm collected
+after this change carries the overhead figures.
