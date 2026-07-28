@@ -250,6 +250,20 @@ impl CanonicalStore {
         &self.store_id
     }
 
+    /// Execute a canonical query and issue an immutable result.
+    ///
+    /// Delegates to [`crate::query::execute`], which is the only place a
+    /// [`crate::query::HarnessIssuedResult`] can be constructed.
+    pub fn execute(
+        &self,
+        schema: &crate::canon::SchemaId,
+        query: crate::canon::CanonicalQuery,
+        limits: crate::query::ExecutionLimits,
+    ) -> Result<crate::query::HarnessIssuedResult> {
+        crate::query::check_limits(limits)?;
+        crate::query::execute(self, schema, query, limits)
+    }
+
     /// How many records the artifact yielded.
     pub fn record_count(&self) -> usize {
         self.records.len()

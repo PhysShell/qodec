@@ -19,6 +19,7 @@ pub mod mosaic;
 pub mod paper;
 pub mod ppl;
 pub mod profile;
+pub mod query;
 pub mod rank;
 pub mod risk;
 pub mod rules;

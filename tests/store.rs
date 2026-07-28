@@ -9,9 +9,10 @@
 use anyhow::Result;
 
 use qodec::canon::{
-    canonical_query_digest, complete_result_digest, digest_store_plan_bytes, query_result_id,
-    store_id, ArtifactDigest, CanonicalQuery, CanonicalResult, CompleteResultDigest, FieldName,
-    IndexName, KeyBytes, SchemaId, SetName, StorePlanDigest, StoredQueryResult, SCHEMA_QUERY_V1,
+    canonical_query_digest, complete_result_digest, digest_result_support_bytes,
+    digest_store_plan_bytes, query_result_id, store_id, ArtifactDigest, CanonicalQuery,
+    CanonicalResult, CompleteResultDigest, FieldName, IndexName, KeyBytes, SchemaId, SetName,
+    StorePlanDigest, StoredQueryResult, SCHEMA_QUERY_V1,
 };
 use qodec::store::{CanonicalStore, IndexSpec, KeyExtractor, RecordId, Segmentation};
 
@@ -663,6 +664,8 @@ fn stored() -> Result<StoredQueryResult> {
     let artifact_digest = ArtifactDigest::of_artifact_bytes(b"%q1 raw\nalpha\n");
     let store_plan_digest = a_plan();
     let sid = store_id(&artifact_digest, &store_plan_digest);
+    let support_bytes = b"support-fixture".to_vec();
+    let support = digest_result_support_bytes(&support_bytes);
     let canonical_query = CanonicalQuery::Lookup {
         field: FieldName::parse("line")?,
         value: key(b"alpha"),
@@ -671,11 +674,13 @@ fn stored() -> Result<StoredQueryResult> {
     let qd = canonical_query_digest(&schema, &canonical_query)?;
     let rd = complete_result_digest(&complete_result)?;
     Ok(StoredQueryResult {
-        query_result_id: query_result_id(&schema, &sid, &qd, &rd),
+        query_result_id: query_result_id(&schema, &sid, &qd, &rd, &support),
         schema,
         artifact_digest,
         store_plan_digest,
         store_id: sid,
+        support_bytes,
+        result_support_digest: support,
         canonical_query,
         canonical_query_digest: qd,
         complete_result,
@@ -728,6 +733,7 @@ fn the_loader_recomputes_rather_than_believes() -> Result<()> {
         ),
         &forged_id.canonical_query_digest,
         &forged_id.complete_result_digest,
+        &forged_id.result_support_digest,
     );
     assert!(
         forged_id.verify_internal_consistency().is_err(),
@@ -778,6 +784,7 @@ fn a_self_consistent_result_for_another_artifact_is_an_artifact_mismatch() -> Re
         &moved.store_id,
         &moved.canonical_query_digest,
         &moved.complete_result_digest,
+        &moved.result_support_digest,
     );
     moved.verify_internal_consistency()?;
 
@@ -816,6 +823,7 @@ fn a_self_consistent_result_under_another_plan_is_a_plan_mismatch() -> Result<()
         &moved.store_id,
         &moved.canonical_query_digest,
         &moved.complete_result_digest,
+        &moved.result_support_digest,
     );
     moved.verify_internal_consistency()?;
 

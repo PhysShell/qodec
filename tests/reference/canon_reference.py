@@ -33,6 +33,7 @@ DOMAIN_QUERY_RESULT_ID = "qodec.query-result-id.v1"
 DOMAIN_ARTIFACT = "qodec.artifact.v1"
 DOMAIN_STORE_PLAN = "qodec.store-plan.v1"
 DOMAIN_STORE_ID = "qodec.store-id.v1"
+DOMAIN_RESULT_SUPPORT = "qodec.result-support.v1"
 
 
 def domain_header(domain: str) -> bytes:
@@ -152,13 +153,35 @@ def store_id(artifact: bytes, plan: bytes) -> bytes:
     return hashlib.sha256(p).digest()
 
 
-def query_result_id(schema: str, store: bytes, qd: bytes, rd: bytes) -> bytes:
-    """The content-addressed identity, bound to the STORE, not merely the artifact."""
+def support_bytes(completion, support) -> bytes:
+    """Canonical support: completion state, then each candidate's record ids.
+
+    `completion` is `None` for Exhausted or an int limit for LimitReached.
+    Record ids enter as coordinates only; the store is already bound by the
+    identity, so repeating it per record would restate a known fact.
+    """
+    out = b"\x01" if completion is None else b"\x02" + struct.pack(">Q", completion)
+    out += struct.pack(">I", len(support))
+    for candidate, ids in sorted(support.items()):
+        out += enc_bytes(candidate) + struct.pack(">I", len(ids))
+        for section, ordinal in ids:
+            out += enc_name(section) + struct.pack(">Q", ordinal)
+    return out
+
+
+def result_support_digest(b: bytes) -> bytes:
+    """Digest canonical support bytes under the result-support domain."""
+    return hashlib.sha256(domain_header(DOMAIN_RESULT_SUPPORT) + length_prefixed(b)).digest()
+
+
+def query_result_id(schema: str, store: bytes, qd: bytes, rd: bytes, sd: bytes) -> bytes:
+    """The content-addressed identity: store, question, result, and support."""
     p = domain_header(DOMAIN_QUERY_RESULT_ID)
     p += framed_field("schema", schema.encode("utf-8"))
     p += framed_field("store", store)
     p += framed_field("query", qd)
     p += framed_field("result", rd)
+    p += framed_field("support", sd)
     return hashlib.sha256(p).digest()
 
 
@@ -186,6 +209,11 @@ def vectors() -> dict:
         seg_marked("--- ", " ---", "preamble"), [("line", extractor_whole())]
     )
     sid_marked = store_id(artifact, store_plan_digest(pb_marked))
+    # One candidate backed by one record, from an execution that finished.
+    sb = support_bytes(None, {b"cli::reader_17": [("s", 0)]})
+    sd = result_support_digest(sb)
+    # The same candidate set, but the search stopped at a bound.
+    sb_limited = support_bytes(7, {b"cli::reader_17": [("s", 0)]})
     return {
         "GOLDEN_ARTIFACT": "sha256:" + artifact.hex(),
         "GOLDEN_QUERY_BYTES_1": qb1.hex(),
@@ -198,10 +226,13 @@ def vectors() -> dict:
         "GOLDEN_PLAN_DIGEST": "sha256:" + pd.hex(),
         "GOLDEN_STORE_ID": "sha256:" + sid.hex(),
         "GOLDEN_STORE_ID_MARKED": "sha256:" + sid_marked.hex(),
-        "GOLDEN_QRID_1": "sha256:" + query_result_id(SCHEMA_V1, sid, qd1, rd).hex(),
-        "GOLDEN_QRID_2": "sha256:" + query_result_id(SCHEMA_V1, sid, qd2, rd).hex(),
+        "GOLDEN_SUPPORT_BYTES": sb.hex(),
+        "GOLDEN_SUPPORT_DIGEST": "sha256:" + sd.hex(),
+        "GOLDEN_SUPPORT_DIGEST_LIMITED": "sha256:" + result_support_digest(sb_limited).hex(),
+        "GOLDEN_QRID_1": "sha256:" + query_result_id(SCHEMA_V1, sid, qd1, rd, sd).hex(),
+        "GOLDEN_QRID_2": "sha256:" + query_result_id(SCHEMA_V1, sid, qd2, rd, sd).hex(),
         "GOLDEN_QRID_V2SCHEMA": "sha256:"
-        + query_result_id("qodec.query.v2", sid, qd1, rd).hex(),
+        + query_result_id("qodec.query.v2", sid, qd1, rd, sd).hex(),
         "SUBST_AS_QUERY": "sha256:" + canonical_query_digest(subst).hex(),
         "SUBST_AS_RESULT": "sha256:" + complete_result_digest(subst).hex(),
         "GOLDEN_RAW_KEY_QUERY_BYTES": qb3.hex(),

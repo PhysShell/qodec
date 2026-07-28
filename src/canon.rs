@@ -2,8 +2,10 @@
 //!
 //! Slice A of `docs/proposals/qodec-query-harness.md` rests on one claim: a
 //! query result's identity **is** its content, so replaying the same canonical
-//! query over the same artifact reproduces the same `query_result_id` by
-//! construction rather than by bookkeeping. That claim is only worth as much
+//! query over the same **store** — one artifact together with the plan that
+//! opened it — reproduces the same `query_result_id` by construction rather
+//! than by bookkeeping. The artifact alone is not enough: two segmentations
+//! of one artifact answer the same question differently. That claim is only worth as much
 //! as the bytes it hashes, which is why this module exists before any query
 //! code does.
 //!
@@ -38,6 +40,7 @@ const DOMAIN_QUERY_RESULT_ID: &str = "qodec.query-result-id.v1";
 const DOMAIN_ARTIFACT: &str = "qodec.artifact.v1";
 const DOMAIN_STORE_PLAN: &str = "qodec.store-plan.v1";
 const DOMAIN_STORE_ID: &str = "qodec.store-id.v1";
+const DOMAIN_RESULT_SUPPORT: &str = "qodec.result-support.v1";
 
 /// One lowercase hex digit as a nibble; uppercase is an error, not a variant.
 fn lowercase_nibble(b: u8, text: &str) -> Result<u8> {
@@ -151,6 +154,16 @@ pub struct StorePlanDigest(Digest);
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub struct StoreId(Digest);
 
+/// Covers what backs a result: which records support which candidate, and
+/// whether the execution actually ran to exhaustion.
+///
+/// Separate from [`CompleteResultDigest`] because they answer different
+/// questions — "what was found" versus "on what evidence, and was the search
+/// finished". Folding them together would also make the frozen description of
+/// `complete_result_digest` untrue.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
+pub struct ResultSupportDigest(Digest);
+
 /// The content-addressed identity of a query result.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub struct QueryResultId(Digest);
@@ -198,6 +211,7 @@ impl_digest_role!(CanonicalQueryDigest, "canonical query digest");
 impl_digest_role!(CompleteResultDigest, "complete result digest");
 impl_digest_role!(StorePlanDigest, "store plan digest");
 impl_digest_role!(StoreId, "store id");
+impl_digest_role!(ResultSupportDigest, "result support digest");
 impl_digest_role!(QueryResultId, "query result id");
 
 /// Which schema's serialization rules apply.
@@ -703,6 +717,13 @@ pub fn store_id(artifact: &ArtifactDigest, plan: &StorePlanDigest) -> StoreId {
     StoreId(Digest(sha256_raw(&preimage)))
 }
 
+/// Digest canonical support bytes under the result-support domain.
+pub fn digest_result_support_bytes(bytes: &[u8]) -> ResultSupportDigest {
+    let mut preimage = domain_header(DOMAIN_RESULT_SUPPORT);
+    preimage.extend_from_slice(&length_prefixed(bytes));
+    ResultSupportDigest(Digest(sha256_raw(&preimage)))
+}
+
 /// Digest of a query, end to end.
 pub fn canonical_query_digest(
     schema: &SchemaId,
@@ -728,9 +749,15 @@ pub fn complete_result_digest(result: &CanonicalResult) -> Result<CompleteResult
 ///    || field("schema", utf8(schema_id))
 ///    || field("store",  store_id_raw_32)
 ///    || field("query",  canonical_query_digest_raw_32)
-///    || field("result", complete_result_digest_raw_32)
+///    || field("result",  complete_result_digest_raw_32)
+///    || field("support", result_support_digest_raw_32)
 /// )
 /// ```
+///
+/// The **support** component is what stops evidence from being swapped
+/// underneath an unchanged handle. Without it a result could keep its identity
+/// while the records said to back it were replaced, and "proof-carrying" would
+/// survive only as a pleasant name in a README.
 ///
 /// The **store**, not merely the artifact. A result depends on how the
 /// artifact was segmented and which indexes existed, so an identity naming
@@ -739,9 +766,9 @@ pub fn complete_result_digest(result: &CanonicalResult) -> Result<CompleteResult
 /// form of forgetfulness. `store_id` already binds the artifact transitively.
 ///
 /// Every component is framed and every digest enters as raw bytes. Replaying
-/// the same canonical query over the same artifact under the same schema
-/// reproduces this value; any change to the artifact, the question, the
-/// result, or the schema changes it.
+/// the same canonical query over the same **store** under the same schema
+/// reproduces this value; any change to the artifact, the plan that opened it,
+/// the question, the result, the supporting records, or the schema changes it.
 /// The roles are distinct types, so a result digest cannot be passed where a
 /// query digest belongs. That mistake is now a compile error rather than a
 /// silently well-formed record with a confidently wrong identity.
@@ -750,12 +777,14 @@ pub fn query_result_id(
     store: &StoreId,
     query_digest: &CanonicalQueryDigest,
     result_digest: &CompleteResultDigest,
+    support_digest: &ResultSupportDigest,
 ) -> QueryResultId {
     let mut preimage = domain_header(DOMAIN_QUERY_RESULT_ID);
     preimage.extend_from_slice(&framed_field("schema", schema.as_str().as_bytes()));
     preimage.extend_from_slice(&framed_field("store", store.as_bytes()));
     preimage.extend_from_slice(&framed_field("query", query_digest.as_bytes()));
     preimage.extend_from_slice(&framed_field("result", result_digest.as_bytes()));
+    preimage.extend_from_slice(&framed_field("support", support_digest.as_bytes()));
     QueryResultId(Digest(sha256_raw(&preimage)))
 }
 
@@ -776,6 +805,10 @@ pub struct StoredQueryResult {
     pub store_plan_digest: StorePlanDigest,
     pub store_id: StoreId,
     pub canonical_query: CanonicalQuery,
+    /// Canonical bytes of what backs the result: supporting records per
+    /// candidate, and the completion state of the execution.
+    pub support_bytes: Vec<u8>,
+    pub result_support_digest: ResultSupportDigest,
     pub canonical_query_digest: CanonicalQueryDigest,
     pub complete_result: CanonicalResult,
     pub complete_result_digest: CompleteResultDigest,
@@ -796,8 +829,8 @@ impl StoredQueryResult {
     /// correctly recomputed over that artifact, is perfectly self-consistent
     /// and still answers a question about evidence nobody opened. Binding a
     /// result to the artifact actually in hand is
-    /// [`verify_for_artifact`](Self::verify_for_artifact), and only that
-    /// method can report `artifact-mismatch`.
+    /// [`verify_for_store`](Self::verify_for_store), and only that method can
+    /// report `artifact-mismatch` or `store-plan-mismatch`.
     pub fn verify_internal_consistency(&self) -> Result<()> {
         let store = store_id(&self.artifact_digest, &self.store_plan_digest);
         if store != self.store_id {
@@ -823,7 +856,16 @@ impl StoredQueryResult {
                 result.to_canonical_text()
             );
         }
-        let id = query_result_id(&self.schema, &store, &query, &result);
+        let support = digest_result_support_bytes(&self.support_bytes);
+        if support != self.result_support_digest {
+            bail!(
+                "stored result_support_digest {} does not match the stored support bytes, which \
+                 digest to {}",
+                self.result_support_digest.to_canonical_text(),
+                support.to_canonical_text()
+            );
+        }
+        let id = query_result_id(&self.schema, &store, &query, &result, &support);
         if id != self.query_result_id {
             bail!(
                 "stored query_result_id {} does not match the recomputed {}",
