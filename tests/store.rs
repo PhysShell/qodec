@@ -9,9 +9,9 @@
 use anyhow::Result;
 
 use qodec::canon::{
-    canonical_query_digest, complete_result_digest, query_result_id, ArtifactDigest,
-    CanonicalQuery, CanonicalResult, CompleteResultDigest, FieldName, IndexName, KeyBytes,
-    SchemaId, SetName, StoredQueryResult, SCHEMA_QUERY_V1,
+    canonical_query_digest, complete_result_digest, digest_store_plan_bytes, query_result_id,
+    store_id, ArtifactDigest, CanonicalQuery, CanonicalResult, CompleteResultDigest, FieldName,
+    IndexName, KeyBytes, SchemaId, SetName, StorePlanDigest, StoredQueryResult, SCHEMA_QUERY_V1,
 };
 use qodec::store::{CanonicalStore, IndexSpec, KeyExtractor, RecordId, Segmentation};
 
@@ -372,16 +372,129 @@ fn a_foreign_id_with_local_coordinates_is_rejected() -> Result<()> {
     // The coordinates unquestionably exist in A; only the binding differs.
     assert_eq!(foreign.section(), mine.section());
     assert_eq!(foreign.ordinal(), mine.ordinal());
-    assert_ne!(foreign.artifact_digest(), mine.artifact_digest());
+    assert_ne!(foreign.store_id(), mine.store_id());
 
     let outcome = a.materialize(&from_b).map_err(|e| e.to_string());
     assert!(
         outcome
             .as_ref()
             .err()
-            .is_some_and(|e| e.contains("belongs to artifact")),
+            .is_some_and(|e| e.contains("store-mismatch")),
         "a foreign id must be refused on its binding, however familiar its \
          coordinates look; got {outcome:?}"
+    );
+    Ok(())
+}
+
+/// The same artifact opened under two plans issues two incompatible ids for
+/// the same coordinates — case 10 in its second form.
+///
+/// Fixing the cross-artifact case did not fix this one, and the difference is
+/// instructive: both stores here have the *identical* artifact digest, so any
+/// binding weaker than the store id waves the foreign id straight through.
+/// `Lines` sees `--- s ---` at `s#0`; `MarkedSections` sees `alpha` there.
+/// Measured on the previous revision before the fix: store A returned
+/// `"--- s ---"` for an id that meant `"alpha"`.
+#[test]
+fn record_id_from_another_plan_over_same_artifact_is_rejected() -> Result<()> {
+    let artifact = raw_artifact("--- s ---\nalpha\n");
+    let by_lines = CanonicalStore::open(&artifact, &lines_seg()?, &whole_record_index()?)?;
+    let by_marks = CanonicalStore::open(
+        &artifact,
+        &Segmentation::MarkedSections {
+            prefix: "--- ".into(),
+            suffix: " ---".into(),
+            preamble: set("preamble")?,
+        },
+        &whole_record_index()?,
+    )?;
+
+    assert_eq!(
+        by_lines.artifact_digest(),
+        by_marks.artifact_digest(),
+        "premise: one artifact, so the artifact digest cannot distinguish them"
+    );
+    assert_ne!(
+        by_lines.store_id(),
+        by_marks.store_id(),
+        "two plans over one artifact are two stores"
+    );
+
+    // `s#0` exists in both, and means different bytes in each.
+    let from_marks: Vec<RecordId> = by_marks
+        .record_ids()
+        .filter(|id| id.section().as_str() == "s")
+        .collect();
+    let (Some(foreign),) = (from_marks.first(),) else {
+        anyhow::bail!("the marked plan must place a record at s#0");
+    };
+    assert_eq!(foreign.ordinal(), 0);
+    assert_eq!(
+        by_marks.materialize(&from_marks)?,
+        [b"alpha".as_slice()],
+        "in its own store the id means `alpha`"
+    );
+
+    let outcome = by_lines.materialize(&from_marks).map_err(|e| e.to_string());
+    assert!(
+        outcome
+            .as_ref()
+            .err()
+            .is_some_and(|e| e.contains("store-mismatch")),
+        "an id from another plan must be refused on its store binding, not \
+         silently resolved to this plan's line; got {outcome:?}"
+    );
+    Ok(())
+}
+
+/// A different plan over the same artifact changes the store id even when the
+/// segmentation is identical and only the indexes differ.
+#[test]
+fn index_specs_are_part_of_the_plan() -> Result<()> {
+    let artifact = raw_artifact("a:b\n");
+    let whole = CanonicalStore::open(&artifact, &lines_seg()?, &whole_record_index()?)?;
+    let field = CanonicalStore::open(
+        &artifact,
+        &lines_seg()?,
+        &[IndexSpec {
+            name: index("line")?,
+            extractor: KeyExtractor::Field {
+                separator: b':',
+                index: 0,
+            },
+        }],
+    )?;
+    assert_eq!(whole.artifact_digest(), field.artifact_digest());
+    assert_ne!(
+        whole.store_id(),
+        field.store_id(),
+        "the indexes are part of how the artifact was opened"
+    );
+    Ok(())
+}
+
+/// Spec order is not part of the plan: the same set of indexes listed in
+/// either order opens the same store.
+#[test]
+fn spec_order_does_not_change_the_store_id() -> Result<()> {
+    let artifact = raw_artifact("a:b\n");
+    let one = IndexSpec {
+        name: index("whole")?,
+        extractor: KeyExtractor::WholeRecord,
+    };
+    let two = IndexSpec {
+        name: index("first")?,
+        extractor: KeyExtractor::Field {
+            separator: b':',
+            index: 0,
+        },
+    };
+    let forward = CanonicalStore::open(&artifact, &lines_seg()?, &[one.clone(), two.clone()])?;
+    let reverse = CanonicalStore::open(&artifact, &lines_seg()?, &[two, one])?;
+    assert_eq!(
+        forward.store_id(),
+        reverse.store_id(),
+        "specs are canonicalized by name, so caller order cannot rename the store"
     );
     Ok(())
 }
@@ -536,9 +649,20 @@ fn malformed_artifact_fails_the_open() -> Result<()> {
 // The loader
 // ---------------------------------------------------------------------------
 
+/// A plan digest standing in for one produced by `CanonicalStore::open`.
+fn a_plan() -> StorePlanDigest {
+    digest_store_plan_bytes(b"plan-a")
+}
+
+fn another_plan() -> StorePlanDigest {
+    digest_store_plan_bytes(b"plan-b")
+}
+
 fn stored() -> Result<StoredQueryResult> {
     let schema = SchemaId::parse(SCHEMA_QUERY_V1)?;
     let artifact_digest = ArtifactDigest::of_artifact_bytes(b"%q1 raw\nalpha\n");
+    let store_plan_digest = a_plan();
+    let sid = store_id(&artifact_digest, &store_plan_digest);
     let canonical_query = CanonicalQuery::Lookup {
         field: FieldName::parse("line")?,
         value: key(b"alpha"),
@@ -547,9 +671,11 @@ fn stored() -> Result<StoredQueryResult> {
     let qd = canonical_query_digest(&schema, &canonical_query)?;
     let rd = complete_result_digest(&complete_result)?;
     Ok(StoredQueryResult {
-        query_result_id: query_result_id(&schema, &artifact_digest, &qd, &rd),
+        query_result_id: query_result_id(&schema, &sid, &qd, &rd),
         schema,
         artifact_digest,
+        store_plan_digest,
+        store_id: sid,
         canonical_query,
         canonical_query_digest: qd,
         complete_result,
@@ -596,7 +722,10 @@ fn the_loader_recomputes_rather_than_believes() -> Result<()> {
     let mut forged_id = stored()?;
     forged_id.query_result_id = query_result_id(
         &SchemaId::parse(SCHEMA_QUERY_V1)?,
-        &ArtifactDigest::of_artifact_bytes(b"a different artifact"),
+        &store_id(
+            &ArtifactDigest::of_artifact_bytes(b"a different artifact"),
+            &a_plan(),
+        ),
         &forged_id.canonical_query_digest,
         &forged_id.complete_result_digest,
     );
@@ -635,7 +764,7 @@ fn a_relabelled_artifact_breaks_internal_consistency() -> Result<()> {
 /// A record describing a *different* artifact, whose identity was then
 /// correctly recomputed over that artifact, is flawless by its own lights. It
 /// is simply an answer about evidence nobody opened. Only a check against the
-/// artifact actually in hand can say so, and it must report that as
+/// store actually in hand can say so, and it must report that as
 /// `artifact-mismatch` rather than as corruption — otherwise whoever reads the
 /// error goes looking for a bug in the wrong place.
 #[test]
@@ -643,10 +772,10 @@ fn a_self_consistent_result_for_another_artifact_is_an_artifact_mismatch() -> Re
     let other = ArtifactDigest::of_artifact_bytes(b"%q1 raw\n%q1 body\nbeta\n");
     let mut moved = stored()?;
     moved.artifact_digest = other;
-    // Recompute the identity so the record is entirely self-consistent.
+    moved.store_id = store_id(&other, &moved.store_plan_digest);
     moved.query_result_id = query_result_id(
         &moved.schema,
-        &moved.artifact_digest,
+        &moved.store_id,
         &moved.canonical_query_digest,
         &moved.complete_result_digest,
     );
@@ -654,7 +783,7 @@ fn a_self_consistent_result_for_another_artifact_is_an_artifact_mismatch() -> Re
 
     let opened = ArtifactDigest::of_artifact_bytes(b"%q1 raw\n%q1 body\nalpha\n");
     let outcome = moved
-        .verify_for_artifact(&opened)
+        .verify_for_store(&opened, &a_plan())
         .map_err(|e| e.to_string());
     assert!(
         outcome
@@ -665,15 +794,47 @@ fn a_self_consistent_result_for_another_artifact_is_an_artifact_mismatch() -> Re
          reported as artifact-mismatch rather than corruption; got {outcome:?}"
     );
 
-    // And the record does verify for the artifact it actually describes.
-    moved.verify_for_artifact(&other)?;
+    // And it does verify for the store it actually describes.
+    moved.verify_for_store(&other, &moved.store_plan_digest.clone())?;
     Ok(())
 }
 
-/// The happy path binds too.
+/// The same artifact opened a different way is a different question, reported
+/// as `store-plan-mismatch` rather than folded into the artifact case.
+///
+/// The two say different things — "this is about a different document" and
+/// "this is about the same document read a different way" — and they call for
+/// different responses. A record self-consistent under plan B is not corrupt;
+/// it simply answers about a store nobody opened.
 #[test]
-fn verify_for_artifact_accepts_the_matching_artifact() -> Result<()> {
+fn a_self_consistent_result_under_another_plan_is_a_plan_mismatch() -> Result<()> {
+    let mut moved = stored()?;
+    moved.store_plan_digest = another_plan();
+    moved.store_id = store_id(&moved.artifact_digest, &moved.store_plan_digest);
+    moved.query_result_id = query_result_id(
+        &moved.schema,
+        &moved.store_id,
+        &moved.canonical_query_digest,
+        &moved.complete_result_digest,
+    );
+    moved.verify_internal_consistency()?;
+
+    let outcome = moved
+        .verify_for_store(&moved.artifact_digest, &a_plan())
+        .map_err(|e| e.to_string());
+    assert!(
+        outcome
+            .as_ref()
+            .err()
+            .is_some_and(|e| e.contains("store-plan-mismatch")),
+        "same artifact, different plan must be reported as store-plan-mismatch; got {outcome:?}"
+    );
+    Ok(())
+}
+
+/// The happy path binds both halves.
+#[test]
+fn verify_for_store_accepts_the_matching_store() -> Result<()> {
     let record = stored()?;
-    let opened = record.artifact_digest;
-    record.verify_for_artifact(&opened)
+    record.verify_for_store(&record.artifact_digest, &record.store_plan_digest)
 }

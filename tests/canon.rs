@@ -14,9 +14,10 @@ use anyhow::Result;
 
 use qodec::canon::{
     canonical_query_bytes, canonical_query_digest, canonical_result_bytes, complete_result_digest,
-    digest_canonical_query_bytes, digest_complete_result_bytes, query_result_id, ArtifactDigest,
-    CanonicalQuery, CanonicalQueryDigest, CanonicalResult, CompleteResultDigest, FieldName,
-    KeyBytes, QueryResultId, SchemaId, SetName, SCHEMA_QUERY_V1,
+    digest_canonical_query_bytes, digest_complete_result_bytes, digest_store_plan_bytes,
+    query_result_id, store_id, ArtifactDigest, CanonicalQuery, CanonicalQueryDigest,
+    CanonicalResult, CompleteResultDigest, FieldName, KeyBytes, QueryResultId, SchemaId, SetName,
+    StorePlanDigest, SCHEMA_QUERY_V1,
 };
 
 // Golden values, computed by an independent reference implementation written
@@ -35,12 +36,21 @@ const GOLDEN_QUERY_DIGEST_2: &str =
 const GOLDEN_RESULT_BYTES: &str = "00000001000000000000000e636c693a3a7265616465725f3137";
 const GOLDEN_RESULT_DIGEST: &str =
     "sha256:2aa08310fcc7f109f454ec56e59065e4859632f1f39d602dcfe6a70c4e57b769";
+// A store plan: one section of lines, one whole-record index.
+const GOLDEN_PLAN_BYTES: &str = "010000000000000001730000000100000000000000046c696e6501";
+const GOLDEN_PLAN_DIGEST: &str =
+    "sha256:d7af90e46c561d06031c00a6c8db8319ec05d33ae8588f55c4a9f547b2cd5d21";
+const GOLDEN_STORE_ID: &str =
+    "sha256:21c3cd3b7182866e52d969fccee1bd57737f59bfe48cd3c092d8fb0aa2d86d6f";
+// The same artifact opened with a marked-section plan is a different store.
+const GOLDEN_STORE_ID_MARKED: &str =
+    "sha256:d4a0c9327e629283728f0e36d8aacaa67a595afb66a6ed4cdfeed56c04f2cd94";
 const GOLDEN_QRID_1: &str =
-    "sha256:57e1309bab6e734c820b0f796f9836fbbf96acc9bc8dda8d7119e57e752f4d46";
+    "sha256:286e479187544a42891f58c1d96c6d3487746eda4fcd49d2ece19e611a618d4e";
 const GOLDEN_QRID_2: &str =
-    "sha256:1675faf7aaa65b4009c2a46728a3ebd2a9dfe9e079fccfe7bf3cb89f0f5297cd";
+    "sha256:1dfce00c182521282dbc3d55bc85649e8a83e5f1baacad1ce412c7bd7cceffe9";
 const GOLDEN_QRID_V2SCHEMA: &str =
-    "sha256:f5b6763d71130e7429fc6b1ee9fb75089df64df82ae8017ac66293bb443f2c0a";
+    "sha256:9c2d718d544f681c627160b879a11b1bfd5bad9aec94e16a5a9071d7420e8d52";
 const SUBST_AS_QUERY: &str =
     "sha256:c83a3f0b7f95b6042477e7607923ed1a6a832a09636d4f00bfe17074a3a07639";
 const SUBST_AS_RESULT: &str =
@@ -96,6 +106,22 @@ fn golden_result() -> Result<CanonicalResult> {
     CanonicalResult::new([key(b"cli::reader_17")])
 }
 
+/// The golden plan's digest, derived rather than pasted, so the plan encoding
+/// and the identity that consumes it are pinned by separate constants.
+fn golden_plan_digest() -> Result<StorePlanDigest> {
+    let bytes: Vec<u8> = (0..GOLDEN_PLAN_BYTES.len() / 2)
+        .map(|i| u8::from_str_radix(&GOLDEN_PLAN_BYTES[i * 2..i * 2 + 2], 16))
+        .collect::<std::result::Result<_, _>>()?;
+    Ok(digest_store_plan_bytes(&bytes))
+}
+
+fn golden_store_id() -> Result<qodec::canon::StoreId> {
+    Ok(store_id(
+        &ArtifactDigest::parse_canonical_text(GOLDEN_ARTIFACT)?,
+        &golden_plan_digest()?,
+    ))
+}
+
 // ---------------------------------------------------------------------------
 // Group 1 — boundary ambiguity
 // ---------------------------------------------------------------------------
@@ -147,7 +173,7 @@ fn framing_separates_field_sets_that_naive_concat_would_collide() -> Result<()> 
 /// implementation immediately.
 #[test]
 fn identity_components_are_not_interchangeable() -> Result<()> {
-    let art = ArtifactDigest::parse_canonical_text(GOLDEN_ARTIFACT)?;
+    let sid = golden_store_id()?;
     let qd = canonical_query_digest(&v1()?, &golden_query_1()?)?;
     let rd = complete_result_digest(&golden_result()?)?;
 
@@ -159,8 +185,8 @@ fn identity_components_are_not_interchangeable() -> Result<()> {
     let rd_as_query = CanonicalQueryDigest::parse_canonical_text(&rd.to_canonical_text())?;
 
     assert_ne!(
-        query_result_id(&v1()?, &art, &qd, &rd),
-        query_result_id(&v1()?, &art, &rd_as_query, &qd_as_result),
+        query_result_id(&v1()?, &sid, &qd, &rd),
+        query_result_id(&v1()?, &sid, &rd_as_query, &qd_as_result),
         "query and result digests must not be interchangeable within the preimage"
     );
     Ok(())
@@ -301,7 +327,7 @@ fn canonical_bytes_match_independent_reference() -> Result<()> {
 /// Digests and the composite identity must match the independent reference.
 #[test]
 fn digests_and_identity_match_independent_reference() -> Result<()> {
-    let art = ArtifactDigest::parse_canonical_text(GOLDEN_ARTIFACT)?;
+    let sid = golden_store_id()?;
     let qd1 = canonical_query_digest(&v1()?, &golden_query_1()?)?;
     let qd2 = canonical_query_digest(&v1()?, &golden_query_2()?)?;
     let rd = complete_result_digest(&golden_result()?)?;
@@ -310,11 +336,11 @@ fn digests_and_identity_match_independent_reference() -> Result<()> {
     assert_eq!(qd2.to_canonical_text(), GOLDEN_QUERY_DIGEST_2);
     assert_eq!(rd.to_canonical_text(), GOLDEN_RESULT_DIGEST);
     assert_eq!(
-        query_result_id(&v1()?, &art, &qd1, &rd).to_canonical_text(),
+        query_result_id(&v1()?, &sid, &qd1, &rd).to_canonical_text(),
         GOLDEN_QRID_1
     );
     assert_eq!(
-        query_result_id(&v1()?, &art, &qd2, &rd).to_canonical_text(),
+        query_result_id(&v1()?, &sid, &qd2, &rd).to_canonical_text(),
         GOLDEN_QRID_2
     );
     Ok(())
@@ -324,11 +350,11 @@ fn digests_and_identity_match_independent_reference() -> Result<()> {
 /// reproduces the same ID, with no stored state consulted.
 #[test]
 fn identity_is_reproducible_from_inputs_alone() -> Result<()> {
-    let art = ArtifactDigest::parse_canonical_text(GOLDEN_ARTIFACT)?;
+    let sid = golden_store_id()?;
     let compute = || -> Result<QueryResultId> {
         let qd = canonical_query_digest(&v1()?, &golden_query_2()?)?;
         let rd = complete_result_digest(&golden_result()?)?;
-        Ok(query_result_id(&v1()?, &art, &qd, &rd))
+        Ok(query_result_id(&v1()?, &sid, &qd, &rd))
     };
     assert_eq!(compute()?, compute()?);
     assert_eq!(compute()?.to_canonical_text(), GOLDEN_QRID_2);
@@ -344,13 +370,13 @@ fn identity_is_reproducible_from_inputs_alone() -> Result<()> {
 /// version is declared but means nothing cryptographically.
 #[test]
 fn schema_version_changes_identity_even_with_identical_bytes() -> Result<()> {
-    let art = ArtifactDigest::parse_canonical_text(GOLDEN_ARTIFACT)?;
+    let sid = golden_store_id()?;
     let qd = canonical_query_digest(&v1()?, &golden_query_1()?)?;
     let rd = complete_result_digest(&golden_result()?)?;
 
     let v2 = SchemaId::identity_only("qodec.query.v2")?;
-    let id_v1 = query_result_id(&v1()?, &art, &qd, &rd);
-    let id_v2 = query_result_id(&v2, &art, &qd, &rd);
+    let id_v1 = query_result_id(&v1()?, &sid, &qd, &rd);
+    let id_v2 = query_result_id(&v2, &sid, &qd, &rd);
 
     assert_ne!(id_v1, id_v2, "schema must be load-bearing in the identity");
     assert_eq!(id_v1.to_canonical_text(), GOLDEN_QRID_1);
@@ -601,5 +627,43 @@ fn discriminants_separate_the_operations() -> Result<()> {
     let ib = canonical_query_bytes(&v1()?, &intersect)?;
     assert_ne!(lb.first(), ib.first(), "discriminants must differ");
     assert_ne!(lb, ib);
+    Ok(())
+}
+
+// ---------------------------------------------------------------------------
+// Store identity
+// ---------------------------------------------------------------------------
+
+/// The plan digest and store id match the independent reference.
+#[test]
+fn store_identity_matches_independent_reference() -> Result<()> {
+    assert_eq!(
+        golden_plan_digest()?.to_canonical_text(),
+        GOLDEN_PLAN_DIGEST
+    );
+    assert_eq!(golden_store_id()?.to_canonical_text(), GOLDEN_STORE_ID);
+    Ok(())
+}
+
+/// The same artifact opened under a different plan is a different store, and
+/// therefore carries a different result identity.
+///
+/// This is the property that keeps a result from being immutable with respect
+/// to the evidence while amnesiac about how the answer was reached: the plan
+/// decides what a record's coordinates mean, so a result that named only the
+/// artifact would be correctly signed for a question it cannot fully identify.
+#[test]
+fn a_different_plan_gives_a_different_store_and_identity() -> Result<()> {
+    let marked = qodec::canon::StoreId::parse_canonical_text(GOLDEN_STORE_ID_MARKED)?;
+    let lines = golden_store_id()?;
+    assert_ne!(lines, marked, "two plans over one artifact are two stores");
+
+    let qd = canonical_query_digest(&v1()?, &golden_query_1()?)?;
+    let rd = complete_result_digest(&golden_result()?)?;
+    assert_ne!(
+        query_result_id(&v1()?, &lines, &qd, &rd),
+        query_result_id(&v1()?, &marked, &qd, &rd),
+        "the same query and result under two plans are two identities"
+    );
     Ok(())
 }

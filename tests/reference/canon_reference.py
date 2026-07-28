@@ -30,6 +30,9 @@ SCHEMA_V1 = "qodec.query.v1"
 DOMAIN_CANONICAL_QUERY = "qodec.canonical-query.v1"
 DOMAIN_COMPLETE_RESULT = "qodec.complete-result.v1"
 DOMAIN_QUERY_RESULT_ID = "qodec.query-result-id.v1"
+DOMAIN_ARTIFACT = "qodec.artifact.v1"
+DOMAIN_STORE_PLAN = "qodec.store-plan.v1"
+DOMAIN_STORE_ID = "qodec.store-id.v1"
 
 
 def domain_header(domain: str) -> bytes:
@@ -98,11 +101,62 @@ def complete_result_digest(b: bytes) -> bytes:
     return hashlib.sha256(domain_header(DOMAIN_COMPLETE_RESULT) + length_prefixed(b)).digest()
 
 
-def query_result_id(schema: str, artifact: bytes, qd: bytes, rd: bytes) -> bytes:
-    """The content-addressed identity, every component framed."""
+def artifact_digest(artifact_bytes: bytes) -> bytes:
+    """Digest an artifact's own bytes under the artifact domain."""
+    return hashlib.sha256(domain_header(DOMAIN_ARTIFACT) + length_prefixed(artifact_bytes)).digest()
+
+
+def plan_bytes(segmentation: bytes, specs) -> bytes:
+    """Canonical bytes of an open plan; specs sorted by index name."""
+    out = segmentation + struct.pack(">I", len(specs))
+    for name, extractor in sorted(specs, key=lambda s: s[0]):
+        out += enc_name(name) + extractor
+    return out
+
+
+def seg_lines(section: str) -> bytes:
+    """`Segmentation::Lines`; discriminant 1."""
+    return b"\x01" + enc_name(section)
+
+
+def seg_marked(prefix: str, suffix: str, preamble: str) -> bytes:
+    """`Segmentation::MarkedSections`; discriminant 2, markers are data."""
+    return (
+        b"\x02"
+        + enc_bytes(prefix.encode("utf-8"))
+        + enc_bytes(suffix.encode("utf-8"))
+        + enc_name(preamble)
+    )
+
+
+def extractor_whole() -> bytes:
+    """`KeyExtractor::WholeRecord`; discriminant 1."""
+    return b"\x01"
+
+
+def extractor_field(separator: int, index: int) -> bytes:
+    """`KeyExtractor::Field`; discriminant 2, then the separator byte and index."""
+    return b"\x02" + bytes([separator]) + struct.pack(">I", index)
+
+
+def store_plan_digest(b: bytes) -> bytes:
+    """Digest canonical plan bytes under the store-plan domain."""
+    return hashlib.sha256(domain_header(DOMAIN_STORE_PLAN) + length_prefixed(b)).digest()
+
+
+def store_id(artifact: bytes, plan: bytes) -> bytes:
+    """One artifact opened one way — the space where coordinates are unambiguous."""
+    p = domain_header(DOMAIN_STORE_ID)
+    p += framed_field("artifact", artifact)
+    p += framed_field("plan", plan)
+    return hashlib.sha256(p).digest()
+
+
+def query_result_id(schema: str, store: bytes, qd: bytes, rd: bytes) -> bytes:
+    """The content-addressed identity, bound to the STORE, not merely the artifact."""
     p = domain_header(DOMAIN_QUERY_RESULT_ID)
     p += framed_field("schema", schema.encode("utf-8"))
-    p += framed_field("artifact", artifact)
+    p += framed_field("store", store)
     p += framed_field("query", qd)
     p += framed_field("result", rd)
     return hashlib.sha256(p).digest()
@@ -123,6 +177,15 @@ def vectors() -> dict:
     raw_key = bytes([0xFF, 0x00, 0xFE, 0x80])
     qb3 = query_bytes_lookup("suite", raw_key)
     rb3 = result_bytes([raw_key, bytes([0xFF, 0x00, 0xFE, 0x81])])
+    # A store plan: one section of lines, one whole-record index.
+    pb = plan_bytes(seg_lines("s"), [("line", extractor_whole())])
+    pd = store_plan_digest(pb)
+    sid = store_id(artifact, pd)
+    # The same artifact opened a different way is a different store.
+    pb_marked = plan_bytes(
+        seg_marked("--- ", " ---", "preamble"), [("line", extractor_whole())]
+    )
+    sid_marked = store_id(artifact, store_plan_digest(pb_marked))
     return {
         "GOLDEN_ARTIFACT": "sha256:" + artifact.hex(),
         "GOLDEN_QUERY_BYTES_1": qb1.hex(),
@@ -131,10 +194,14 @@ def vectors() -> dict:
         "GOLDEN_QUERY_DIGEST_2": "sha256:" + qd2.hex(),
         "GOLDEN_RESULT_BYTES": rb.hex(),
         "GOLDEN_RESULT_DIGEST": "sha256:" + rd.hex(),
-        "GOLDEN_QRID_1": "sha256:" + query_result_id(SCHEMA_V1, artifact, qd1, rd).hex(),
-        "GOLDEN_QRID_2": "sha256:" + query_result_id(SCHEMA_V1, artifact, qd2, rd).hex(),
+        "GOLDEN_PLAN_BYTES": pb.hex(),
+        "GOLDEN_PLAN_DIGEST": "sha256:" + pd.hex(),
+        "GOLDEN_STORE_ID": "sha256:" + sid.hex(),
+        "GOLDEN_STORE_ID_MARKED": "sha256:" + sid_marked.hex(),
+        "GOLDEN_QRID_1": "sha256:" + query_result_id(SCHEMA_V1, sid, qd1, rd).hex(),
+        "GOLDEN_QRID_2": "sha256:" + query_result_id(SCHEMA_V1, sid, qd2, rd).hex(),
         "GOLDEN_QRID_V2SCHEMA": "sha256:"
-        + query_result_id("qodec.query.v2", artifact, qd1, rd).hex(),
+        + query_result_id("qodec.query.v2", sid, qd1, rd).hex(),
         "SUBST_AS_QUERY": "sha256:" + canonical_query_digest(subst).hex(),
         "SUBST_AS_RESULT": "sha256:" + complete_result_digest(subst).hex(),
         "GOLDEN_RAW_KEY_QUERY_BYTES": qb3.hex(),

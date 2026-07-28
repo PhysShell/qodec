@@ -33,7 +33,10 @@ use std::collections::{BTreeMap, BTreeSet};
 
 use anyhow::{bail, Result};
 
-use crate::canon::{ArtifactDigest, CanonicalResult, IndexName, KeyBytes, SetName};
+use crate::canon::{
+    digest_store_plan_bytes, encode_bytes, encode_count, encode_name, store_id, ArtifactDigest,
+    CanonicalResult, IndexName, KeyBytes, SetName, StoreId, StorePlanDigest,
+};
 
 /// One index: key bytes to the records carrying them, in canonical order.
 type KeyIndex = BTreeMap<KeyBytes, Vec<LocalRecordId>>;
@@ -63,24 +66,29 @@ struct LocalRecordId {
 /// alone would silently merge them, with no cryptographic collision involved
 /// and no error to notice.
 ///
-/// It carries the **artifact digest**, rather than leaving the binding as a
-/// property of the store that happens to hold it. Coordinates alone are
-/// ambiguous across artifacts: `s#0` exists in almost every store, so a
-/// foreign id would resolve against local records and return another
-/// artifact's bytes with no error anywhere — measured, not theorised, on the
-/// previous revision of this module. That is case 10 of the Slice A negative
-/// matrix, and the type now makes it unrepresentable rather than merely
-/// tested.
+/// It carries the **store id**, not merely the artifact digest. Coordinates
+/// are only unambiguous inside the space where they were issued, and that
+/// space is an artifact *together with the plan that opened it*. Both halves
+/// were established by running the collision rather than reasoning about it:
+///
+/// * across artifacts, `s#0` exists in almost every store, so a foreign id
+///   resolved locally and returned another artifact's bytes;
+/// * across plans over the *same* artifact — identical artifact digest —
+///   `Lines` and `MarkedSections` both issue `s#0`, pointing at
+///   `"--- s ---"` and `"alpha"` respectively, and the first revision to fix
+///   the artifact case still returned the wrong line here.
+///
+/// That is case 10 of the Slice A negative matrix in both of its forms.
 #[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub struct RecordId {
-    artifact_digest: ArtifactDigest,
+    store_id: StoreId,
     local: LocalRecordId,
 }
 
 impl RecordId {
-    /// The artifact this id is valid against.
-    pub fn artifact_digest(&self) -> &ArtifactDigest {
-        &self.artifact_digest
+    /// The store this id is valid against: one artifact, opened one way.
+    pub fn store_id(&self) -> &StoreId {
+        &self.store_id
     }
 
     /// The section this record belongs to.
@@ -158,6 +166,8 @@ pub struct IndexSpec {
 #[derive(Debug, Clone)]
 pub struct CanonicalStore {
     artifact_digest: ArtifactDigest,
+    store_plan_digest: StorePlanDigest,
+    store_id: StoreId,
     /// Every section the artifact declares, including ones holding no records.
     ///
     /// Kept separately from `records` on purpose: deriving the known sections
@@ -191,6 +201,11 @@ impl CanonicalStore {
         // ONE full decode. `crate::decode` unwraps pipelines to RAW;
         // `crate::decode_once` would stop after a single container layer.
         let raw = crate::decode(artifact_text)?;
+        // The plan is part of the identity, so it is canonicalized before use:
+        // specs are sorted by index name, so the order a caller happened to
+        // pass them in cannot change what the store is called.
+        let store_plan_digest = digest_store_plan_bytes(&canonical_plan_bytes(seg, specs)?);
+        let store_id = store_id(&artifact_digest, &store_plan_digest);
         let (records, sections) = segment(&raw, seg)?;
 
         let mut indexes: IndexSet = BTreeMap::new();
@@ -212,6 +227,8 @@ impl CanonicalStore {
         }
         Ok(CanonicalStore {
             artifact_digest,
+            store_plan_digest,
+            store_id,
             sections,
             records,
             indexes,
@@ -221,6 +238,16 @@ impl CanonicalStore {
     /// The artifact this store was built from.
     pub fn artifact_digest(&self) -> &ArtifactDigest {
         &self.artifact_digest
+    }
+
+    /// How this artifact was opened: segmentation plus index specs.
+    pub fn store_plan_digest(&self) -> &StorePlanDigest {
+        &self.store_plan_digest
+    }
+
+    /// This store's identity — the space in which its record ids are valid.
+    pub fn store_id(&self) -> &StoreId {
+        &self.store_id
     }
 
     /// How many records the artifact yielded.
@@ -241,7 +268,7 @@ impl CanonicalStore {
     /// Attach this store's artifact binding to local coordinates.
     fn bind(&self, local: &LocalRecordId) -> RecordId {
         RecordId {
-            artifact_digest: self.artifact_digest,
+            store_id: self.store_id,
             local: local.clone(),
         }
     }
@@ -312,11 +339,11 @@ impl CanonicalStore {
         // resolve. That is exactly how the previous revision passed its own
         // test for the wrong reason.
         for id in ids {
-            if id.artifact_digest != self.artifact_digest {
+            if id.store_id != self.store_id {
                 bail!(
-                    "record id belongs to artifact {}, this store holds {}",
-                    id.artifact_digest.to_canonical_text(),
-                    self.artifact_digest.to_canonical_text()
+                    "store-mismatch: record id belongs to store {}, this store is {}",
+                    id.store_id.to_canonical_text(),
+                    self.store_id.to_canonical_text()
                 );
             }
         }
@@ -411,4 +438,47 @@ fn insert_record(
     }
     out.insert(id, bytes.to_vec().into_boxed_slice());
     Ok(())
+}
+
+/// Canonical bytes of an open plan: the segmentation and every index spec.
+///
+/// Sorted by index name before encoding, so the order a caller happened to
+/// list its specs in cannot change the store's identity. Every variant carries
+/// an explicit frozen discriminant, and every parameter is length-delimited,
+/// for the same reasons the query encoding is.
+fn canonical_plan_bytes(seg: &Segmentation, specs: &[IndexSpec]) -> Result<Vec<u8>> {
+    let mut out = Vec::new();
+    match seg {
+        Segmentation::Lines { section } => {
+            out.push(1);
+            encode_name(&mut out, section.as_str());
+        }
+        Segmentation::MarkedSections {
+            prefix,
+            suffix,
+            preamble,
+        } => {
+            out.push(2);
+            // Markers are data, not protocol names: either may legitimately be
+            // empty, and neither is a schema identifier.
+            encode_bytes(&mut out, prefix.as_bytes());
+            encode_bytes(&mut out, suffix.as_bytes());
+            encode_name(&mut out, preamble.as_str());
+        }
+    }
+    let mut sorted: Vec<&IndexSpec> = specs.iter().collect();
+    sorted.sort_by(|a, b| a.name.as_str().cmp(b.name.as_str()));
+    encode_count(&mut out, sorted.len())?;
+    for spec in sorted {
+        encode_name(&mut out, spec.name.as_str());
+        match &spec.extractor {
+            KeyExtractor::WholeRecord => out.push(1),
+            KeyExtractor::Field { separator, index } => {
+                out.push(2);
+                out.push(*separator);
+                out.extend_from_slice(&index.to_be_bytes());
+            }
+        }
+    }
+    Ok(out)
 }

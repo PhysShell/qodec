@@ -36,6 +36,8 @@ const DOMAIN_CANONICAL_QUERY: &str = "qodec.canonical-query.v1";
 const DOMAIN_COMPLETE_RESULT: &str = "qodec.complete-result.v1";
 const DOMAIN_QUERY_RESULT_ID: &str = "qodec.query-result-id.v1";
 const DOMAIN_ARTIFACT: &str = "qodec.artifact.v1";
+const DOMAIN_STORE_PLAN: &str = "qodec.store-plan.v1";
+const DOMAIN_STORE_ID: &str = "qodec.store-id.v1";
 
 /// One lowercase hex digit as a nibble; uppercase is an error, not a variant.
 fn lowercase_nibble(b: u8, text: &str) -> Result<u8> {
@@ -136,6 +138,19 @@ pub struct CanonicalQueryDigest(Digest);
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub struct CompleteResultDigest(Digest);
 
+/// Identifies *how* an artifact was opened: segmentation plus index specs.
+///
+/// Coordinates only mean something inside a plan. The same artifact opened
+/// with two segmentations yields two different records at `s#0`, so an id that
+/// names only the artifact is ambiguous exactly where it looks precise.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
+pub struct StorePlanDigest(Digest);
+
+/// Identifies one opened store: an artifact together with the plan that opened
+/// it. This is the space in which a record's coordinates are unambiguous.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
+pub struct StoreId(Digest);
+
 /// The content-addressed identity of a query result.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub struct QueryResultId(Digest);
@@ -181,6 +196,8 @@ impl ArtifactDigest {
 }
 impl_digest_role!(CanonicalQueryDigest, "canonical query digest");
 impl_digest_role!(CompleteResultDigest, "complete result digest");
+impl_digest_role!(StorePlanDigest, "store plan digest");
+impl_digest_role!(StoreId, "store id");
 impl_digest_role!(QueryResultId, "query result id");
 
 /// Which schema's serialization rules apply.
@@ -540,7 +557,7 @@ fn reject_bom(s: &str, what: &str) -> Result<()> {
 /// only in normalization form are therefore different keys, consistently with
 /// qodec's byte-exact contract everywhere else. Callers that need NFC must
 /// normalize before the bytes reach the artifact, not after.
-fn encode_bytes(out: &mut Vec<u8>, bytes: &[u8]) {
+pub(crate) fn encode_bytes(out: &mut Vec<u8>, bytes: &[u8]) {
     out.extend_from_slice(&(bytes.len() as u64).to_be_bytes());
     out.extend_from_slice(bytes);
 }
@@ -559,7 +576,7 @@ fn encode_bytes(out: &mut Vec<u8>, bytes: &[u8]) {
 /// `qodec.query.v2` because v1 is being defined here rather than kept
 /// compatible with a work-in-progress commit — git history is not a published
 /// standard, however much it resembles one from the inside.
-fn encode_name(out: &mut Vec<u8>, s: &str) {
+pub(crate) fn encode_name(out: &mut Vec<u8>, s: &str) {
     encode_bytes(out, s.as_bytes());
 }
 
@@ -569,7 +586,7 @@ fn encode_name(out: &mut Vec<u8>, s: &str) {
 /// enters the type — [`CanonicalResult::new`] for results, and
 /// [`canonical_query_bytes`] for queries — so the encoder itself has no
 /// failure mode to swallow, and no unreachable panic to explain away.
-fn encode_count(out: &mut Vec<u8>, len: usize) -> Result<()> {
+pub(crate) fn encode_count(out: &mut Vec<u8>, len: usize) -> Result<()> {
     // `as u32` would wrap silently, and a wrapped count is the worst possible
     // failure here: the sequence would still encode, still hash, and still
     // produce a confident identity for the wrong content.
@@ -660,6 +677,32 @@ pub fn digest_complete_result_bytes(bytes: &[u8]) -> CompleteResultDigest {
     CompleteResultDigest(Digest(sha256_raw(&preimage)))
 }
 
+/// Digest canonical store-plan bytes under the store-plan domain.
+///
+/// The plan is how an artifact was opened. It is digested rather than carried
+/// whole because it enters an identity, and identities want fixed-width
+/// components with a domain of their own.
+pub fn digest_store_plan_bytes(bytes: &[u8]) -> StorePlanDigest {
+    let mut preimage = domain_header(DOMAIN_STORE_PLAN);
+    preimage.extend_from_slice(&length_prefixed(bytes));
+    StorePlanDigest(Digest(sha256_raw(&preimage)))
+}
+
+/// The identity of an opened store: which artifact, opened which way.
+///
+/// ```text
+/// store_id = sha256(
+///       domain("qodec.store-id.v1")
+///    || field("artifact", artifact_digest_raw_32)
+///    || field("plan",     store_plan_digest_raw_32))
+/// ```
+pub fn store_id(artifact: &ArtifactDigest, plan: &StorePlanDigest) -> StoreId {
+    let mut preimage = domain_header(DOMAIN_STORE_ID);
+    preimage.extend_from_slice(&framed_field("artifact", artifact.as_bytes()));
+    preimage.extend_from_slice(&framed_field("plan", plan.as_bytes()));
+    StoreId(Digest(sha256_raw(&preimage)))
+}
+
 /// Digest of a query, end to end.
 pub fn canonical_query_digest(
     schema: &SchemaId,
@@ -682,12 +725,18 @@ pub fn complete_result_digest(result: &CanonicalResult) -> Result<CompleteResult
 /// ```text
 /// query_result_id = sha256(
 ///       domain("qodec.query-result-id.v1")
-///    || field("schema",   utf8(schema_id))
-///    || field("artifact", artifact_digest_raw_32)
-///    || field("query",    canonical_query_digest_raw_32)
-///    || field("result",   complete_result_digest_raw_32)
+///    || field("schema", utf8(schema_id))
+///    || field("store",  store_id_raw_32)
+///    || field("query",  canonical_query_digest_raw_32)
+///    || field("result", complete_result_digest_raw_32)
 /// )
 /// ```
+///
+/// The **store**, not merely the artifact. A result depends on how the
+/// artifact was segmented and which indexes existed, so an identity naming
+/// only the artifact would be immutable with respect to the evidence and
+/// amnesiac with respect to how the answer was reached — a very technological
+/// form of forgetfulness. `store_id` already binds the artifact transitively.
 ///
 /// Every component is framed and every digest enters as raw bytes. Replaying
 /// the same canonical query over the same artifact under the same schema
@@ -698,13 +747,13 @@ pub fn complete_result_digest(result: &CanonicalResult) -> Result<CompleteResult
 /// silently well-formed record with a confidently wrong identity.
 pub fn query_result_id(
     schema: &SchemaId,
-    artifact_digest: &ArtifactDigest,
+    store: &StoreId,
     query_digest: &CanonicalQueryDigest,
     result_digest: &CompleteResultDigest,
 ) -> QueryResultId {
     let mut preimage = domain_header(DOMAIN_QUERY_RESULT_ID);
     preimage.extend_from_slice(&framed_field("schema", schema.as_str().as_bytes()));
-    preimage.extend_from_slice(&framed_field("artifact", artifact_digest.as_bytes()));
+    preimage.extend_from_slice(&framed_field("store", store.as_bytes()));
     preimage.extend_from_slice(&framed_field("query", query_digest.as_bytes()));
     preimage.extend_from_slice(&framed_field("result", result_digest.as_bytes()));
     QueryResultId(Digest(sha256_raw(&preimage)))
@@ -724,6 +773,8 @@ pub fn query_result_id(
 pub struct StoredQueryResult {
     pub schema: SchemaId,
     pub artifact_digest: ArtifactDigest,
+    pub store_plan_digest: StorePlanDigest,
+    pub store_id: StoreId,
     pub canonical_query: CanonicalQuery,
     pub canonical_query_digest: CanonicalQueryDigest,
     pub complete_result: CanonicalResult,
@@ -748,6 +799,14 @@ impl StoredQueryResult {
     /// [`verify_for_artifact`](Self::verify_for_artifact), and only that
     /// method can report `artifact-mismatch`.
     pub fn verify_internal_consistency(&self) -> Result<()> {
+        let store = store_id(&self.artifact_digest, &self.store_plan_digest);
+        if store != self.store_id {
+            bail!(
+                "stored store_id {} does not match the stored artifact and plan, which derive {}",
+                self.store_id.to_canonical_text(),
+                store.to_canonical_text()
+            );
+        }
         let query = canonical_query_digest(&self.schema, &self.canonical_query)?;
         if query != self.canonical_query_digest {
             bail!(
@@ -764,7 +823,7 @@ impl StoredQueryResult {
                 result.to_canonical_text()
             );
         }
-        let id = query_result_id(&self.schema, &self.artifact_digest, &query, &result);
+        let id = query_result_id(&self.schema, &store, &query, &result);
         if id != self.query_result_id {
             bail!(
                 "stored query_result_id {} does not match the recomputed {}",
@@ -775,20 +834,37 @@ impl StoredQueryResult {
         Ok(())
     }
 
-    /// Check the record against the artifact actually opened, then against
-    /// itself.
+    /// Check the record against the store actually opened, then against itself.
     ///
-    /// The artifact comparison comes **first**. A record describing another
-    /// artifact is not a corrupt record — it may be flawless — it is simply an
-    /// answer about something else, and reporting that as an internal
-    /// inconsistency would send whoever reads the error looking for a bug in
-    /// the wrong place.
-    pub fn verify_for_artifact(&self, expected: &ArtifactDigest) -> Result<()> {
-        if &self.artifact_digest != expected {
+    /// The binding comparisons come **first**, and they are reported
+    /// separately. A record describing another artifact, or the same artifact
+    /// opened a different way, is not a corrupt record — it may be flawless —
+    /// it is simply an answer about something else, and reporting that as an
+    /// internal inconsistency would send whoever reads the error looking for a
+    /// bug in the wrong place.
+    ///
+    /// Artifact and plan are distinguished rather than folded into a single
+    /// store comparison, because the two say different things: "this is about
+    /// a different document" and "this is about the same document read a
+    /// different way" call for different responses.
+    pub fn verify_for_store(
+        &self,
+        expected_artifact: &ArtifactDigest,
+        expected_plan: &StorePlanDigest,
+    ) -> Result<()> {
+        if &self.artifact_digest != expected_artifact {
             bail!(
                 "artifact-mismatch: result was computed over {}, the opened artifact is {}",
                 self.artifact_digest.to_canonical_text(),
-                expected.to_canonical_text()
+                expected_artifact.to_canonical_text()
+            );
+        }
+        if &self.store_plan_digest != expected_plan {
+            bail!(
+                "store-plan-mismatch: result was computed under plan {}, this store was opened \
+                 with plan {}",
+                self.store_plan_digest.to_canonical_text(),
+                expected_plan.to_canonical_text()
             );
         }
         self.verify_internal_consistency()
