@@ -159,6 +159,15 @@ fn distinct_invalid_sequences_do_not_collapse_in_the_index() -> Result<()> {
         [0],
         "the truncated key matches exactly the record it came from, not its neighbour"
     );
+    // The other half of "two different keys": the ê line must be indexed under
+    // its own bytes. Asserting only the first key would leave a regression that
+    // dropped record 1 entirely — or gave it an empty key — undetected.
+    let b = store.lookup(&index("split")?, &key(&[0xC3, 0xAA, 0x31]))?;
+    assert_eq!(
+        b.iter().map(RecordId::ordinal).collect::<Vec<_>>(),
+        [1],
+        "the unsplit line must be indexed under its own distinct key"
+    );
     Ok(())
 }
 
@@ -322,10 +331,15 @@ fn materialized_bytes_equal_the_source_lines() -> Result<()> {
     Ok(())
 }
 
-/// An unknown id fails the whole call rather than returning a short list that
-/// would look like evidence while quietly omitting what did not resolve.
+/// An id this store never issued fails the whole call rather than returning a
+/// short list that would look like evidence while quietly omitting what did
+/// not resolve.
+///
+/// Named for what it covers. The out-of-range-coordinate branch cannot be
+/// reached from a test, because `RecordId` has no public constructor — which
+/// is the intended design, not a gap in the suite.
 #[test]
-fn materialize_refuses_partial_results() -> Result<()> {
+fn materialize_rejects_foreign_records() -> Result<()> {
     let store = CanonicalStore::open(&raw_artifact("a\n"), &lines_seg()?, &whole_record_index()?)?;
     let mut ids: Vec<RecordId> = store.record_ids().collect();
     let other = CanonicalStore::open(

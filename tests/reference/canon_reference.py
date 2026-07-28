@@ -43,7 +43,7 @@ def domain_header(domain: str) -> bytes:
 
 
 def framed_field(tag: str, value: bytes) -> bytes:
-    """`u16be(tag) || tag || u64be(val) || val` — both sides delimited."""
+    """`u16be(len(tag)) || tag || u64be(len(value)) || value` — both delimited."""
     t = tag.encode("utf-8")
     return struct.pack(">H", len(t)) + t + struct.pack(">Q", len(value)) + value
 
@@ -214,6 +214,11 @@ def vectors() -> dict:
     sd = result_support_digest(sb)
     # The same candidate set, but the search stopped at a bound.
     sb_limited = support_bytes(7, {b"cli::reader_17": [("s", 0)]})
+    # The retry-store fixture used by tests/query.rs: one candidate backed by
+    # one record per attempt block. Derived here so the constants that exist to
+    # prove the completion state is inside the digest are not merely pasted.
+    retry = {b"alpha": [("attempt_1", 0), ("attempt_2", 0), ("attempt_3", 0)]}
+    retry_limited = {b"alpha": [("attempt_1", 0), ("attempt_2", 0)]}
     return {
         "GOLDEN_ARTIFACT": "sha256:" + artifact.hex(),
         "GOLDEN_QUERY_BYTES_1": qb1.hex(),
@@ -239,23 +244,36 @@ def vectors() -> dict:
         "GOLDEN_RAW_KEY_QUERY_DIGEST": "sha256:" + canonical_query_digest(qb3).hex(),
         "GOLDEN_RAW_KEY_RESULT_BYTES": rb3.hex(),
         "GOLDEN_RAW_KEY_RESULT_DIGEST": "sha256:" + complete_result_digest(rb3).hex(),
+        "GOLDEN_RETRY_SUPPORT_EXHAUSTED": "sha256:"
+        + result_support_digest(support_bytes(None, retry)).hex(),
+        "GOLDEN_RETRY_SUPPORT_LIMITED": "sha256:"
+        + result_support_digest(support_bytes(2, retry_limited)).hex(),
     }
 
 
 def check() -> int:
-    """Compare derived vectors against the constants committed in tests/canon.rs."""
-    src = (Path(__file__).resolve().parents[1] / "canon.rs").read_text(encoding="utf-8")
+    """Compare derived vectors against the constants committed in the Rust tests.
+
+    Scans every Rust test file that holds golden constants, not just one. A
+    constant the reference never derives is self-attested: it proves only that
+    someone pasted it, which is exactly the state the reference exists to
+    prevent.
+    """
+    tests = Path(__file__).resolve().parents[1]
+    sources = {p.name: p.read_text(encoding="utf-8") for p in sorted(tests.glob("*.rs"))}
     bad = 0
     for name, want in vectors().items():
-        m = re.search(rf'const {name}: &str =\s*"([^"]+)"', src)
-        if not m:
-            print(f"MISSING in tests/canon.rs: {name}")
+        pattern = re.compile(rf'const {re.escape(name)}: &str =\s*"([^"]+)"')
+        found = {f: m.group(1) for f, src in sources.items() if (m := pattern.search(src))}
+        if not found:
+            print(f"MISSING from every Rust test file: {name}")
             bad += 1
             continue
-        if m.group(1) != want:
-            print(f"DRIFT {name}\n  rust      {m.group(1)}\n  reference {want}")
-            bad += 1
-    print("reference and tests/canon.rs agree" if not bad else f"{bad} mismatch(es)")
+        for where, got in found.items():
+            if got != want:
+                print(f"DRIFT {name} in {where}\n  rust      {got}\n  reference {want}")
+                bad += 1
+    print("reference and the Rust golden constants agree" if not bad else f"{bad} mismatch(es)")
     return 1 if bad else 0
 
 

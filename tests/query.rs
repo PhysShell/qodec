@@ -18,6 +18,13 @@ use qodec::canon::{
 use qodec::query::{ExecutionCompletion, ExecutionLimits, HarnessResultRegistry, VerifyOutcome};
 use qodec::store::{CanonicalStore, IndexSpec, KeyExtractor, RecordId, Segmentation};
 
+// Support-digest goldens for the retry-store fixture, derived by
+// tests/reference/canon_reference.py and verified by its `--check` mode in CI.
+const GOLDEN_RETRY_SUPPORT_EXHAUSTED: &str =
+    "sha256:808a47072a27e38455079dd89d1a5d6b1baeb5e206743c41a1ea466386535088";
+const GOLDEN_RETRY_SUPPORT_LIMITED: &str =
+    "sha256:07cdb7a863eebb11a7c7ea288e15c46f82e72869c7ceed6de2a8b217c7d084c4";
+
 fn set(name: &str) -> Result<SetName> {
     SetName::parse(name)
 }
@@ -619,6 +626,18 @@ fn degenerate_limits_are_refused() -> Result<()> {
             }
         )
         .is_err());
+    // Both clauses, not just the first: a regression dropping the
+    // support-records check would otherwise keep this test green.
+    assert!(store
+        .execute(
+            &schema()?,
+            intersect_all_three()?,
+            ExecutionLimits {
+                max_support_records: 0,
+                ..ExecutionLimits::modest()
+            }
+        )
+        .is_err());
     Ok(())
 }
 
@@ -672,24 +691,24 @@ fn completion_state_is_part_of_the_identity() -> Result<()> {
 /// support, so completion can never be the *only* difference between two
 /// executions. Pinning it therefore has to happen at the encoding, which is
 /// where a golden vector belongs anyway.
+///
+/// Both constants are derived by `tests/reference/canon_reference.py` and
+/// checked by its `--check` mode in CI, so neither is self-attested. The
+/// version before this one also asserted two *literals* were unequal, which
+/// compared the file to itself and could not fail — caught by CodeRabbit, and
+/// exactly the failure mode the rest of this file keeps warning about.
 #[test]
 fn the_support_encoding_matches_the_independent_reference() -> Result<()> {
-    // Support and completion computed by tests/reference/canon_reference.py.
-    const EXHAUSTED: &str =
-        "sha256:808a47072a27e38455079dd89d1a5d6b1baeb5e206743c41a1ea466386535088";
-    const LIMITED: &str = "sha256:07cdb7a863eebb11a7c7ea288e15c46f82e72869c7ceed6de2a8b217c7d084c4";
-    // The same three records as EXHAUSTED but labelled as limited: what a
-    // dropped completion byte would make indistinguishable from EXHAUSTED.
-    const MISLABELLED: &str =
-        "sha256:46e43bfdda672cdef0cd0cef0f0fccf64b5c03161405ef2df4acbbf1d190d117";
-
     let store = retry_store()?;
     let alpha = CanonicalQuery::Lookup {
         field: FieldName::parse("line")?,
         value: key(b"alpha"),
     };
     let full = store.execute(&schema()?, alpha.clone(), ExecutionLimits::modest())?;
-    assert_eq!(full.result_support_digest().to_canonical_text(), EXHAUSTED);
+    assert_eq!(
+        full.result_support_digest().to_canonical_text(),
+        GOLDEN_RETRY_SUPPORT_EXHAUSTED
+    );
 
     let bounded = store.execute(
         &schema()?,
@@ -699,11 +718,17 @@ fn the_support_encoding_matches_the_independent_reference() -> Result<()> {
             ..ExecutionLimits::modest()
         },
     )?;
-    assert_eq!(bounded.result_support_digest().to_canonical_text(), LIMITED);
+    assert_eq!(
+        bounded.result_support_digest().to_canonical_text(),
+        GOLDEN_RETRY_SUPPORT_LIMITED
+    );
 
+    // Two executions over the same candidate, differing in completion and in
+    // how much support survived, must not share a support digest.
     assert_ne!(
-        EXHAUSTED, MISLABELLED,
-        "the completion state must be inside the digest, not beside it"
+        full.result_support_digest(),
+        bounded.result_support_digest(),
+        "the completion state and the surviving support must both reach the digest"
     );
     Ok(())
 }
