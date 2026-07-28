@@ -177,6 +177,52 @@ which is a different backend and must not be read as the codex figure.
 **H4 is open**: the sonnet arm is not yet collected, so nothing here
 speaks to cross-family transfer of the rescue.
 
+## Provenance of the collected arm
+
+Recorded in each `record.json`, not reconstructed afterwards:
+
+| field | value |
+|---|---|
+| reader | `codex-cli 0.145.0`, model `gpt-5.6-sol` (per-cell, from the session header) |
+| effort | `high`, `effort_provenance: session-header-confirmed`, all 180 cells |
+| baseline effort | `none`, confirmed the same way on all 180 baseline cells |
+| closed-world argv | `exec --sandbox read-only --skip-git-repo-check --ephemeral --color never -c features.shell_tool=false --ignore-user-config --ignore-rules` |
+| fixtures | `payload_sha256` + `questions_sha256` per task, 15 per family |
+| binary | `qodec_sha256`, plus the repo `git_commit` |
+| prompts | emitted `raw.prompt.txt` / `encoded.prompt.txt` committed next to each run |
+
+## Operational verdict
+
+**Effort escalation is not accepted as a reliable operational mitigation
+for the join hazard.** It is directionally positive, statistically
+unestablished at this n, non-monotone at the task level (it breaks cells
+it did not previously break), and its apparent gain in one family was
+partly an artifact of permissive grading. Nothing here forbids
+escalation as a user-chosen action; it does not qualify as a control the
+system may depend on.
+
+## Non-claims
+
+This arm does **not** claim:
+
+* that elevated effort makes squeeze join tasks reliable — the pooled
+  rescue is p=0.11 as-graded and p=0.18 strict, neither significant;
+* that elevated effort is harmful — the two broken cells are equally
+  underpowered evidence;
+* anything at all about **Sonnet or any other reader family**. Only the
+  codex arm was collected. The claude probe in this document is a
+  two-call manipulation check on one fixture, reported solely to show the
+  effort knob is live, and must not be read as a comparative result;
+* that the strict single-candidate rule is the right normative gate — it
+  is used here as an audit against the substring grader, and the question
+  of the correct gate belongs to the query-harness contract;
+* that RAW is unaffected by effort in general — the RAW control had no
+  headroom, so it can only rule the general-improvement explanation out
+  for *these* tasks, not measure it;
+* that the baseline and elevated arms are perfectly matched — they were
+  collected at different wall-clock times with an identical model string,
+  which is the strongest available check and not a proof.
+
 ## Completion criteria
 
 The scope is closed when there is: a matrix with no provenance gaps; RAW
