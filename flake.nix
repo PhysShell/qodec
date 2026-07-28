@@ -279,17 +279,32 @@
           qodec-tests = craneLib.cargoTest (qodecArgs // {
             cargoArtifacts = qodecDeps;
             pname = "qodec-tests";
-            # The suite reads fixtures from `corpus/`, which
-            # `cleanCargoSource` strips as non-Cargo input — the first run of
-            # this check failed on three `adapter` tests with ENOENT for
-            # exactly that reason. Dependency resolution still uses the clean
-            # source; only the test build sees the fixtures.
-            src = pkgs.lib.cleanSourceWith {
-              src = ./.;
-              filter = path: type:
-                (craneLib.filterCargoSources path type)
-                || (pkgs.lib.hasInfix "/corpus" path);
-            };
+            # The suite reads fixtures that `cleanCargoSource` strips as
+            # non-Cargo input; the first two runs of this check failed with
+            # ENOENT for exactly that reason, first in `adapter` and then in
+            # `risk`. Listed explicitly rather than by a broad pattern: `evals/`
+            # is ~150 MB of frozen run artifacts and only this one subtree is a
+            # test input, so copying the parent into the store to satisfy two
+            # `read_to_string` calls would be a poor trade. Dependency
+            # resolution still uses the clean source.
+            src =
+              let
+                root = toString ./.;
+                fixtures = [ "/corpus" "/evals/agent-g5/tasks-density" ];
+                # Keep a path when it is inside a fixture tree, or is an
+                # ancestor of one — `cleanSourceWith` prunes directories, so a
+                # rejected parent hides everything beneath it.
+                wanted = path:
+                  let rel = pkgs.lib.removePrefix root (toString path);
+                  in pkgs.lib.any
+                    (f: pkgs.lib.hasPrefix f rel || pkgs.lib.hasPrefix rel f)
+                    fixtures;
+              in
+              pkgs.lib.cleanSourceWith {
+                src = ./.;
+                filter = path: type:
+                  (craneLib.filterCargoSources path type) || (wanted path);
+              };
           });
 
           # ---- Interop Benchmark v2 substrate checks (no model/tokenizer net) -- #
