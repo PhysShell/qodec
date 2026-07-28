@@ -207,6 +207,132 @@ impl SchemaId {
     }
 }
 
+// ---------------------------------------------------------------------------
+// Protocol names versus artifact data
+// ---------------------------------------------------------------------------
+//
+// These are two different kinds of string and conflating them is how a
+// byte-exact system quietly becomes a text system.
+//
+// **Protocol names** — schema, index, field and set identifiers — are chosen
+// by the schema, not extracted from a payload. They are text, and the strict
+// UTF-8 / BOM-rejecting / non-normalizing policy applies to them.
+//
+// **Artifact-derived values** are whatever bytes `decode_once` actually found.
+// The artifact is byte-exact by contract, so a key lifted out of it is a byte
+// string, full stop. Interpreting it as text would make `0x00` remarkable, let
+// two distinct byte sequences collapse into one via `U+FFFD`, and — worst —
+// divorce the index key from the record bytes it indexes, so `materialize`
+// would stop proving byte equality and start proving resemblance.
+
+macro_rules! protocol_name {
+    ($name:ident, $what:literal) => {
+        #[doc = concat!("A ", $what, " chosen by the schema, not lifted from a payload.")]
+        ///
+        /// Text by nature, so the strict policy applies: valid UTF-8, no BOM,
+        /// no normalization, non-empty. An empty name is a protocol error
+        /// rather than data — unlike an empty [`KeyBytes`], which is simply a
+        /// key that happens to be zero bytes long.
+        #[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
+        pub struct $name(String);
+
+        impl $name {
+            #[doc = concat!("Parse a ", $what, ", rejecting empty and BOM-bearing input.")]
+            pub fn parse(s: &str) -> Result<Self> {
+                if s.is_empty() {
+                    bail!(concat!($what, " must not be empty"));
+                }
+                reject_bom(s, $what)?;
+                Ok($name(s.to_string()))
+            }
+
+            #[doc = concat!("The ", $what, " as it enters the canonical encoding.")]
+            pub fn as_str(&self) -> &str {
+                &self.0
+            }
+        }
+    };
+}
+
+protocol_name!(FieldName, "field name");
+protocol_name!(SetName, "set name");
+protocol_name!(IndexName, "index name");
+
+/// A value extracted from the artifact: an arbitrary byte string.
+///
+/// No UTF-8 requirement, no BOM policy, no normalization, no escaping. `0x00`
+/// is an ordinary byte of a key rather than an occasion for human alarm, and
+/// two distinct invalid UTF-8 sequences remain two distinct keys because
+/// nothing ever tries to decode them.
+///
+/// Ordering is unsigned lexicographic over the bytes, which is what
+/// `Box<[u8]>` already gives and what the index must use for a reproducible
+/// total order.
+#[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
+pub struct KeyBytes(Box<[u8]>);
+
+impl KeyBytes {
+    /// Wrap bytes as a key. Every byte string is a legal key, including empty.
+    pub fn new(bytes: impl Into<Box<[u8]>>) -> Self {
+        KeyBytes(bytes.into())
+    }
+
+    /// The exact bytes, as they enter the canonical encoding.
+    pub fn as_bytes(&self) -> &[u8] {
+        &self.0
+    }
+
+    /// The one envelope form a byte value may take in JSON.
+    ///
+    /// `{"encoding": "base64url-nopad", "data": "..."}`, plus a
+    /// `display_utf8` field when the bytes happen to be valid UTF-8. That
+    /// field is a courtesy for human readers and is **never** authoritative:
+    /// identity and lookup use the decoded raw bytes only.
+    pub fn to_envelope(&self) -> serde_json::Value {
+        let mut obj = serde_json::Map::new();
+        obj.insert("encoding".into(), "base64url-nopad".into());
+        obj.insert("data".into(), base64url_nopad_encode(&self.0).into());
+        if let Ok(text) = std::str::from_utf8(&self.0) {
+            obj.insert("display_utf8".into(), text.into());
+        }
+        serde_json::Value::Object(obj)
+    }
+
+    /// Parse the envelope form, strictly.
+    ///
+    /// A `display_utf8` that disagrees with the decoded bytes is an error
+    /// rather than a field to ignore: a value that describes itself two ways
+    /// has already lost the argument about which one is authoritative.
+    pub fn from_envelope(value: &serde_json::Value) -> Result<Self> {
+        let obj = value
+            .as_object()
+            .ok_or_else(|| anyhow::anyhow!("byte value envelope must be an object"))?;
+        for key in obj.keys() {
+            if !matches!(key.as_str(), "encoding" | "data" | "display_utf8") {
+                bail!("unknown field {key:?} in byte value envelope");
+            }
+        }
+        match obj.get("encoding").and_then(|v| v.as_str()) {
+            Some("base64url-nopad") => {}
+            other => bail!("byte value encoding must be \"base64url-nopad\", got {other:?}"),
+        }
+        let data = obj
+            .get("data")
+            .and_then(|v| v.as_str())
+            .ok_or_else(|| anyhow::anyhow!("byte value envelope needs a string `data`"))?;
+        let bytes = base64url_nopad_decode(data)?;
+        if let Some(shown) = obj.get("display_utf8") {
+            let shown = shown
+                .as_str()
+                .ok_or_else(|| anyhow::anyhow!("`display_utf8` must be a string"))?;
+            if std::str::from_utf8(&bytes) != Ok(shown) {
+                bail!("`display_utf8` disagrees with the decoded bytes");
+            }
+        }
+        Ok(KeyBytes(bytes.into_boxed_slice()))
+    }
+}
+
 /// A query in the only form that identity is computed over.
 ///
 /// A narrow typed enum rather than free-form JSON. Slice A needs exactly two
@@ -214,10 +340,10 @@ impl SchemaId {
 /// with a serializer option, a library upgrade, or a map iteration order.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum CanonicalQuery {
-    /// Exact match of one field against one value.
-    Lookup { field: String, value: String },
+    /// Exact match of one field against one artifact-derived value.
+    Lookup { field: FieldName, value: KeyBytes },
     /// Intersection of named sets on a join key.
-    Intersect { key: String, sets: Vec<String> },
+    Intersect { key: FieldName, sets: Vec<SetName> },
 }
 
 impl CanonicalQuery {
@@ -231,30 +357,31 @@ impl CanonicalQuery {
 }
 
 /// The complete result set, before any preview truncation.
+///
+/// Candidates are artifact-derived values, so they are [`KeyBytes`] for the
+/// same reason `Lookup.value` is: an index able to hold a key that a result
+/// cannot express would be a curious system.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct CanonicalResult {
-    candidates: Vec<String>,
+    candidates: Vec<KeyBytes>,
 }
 
 impl CanonicalResult {
     /// Build a result in canonical form: total order, no duplicates.
     ///
-    /// Ordering is by UTF-8 byte value, which is the only order available
-    /// without dragging in a locale. Without a total order the result digest
-    /// is unstable across replays and the whole identity scheme collapses —
-    /// case 12 of the Slice A negative matrix.
-    pub fn new(candidates: impl IntoIterator<Item = String>) -> Result<Self> {
-        let mut v: Vec<String> = candidates.into_iter().collect();
-        for c in &v {
-            reject_bom(c, "result candidate")?;
-        }
+    /// Ordering is unsigned lexicographic over the raw bytes — no locale, no
+    /// collation, nothing that could differ between runtimes. Without a total
+    /// order the result digest is unstable across replays and the whole
+    /// identity scheme collapses; case 12 of the Slice A negative matrix.
+    pub fn new(candidates: impl IntoIterator<Item = KeyBytes>) -> Result<Self> {
+        let mut v: Vec<KeyBytes> = candidates.into_iter().collect();
         v.sort_unstable();
         v.dedup();
         Ok(CanonicalResult { candidates: v })
     }
 
     /// The canonical candidates, sorted and deduplicated.
-    pub fn candidates(&self) -> &[String] {
+    pub fn candidates(&self) -> &[KeyBytes] {
         &self.candidates
     }
 }
@@ -295,6 +422,78 @@ fn length_prefixed(bytes: &[u8]) -> Vec<u8> {
     out
 }
 
+/// One 6-bit group as a base64url digit.
+///
+/// Arithmetic rather than a lookup table: no indexing, so no panicking path to
+/// reason about. Callers mask to 6 bits, so the final arm only ever sees 63.
+fn b64url_digit(value: u32) -> char {
+    match value {
+        0..=25 => (b'A' + value as u8) as char,
+        26..=51 => (b'a' + (value - 26) as u8) as char,
+        52..=61 => (b'0' + (value - 52) as u8) as char,
+        62 => '-',
+        _ => '_',
+    }
+}
+
+/// The inverse: a base64url digit as its 6-bit value, or `None` if the byte is
+/// not in the alphabet. Padding and the standard alphabet's `+/` land here.
+fn b64url_value(c: u8) -> Option<u32> {
+    match c {
+        b'A'..=b'Z' => Some((c - b'A') as u32),
+        b'a'..=b'z' => Some((c - b'a') as u32 + 26),
+        b'0'..=b'9' => Some((c - b'0') as u32 + 52),
+        b'-' => Some(62),
+        b'_' => Some(63),
+        _ => None,
+    }
+}
+
+/// base64url without padding — the one text form a byte value may take.
+fn base64url_nopad_encode(bytes: &[u8]) -> String {
+    let mut out = String::with_capacity(bytes.len().div_ceil(3) * 4);
+    for chunk in bytes.chunks(3) {
+        let b0 = chunk.first().copied().unwrap_or(0);
+        let b1 = chunk.get(1).copied().unwrap_or(0);
+        let b2 = chunk.get(2).copied().unwrap_or(0);
+        let n = (u32::from(b0) << 16) | (u32::from(b1) << 8) | u32::from(b2);
+        for shift in [18u32, 12, 6, 0].into_iter().take(chunk.len() + 1) {
+            out.push(b64url_digit((n >> shift) & 63));
+        }
+    }
+    out
+}
+
+/// Decode strictly: no padding, no standard-alphabet characters, no
+/// whitespace, and no non-zero trailing bits.
+///
+/// The last point matters more than it looks. Two different encodings that
+/// decode to the same bytes would give one byte string two spellings, and a
+/// value with two spellings has no business being part of a content address.
+fn base64url_nopad_decode(text: &str) -> Result<Vec<u8>> {
+    let mut acc: u32 = 0;
+    let mut bits = 0u32;
+    let mut out = Vec::with_capacity(text.len() * 3 / 4);
+    for ch in text.bytes() {
+        let Some(v) = b64url_value(ch) else {
+            bail!("base64url-nopad rejects byte {ch:#04x}; padding and `+/` are not accepted");
+        };
+        acc = (acc << 6) | v;
+        bits += 6;
+        if bits >= 8 {
+            bits -= 8;
+            out.push((acc >> bits) as u8);
+        }
+    }
+    if bits >= 6 {
+        bail!("base64url-nopad input has a dangling character");
+    }
+    if bits > 0 && (acc & ((1 << bits) - 1)) != 0 {
+        bail!("base64url-nopad input has non-zero trailing bits; encoding is not canonical");
+    }
+    Ok(out)
+}
+
 /// Private on purpose: every exported hash entry point is domain-tagged.
 fn sha256_raw(input: &[u8]) -> [u8; 32] {
     let mut h = Sha256::new();
@@ -327,9 +526,19 @@ fn reject_bom(s: &str, what: &str) -> Result<()> {
 /// only in normalization form are therefore different keys, consistently with
 /// qodec's byte-exact contract everywhere else. Callers that need NFC must
 /// normalize before the bytes reach the artifact, not after.
-fn encode_str(out: &mut Vec<u8>, s: &str) {
-    out.extend_from_slice(&(s.len() as u64).to_be_bytes());
-    out.extend_from_slice(s.as_bytes());
+fn encode_bytes(out: &mut Vec<u8>, bytes: &[u8]) {
+    out.extend_from_slice(&(bytes.len() as u64).to_be_bytes());
+    out.extend_from_slice(bytes);
+}
+
+/// A protocol name enters as its UTF-8 bytes.
+///
+/// Wire-identical to [`encode_bytes`] on purpose: the difference between a
+/// name and a key is what is *validated on the way in*, not how it is framed.
+/// That is also why this split changed no golden vector — every previously
+/// encodable value encodes to exactly the same bytes.
+fn encode_name(out: &mut Vec<u8>, s: &str) {
+    encode_bytes(out, s.as_bytes());
 }
 
 /// `u32be(count) || encode_str(e)…`, in the order given.
@@ -338,15 +547,30 @@ fn encode_str(out: &mut Vec<u8>, s: &str) {
 /// enters the type — [`CanonicalResult::new`] for results, and
 /// [`canonical_query_bytes`] for queries — so the encoder itself has no
 /// failure mode to swallow, and no unreachable panic to explain away.
-fn encode_seq(out: &mut Vec<u8>, items: &[String]) -> Result<()> {
+fn encode_count(out: &mut Vec<u8>, len: usize) -> Result<()> {
     // `as u32` would wrap silently, and a wrapped count is the worst possible
     // failure here: the sequence would still encode, still hash, and still
     // produce a confident identity for the wrong content.
-    let count = u32::try_from(items.len())
-        .map_err(|_| anyhow::anyhow!("sequence of {} items exceeds u32", items.len()))?;
+    let count =
+        u32::try_from(len).map_err(|_| anyhow::anyhow!("sequence of {len} items exceeds u32"))?;
     out.extend_from_slice(&count.to_be_bytes());
+    Ok(())
+}
+
+/// `u32be(count) || encode_name(e)…`, in the order given.
+fn encode_name_seq(out: &mut Vec<u8>, items: &[SetName]) -> Result<()> {
+    encode_count(out, items.len())?;
     for item in items {
-        encode_str(out, item);
+        encode_name(out, item.as_str());
+    }
+    Ok(())
+}
+
+/// `u32be(count) || encode_bytes(e)…`, in the order given.
+fn encode_key_seq(out: &mut Vec<u8>, items: &[KeyBytes]) -> Result<()> {
+    encode_count(out, items.len())?;
+    for item in items {
+        encode_bytes(out, item.as_bytes());
     }
     Ok(())
 }
@@ -366,21 +590,17 @@ pub fn canonical_query_bytes(schema: &SchemaId, query: &CanonicalQuery) -> Resul
     let mut out = vec![query.discriminant()];
     match query {
         CanonicalQuery::Lookup { field, value } => {
-            reject_bom(field, "lookup field")?;
-            reject_bom(value, "lookup value")?;
-            encode_str(&mut out, field);
-            encode_str(&mut out, value);
+            // The name was validated when it was parsed; the value is data and
+            // is encoded exactly as found.
+            encode_name(&mut out, field.as_str());
+            encode_bytes(&mut out, value.as_bytes());
         }
         CanonicalQuery::Intersect { key, sets } => {
-            reject_bom(key, "intersect key")?;
-            for s in sets {
-                reject_bom(s, "intersect set name")?;
-            }
-            encode_str(&mut out, key);
+            encode_name(&mut out, key.as_str());
             let mut sets = sets.clone();
             sets.sort_unstable();
             sets.dedup();
-            encode_seq(&mut out, &sets)?;
+            encode_name_seq(&mut out, &sets)?;
         }
     }
     Ok(out)
@@ -392,7 +612,7 @@ pub fn canonical_query_bytes(schema: &SchemaId, query: &CanonicalQuery) -> Resul
 /// `u32` count is refused rather than encoded with a truncated length.
 pub fn canonical_result_bytes(result: &CanonicalResult) -> Result<Vec<u8>> {
     let mut out = Vec::new();
-    encode_seq(&mut out, &result.candidates)?;
+    encode_key_seq(&mut out, &result.candidates)?;
     Ok(out)
 }
 

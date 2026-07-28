@@ -15,8 +15,8 @@ use anyhow::Result;
 use qodec::canon::{
     canonical_query_bytes, canonical_query_digest, canonical_result_bytes, complete_result_digest,
     digest_canonical_query_bytes, digest_complete_result_bytes, query_result_id, ArtifactDigest,
-    CanonicalQuery, CanonicalQueryDigest, CanonicalResult, CompleteResultDigest, QueryResultId,
-    SchemaId, SCHEMA_QUERY_V1,
+    CanonicalQuery, CanonicalQueryDigest, CanonicalResult, CompleteResultDigest, FieldName,
+    KeyBytes, QueryResultId, SchemaId, SetName, SCHEMA_QUERY_V1,
 };
 
 // Golden values, computed by an independent reference implementation written
@@ -45,6 +45,25 @@ const SUBST_AS_QUERY: &str =
     "sha256:c83a3f0b7f95b6042477e7607923ed1a6a832a09636d4f00bfe17074a3a07639";
 const SUBST_AS_RESULT: &str =
     "sha256:d4b00ce4eea1715a518dffd2dfce519ebff818600ae63e9725b3205f0e51ae19";
+// A key that is not valid UTF-8 and carries an interior NUL: 0xFF 0x00 0xFE 0x80.
+const GOLDEN_RAW_KEY_QUERY_BYTES: &str = "01000000000000000573756974650000000000000004ff00fe80";
+const GOLDEN_RAW_KEY_QUERY_DIGEST: &str =
+    "sha256:d90ce55379b8e24944071ed13187242f91b1aedbb01ec8bdec315b7b832a1bce";
+const GOLDEN_RAW_KEY_RESULT_BYTES: &str =
+    "000000020000000000000004ff00fe800000000000000004ff00fe81";
+const GOLDEN_RAW_KEY_RESULT_DIGEST: &str =
+    "sha256:fea17a889d54e8d2f57191a5e2f022a37f50cb49ce8b5a23b10e77c4ed68ebb9";
+
+const RAW_KEY: [u8; 4] = [0xFF, 0x00, 0xFE, 0x80];
+const RAW_KEY_SIBLING: [u8; 4] = [0xFF, 0x00, 0xFE, 0x81];
+
+fn field(name: &str) -> Result<FieldName> {
+    FieldName::parse(name)
+}
+
+fn key(bytes: &[u8]) -> KeyBytes {
+    KeyBytes::new(bytes.to_vec())
+}
 
 fn v1() -> Result<SchemaId> {
     SchemaId::parse(SCHEMA_QUERY_V1)
@@ -54,23 +73,27 @@ fn hex(bytes: &[u8]) -> String {
     bytes.iter().map(|b| format!("{b:02x}")).collect()
 }
 
-fn golden_query_1() -> CanonicalQuery {
-    CanonicalQuery::Lookup {
-        field: "suite".into(),
-        value: "cli::reader_17".into(),
-    }
+fn golden_query_1() -> Result<CanonicalQuery> {
+    Ok(CanonicalQuery::Lookup {
+        field: field("suite")?,
+        value: key(b"cli::reader_17"),
+    })
 }
 
-fn golden_query_2() -> CanonicalQuery {
-    CanonicalQuery::Intersect {
-        key: "test_id".into(),
+fn golden_query_2() -> Result<CanonicalQuery> {
+    Ok(CanonicalQuery::Intersect {
+        key: field("test_id")?,
         // Deliberately out of order: canonicalization must fix this.
-        sets: vec!["attempt_3".into(), "attempt_1".into(), "attempt_2".into()],
-    }
+        sets: vec![
+            SetName::parse("attempt_3")?,
+            SetName::parse("attempt_1")?,
+            SetName::parse("attempt_2")?,
+        ],
+    })
 }
 
 fn golden_result() -> Result<CanonicalResult> {
-    CanonicalResult::new(["cli::reader_17".to_string()])
+    CanonicalResult::new([key(b"cli::reader_17")])
 }
 
 // ---------------------------------------------------------------------------
@@ -82,12 +105,12 @@ fn golden_result() -> Result<CanonicalResult> {
 #[test]
 fn framing_separates_field_sets_that_naive_concat_would_collide() -> Result<()> {
     let a = CanonicalQuery::Lookup {
-        field: "ab".into(),
-        value: "c".into(),
+        field: field("ab")?,
+        value: key(b"c"),
     };
     let b = CanonicalQuery::Lookup {
-        field: "a".into(),
-        value: "bc".into(),
+        field: field("a")?,
+        value: key(b"bc"),
     };
 
     // The premise of the test: unframed, these are indistinguishable.
@@ -125,7 +148,7 @@ fn framing_separates_field_sets_that_naive_concat_would_collide() -> Result<()> 
 #[test]
 fn identity_components_are_not_interchangeable() -> Result<()> {
     let art = ArtifactDigest::parse_canonical_text(GOLDEN_ARTIFACT)?;
-    let qd = canonical_query_digest(&v1()?, &golden_query_1())?;
+    let qd = canonical_query_digest(&v1()?, &golden_query_1()?)?;
     let rd = complete_result_digest(&golden_result()?)?;
 
     // Passing `rd` where `qd` belongs no longer compiles: the roles are
@@ -149,12 +172,16 @@ fn identity_components_are_not_interchangeable() -> Result<()> {
 #[test]
 fn set_order_and_duplicates_do_not_change_identity() -> Result<()> {
     let a = CanonicalQuery::Intersect {
-        key: "test_id".into(),
-        sets: vec!["attempt_1".into(), "attempt_2".into()],
+        key: field("test_id")?,
+        sets: vec![SetName::parse("attempt_1")?, SetName::parse("attempt_2")?],
     };
     let b = CanonicalQuery::Intersect {
-        key: "test_id".into(),
-        sets: vec!["attempt_2".into(), "attempt_1".into(), "attempt_2".into()],
+        key: field("test_id")?,
+        sets: vec![
+            SetName::parse("attempt_2")?,
+            SetName::parse("attempt_1")?,
+            SetName::parse("attempt_2")?,
+        ],
     };
     assert_eq!(
         canonical_query_digest(&v1()?, &a)?,
@@ -166,9 +193,9 @@ fn set_order_and_duplicates_do_not_change_identity() -> Result<()> {
 /// The same for results: a total order is imposed on construction.
 #[test]
 fn result_order_and_duplicates_are_canonicalized() -> Result<()> {
-    let a = CanonicalResult::new(["b".to_string(), "a".to_string()])?;
-    let b = CanonicalResult::new(["a".to_string(), "b".to_string(), "a".to_string()])?;
-    assert_eq!(a.candidates(), ["a", "b"]);
+    let a = CanonicalResult::new([key(b"b"), key(b"a")])?;
+    let b = CanonicalResult::new([key(b"a"), key(b"b"), key(b"a")])?;
+    assert_eq!(a.candidates(), [key(b"a"), key(b"b")]);
     assert_eq!(complete_result_digest(&a)?, complete_result_digest(&b)?);
     Ok(())
 }
@@ -257,11 +284,11 @@ fn digest_round_trips_through_canonical_text() -> Result<()> {
 #[test]
 fn canonical_bytes_match_independent_reference() -> Result<()> {
     assert_eq!(
-        hex(&canonical_query_bytes(&v1()?, &golden_query_1())?),
+        hex(&canonical_query_bytes(&v1()?, &golden_query_1()?)?),
         GOLDEN_QUERY_BYTES_1
     );
     assert_eq!(
-        hex(&canonical_query_bytes(&v1()?, &golden_query_2())?),
+        hex(&canonical_query_bytes(&v1()?, &golden_query_2()?)?),
         GOLDEN_QUERY_BYTES_2
     );
     assert_eq!(
@@ -275,8 +302,8 @@ fn canonical_bytes_match_independent_reference() -> Result<()> {
 #[test]
 fn digests_and_identity_match_independent_reference() -> Result<()> {
     let art = ArtifactDigest::parse_canonical_text(GOLDEN_ARTIFACT)?;
-    let qd1 = canonical_query_digest(&v1()?, &golden_query_1())?;
-    let qd2 = canonical_query_digest(&v1()?, &golden_query_2())?;
+    let qd1 = canonical_query_digest(&v1()?, &golden_query_1()?)?;
+    let qd2 = canonical_query_digest(&v1()?, &golden_query_2()?)?;
     let rd = complete_result_digest(&golden_result()?)?;
 
     assert_eq!(qd1.to_canonical_text(), GOLDEN_QUERY_DIGEST_1);
@@ -299,7 +326,7 @@ fn digests_and_identity_match_independent_reference() -> Result<()> {
 fn identity_is_reproducible_from_inputs_alone() -> Result<()> {
     let art = ArtifactDigest::parse_canonical_text(GOLDEN_ARTIFACT)?;
     let compute = || -> Result<QueryResultId> {
-        let qd = canonical_query_digest(&v1()?, &golden_query_2())?;
+        let qd = canonical_query_digest(&v1()?, &golden_query_2()?)?;
         let rd = complete_result_digest(&golden_result()?)?;
         Ok(query_result_id(&v1()?, &art, &qd, &rd))
     };
@@ -318,7 +345,7 @@ fn identity_is_reproducible_from_inputs_alone() -> Result<()> {
 #[test]
 fn schema_version_changes_identity_even_with_identical_bytes() -> Result<()> {
     let art = ArtifactDigest::parse_canonical_text(GOLDEN_ARTIFACT)?;
-    let qd = canonical_query_digest(&v1()?, &golden_query_1())?;
+    let qd = canonical_query_digest(&v1()?, &golden_query_1()?)?;
     let rd = complete_result_digest(&golden_result()?)?;
 
     let v2 = SchemaId::identity_only("qodec.query.v2")?;
@@ -337,7 +364,7 @@ fn schema_version_changes_identity_even_with_identical_bytes() -> Result<()> {
 fn unknown_schema_has_no_encoder() -> Result<()> {
     assert!(SchemaId::parse("qodec.query.v2").is_err());
     let v2 = SchemaId::identity_only("qodec.query.v2")?;
-    assert!(canonical_query_bytes(&v2, &golden_query_1()).is_err());
+    assert!(canonical_query_bytes(&v2, &golden_query_1()?).is_err());
     Ok(())
 }
 
@@ -345,42 +372,112 @@ fn unknown_schema_has_no_encoder() -> Result<()> {
 // Content policy
 // ---------------------------------------------------------------------------
 
-/// A byte order mark is invisible and would make two apparently identical
-/// keys hash differently.
+/// Protocol names are text and keep the strict policy: a BOM is invisible and
+/// would make two apparently identical *names* differ, and an empty name is a
+/// protocol error rather than data.
 #[test]
-fn byte_order_marks_are_rejected() -> Result<()> {
-    let q = CanonicalQuery::Lookup {
-        field: "\u{feff}suite".into(),
-        value: "x".into(),
-    };
-    assert!(canonical_query_bytes(&v1()?, &q).is_err());
-
-    let set = CanonicalQuery::Intersect {
-        key: "k".into(),
-        sets: vec!["\u{feff}a".into()],
-    };
-    assert!(canonical_query_bytes(&v1()?, &set).is_err());
-    assert!(CanonicalResult::new(["\u{feff}a".to_string()]).is_err());
+fn protocol_names_reject_empty_and_bom() -> Result<()> {
+    assert!(FieldName::parse("").is_err());
+    assert!(SetName::parse("").is_err());
+    assert!(FieldName::parse("\u{feff}suite").is_err());
+    assert!(SetName::parse("attempt\u{feff}1").is_err());
+    assert!(FieldName::parse("suite").is_ok());
     Ok(())
 }
 
-/// No Unicode normalization is performed, and that is the frozen policy:
-/// canonical keys come from `decode_once` over the artifact's exact RAW
-/// bytes, so normalizing here would divorce an index key from the bytes it
-/// indexes and break materialization's byte-equality check.
+/// A key is whatever bytes the decoder found. Invalid UTF-8, interior NUL and
+/// a high byte are all ordinary key content, and none of them may be decoded,
+/// replaced or truncated on the way through.
+#[test]
+fn arbitrary_bytes_survive_as_keys() -> Result<()> {
+    let q = CanonicalQuery::Lookup {
+        field: field("suite")?,
+        value: key(&RAW_KEY),
+    };
+    // The compiler proves this statically for the literal; assert it on an
+    // owned copy so the premise is stated in the test rather than only in a
+    // lint message.
+    assert!(
+        String::from_utf8(RAW_KEY.to_vec()).is_err(),
+        "premise: this key is not valid UTF-8"
+    );
+    assert_eq!(
+        hex(&canonical_query_bytes(&v1()?, &q)?),
+        GOLDEN_RAW_KEY_QUERY_BYTES
+    );
+    assert_eq!(
+        canonical_query_digest(&v1()?, &q)?.to_canonical_text(),
+        GOLDEN_RAW_KEY_QUERY_DIGEST
+    );
+
+    let r = CanonicalResult::new([key(&RAW_KEY), key(&RAW_KEY_SIBLING)])?;
+    assert_eq!(
+        hex(&canonical_result_bytes(&r)?),
+        GOLDEN_RAW_KEY_RESULT_BYTES
+    );
+    assert_eq!(
+        complete_result_digest(&r)?.to_canonical_text(),
+        GOLDEN_RAW_KEY_RESULT_DIGEST
+    );
+    Ok(())
+}
+
+/// Two *different* invalid UTF-8 sequences must not collapse into one key.
+///
+/// This is the concrete disaster a lossy decode would cause: both would become
+/// `U+FFFD`, one lookup would answer for the other's records, and the replay
+/// would be perfectly deterministic and perfectly wrong.
+#[test]
+fn distinct_invalid_utf8_sequences_do_not_collapse() -> Result<()> {
+    let a = key(&[0xFF]);
+    let b = key(&[0xFE]);
+    assert_ne!(a, b);
+    let r = CanonicalResult::new([a.clone(), b.clone()])?;
+    assert_eq!(r.candidates().len(), 2, "the two keys must stay distinct");
+
+    let qa = CanonicalQuery::Lookup {
+        field: field("k")?,
+        value: a,
+    };
+    let qb = CanonicalQuery::Lookup {
+        field: field("k")?,
+        value: b,
+    };
+    assert_ne!(
+        canonical_query_digest(&v1()?, &qa)?,
+        canonical_query_digest(&v1()?, &qb)?
+    );
+    Ok(())
+}
+
+/// An interior NUL is an ordinary byte, and truncating at it would silently
+/// merge every key sharing a prefix.
+#[test]
+fn interior_nul_does_not_truncate_a_key() -> Result<()> {
+    let full = key(b"ab\0cd");
+    let prefix = key(b"ab");
+    assert_ne!(full, prefix);
+    let r = CanonicalResult::new([full, prefix])?;
+    assert_eq!(r.candidates().len(), 2);
+    Ok(())
+}
+
+/// Normalization forms stay distinct — now for a stronger reason than before:
+/// nothing decodes the bytes at all, so there is no stage at which they could
+/// be folded together.
 #[test]
 fn unicode_normalization_forms_are_distinct_keys() -> Result<()> {
-    let nfc = "é"; // U+00E9
-    let nfd = "e\u{301}"; // U+0065 U+0301
+    let nfc = "é".as_bytes(); // U+00E9
+    let nfd = "e\u{301}".as_bytes(); // U+0065 U+0301
     assert_ne!(nfc, nfd, "premise: these differ at the byte level");
 
     let a = CanonicalQuery::Lookup {
-        field: "k".into(),
-        value: nfc.into(),
+        field: field("k")?,
+        value: key(nfc),
     };
     let b = CanonicalQuery::Lookup {
-        field: "k".into(),
-        value: nfd.into(),
+        field: field("k")?,
+        value: key(nfd),
     };
     assert_ne!(
         canonical_query_digest(&v1()?, &a)?,
@@ -390,25 +487,20 @@ fn unicode_normalization_forms_are_distinct_keys() -> Result<()> {
     Ok(())
 }
 
-/// Empty strings and empty sets are legal and distinguishable, so the length
-/// prefixes must carry them rather than the encoder eliding them.
+/// An empty key is legal data; an empty name is not. Length prefixes carry
+/// the empty case rather than the encoder eliding it.
 #[test]
-fn empty_values_are_encoded_not_elided() -> Result<()> {
+fn empty_key_is_legal_and_empty_name_is_not() -> Result<()> {
     let empty_value = CanonicalQuery::Lookup {
-        field: "k".into(),
-        value: String::new(),
+        field: field("k")?,
+        value: key(b""),
     };
-    let empty_field = CanonicalQuery::Lookup {
-        field: String::new(),
-        value: "k".into(),
-    };
-    assert_ne!(
-        canonical_query_bytes(&v1()?, &empty_value)?,
-        canonical_query_bytes(&v1()?, &empty_field)?
-    );
+    assert!(canonical_query_bytes(&v1()?, &empty_value).is_ok());
+    assert!(CanonicalResult::new([key(b"")]).is_ok());
+    assert!(FieldName::parse("").is_err());
 
     let empty_set = CanonicalQuery::Intersect {
-        key: "k".into(),
+        key: field("k")?,
         sets: vec![],
     };
     assert!(canonical_query_bytes(&v1()?, &empty_set).is_ok());
@@ -416,16 +508,94 @@ fn empty_values_are_encoded_not_elided() -> Result<()> {
     Ok(())
 }
 
+// ---------------------------------------------------------------------------
+// The JSON envelope for byte values
+// ---------------------------------------------------------------------------
+
+/// Bytes round-trip through the one permitted envelope form.
+#[test]
+fn key_bytes_round_trip_through_the_envelope() -> Result<()> {
+    for bytes in [
+        RAW_KEY.to_vec(),
+        b"cli::reader_17".to_vec(),
+        vec![],
+        vec![0x00],
+        (0u8..=255).collect(),
+    ] {
+        let k = KeyBytes::new(bytes.clone());
+        let round = KeyBytes::from_envelope(&k.to_envelope())?;
+        assert_eq!(round, k, "envelope must round-trip {bytes:?}");
+    }
+    Ok(())
+}
+
+/// `display_utf8` appears only when the bytes really are UTF-8, and is never
+/// the authoritative value.
+#[test]
+fn display_utf8_is_advisory_and_checked() -> Result<()> {
+    let text = KeyBytes::new(b"cli::reader_17".to_vec()).to_envelope();
+    assert_eq!(
+        text.get("display_utf8").and_then(|v| v.as_str()),
+        Some("cli::reader_17")
+    );
+    let raw = KeyBytes::new(RAW_KEY.to_vec()).to_envelope();
+    assert!(
+        raw.get("display_utf8").is_none(),
+        "invalid UTF-8 must not be given a display form"
+    );
+
+    // A display that disagrees with the data is a contradiction, not a hint.
+    let lying = serde_json::json!({
+        "encoding": "base64url-nopad",
+        "data": "Y2xpOjpyZWFkZXJfMTc",
+        "display_utf8": "something::else",
+    });
+    assert!(KeyBytes::from_envelope(&lying).is_err());
+    Ok(())
+}
+
+/// The envelope is parsed strictly: one encoding name, one alphabet, no
+/// padding, no second spelling of the same bytes.
+#[test]
+fn envelope_parsing_is_strict() -> Result<()> {
+    let ok = serde_json::json!({"encoding": "base64url-nopad", "data": "Y2xp"});
+    assert_eq!(
+        KeyBytes::from_envelope(&ok)?.as_bytes(),
+        b"cli",
+        "premise: the accepted form decodes"
+    );
+
+    for bad in [
+        serde_json::json!({"encoding": "base64", "data": "Y2xp"}),
+        serde_json::json!({"encoding": "base64url-nopad", "data": "Y2xpOjpyZWFkZXJfMTc="}),
+        serde_json::json!({"encoding": "base64url-nopad", "data": "++//"}),
+        serde_json::json!({"encoding": "base64url-nopad", "data": "Y2xp "}),
+        serde_json::json!({"encoding": "base64url-nopad", "data": "A"}),
+        // Non-zero trailing bits: a second spelling of the same one byte.
+        serde_json::json!({"encoding": "base64url-nopad", "data": "_B"}),
+        serde_json::json!({"encoding": "base64url-nopad"}),
+        serde_json::json!({"encoding": "base64url-nopad", "data": 17}),
+        serde_json::json!({"encoding": "base64url-nopad", "data": "Y2xp", "extra": 1}),
+        serde_json::json!("Y2xp"),
+    ] {
+        assert!(
+            KeyBytes::from_envelope(&bad).is_err(),
+            "must reject envelope {bad}"
+        );
+    }
+    Ok(())
+}
+
 /// The two variants must never share an encoding, whatever their payloads.
 #[test]
 fn discriminants_separate_the_operations() -> Result<()> {
     let lookup = CanonicalQuery::Lookup {
-        field: "k".into(),
-        value: "v".into(),
+        field: field("k")?,
+        value: key(b"v"),
     };
     let intersect = CanonicalQuery::Intersect {
-        key: "k".into(),
-        sets: vec!["v".into()],
+        key: field("k")?,
+        sets: vec![SetName::parse("v")?],
     };
     let lb = canonical_query_bytes(&v1()?, &lookup)?;
     let ib = canonical_query_bytes(&v1()?, &intersect)?;

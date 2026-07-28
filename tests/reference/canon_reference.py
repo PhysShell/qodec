@@ -49,32 +49,43 @@ def length_prefixed(b: bytes) -> bytes:
     return struct.pack(">Q", len(b)) + b
 
 
-def enc_str(s: str) -> bytes:
-    """`u64be(len) || utf8`, with no normalization and no escaping."""
-    if "﻿" in s:
-        raise ValueError("canonical string must not contain U+FEFF")
-    b = s.encode("utf-8")
+def enc_bytes(b: bytes) -> bytes:
+    """`u64be(len) || raw` — the framing for any value, name or key alike."""
     return struct.pack(">Q", len(b)) + b
 
 
-def enc_seq(items) -> bytes:
-    """`u32be(count) || enc_str(e)…` in the order given."""
-    return struct.pack(">I", len(items)) + b"".join(enc_str(i) for i in items)
+def enc_name(s: str) -> bytes:
+    """A protocol name enters as its UTF-8 bytes; empty and BOM are rejected."""
+    if not s:
+        raise ValueError("protocol name must not be empty")
+    if "﻿" in s:
+        raise ValueError("protocol name must not contain U+FEFF")
+    return enc_bytes(s.encode("utf-8"))
 
 
-def query_bytes_lookup(field: str, value: str) -> bytes:
-    """Canonical bytes of a `Lookup`; discriminant 1."""
-    return b"\x01" + enc_str(field) + enc_str(value)
+def enc_name_seq(items) -> bytes:
+    """`u32be(count) || enc_name(e)…` in the order given."""
+    return struct.pack(">I", len(items)) + b"".join(enc_name(i) for i in items)
+
+
+def enc_key_seq(items) -> bytes:
+    """`u32be(count) || enc_bytes(e)…` in the order given."""
+    return struct.pack(">I", len(items)) + b"".join(enc_bytes(i) for i in items)
+
+
+def query_bytes_lookup(field: str, value: bytes) -> bytes:
+    """Canonical bytes of a `Lookup`; discriminant 1, value is raw bytes."""
+    return b"\x01" + enc_name(field) + enc_bytes(value)
 
 
 def query_bytes_intersect(key: str, sets) -> bytes:
     """Canonical bytes of an `Intersect`; discriminant 2, sets sorted+deduped."""
-    return b"\x02" + enc_str(key) + enc_seq(sorted(set(sets)))
+    return b"\x02" + enc_name(key) + enc_name_seq(sorted(set(sets)))
 
 
 def result_bytes(candidates) -> bytes:
-    """Canonical bytes of a complete result; total order, deduplicated."""
-    return enc_seq(sorted(set(candidates)))
+    """Canonical bytes of a complete result; unsigned byte order, deduplicated."""
+    return enc_key_seq(sorted(set(candidates)))
 
 
 def canonical_query_digest(b: bytes) -> bytes:
@@ -102,11 +113,16 @@ def vectors() -> dict:
     artifact = bytes.fromhex(
         "3b1f8a2c4d5e6f708192a3b4c5d6e7f8091a2b3c4d5e6f708192a3b4c5d6e7f8"
     )
-    qb1 = query_bytes_lookup("suite", "cli::reader_17")
+    qb1 = query_bytes_lookup("suite", b"cli::reader_17")
     qb2 = query_bytes_intersect("test_id", ["attempt_3", "attempt_1", "attempt_2"])
-    rb = result_bytes(["cli::reader_17"])
+    rb = result_bytes([b"cli::reader_17"])
     qd1, qd2, rd = canonical_query_digest(qb1), canonical_query_digest(qb2), complete_result_digest(rb)
     subst = b"identical-payload-bytes"
+    # A key that is not valid UTF-8 and carries an interior NUL. Nothing in
+    # the pipeline may decode, replace, or truncate it.
+    raw_key = bytes([0xFF, 0x00, 0xFE, 0x80])
+    qb3 = query_bytes_lookup("suite", raw_key)
+    rb3 = result_bytes([raw_key, bytes([0xFF, 0x00, 0xFE, 0x81])])
     return {
         "GOLDEN_ARTIFACT": "sha256:" + artifact.hex(),
         "GOLDEN_QUERY_BYTES_1": qb1.hex(),
@@ -121,6 +137,10 @@ def vectors() -> dict:
         + query_result_id("qodec.query.v2", artifact, qd1, rd).hex(),
         "SUBST_AS_QUERY": "sha256:" + canonical_query_digest(subst).hex(),
         "SUBST_AS_RESULT": "sha256:" + complete_result_digest(subst).hex(),
+        "GOLDEN_RAW_KEY_QUERY_BYTES": qb3.hex(),
+        "GOLDEN_RAW_KEY_QUERY_DIGEST": "sha256:" + canonical_query_digest(qb3).hex(),
+        "GOLDEN_RAW_KEY_RESULT_BYTES": rb3.hex(),
+        "GOLDEN_RAW_KEY_RESULT_DIGEST": "sha256:" + complete_result_digest(rb3).hex(),
     }
 
 
