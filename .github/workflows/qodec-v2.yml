@@ -30,6 +30,10 @@ env:
 jobs:
   contract:
     runs-on: ubuntu-latest
+    # A ceiling, not an estimate. This job has historically finished in about
+    # ten minutes; the default of six hours meant one wedged step held a runner
+    # for an hour before anyone could tell it apart from a slow build.
+    timeout-minutes: 45
     steps:
       - name: Checkout
         uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
@@ -61,6 +65,7 @@ jobs:
       # anything that reads like a real problem.
       - name: Stage panel transcripts
         if: always()
+        timeout-minutes: 15
         run: |
           mkdir -p panel-transcripts
           nix develop --command cargo run -q --example panel_dry_run -- \
@@ -84,17 +89,19 @@ jobs:
       # checks containment with a positive control so a wrong needle fails
       # loudly rather than passing forever. A live run is a deliberate act at a
       # human's command line and never happens here.
+      # The gate emits the artifacts it verified, via --out-dir. An earlier
+      # revision re-ran the driver in a separate staging step; that step hung
+      # for over an hour on a command the gate had just run twice in three
+      # seconds, and the root cause was not determinable from outside a
+      # still-running job. It was also redundant on its own terms: an artifact
+      # produced by a different run than the one that was checked is an
+      # artifact nobody checked.
       - name: Smoke 1x3x1 (model-free stand-in)
-        run: nix develop --command python3 evals/smoke-1x3x1/check.py
-      - name: Stage smoke transcripts
-        if: always()
-        run: |
-          mkdir -p smoke-1x3x1
-          nix develop --command cargo run -q --example smoke_1x3x1 -- \
-            --jsonl-out smoke-1x3x1/smoke.jsonl \
-            --text-out smoke-1x3x1/smoke.txt || true
+        timeout-minutes: 20
+        run: nix develop --command python3 evals/smoke-1x3x1/check.py --out-dir smoke-1x3x1
       - name: Upload smoke transcripts
         if: always()
+        timeout-minutes: 10
         uses: actions/upload-artifact@b4b15b8c7c6ac21ea08fcf65892d2ee8f75cf882 # v4.4.3
         with:
           name: smoke-1x3x1-transcripts
