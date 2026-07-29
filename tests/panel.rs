@@ -114,7 +114,7 @@ fn metadata_contains_no_record_bytes() -> Result<()> {
 fn a_section_named_like_a_record_still_reveals_nothing() -> Result<()> {
     // The marker line names the section "alpha"; a record also reads "alpha".
     let artifact = raw_artifact("--- alpha ---\nalpha\nbeta\n");
-    let sess = session(&artifact, &marked_plan()?)?;
+    let mut sess = session(&artifact, &marked_plan()?)?;
     let rendered = sess.metadata()?.render();
     assert!(
         rendered.contains("alpha"),
@@ -394,47 +394,158 @@ fn an_incomplete_execution_fails_the_cell() -> Result<()> {
 // The transcript is the measurement
 // ---------------------------------------------------------------------------
 
-/// Every call crosses the boundary into the record, refusals included.
+/// The transcript is the measurement, so it records what actually crossed the
+/// boundary — values, not counts.
 ///
-/// C1 charges the model for what actually reached it — schemas, arguments,
-/// results, preview. A transcript that dropped refused calls would quietly
-/// understate the cost of a session that flailed before it succeeded, which is
-/// exactly the session whose cost matters most.
+/// The earlier version of this contract asserted three query calls and called
+/// that the tool path. It was green while `materialize` and `answer` recorded
+/// nothing at all, and while a query event stored `preview.len()` in place of
+/// the candidates. Neither omission is a correctness hole; both are accounting
+/// holes, and a length cannot be tokenized.
 #[test]
-fn the_transcript_records_calls_in_order_including_refusals() -> Result<()> {
+fn the_transcript_records_the_whole_tool_path_with_real_values() -> Result<()> {
     let artifact = retry_artifact();
     let mut sess = session(&artifact, &marked_plan()?)?;
 
-    sess.lookup(&IndexName::parse("line")?, &key(b"alpha"))?;
-    // An index that does not exist: the call is refused and still recorded.
-    let refused = sess.lookup(&IndexName::parse("no-such-index")?, &key(b"alpha"));
-    assert!(refused.is_err(), "premise: the call failed");
-    sess.intersect(&IndexName::parse("line")?, &attempts()?)?;
+    sess.metadata()?;
+    let hit = sess.intersect(&IndexName::parse("line")?, &attempts()?)?;
+    // A refused materialize, then a valid one.
+    let beta = sess.lookup(&IndexName::parse("line")?, &key(b"beta"))?;
+    assert!(sess.materialize(&hit.handle, &beta.support).is_err());
+    sess.materialize(&hit.handle, &hit.support)?;
+    let answer = hit.preview.first().cloned().unwrap_or_else(|| key(b""));
+    sess.answer(&hit.handle, &answer, &hit.support);
 
-    let log = sess.transcript();
-    assert_eq!(log.len(), 3, "all three calls are recorded");
-    assert_eq!(log.first().map(|e| e.tool.as_str()), Some("qodec_lookup"));
-    assert_eq!(log.first().map(|e| e.ok), Some(true));
-    assert_eq!(log.get(1).map(|e| e.ok), Some(false), "the refusal is kept");
-    assert_eq!(log.get(2).map(|e| e.tool.as_str()), Some("qodec_intersect"));
+    let jsonl = sess.transcript_jsonl();
+    let lines: Vec<&str> = jsonl.lines().collect();
+    assert_eq!(lines.len(), 6, "metadata + 4 tool calls + final answer");
 
-    // Arguments are byte-safe rather than lossily rendered: a key that is not
-    // valid UTF-8 must still be recorded faithfully.
-    let mut bytes_sess = PanelSession::open(
+    let events: Vec<serde_json::Value> = lines
+        .iter()
+        .map(|l| serde_json::from_str(l))
+        .collect::<std::result::Result<_, _>>()?;
+    let kinds: Vec<&str> = events
+        .iter()
+        .filter_map(|e| e.get("event").and_then(|v| v.as_str()))
+        .collect();
+    assert_eq!(
+        kinds,
+        [
+            "metadata",
+            "tool_call",
+            "tool_call",
+            "tool_call",
+            "tool_call",
+            "final_answer"
+        ],
+        "materialize and answer must appear, not only the queries"
+    );
+
+    // The refused materialize is in the record, with ok:false.
+    let refused = events
+        .iter()
+        .find(|e| e.pointer("/outcome/ok") == Some(&serde_json::Value::Bool(false)));
+    assert!(refused.is_some(), "a refusal must be recorded, not dropped");
+
+    // The query event carries the actual candidates and support ids.
+    let query = events
+        .iter()
+        .find(|e| e.get("tool").and_then(|v| v.as_str()) == Some("qodec_intersect"))
+        .ok_or_else(|| anyhow::anyhow!("no intersect event"))?;
+    let preview = query
+        .pointer("/outcome/preview")
+        .and_then(|v| v.as_array())
+        .ok_or_else(|| anyhow::anyhow!("preview must be an array of envelopes"))?;
+    assert_eq!(
+        preview.first().and_then(|v| v.get("display_utf8")),
+        Some(&serde_json::Value::from("alpha")),
+        "the candidate itself, not its length"
+    );
+    let support = query
+        .pointer("/outcome/support")
+        .and_then(|v| v.as_array())
+        .ok_or_else(|| anyhow::anyhow!("support must be an array of record envelopes"))?;
+    assert_eq!(support.len(), 3);
+    assert!(
+        support.first().and_then(|v| v.get("ordinal")).is_some(),
+        "record ids are structured, not counted"
+    );
+
+    // Materialized bytes go through the byte envelope.
+    let mat = events
+        .iter()
+        .find(|e| {
+            e.get("tool").and_then(|v| v.as_str()) == Some("qodec_materialize")
+                && e.pointer("/outcome/ok") == Some(&serde_json::Value::Bool(true))
+        })
+        .ok_or_else(|| anyhow::anyhow!("no successful materialize event"))?;
+    let records = mat
+        .pointer("/outcome/records")
+        .and_then(|v| v.as_array())
+        .ok_or_else(|| anyhow::anyhow!("records must be an array"))?;
+    assert_eq!(records.len(), 3);
+    assert_eq!(
+        records.first().and_then(|v| v.get("encoding")),
+        Some(&serde_json::Value::from("base64url-nopad")),
+        "materialized bytes use the byte envelope, never Debug or lossy UTF-8"
+    );
+
+    // The final answer carries the verdict.
+    let final_event = events
+        .last()
+        .ok_or_else(|| anyhow::anyhow!("no final event"))?;
+    assert_eq!(
+        final_event.get("verdict").and_then(|v| v.as_str()),
+        Some("valid")
+    );
+    Ok(())
+}
+
+/// A non-UTF-8 key survives the transcript as bytes.
+#[test]
+fn transcript_arguments_are_byte_safe() -> Result<()> {
+    let mut sess = PanelSession::open(
         &raw_artifact("x\n"),
         &lines_plan()?,
         schema()?,
         ExecutionLimits::modest(),
     )?;
-    bytes_sess.lookup(&IndexName::parse("line")?, &key(&[0xFF, 0x00]))?;
-    let args = bytes_sess
-        .transcript()
-        .first()
-        .map(|e| e.arguments.clone())
-        .unwrap_or_default();
+    sess.lookup(&IndexName::parse("line")?, &key(&[0xFF, 0x00]))?;
+    let jsonl = sess.transcript_jsonl();
     assert!(
-        !args.contains('\u{FFFD}'),
-        "a non-UTF-8 key must not be recorded as replacement characters: {args}"
+        !jsonl.contains('\u{FFFD}'),
+        "a non-UTF-8 key must not become replacement characters: {jsonl}"
+    );
+    let event: serde_json::Value = serde_json::from_str(jsonl.lines().next().unwrap_or("{}"))?;
+    let data = event
+        .pointer("/arguments/key/data")
+        .and_then(|v| v.as_str())
+        .ok_or_else(|| anyhow::anyhow!("key must be a byte envelope"))?;
+    assert_eq!(data, "_wA", "0xFF 0x00 in base64url-nopad");
+    assert!(
+        event.pointer("/arguments/key/display_utf8").is_none(),
+        "invalid UTF-8 gets no courtesy field"
+    );
+    Ok(())
+}
+
+/// Serializing the same session twice yields identical bytes.
+#[test]
+fn the_canonical_transcript_is_deterministic() -> Result<()> {
+    let artifact = retry_artifact();
+    let mut a = session(&artifact, &marked_plan()?)?;
+    let mut b = session(&artifact, &marked_plan()?)?;
+    for sess in [&mut a, &mut b] {
+        sess.metadata()?;
+        let hit = sess.intersect(&IndexName::parse("line")?, &attempts()?)?;
+        sess.materialize(&hit.handle, &hit.support)?;
+        let answer = hit.preview.first().cloned().unwrap_or_else(|| key(b""));
+        sess.answer(&hit.handle, &answer, &hit.support);
+    }
+    assert_eq!(
+        a.transcript_jsonl(),
+        b.transcript_jsonl(),
+        "two identical sessions must serialize byte-for-byte alike"
     );
     Ok(())
 }

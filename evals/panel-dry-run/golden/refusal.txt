@@ -1,0 +1,30 @@
+== metadata ==
+  records: 6
+  section attempt_1: 2
+  section attempt_2: 2
+  section attempt_3: 2
+  section preamble: 0
+  tool: qodec_lookup(index, key) -> handle, preview, candidate_count, completion, support
+  tool: qodec_intersect(index, sections) -> handle, preview, candidate_count, completion, support
+  tool: qodec_materialize(handle, record_ids) -> bytes for ids in that result's support
+  tool: answer(handle, answer, cited_evidence) -> verdict
+== [0] qodec_intersect ok ==
+  candidate_count: 1
+  preview: "alpha"
+  support: attempt_1#0
+  support: attempt_2#0
+  support: attempt_3#0
+== [1] qodec_lookup ok ==
+  candidate_count: 1
+  preview: "beta"
+  support: attempt_1#1
+  support: attempt_2#1
+== [2] qodec_materialize REFUSED ==
+  reason: record attempt_1#1 is not in the support of result sha256:1528d9c0b1b80be0cf5a749d03a5b532b321c3dae183b303a31ab7cf4f8f9718
+== [3] qodec_materialize ok ==
+  record: "alpha"
+  record: "alpha"
+  record: "alpha"
+== final answer ==
+  answer: "alpha"
+  verdict: valid

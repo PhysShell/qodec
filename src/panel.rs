@@ -69,6 +69,44 @@ pub struct PanelMetadata {
 }
 
 impl PanelMetadata {
+    /// The canonical JSON form.
+    pub fn to_json(&self) -> serde_json::Value {
+        let mut obj = serde_json::Map::new();
+        obj.insert(
+            "artifact_digest".into(),
+            self.artifact_digest.to_canonical_text().into(),
+        );
+        obj.insert("store_id".into(), self.store_id.to_canonical_text().into());
+        obj.insert("schema".into(), self.schema.as_str().into());
+        obj.insert("decode_layers".into(), self.decode_layers.into());
+        obj.insert("record_count".into(), self.record_count.into());
+        obj.insert(
+            "sections".into(),
+            serde_json::Value::Object(
+                self.sections
+                    .iter()
+                    .map(|(k, v)| (k.clone(), serde_json::Value::from(*v)))
+                    .collect(),
+            ),
+        );
+        obj.insert(
+            "indexes".into(),
+            serde_json::Value::Object(
+                self.indexes
+                    .iter()
+                    .map(|(k, v)| (k.clone(), serde_json::Value::from(v.clone())))
+                    .collect(),
+            ),
+        );
+        obj.insert("max_candidates".into(), self.max_candidates.into());
+        obj.insert(
+            "max_support_records".into(),
+            self.max_support_records.into(),
+        );
+        obj.insert("max_preview_items".into(), self.max_preview_items.into());
+        serde_json::Value::Object(obj)
+    }
+
     /// A stable, human-readable rendering for the prompt.
     ///
     /// Deliberately built from the typed fields rather than from anything that
@@ -120,20 +158,266 @@ pub struct ToolResult {
     pub support: Vec<RecordId>,
 }
 
-/// One recorded tool call: what was asked, and what came back.
+/// Which typed tool was called.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum PanelTool {
+    Lookup,
+    Intersect,
+    Materialize,
+}
+
+impl PanelTool {
+    /// The name the model sees in the tool schema.
+    pub fn name(self) -> &'static str {
+        match self {
+            PanelTool::Lookup => "qodec_lookup",
+            PanelTool::Intersect => "qodec_intersect",
+            PanelTool::Materialize => "qodec_materialize",
+        }
+    }
+}
+
+/// A call's arguments, typed rather than pre-rendered.
 ///
-/// The transcript exists because the experiment's model-visible cost is the sum
-/// of what actually crossed the boundary — schemas, arguments, results, preview
-/// — and reconstructing that afterwards from a summary would be an estimate
-/// wearing a measurement's clothes.
+/// Held as values so the canonical serialization is the single place that
+/// decides how bytes are written down. Formatting them into a `String` at the
+/// call site would make the transcript a rendering of a rendering, and the
+/// first lossy step would be invisible from the file.
 #[derive(Debug, Clone, PartialEq, Eq)]
-pub struct CallEnvelope {
-    pub tool: String,
-    pub arguments: String,
-    pub result: String,
-    /// `false` when the call was refused; refusals are part of the record, not
-    /// a reason to omit it.
-    pub ok: bool,
+pub enum ToolArguments {
+    Lookup {
+        index: IndexName,
+        key: KeyBytes,
+    },
+    Intersect {
+        index: IndexName,
+        sections: Vec<SetName>,
+    },
+    Materialize {
+        handle: QueryResultId,
+        record_ids: Vec<RecordId>,
+    },
+}
+
+/// What a call returned, in full.
+///
+/// `preview` and `support` carry the actual candidates and record ids, not
+/// their counts. C1 charges the model for what crossed the boundary, and a
+/// length cannot be tokenized: one support id and one long binary-safe
+/// candidate differ by rather more than a philosophical margin.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum ToolCallOutcome {
+    QueryResult {
+        handle: QueryResultId,
+        candidate_count: u64,
+        completion: ExecutionCompletion,
+        preview: Vec<KeyBytes>,
+        support: Vec<RecordId>,
+    },
+    Materialized {
+        records: Vec<Vec<u8>>,
+    },
+    Refused {
+        reason: String,
+    },
+}
+
+/// One entry in the normative transcript of a cell.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum PanelEvent {
+    /// What the model was told about the artifact, and the tool schemas.
+    Metadata {
+        metadata: PanelMetadata,
+        tool_schemas: Vec<String>,
+    },
+    ToolCall {
+        sequence: u64,
+        tool: PanelTool,
+        arguments: ToolArguments,
+        outcome: ToolCallOutcome,
+    },
+    FinalAnswer {
+        sequence: u64,
+        handle: QueryResultId,
+        answer: KeyBytes,
+        cited: Vec<RecordId>,
+        verdict: VerifyOutcome,
+    },
+}
+
+fn record_envelope(id: &RecordId) -> serde_json::Value {
+    let mut obj = serde_json::Map::new();
+    obj.insert("store".into(), id.store_id().to_canonical_text().into());
+    obj.insert("section".into(), id.section().as_str().into());
+    obj.insert("ordinal".into(), id.ordinal().into());
+    serde_json::Value::Object(obj)
+}
+
+fn completion_envelope(c: ExecutionCompletion) -> serde_json::Value {
+    let mut obj = serde_json::Map::new();
+    match c {
+        ExecutionCompletion::Exhausted => {
+            obj.insert("state".into(), "exhausted".into());
+        }
+        ExecutionCompletion::LimitReached { limit } => {
+            obj.insert("state".into(), "limit-reached".into());
+            obj.insert("limit".into(), limit.into());
+        }
+    }
+    serde_json::Value::Object(obj)
+}
+
+fn verdict_name(v: VerifyOutcome) -> &'static str {
+    match v {
+        VerifyOutcome::Valid => "valid",
+        VerifyOutcome::Invalid => "invalid",
+        VerifyOutcome::Ambiguous => "ambiguous",
+        VerifyOutcome::Incomplete => "incomplete",
+        VerifyOutcome::Unverifiable => "unverifiable",
+        VerifyOutcome::StaleResultHandle => "stale-result-handle",
+        VerifyOutcome::ArtifactMismatch => "artifact-mismatch",
+        VerifyOutcome::StorePlanMismatch => "store-plan-mismatch",
+        VerifyOutcome::QueryDigestMismatch => "query-digest-mismatch",
+    }
+}
+
+impl PanelEvent {
+    /// The canonical JSON form — the machine source of truth.
+    ///
+    /// Every byte value goes through [`KeyBytes::to_envelope`], never through
+    /// `Debug` and never through lossy UTF-8. `serde_json`'s default map is
+    /// sorted, so the same events always serialize to the same bytes, which is
+    /// what makes a byte-for-byte determinism check meaningful.
+    pub fn to_json(&self) -> serde_json::Value {
+        let mut obj = serde_json::Map::new();
+        match self {
+            PanelEvent::Metadata {
+                metadata,
+                tool_schemas,
+            } => {
+                obj.insert("event".into(), "metadata".into());
+                obj.insert("metadata".into(), metadata.to_json());
+                obj.insert("tool_schemas".into(), tool_schemas.clone().into());
+            }
+            PanelEvent::ToolCall {
+                sequence,
+                tool,
+                arguments,
+                outcome,
+            } => {
+                obj.insert("event".into(), "tool_call".into());
+                obj.insert("sequence".into(), (*sequence).into());
+                obj.insert("tool".into(), tool.name().into());
+                obj.insert("arguments".into(), arguments.to_json());
+                obj.insert("outcome".into(), outcome.to_json());
+            }
+            PanelEvent::FinalAnswer {
+                sequence,
+                handle,
+                answer,
+                cited,
+                verdict,
+            } => {
+                obj.insert("event".into(), "final_answer".into());
+                obj.insert("sequence".into(), (*sequence).into());
+                obj.insert("handle".into(), handle.to_canonical_text().into());
+                obj.insert("answer".into(), answer.to_envelope());
+                obj.insert(
+                    "cited".into(),
+                    cited.iter().map(record_envelope).collect::<Vec<_>>().into(),
+                );
+                obj.insert("verdict".into(), verdict_name(*verdict).into());
+            }
+        }
+        serde_json::Value::Object(obj)
+    }
+}
+
+impl ToolArguments {
+    fn to_json(&self) -> serde_json::Value {
+        let mut obj = serde_json::Map::new();
+        match self {
+            ToolArguments::Lookup { index, key } => {
+                obj.insert("index".into(), index.as_str().into());
+                obj.insert("key".into(), key.to_envelope());
+            }
+            ToolArguments::Intersect { index, sections } => {
+                obj.insert("index".into(), index.as_str().into());
+                obj.insert(
+                    "sections".into(),
+                    sections
+                        .iter()
+                        .map(|s| serde_json::Value::from(s.as_str()))
+                        .collect::<Vec<_>>()
+                        .into(),
+                );
+            }
+            ToolArguments::Materialize { handle, record_ids } => {
+                obj.insert("handle".into(), handle.to_canonical_text().into());
+                obj.insert(
+                    "record_ids".into(),
+                    record_ids
+                        .iter()
+                        .map(record_envelope)
+                        .collect::<Vec<_>>()
+                        .into(),
+                );
+            }
+        }
+        serde_json::Value::Object(obj)
+    }
+}
+
+impl ToolCallOutcome {
+    fn to_json(&self) -> serde_json::Value {
+        let mut obj = serde_json::Map::new();
+        match self {
+            ToolCallOutcome::QueryResult {
+                handle,
+                candidate_count,
+                completion,
+                preview,
+                support,
+            } => {
+                obj.insert("ok".into(), true.into());
+                obj.insert("handle".into(), handle.to_canonical_text().into());
+                obj.insert("candidate_count".into(), (*candidate_count).into());
+                obj.insert("completion".into(), completion_envelope(*completion));
+                obj.insert(
+                    "preview".into(),
+                    preview
+                        .iter()
+                        .map(KeyBytes::to_envelope)
+                        .collect::<Vec<_>>()
+                        .into(),
+                );
+                obj.insert(
+                    "support".into(),
+                    support
+                        .iter()
+                        .map(record_envelope)
+                        .collect::<Vec<_>>()
+                        .into(),
+                );
+            }
+            ToolCallOutcome::Materialized { records } => {
+                obj.insert("ok".into(), true.into());
+                obj.insert(
+                    "records".into(),
+                    records
+                        .iter()
+                        .map(|r| KeyBytes::new(r.clone()).to_envelope())
+                        .collect::<Vec<_>>()
+                        .into(),
+                );
+            }
+            ToolCallOutcome::Refused { reason } => {
+                obj.insert("ok".into(), false.into());
+                obj.insert("reason".into(), reason.clone().into());
+            }
+        }
+        serde_json::Value::Object(obj)
+    }
 }
 
 /// How a normative C1 cell ended.
@@ -177,7 +461,8 @@ pub struct PanelSession {
     /// and scope stay in step: a handle the registry has forgotten must not
     /// still authorize reads.
     scope: BTreeMap<QueryResultId, BTreeSet<RecordId>>,
-    transcript: Vec<CallEnvelope>,
+    transcript: Vec<PanelEvent>,
+    sequence: u64,
 }
 
 impl PanelSession {
@@ -203,11 +488,32 @@ impl PanelSession {
             limits,
             scope: BTreeMap::new(),
             transcript: Vec::new(),
+            sequence: 0,
         })
     }
 
     /// The metadata the model is given in place of the artifact.
-    pub fn metadata(&self) -> Result<PanelMetadata> {
+    ///
+    /// Recorded as the transcript's opening event, because the prompt's
+    /// model-visible cost starts here: the metadata and the tool schemas are
+    /// what the model reads before it may call anything.
+    pub fn metadata(&mut self) -> Result<PanelMetadata> {
+        let metadata = self.build_metadata()?;
+        if !self
+            .transcript
+            .iter()
+            .any(|e| matches!(e, PanelEvent::Metadata { .. }))
+        {
+            let tool_schemas = metadata.operations.clone();
+            self.transcript.push(PanelEvent::Metadata {
+                metadata: metadata.clone(),
+                tool_schemas,
+            });
+        }
+        Ok(metadata)
+    }
+
+    fn build_metadata(&self) -> Result<PanelMetadata> {
         let mut sections = BTreeMap::new();
         for name in self.store.sections() {
             sections.insert(name.as_str().to_owned(), 0u64);
@@ -253,10 +559,12 @@ impl PanelSession {
     /// `qodec_lookup`: one index, one key.
     pub fn lookup(&mut self, index: &IndexName, key: &KeyBytes) -> Result<ToolResult> {
         let field = FieldName::parse(index.as_str())?;
-        let args = format!("index={:?} key={:?}", index.as_str(), key.to_envelope());
         self.execute(
-            "qodec_lookup",
-            args,
+            PanelTool::Lookup,
+            ToolArguments::Lookup {
+                index: index.clone(),
+                key: key.clone(),
+            },
             CanonicalQuery::Lookup {
                 field,
                 value: key.clone(),
@@ -267,14 +575,12 @@ impl PanelSession {
     /// `qodec_intersect`: one index, every named section.
     pub fn intersect(&mut self, index: &IndexName, sections: &[SetName]) -> Result<ToolResult> {
         let key = FieldName::parse(index.as_str())?;
-        let args = format!(
-            "index={:?} sections={:?}",
-            index.as_str(),
-            sections.iter().map(SetName::as_str).collect::<Vec<_>>()
-        );
         self.execute(
-            "qodec_intersect",
-            args,
+            PanelTool::Intersect,
+            ToolArguments::Intersect {
+                index: index.clone(),
+                sections: sections.to_vec(),
+            },
             CanonicalQuery::Intersect {
                 key,
                 sets: sections.to_vec(),
@@ -284,18 +590,21 @@ impl PanelSession {
 
     fn execute(
         &mut self,
-        tool: &str,
-        arguments: String,
+        tool: PanelTool,
+        arguments: ToolArguments,
         query: CanonicalQuery,
     ) -> Result<ToolResult> {
+        let sequence = self.next_sequence();
         let issued = match self.store.execute(&self.schema, query, self.limits) {
             Ok(issued) => issued,
             Err(e) => {
-                self.transcript.push(CallEnvelope {
-                    tool: tool.to_owned(),
+                self.transcript.push(PanelEvent::ToolCall {
+                    sequence,
+                    tool,
                     arguments,
-                    result: format!("error: {e}"),
-                    ok: false,
+                    outcome: ToolCallOutcome::Refused {
+                        reason: format!("{e}"),
+                    },
                 });
                 return Err(e);
             }
@@ -311,18 +620,18 @@ impl PanelSession {
         }
         let handle = self.registry.issue(issued);
         self.scope.insert(handle, support.clone());
-        self.transcript.push(CallEnvelope {
-            tool: tool.to_owned(),
+        let support_ids: Vec<RecordId> = support.iter().cloned().collect();
+        self.transcript.push(PanelEvent::ToolCall {
+            sequence,
+            tool,
             arguments,
-            result: format!(
-                "handle={} candidate_count={} completion={:?} preview={} support={}",
-                handle.to_canonical_text(),
+            outcome: ToolCallOutcome::QueryResult {
+                handle,
                 candidate_count,
                 completion,
-                preview.len(),
-                support.len()
-            ),
-            ok: true,
+                preview: preview.clone(),
+                support: support_ids,
+            },
         });
         Ok(ToolResult {
             handle,
@@ -340,7 +649,35 @@ impl PanelSession {
     /// reassemble the payload the arm exists to withhold; scoping to the
     /// support graph of a result the caller actually obtained keeps every read
     /// downstream of a deterministic query.
-    pub fn materialize(&self, handle: &QueryResultId, ids: &[RecordId]) -> Result<Vec<Vec<u8>>> {
+    pub fn materialize(
+        &mut self,
+        handle: &QueryResultId,
+        ids: &[RecordId],
+    ) -> Result<Vec<Vec<u8>>> {
+        let sequence = self.next_sequence();
+        let arguments = ToolArguments::Materialize {
+            handle: *handle,
+            record_ids: ids.to_vec(),
+        };
+        let result = self.materialize_inner(handle, ids);
+        let outcome = match &result {
+            Ok(records) => ToolCallOutcome::Materialized {
+                records: records.clone(),
+            },
+            Err(e) => ToolCallOutcome::Refused {
+                reason: format!("{e}"),
+            },
+        };
+        self.transcript.push(PanelEvent::ToolCall {
+            sequence,
+            tool: PanelTool::Materialize,
+            arguments,
+            outcome,
+        });
+        result
+    }
+
+    fn materialize_inner(&self, handle: &QueryResultId, ids: &[RecordId]) -> Result<Vec<Vec<u8>>> {
         let Some(allowed) = self.scope.get(handle) else {
             bail!(
                 "unknown or evicted result handle: {}",
@@ -367,20 +704,45 @@ impl PanelSession {
 
     /// The final answer, verified against the stored complete result.
     pub fn answer(
-        &self,
+        &mut self,
         handle: &QueryResultId,
         proposed: &KeyBytes,
         cited: &[RecordId],
     ) -> CellOutcome {
-        match self.registry.verify(&self.store, handle, proposed, cited) {
+        let sequence = self.next_sequence();
+        let verdict = self.registry.verify(&self.store, handle, proposed, cited);
+        self.transcript.push(PanelEvent::FinalAnswer {
+            sequence,
+            handle: *handle,
+            answer: proposed.clone(),
+            cited: cited.to_vec(),
+            verdict,
+        });
+        match verdict {
             VerifyOutcome::Valid => CellOutcome::Accepted,
             verdict => CellOutcome::QueryPathFailed { verdict },
         }
     }
 
-    /// Every call this session recorded, in order.
-    pub fn transcript(&self) -> &[CallEnvelope] {
+    fn next_sequence(&mut self) -> u64 {
+        let n = self.sequence;
+        self.sequence = self.sequence.saturating_add(1);
+        n
+    }
+
+    /// Every event this session recorded, in order.
+    pub fn transcript(&self) -> &[PanelEvent] {
         &self.transcript
+    }
+
+    /// The canonical JSONL transcript — the machine source of truth.
+    pub fn transcript_jsonl(&self) -> String {
+        let mut out = String::new();
+        for event in &self.transcript {
+            out.push_str(&event.to_json().to_string());
+            out.push('\n');
+        }
+        out
     }
 
     /// Forget a result, which is how a handle goes stale mid-session.
