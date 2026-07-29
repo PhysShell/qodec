@@ -1,0 +1,4 @@
+arm             correct  verdict              model     cmp  prov_in  prov_out  visible_B  mat_B  calls
+raw             yes      valid                verified  yes  0        0         1361       0      1
+squeeze-direct  yes      valid                verified  yes  0        0         1176       0      1
+forced-query    yes      valid                verified  yes  0        0         14016      15     3

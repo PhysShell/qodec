@@ -219,7 +219,7 @@ impl PanelAnswerSchema {
     }
 }
 
-fn obj(pairs: Vec<(&str, serde_json::Value)>) -> serde_json::Value {
+pub(crate) fn obj(pairs: Vec<(&str, serde_json::Value)>) -> serde_json::Value {
     let mut m = serde_json::Map::new();
     for (k, v) in pairs {
         m.insert(k.to_owned(), v);
@@ -227,14 +227,14 @@ fn obj(pairs: Vec<(&str, serde_json::Value)>) -> serde_json::Value {
     serde_json::Value::Object(m)
 }
 
-fn strings(items: &[&str]) -> serde_json::Value {
+pub(crate) fn strings(items: &[&str]) -> serde_json::Value {
     serde_json::Value::Array(items.iter().map(|s| serde_json::Value::from(*s)).collect())
 }
 
 /// The one byte-value shape, defined once and referenced everywhere.
 ///
 /// Written down a second time per tool is how two encodings quietly appear.
-fn byte_envelope_defs() -> serde_json::Value {
+pub(crate) fn byte_envelope_defs() -> serde_json::Value {
     obj(vec![(
         "byteEnvelope",
         obj(vec![
@@ -274,7 +274,7 @@ fn byte_envelope_defs() -> serde_json::Value {
     )])
 }
 
-fn byte_ref() -> serde_json::Value {
+pub(crate) fn byte_ref() -> serde_json::Value {
     obj(vec![("$ref", "#/$defs/byteEnvelope".into())])
 }
 

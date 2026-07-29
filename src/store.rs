@@ -105,6 +105,47 @@ impl RecordId {
     pub fn ordinal(&self) -> u64 {
         self.local.ordinal
     }
+
+    /// Rebuild an id from the wire envelope a caller was handed.
+    ///
+    /// Needed because the model names records in JSON and something must turn
+    /// that back into a typed id. Deliberately *not* a privilege: parsing
+    /// asserts a claim, it does not grant one. An id built here is still
+    /// checked against the support of the result it is presented with, so a
+    /// fabricated coordinate — a section that does not exist, an ordinal past
+    /// the end, another store's id — parses fine and is then refused. The
+    /// alternative, letting the panel accept loose JSON and resolve
+    /// coordinates itself, would put the same construction in a place where
+    /// the scope check is easier to forget.
+    pub fn from_envelope(value: &serde_json::Value) -> Result<Self> {
+        let obj = value
+            .as_object()
+            .ok_or_else(|| anyhow::anyhow!("record id must be an object"))?;
+        for key in obj.keys() {
+            if !matches!(key.as_str(), "store" | "section" | "ordinal") {
+                bail!("unknown field {key:?} in record id");
+            }
+        }
+        let store = obj
+            .get("store")
+            .and_then(|v| v.as_str())
+            .ok_or_else(|| anyhow::anyhow!("record id needs a string `store`"))?;
+        let section = obj
+            .get("section")
+            .and_then(|v| v.as_str())
+            .ok_or_else(|| anyhow::anyhow!("record id needs a string `section`"))?;
+        let ordinal = obj
+            .get("ordinal")
+            .and_then(serde_json::Value::as_u64)
+            .ok_or_else(|| anyhow::anyhow!("record id needs an unsigned integer `ordinal`"))?;
+        Ok(RecordId {
+            store_id: StoreId::parse_canonical_text(store)?,
+            local: LocalRecordId {
+                section: SetName::parse(section)?,
+                ordinal,
+            },
+        })
+    }
 }
 
 /// How the decoded RAW text is divided into sections and records.

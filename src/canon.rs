@@ -41,6 +41,7 @@ const DOMAIN_ARTIFACT: &str = "qodec.artifact.v1";
 const DOMAIN_STORE_PLAN: &str = "qodec.store-plan.v1";
 const DOMAIN_STORE_ID: &str = "qodec.store-id.v1";
 const DOMAIN_RESULT_SUPPORT: &str = "qodec.result-support.v1";
+const DOMAIN_PROVIDER_REQUEST: &str = "qodec.provider-request.v1";
 
 /// One lowercase hex digit as a nibble; uppercase is an error, not a variant.
 fn lowercase_nibble(b: u8, text: &str) -> Result<u8> {
@@ -168,6 +169,17 @@ pub struct ResultSupportDigest(Digest);
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub struct QueryResultId(Digest);
 
+/// Identifies the exact request body that went to a provider.
+///
+/// Digests the **serialized wire bytes**, not the struct that produced them.
+/// A digest over the struct would certify what the code meant to send; this one
+/// certifies what was actually sent, which is the only version the model saw.
+/// It is also what makes a transport retry provable: two attempts carrying the
+/// same value are the same request tried twice, and a semantic retry — a
+/// different prompt after a failure — cannot wear that identity.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
+pub struct ProviderRequestDigest(Digest);
+
 macro_rules! impl_digest_role {
     ($name:ident, $role:literal) => {
         impl $name {
@@ -213,6 +225,7 @@ impl_digest_role!(StorePlanDigest, "store plan digest");
 impl_digest_role!(StoreId, "store id");
 impl_digest_role!(ResultSupportDigest, "result support digest");
 impl_digest_role!(QueryResultId, "query result id");
+impl_digest_role!(ProviderRequestDigest, "provider request digest");
 
 /// Which schema's serialization rules apply.
 ///
@@ -715,6 +728,17 @@ pub fn store_id(artifact: &ArtifactDigest, plan: &StorePlanDigest) -> StoreId {
     preimage.extend_from_slice(&framed_field("artifact", artifact.as_bytes()));
     preimage.extend_from_slice(&framed_field("plan", plan.as_bytes()));
     StoreId(Digest(sha256_raw(&preimage)))
+}
+
+/// Digest the exact serialized request body under the provider-request domain.
+///
+/// Takes bytes rather than a request type on purpose. The identity must cover
+/// what left the process, so the only honest input is the buffer that was
+/// handed to the transport — anything earlier certifies an intention.
+pub fn digest_provider_request_bytes(bytes: &[u8]) -> ProviderRequestDigest {
+    let mut preimage = domain_header(DOMAIN_PROVIDER_REQUEST);
+    preimage.extend_from_slice(&length_prefixed(bytes));
+    ProviderRequestDigest(Digest(sha256_raw(&preimage)))
 }
 
 /// Digest canonical support bytes under the result-support domain.

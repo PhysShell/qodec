@@ -78,6 +78,28 @@ jobs:
           name: panel-dry-run-transcripts
           path: panel-transcripts/
           if-no-files-found: warn
+      # The 1x3x1 smoke against the deterministic stand-in transport. Makes no
+      # model call and needs no credentials: it exercises mapping, sealing,
+      # delivery, normalization, the tool loop and both accounting planes, then
+      # checks containment with a positive control so a wrong needle fails
+      # loudly rather than passing forever. A live run is a deliberate act at a
+      # human's command line and never happens here.
+      - name: Smoke 1x3x1 (model-free stand-in)
+        run: nix develop --command python3 evals/smoke-1x3x1/check.py
+      - name: Stage smoke transcripts
+        if: always()
+        run: |
+          mkdir -p smoke-1x3x1
+          nix develop --command cargo run -q --example smoke_1x3x1 -- \
+            --jsonl-out smoke-1x3x1/smoke.jsonl \
+            --text-out smoke-1x3x1/smoke.txt || true
+      - name: Upload smoke transcripts
+        if: always()
+        uses: actions/upload-artifact@b4b15b8c7c6ac21ea08fcf65892d2ee8f75cf882 # v4.4.3
+        with:
+          name: smoke-1x3x1-transcripts
+          path: smoke-1x3x1/
+          if-no-files-found: warn
 
   build-and-smoke:
     runs-on: ubuntu-latest

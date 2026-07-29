@@ -1,0 +1,1994 @@
+//! Provider mapping and the exact request/response envelopes.
+//!
+//! This is the boundary where C1's first external probabilistic component
+//! enters. Everything below it is deterministic; everything above it is a
+//! measurement of something we do not control. The module's whole job is to
+//! make the crossing *legible*: what left the process, byte for byte, and what
+//! came back, byte for byte, with no step that reconstructs either from
+//! configuration afterwards.
+//!
+//! Three rules shape it, each closing a way a measurement layer can look
+//! rigorous while quietly measuring itself.
+//!
+//! * **The recorded request is the sent request.** [`SealedRequest`] owns the
+//!   serialized bytes and the transport takes *that object*. There is no path
+//!   that serializes twice, so there is no pair of almost-identical bodies of
+//!   which only one was charged for. Rebuilding the envelope from config after
+//!   the call would be a recollection, and a recollection agrees with the
+//!   config by construction rather than with the wire.
+//! * **Raw and normalized never substitute for each other.** An
+//!   [`ExchangeOutcome`] carries the provider's exact bytes *and* the parsed
+//!   view. Keeping only the parse discards the evidence for the parse; keeping
+//!   only the bytes makes every later reader re-derive it, slightly
+//!   differently.
+//! * **A crossing that failed is still a crossing.** [`exchange`] is total: a
+//!   provider rejection, an unparseable body and a transport that never got
+//!   through are each an outcome carrying its attempts, not an `Err` that takes
+//!   the record with it. Those are the runs most worth having a file about.
+//!
+//! ## What "the same request, tried again" means
+//!
+//! [`ProviderRequestDigest`] proves the JSON body was identical. On its own
+//! that proves identical bytes went *somewhere*. Endpoint, API version, content
+//! type and timeout decide what the provider actually received, so every
+//! attempt also records a [`TransportTarget`] — public by construction, with no
+//! field a credential could occupy. A retry is one digest **and** one target.
+//! * **The provider-neutral schema is the meaning; the provider envelope is
+//!   the fact.** [`crate::panel::PanelToolSchema`] stays normative for what an
+//!   operation *is*. The mapping records what a specific provider was actually
+//!   told — including, explicitly, the fields it was *not* told, because a
+//!   silently dropped field is how an undercount becomes invisible.
+//!
+//! ## What the wire drops, and why that is recorded
+//!
+//! Two things do not survive the crossing to a Messages-style API:
+//!
+//! * `output_schema` — the API accepts no such field on a tool definition. It
+//!   remains a real contract used to check semantic equivalence, but the model
+//!   is never charged for it. Recorded in [`MappedTool::dropped`].
+//! * `seed` — not a parameter this provider has. Recorded in
+//!   [`RequestMapping::unsupported_parameters`] rather than omitted, so a run
+//!   claiming determinism cannot rest on a knob that was never turned.
+//!
+//! ## The fourth tool
+//!
+//! [`crate::panel::PanelTool`] has three variants and always will: those are
+//! the operations that touch the store. On the wire there are **four** tool
+//! definitions, because a schema-constrained terminal answer needs a channel,
+//! and on a tool-calling API that channel is a tool. The distinction is worth
+//! keeping rather than smoothing over — `qodec_answer` reads nothing, executes
+//! nothing, and ends the loop. Calling it a panel tool would put the answer
+//! inside the set of operations it is supposed to conclude.
+//!
+//! Because the answer is a tool in *every* arm, every arm also carries the same
+//! [`ToolChoice`] — the model must act rather than reply in prose. That keeps
+//! the arms differing in which tools exist and in nothing else; left to the
+//! default, a direct arm would answer in prose and its score would become a
+//! measurement of the matcher written to read it.
+
+use std::num::NonZeroU32;
+
+use anyhow::{bail, Context, Result};
+
+use crate::canon::{
+    digest_provider_request_bytes, ArtifactDigest, KeyBytes, ProviderRequestDigest,
+};
+use crate::panel::{PanelAnswerSchema, PanelToolSchema};
+
+/// The largest provider response body this transport will read.
+///
+/// 64 MiB: far above any real Messages response, far below "however much the
+/// other end feels like sending". The cap exists because the body is both held in
+/// memory and written into the transcript.
+pub const MAX_RESPONSE_BODY_BYTES: u64 = 64 * 1024 * 1024;
+
+/// The name of the terminal answer channel on the wire.
+pub const ANSWER_TOOL_NAME: &str = "qodec_answer";
+
+// ---------------------------------------------------------------------------
+// Run identity
+// ---------------------------------------------------------------------------
+
+/// Which of C1's three arms a request belongs to.
+///
+/// Part of the request's recorded identity rather than a label applied by the
+/// aggregator later. An arm assigned after the fact is assigned by whoever is
+/// writing the table, and tables have opinions.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
+pub enum Arm {
+    /// Task plus the full RAW payload.
+    Raw,
+    /// Task plus the full squeeze text.
+    SqueezeDirect,
+    /// Task plus metadata and typed operations. No RAW, no full squeeze.
+    ForcedQuery,
+}
+
+impl Arm {
+    pub fn label(self) -> &'static str {
+        match self {
+            Arm::Raw => "raw",
+            Arm::SqueezeDirect => "squeeze-direct",
+            Arm::ForcedQuery => "forced-query",
+        }
+    }
+
+    pub fn parse(s: &str) -> Option<Self> {
+        match s {
+            "raw" => Some(Arm::Raw),
+            "squeeze-direct" => Some(Arm::SqueezeDirect),
+            "forced-query" => Some(Arm::ForcedQuery),
+            _ => None,
+        }
+    }
+
+    /// The three arms in canonical order.
+    pub fn all() -> [Arm; 3] {
+        [Arm::Raw, Arm::SqueezeDirect, Arm::ForcedQuery]
+    }
+}
+
+/// Which fixture a request was built from.
+///
+/// `source_digest` is the digest of the **original source bytes**, shared by
+/// all three arms of a cell. That sharing is the point: the arms differ in how
+/// the same bytes are presented, so an identity that varied per arm would make
+/// the comparison unfalsifiable — three runs over three inputs, reported as one
+/// row.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct FixtureIdentity {
+    pub name: String,
+    pub source_digest: ArtifactDigest,
+}
+
+impl FixtureIdentity {
+    /// Build from the fixture's own source text.
+    pub fn of_source(name: &str, source: &str) -> Result<Self> {
+        if name.is_empty() {
+            bail!("fixture name must not be empty");
+        }
+        Ok(FixtureIdentity {
+            name: name.to_owned(),
+            source_digest: ArtifactDigest::of_artifact_bytes(source.as_bytes()),
+        })
+    }
+
+    fn to_json(&self) -> serde_json::Value {
+        json_obj(vec![
+            ("name", self.name.clone().into()),
+            (
+                "source_digest",
+                self.source_digest.to_canonical_text().into(),
+            ),
+        ])
+    }
+}
+
+/// Which model was asked for.
+///
+/// Held as the *requested* identifier. What the provider says it actually ran
+/// lives in the response envelope, and the two are compared rather than
+/// assumed equal: an alias that silently resolves to a different snapshot
+/// mid-experiment breaks cross-arm comparability while every row still looks
+/// like it names one model.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct ModelIdentity(String);
+
+impl ModelIdentity {
+    pub fn parse(s: &str) -> Result<Self> {
+        if s.is_empty() || s.chars().any(char::is_whitespace) {
+            bail!("model identity must be non-empty and free of whitespace, got {s:?}");
+        }
+        Ok(ModelIdentity(s.to_owned()))
+    }
+
+    pub fn as_str(&self) -> &str {
+        &self.0
+    }
+}
+
+/// Whether the provider ran the model that was asked for.
+///
+/// Three values, not two. A boolean `drifted` has to decide what to say when
+/// the provider reported no model at all, and the convenient answer — "not
+/// drifted" — silently converts *we do not know* into *it matched*. A great
+/// many comparison tables rest on precisely that substitution.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum ModelStatus {
+    /// The provider named the model, and it is the one requested.
+    Verified,
+    /// The provider named no model. Not agreement — absence of evidence.
+    Missing,
+    /// The provider named a different model.
+    Drifted,
+}
+
+impl ModelStatus {
+    pub fn of(requested: &ModelIdentity, reported: Option<&str>) -> Self {
+        match reported {
+            None => ModelStatus::Missing,
+            Some(m) if m == requested.as_str() => ModelStatus::Verified,
+            Some(_) => ModelStatus::Drifted,
+        }
+    }
+
+    pub fn label(self) -> &'static str {
+        match self {
+            ModelStatus::Verified => "verified",
+            ModelStatus::Missing => "missing",
+            ModelStatus::Drifted => "drifted",
+        }
+    }
+
+    /// Rank, worst first: a cell is only as good as its weakest turn.
+    fn severity(self) -> u8 {
+        match self {
+            ModelStatus::Verified => 0,
+            ModelStatus::Missing => 1,
+            ModelStatus::Drifted => 2,
+        }
+    }
+
+    /// Combine two turns' statuses, keeping the worse.
+    pub fn worst(self, other: Self) -> Self {
+        if other.severity() > self.severity() {
+            other
+        } else {
+            self
+        }
+    }
+
+    /// Whether a cell carrying this status may be compared with another arm.
+    ///
+    /// Only [`ModelStatus::Verified`]. `Missing` is not a weaker yes; it is a
+    /// different claim entirely, and a row built on it says something the run
+    /// never established.
+    pub fn comparable(self) -> bool {
+        matches!(self, ModelStatus::Verified)
+    }
+}
+
+// ---------------------------------------------------------------------------
+// Sampling
+// ---------------------------------------------------------------------------
+
+/// Decoding parameters, as requested.
+///
+/// Non-finite floats are refused at construction. Not defensive habit: the
+/// envelope is serialized to bytes that are then digested, and `NaN` has no
+/// JSON form, so a value that cannot be written down would fail at seal time
+/// with a message about serialization rather than about the parameter that was
+/// wrong.
+#[derive(Debug, Clone, PartialEq)]
+pub struct SamplingParams {
+    pub max_output_tokens: u64,
+    pub temperature: Option<f64>,
+    pub top_p: Option<f64>,
+    /// Extended-thinking budget, where the provider has one. Modelled as an
+    /// exact token budget rather than a free-form "effort" string, so the
+    /// mapping is a fact rather than an interpretation.
+    pub thinking_budget_tokens: Option<u64>,
+    /// Recorded even where unsupported — see
+    /// [`RequestMapping::unsupported_parameters`].
+    pub seed: Option<u64>,
+}
+
+impl SamplingParams {
+    /// Greedy-as-possible defaults for a comparison run.
+    pub fn deterministic(max_output_tokens: u64) -> Result<Self> {
+        SamplingParams {
+            max_output_tokens,
+            temperature: Some(0.0),
+            top_p: None,
+            thinking_budget_tokens: None,
+            seed: None,
+        }
+        .validated()
+    }
+
+    pub fn validated(self) -> Result<Self> {
+        if self.max_output_tokens == 0 {
+            bail!("max_output_tokens must be at least 1");
+        }
+        for (name, value) in [("temperature", self.temperature), ("top_p", self.top_p)] {
+            if let Some(v) = value {
+                if !v.is_finite() {
+                    bail!("{name} must be finite, got {v}");
+                }
+                if v < 0.0 {
+                    bail!("{name} must not be negative, got {v}");
+                }
+            }
+        }
+        Ok(self)
+    }
+}
+
+// ---------------------------------------------------------------------------
+// Messages
+// ---------------------------------------------------------------------------
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum MessageRole {
+    User,
+    Assistant,
+}
+
+impl MessageRole {
+    fn label(self) -> &'static str {
+        match self {
+            MessageRole::User => "user",
+            MessageRole::Assistant => "assistant",
+        }
+    }
+}
+
+/// One block of message content.
+///
+/// Tool results carry `content` as a JSON value rather than a pre-rendered
+/// string for the same reason the panel transcript holds typed arguments: one
+/// place decides how a value becomes text, so there is no earlier lossy step to
+/// go looking for.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum ContentBlock {
+    Text {
+        text: String,
+    },
+    ToolUse {
+        id: String,
+        name: String,
+        input: serde_json::Value,
+    },
+    ToolResult {
+        tool_use_id: String,
+        content: serde_json::Value,
+        is_error: bool,
+    },
+}
+
+impl ContentBlock {
+    fn to_wire(&self) -> serde_json::Value {
+        match self {
+            ContentBlock::Text { text } => {
+                json_obj(vec![("type", "text".into()), ("text", text.clone().into())])
+            }
+            ContentBlock::ToolUse { id, name, input } => json_obj(vec![
+                ("type", "tool_use".into()),
+                ("id", id.clone().into()),
+                ("name", name.clone().into()),
+                ("input", input.clone()),
+            ]),
+            ContentBlock::ToolResult {
+                tool_use_id,
+                content,
+                is_error,
+            } => json_obj(vec![
+                ("type", "tool_result".into()),
+                ("tool_use_id", tool_use_id.clone().into()),
+                ("content", serde_json::Value::String(content.to_string())),
+                ("is_error", (*is_error).into()),
+            ]),
+        }
+    }
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct Message {
+    pub role: MessageRole,
+    pub content: Vec<ContentBlock>,
+}
+
+impl Message {
+    pub fn user_text(text: impl Into<String>) -> Self {
+        Message {
+            role: MessageRole::User,
+            content: vec![ContentBlock::Text { text: text.into() }],
+        }
+    }
+
+    fn to_wire(&self) -> serde_json::Value {
+        json_obj(vec![
+            ("role", self.role.label().into()),
+            (
+                "content",
+                self.content
+                    .iter()
+                    .map(ContentBlock::to_wire)
+                    .collect::<Vec<_>>()
+                    .into(),
+            ),
+        ])
+    }
+}
+
+// ---------------------------------------------------------------------------
+// Provider mapping
+// ---------------------------------------------------------------------------
+
+/// The providers this build knows how to talk to.
+///
+/// One variant on purpose. A multi-provider matrix is a later increment, and an
+/// enum with speculative variants would advertise coverage the mapping tests do
+/// not have.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum ProviderKind {
+    /// Anthropic Messages API, `POST /v1/messages`.
+    AnthropicMessages,
+}
+
+impl ProviderKind {
+    pub fn label(self) -> &'static str {
+        match self {
+            ProviderKind::AnthropicMessages => "anthropic.messages",
+        }
+    }
+
+    /// The path a request is sent to, relative to the base URL.
+    pub fn path(self) -> &'static str {
+        match self {
+            ProviderKind::AnthropicMessages => "/v1/messages",
+        }
+    }
+}
+
+/// A tool definition exactly as it goes on the wire.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct ProviderToolDefinition {
+    pub name: String,
+    pub description: String,
+    pub input_schema: serde_json::Value,
+}
+
+impl ProviderToolDefinition {
+    fn to_wire(&self) -> serde_json::Value {
+        json_obj(vec![
+            ("name", self.name.clone().into()),
+            ("description", self.description.clone().into()),
+            ("input_schema", self.input_schema.clone()),
+        ])
+    }
+}
+
+/// One neutral schema, translated — together with what translation cost.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct MappedTool {
+    pub definition: ProviderToolDefinition,
+    /// Neutral fields with no wire representation for this provider.
+    ///
+    /// Present so the difference between "the model was told this" and "we
+    /// believe this" stays visible in the record. Charging the model for a
+    /// field the API has no slot for would overcount; dropping it silently
+    /// would leave the reader to assume it was sent.
+    pub dropped: Vec<&'static str>,
+}
+
+/// Translate a provider-neutral tool schema.
+///
+/// Deterministic and total: the same neutral schema always yields the same
+/// definition, which is what makes the golden meaningful.
+pub fn map_tool(schema: &PanelToolSchema, provider: ProviderKind) -> MappedTool {
+    match provider {
+        ProviderKind::AnthropicMessages => MappedTool {
+            definition: ProviderToolDefinition {
+                name: schema.name.name().to_owned(),
+                description: schema.description.to_owned(),
+                input_schema: schema.input_schema.clone(),
+            },
+            dropped: vec!["output_schema"],
+        },
+    }
+}
+
+/// Whether the model may reply without acting.
+///
+/// One variant, and it is used by every arm that has tools at all — which is
+/// every arm. **Every arm must act through a tool; the arms differ only in
+/// which tools exist.** A direct arm whose sole tool is the answer channel and
+/// a forced-query arm with four tools therefore carry the *same* wire value
+/// here, so nothing about the answer channel varies between them.
+///
+/// Left to the default, a direct arm would usually reply in prose and grading
+/// would become a measurement of whatever matcher we wrote to read it — the
+/// exact failure the byte-exact answer schema exists to avoid.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum ToolChoice {
+    /// The model must call one of the offered tools.
+    Any,
+}
+
+impl ToolChoice {
+    fn to_wire(self) -> serde_json::Value {
+        match self {
+            ToolChoice::Any => json_obj(vec![("type", "any".into())]),
+        }
+    }
+
+    fn label(self) -> &'static str {
+        match self {
+            ToolChoice::Any => "any",
+        }
+    }
+}
+
+/// How the terminal answer is constrained on the wire.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum ProviderResponseFormat {
+    /// The answer arrives as a call to a distinguished tool, schema-constrained
+    /// by that tool's input schema.
+    TerminalTool(ProviderToolDefinition),
+}
+
+impl ProviderResponseFormat {
+    /// The wire tool definition this format contributes, if any.
+    pub fn tool_definition(&self) -> &ProviderToolDefinition {
+        match self {
+            ProviderResponseFormat::TerminalTool(def) => def,
+        }
+    }
+}
+
+/// Translate the answer schema into a provider response format.
+pub fn map_answer(schema: &PanelAnswerSchema, provider: ProviderKind) -> ProviderResponseFormat {
+    match provider {
+        ProviderKind::AnthropicMessages => {
+            ProviderResponseFormat::TerminalTool(ProviderToolDefinition {
+                name: ANSWER_TOOL_NAME.to_owned(),
+                description: schema.description.to_owned(),
+                input_schema: schema.schema.clone(),
+            })
+        }
+    }
+}
+
+/// The full translation of one panel surface, with every loss recorded.
+#[derive(Debug, Clone, PartialEq)]
+pub struct RequestMapping {
+    pub provider: ProviderKind,
+    pub tools: Vec<MappedTool>,
+    pub response_format: Option<ProviderResponseFormat>,
+    /// Whether the model may reply without calling a tool. Identical in every
+    /// arm — see [`ToolChoice`].
+    pub tool_choice: Option<ToolChoice>,
+    /// Sampling knobs this provider has no wire slot for.
+    ///
+    /// A run that claims reproducibility while requesting a `seed` the API
+    /// never received is claiming a property it does not have. Naming the gap
+    /// is cheaper than discovering it in the variance.
+    pub unsupported_parameters: Vec<&'static str>,
+}
+
+impl RequestMapping {
+    /// Map the panel surface — three operations plus the terminal answer.
+    pub fn for_panel(
+        provider: ProviderKind,
+        tool_schemas: &[PanelToolSchema],
+        answer_schema: &PanelAnswerSchema,
+        sampling: &SamplingParams,
+    ) -> Self {
+        RequestMapping {
+            provider,
+            tools: tool_schemas.iter().map(|s| map_tool(s, provider)).collect(),
+            response_format: Some(map_answer(answer_schema, provider)),
+            tool_choice: Some(ToolChoice::Any),
+            unsupported_parameters: unsupported_for(provider, sampling),
+        }
+    }
+
+    /// Map a direct arm: no operations, only the terminal answer channel.
+    ///
+    /// The answer channel is present in every arm on purpose. The arms are
+    /// meant to differ in how the model reaches the data and in nothing else,
+    /// so giving two of them a structured answer and the third a prose one
+    /// would put the grader's leniency into the comparison.
+    pub fn direct(
+        provider: ProviderKind,
+        answer_schema: &PanelAnswerSchema,
+        sampling: &SamplingParams,
+    ) -> Self {
+        RequestMapping {
+            provider,
+            tools: Vec::new(),
+            response_format: Some(map_answer(answer_schema, provider)),
+            tool_choice: Some(ToolChoice::Any),
+            unsupported_parameters: unsupported_for(provider, sampling),
+        }
+    }
+
+    /// Every tool definition that goes on the wire, in canonical order.
+    ///
+    /// The panel operations first, the terminal answer channel last. Four
+    /// entries for a three-variant [`crate::panel::PanelTool`] — see the module
+    /// documentation.
+    pub fn wire_tools(&self) -> Vec<ProviderToolDefinition> {
+        let mut out: Vec<ProviderToolDefinition> =
+            self.tools.iter().map(|t| t.definition.clone()).collect();
+        if let Some(format) = &self.response_format {
+            out.push(format.tool_definition().clone());
+        }
+        out
+    }
+
+    fn to_json(&self) -> serde_json::Value {
+        json_obj(vec![
+            ("provider", self.provider.label().into()),
+            (
+                "tools",
+                self.tools
+                    .iter()
+                    .map(|t| {
+                        json_obj(vec![
+                            ("name", t.definition.name.clone().into()),
+                            (
+                                "dropped",
+                                t.dropped
+                                    .iter()
+                                    .map(|d| serde_json::Value::from(*d))
+                                    .collect::<Vec<_>>()
+                                    .into(),
+                            ),
+                        ])
+                    })
+                    .collect::<Vec<_>>()
+                    .into(),
+            ),
+            (
+                "response_format",
+                match &self.response_format {
+                    None => serde_json::Value::Null,
+                    Some(ProviderResponseFormat::TerminalTool(def)) => json_obj(vec![
+                        ("kind", "terminal-tool".into()),
+                        ("name", def.name.clone().into()),
+                    ]),
+                },
+            ),
+            (
+                "tool_choice",
+                match self.tool_choice {
+                    Some(c) => c.label().into(),
+                    None => serde_json::Value::Null,
+                },
+            ),
+            (
+                "unsupported_parameters",
+                self.unsupported_parameters
+                    .iter()
+                    .map(|p| serde_json::Value::from(*p))
+                    .collect::<Vec<_>>()
+                    .into(),
+            ),
+        ])
+    }
+}
+
+fn unsupported_for(provider: ProviderKind, sampling: &SamplingParams) -> Vec<&'static str> {
+    match provider {
+        // The Messages API has no seed parameter. Requesting one is not an
+        // error worth refusing — it is a fact worth recording.
+        ProviderKind::AnthropicMessages => {
+            if sampling.seed.is_some() {
+                vec!["seed"]
+            } else {
+                Vec::new()
+            }
+        }
+    }
+}
+
+// ---------------------------------------------------------------------------
+// The request envelope
+// ---------------------------------------------------------------------------
+
+/// Everything about one request, recorded before it is sent.
+#[derive(Debug, Clone, PartialEq)]
+pub struct RequestEnvelope {
+    pub provider: ProviderKind,
+    pub model: ModelIdentity,
+    pub arm: Arm,
+    pub fixture: FixtureIdentity,
+    pub instructions: String,
+    pub messages: Vec<Message>,
+    pub mapping: RequestMapping,
+    pub sampling: SamplingParams,
+}
+
+impl RequestEnvelope {
+    /// The exact JSON body, as the provider will receive it.
+    ///
+    /// Arm and fixture are deliberately absent: they identify the *experiment*,
+    /// not the request, and inventing wire fields for them would change what
+    /// the model is charged for in order to make bookkeeping convenient.
+    pub fn to_wire_json(&self) -> serde_json::Value {
+        let mut pairs: Vec<(&str, serde_json::Value)> = vec![
+            ("model", self.model.as_str().into()),
+            ("max_tokens", self.sampling.max_output_tokens.into()),
+        ];
+        if !self.instructions.is_empty() {
+            pairs.push(("system", self.instructions.clone().into()));
+        }
+        pairs.push((
+            "messages",
+            self.messages
+                .iter()
+                .map(Message::to_wire)
+                .collect::<Vec<_>>()
+                .into(),
+        ));
+        let tools = self.mapping.wire_tools();
+        if !tools.is_empty() {
+            pairs.push((
+                "tools",
+                tools
+                    .iter()
+                    .map(ProviderToolDefinition::to_wire)
+                    .collect::<Vec<_>>()
+                    .into(),
+            ));
+            if let Some(choice) = self.mapping.tool_choice {
+                pairs.push(("tool_choice", choice.to_wire()));
+            }
+        }
+        if let Some(t) = self.sampling.temperature {
+            pairs.push(("temperature", serde_json::Value::from(t)));
+        }
+        if let Some(p) = self.sampling.top_p {
+            pairs.push(("top_p", serde_json::Value::from(p)));
+        }
+        if let Some(budget) = self.sampling.thinking_budget_tokens {
+            pairs.push((
+                "thinking",
+                json_obj(vec![
+                    ("type", "enabled".into()),
+                    ("budget_tokens", budget.into()),
+                ]),
+            ));
+        }
+        json_obj(pairs)
+    }
+
+    /// The recorded form: the experiment's identity plus the wire body.
+    pub fn to_json(&self) -> serde_json::Value {
+        json_obj(vec![
+            ("provider", self.provider.label().into()),
+            ("path", self.provider.path().into()),
+            ("arm", self.arm.label().into()),
+            ("fixture", self.fixture.to_json()),
+            ("model_requested", self.model.as_str().into()),
+            ("mapping", self.mapping.to_json()),
+            ("wire", self.to_wire_json()),
+        ])
+    }
+
+    /// Bytes of the model-visible portion of the body.
+    ///
+    /// Exactly `system`, `messages` and `tools` as serialized in *this* body.
+    /// Stated as a definition rather than an estimate: it is a byte count of
+    /// named fields, not a guess at what a tokenizer will do with them, and the
+    /// two must never be confused for one another.
+    pub fn model_visible_bytes(&self) -> u64 {
+        let wire = self.to_wire_json();
+        let mut total = 0u64;
+        for field in ["system", "messages", "tools"] {
+            if let Some(value) = wire.get(field) {
+                total = total.saturating_add(value.to_string().len() as u64);
+            }
+        }
+        total
+    }
+}
+
+/// A request whose bytes are fixed.
+///
+/// The only object a transport accepts. Serialization happens exactly once, at
+/// [`SealedRequest::seal`], so the digest, the recorded body and the sent body
+/// are three names for one buffer rather than three chances to differ.
+#[derive(Debug, Clone, PartialEq)]
+pub struct SealedRequest {
+    envelope: RequestEnvelope,
+    wire_bytes: Vec<u8>,
+    digest: ProviderRequestDigest,
+}
+
+impl SealedRequest {
+    pub fn seal(envelope: RequestEnvelope) -> Result<Self> {
+        let wire_bytes = serde_json::to_vec(&envelope.to_wire_json())
+            .context("serializing the provider request body")?;
+        let digest = digest_provider_request_bytes(&wire_bytes);
+        Ok(SealedRequest {
+            envelope,
+            wire_bytes,
+            digest,
+        })
+    }
+
+    /// The bytes that go on the wire — and the bytes that were recorded.
+    pub fn wire_bytes(&self) -> &[u8] {
+        &self.wire_bytes
+    }
+
+    pub fn envelope(&self) -> &RequestEnvelope {
+        &self.envelope
+    }
+
+    pub fn digest(&self) -> ProviderRequestDigest {
+        self.digest
+    }
+
+    /// The recorded form, including the exact bytes and their identity.
+    pub fn to_json(&self) -> serde_json::Value {
+        json_obj(vec![
+            ("envelope", self.envelope.to_json()),
+            ("wire_digest", self.digest.to_canonical_text().into()),
+            ("wire_bytes_len", (self.wire_bytes.len() as u64).into()),
+            (
+                "wire_body",
+                KeyBytes::new(self.wire_bytes.clone()).to_envelope(),
+            ),
+        ])
+    }
+}
+
+// ---------------------------------------------------------------------------
+// Transport
+// ---------------------------------------------------------------------------
+
+/// A provider response exactly as received.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct RawResponse {
+    pub status: u16,
+    pub body: Vec<u8>,
+    /// The provider's own correlation id, where it sends one.
+    pub request_id: Option<String>,
+}
+
+impl RawResponse {
+    fn to_json(&self) -> serde_json::Value {
+        json_obj(vec![
+            ("status", self.status.into()),
+            ("body_len", (self.body.len() as u64).into()),
+            (
+                "request_id",
+                match &self.request_id {
+                    Some(id) => id.clone().into(),
+                    None => serde_json::Value::Null,
+                },
+            ),
+            ("body", KeyBytes::new(self.body.clone()).to_envelope()),
+        ])
+    }
+}
+
+/// Where a request was actually sent, in public terms.
+///
+/// The body digest proves the JSON was identical. It does not prove the retry
+/// went to the same endpoint, under the same API version, through the same
+/// transport — and those decide what the provider actually received. A retry is
+/// only a retry when the target matches too; otherwise the record says "we sent
+/// the same bytes somewhere" and calls it reproducibility.
+///
+/// Carries no credential, and has no field one could be put in. This value is
+/// written into a committed transcript, and a struct that *could* hold a key
+/// eventually holds one.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct TransportTarget {
+    pub kind: ProviderKind,
+    pub endpoint: String,
+    pub path: String,
+    pub api_version: String,
+    pub content_type: String,
+    pub timeout_secs: u64,
+}
+
+impl TransportTarget {
+    /// The target of a transport that reaches no network.
+    ///
+    /// Given a scheme of its own rather than a plausible-looking URL, so a
+    /// stand-in run can never be mistaken for a run against an endpoint.
+    pub fn stand_in(kind: ProviderKind) -> Self {
+        TransportTarget {
+            kind,
+            endpoint: "stand-in:none".to_owned(),
+            path: kind.path().to_owned(),
+            api_version: "n/a".to_owned(),
+            content_type: "application/json".to_owned(),
+            timeout_secs: 0,
+        }
+    }
+
+    pub fn to_json(&self) -> serde_json::Value {
+        json_obj(vec![
+            ("kind", self.kind.label().into()),
+            ("endpoint", self.endpoint.clone().into()),
+            ("path", self.path.clone().into()),
+            ("api_version", self.api_version.clone().into()),
+            ("content_type", self.content_type.clone().into()),
+            ("timeout_secs", self.timeout_secs.into()),
+        ])
+    }
+}
+
+/// Anything that can carry a sealed request to a model and bring bytes back.
+///
+/// Takes `&SealedRequest` rather than a body, a URL, or a struct to serialize.
+/// A transport that built its own body could send something the record does not
+/// describe, and the record would still look complete.
+pub trait ModelTransport {
+    /// Where this transport sends, minus anything secret.
+    ///
+    /// On the trait rather than passed in beside it: the transport is the only
+    /// thing that knows where it actually goes, so anywhere else this value
+    /// would be a caller's belief about the transport.
+    fn target(&self) -> TransportTarget;
+
+    /// Typed failure, because the caller must know which side of the response
+    /// headers the attempt died on. An untyped error forces `deliver` to guess,
+    /// and the only available guess — "assume nothing arrived" — is the one that
+    /// re-bills the provider and then reports the turn as free.
+    fn send(&mut self, sealed: &SealedRequest) -> std::result::Result<RawResponse, SendFailure>;
+}
+
+/// What happened on one attempt to deliver one sealed request.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct TransportAttempt {
+    pub ordinal: u32,
+    /// The identity of the body this attempt carried.
+    ///
+    /// Every attempt in a retry sequence must show the same value. That
+    /// equality is what distinguishes a transport retry — the same question
+    /// asked again after a socket died — from a semantic retry, which is a
+    /// different question wearing the first one's clothes.
+    pub request_digest: ProviderRequestDigest,
+    /// Where this attempt went. Together with `request_digest` this is what
+    /// "the same request, tried again" actually means.
+    pub target: TransportTarget,
+    pub outcome: AttemptOutcome,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum AttemptOutcome {
+    Response {
+        status: u16,
+        body_len: u64,
+    },
+    /// Nothing came back: socket, DNS, TLS, timeout. Nothing was produced, so
+    /// re-sending the identical body asks the same question a second time.
+    TransportError {
+        reason: String,
+    },
+    /// Response headers arrived and capturing the body did not finish.
+    ///
+    /// `body_bytes_observed` is deliberately not named `body_len`: after an I/O
+    /// error partway through, or on a body that ran past the cap, the full size
+    /// is not known. It is a lower bound, and presenting a lower bound as the
+    /// total would be one more carefully serialized lie.
+    ResponseCaptureFailed {
+        status: u16,
+        body_bytes_observed: u64,
+        reason: String,
+    },
+}
+
+/// Why one attempt did not yield a usable response.
+///
+/// The split is the whole point. `TransportFailed` carries a hard claim — no
+/// response bytes existed — and once HTTP response headers have arrived that
+/// claim is false. Retrying past that line is not a retry: the provider has
+/// already produced a generation and is entitled to bill for it, so a second
+/// send buys a second one to throw away, and the cell then records
+/// `transport-failed` with no usage for work that was paid for.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum SendFailure {
+    /// Nothing was received. Retry is meaningful.
+    BeforeResponse { reason: String },
+    /// Headers arrived; capturing the body failed or was deliberately stopped.
+    /// Terminal — see the type-level note.
+    AfterHeaders {
+        status: u16,
+        request_id: Option<String>,
+        body_bytes_observed: u64,
+        reason: String,
+    },
+}
+
+impl SendFailure {
+    /// A pre-response failure, for the common case of "the socket died".
+    pub fn before(reason: impl Into<String>) -> Self {
+        SendFailure::BeforeResponse {
+            reason: reason.into(),
+        }
+    }
+
+    pub fn reason(&self) -> &str {
+        match self {
+            SendFailure::BeforeResponse { reason } | SendFailure::AfterHeaders { reason, .. } => {
+                reason
+            }
+        }
+    }
+}
+
+impl std::fmt::Display for SendFailure {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            SendFailure::BeforeResponse { reason } => write!(f, "{reason}"),
+            SendFailure::AfterHeaders {
+                status,
+                body_bytes_observed,
+                reason,
+                ..
+            } => write!(
+                f,
+                "{reason} (status {status}, {body_bytes_observed} bytes observed)"
+            ),
+        }
+    }
+}
+
+/// What delivery produced, once retrying has stopped.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum Delivery {
+    /// A complete response body.
+    Response(RawResponse),
+    /// Headers arrived and the body was never fully captured. Not a
+    /// non-delivery, and must not be recorded as one.
+    CaptureFailed {
+        status: u16,
+        request_id: Option<String>,
+        body_bytes_observed: u64,
+        reason: String,
+    },
+    /// No attempt got as far as a response.
+    Undelivered,
+}
+
+impl TransportAttempt {
+    /// The canonical JSON form: which request, sent where, and how it went.
+    pub fn to_json(&self) -> serde_json::Value {
+        let mut pairs = vec![
+            ("ordinal", self.ordinal.into()),
+            (
+                "request_digest",
+                self.request_digest.to_canonical_text().into(),
+            ),
+            ("target", self.target.to_json()),
+        ];
+        match &self.outcome {
+            AttemptOutcome::Response { status, body_len } => {
+                pairs.push(("outcome", "response".into()));
+                pairs.push(("status", (*status).into()));
+                pairs.push(("body_len", (*body_len).into()));
+            }
+            AttemptOutcome::TransportError { reason } => {
+                pairs.push(("outcome", "transport-error".into()));
+                pairs.push(("reason", reason.clone().into()));
+            }
+            AttemptOutcome::ResponseCaptureFailed {
+                status,
+                body_bytes_observed,
+                reason,
+            } => {
+                pairs.push(("outcome", "response-capture-failed".into()));
+                pairs.push(("status", (*status).into()));
+                pairs.push(("body_bytes_observed", (*body_bytes_observed).into()));
+                pairs.push(("reason", reason.clone().into()));
+            }
+        }
+        json_obj(pairs)
+    }
+}
+
+/// Deliver one sealed request, retrying transport failures only.
+///
+/// Takes a single `&SealedRequest` and never constructs another, so "retry the
+/// same request" is a property of the signature rather than a promise in a
+/// comment. A caller that wants to ask a *different* question must seal a new
+/// request, which produces a new digest and a visibly new attempt sequence.
+///
+/// Returns the attempts **unconditionally**. An earlier version returned a bare
+/// `Err` when every attempt failed, taking the record of what was tried with
+/// it; the most interesting failure is exactly the one that leaves nothing
+/// behind but a line on stderr and somebody's recollection.
+pub fn deliver(
+    transport: &mut dyn ModelTransport,
+    sealed: &SealedRequest,
+    max_attempts: NonZeroU32,
+) -> (Delivery, Vec<TransportAttempt>) {
+    let mut attempts = Vec::new();
+    for ordinal in 0..max_attempts.get() {
+        let target = transport.target();
+        match transport.send(sealed) {
+            Ok(raw) => {
+                attempts.push(TransportAttempt {
+                    ordinal,
+                    request_digest: sealed.digest(),
+                    target,
+                    outcome: AttemptOutcome::Response {
+                        status: raw.status,
+                        body_len: raw.body.len() as u64,
+                    },
+                });
+                return (Delivery::Response(raw), attempts);
+            }
+            Err(SendFailure::BeforeResponse { reason }) => {
+                attempts.push(TransportAttempt {
+                    ordinal,
+                    request_digest: sealed.digest(),
+                    target,
+                    outcome: AttemptOutcome::TransportError { reason },
+                });
+            }
+            // Terminal. The provider answered; only our capture of that answer
+            // failed. Another send would ask for a second generation we have no
+            // more ability to read than the first, and would be billed for it.
+            Err(SendFailure::AfterHeaders {
+                status,
+                request_id,
+                body_bytes_observed,
+                reason,
+            }) => {
+                attempts.push(TransportAttempt {
+                    ordinal,
+                    request_digest: sealed.digest(),
+                    target,
+                    outcome: AttemptOutcome::ResponseCaptureFailed {
+                        status,
+                        body_bytes_observed,
+                        reason: reason.clone(),
+                    },
+                });
+                return (
+                    Delivery::CaptureFailed {
+                        status,
+                        request_id,
+                        body_bytes_observed,
+                        reason,
+                    },
+                    attempts,
+                );
+            }
+        }
+    }
+    (Delivery::Undelivered, attempts)
+}
+
+// ---------------------------------------------------------------------------
+// The response envelope
+// ---------------------------------------------------------------------------
+
+/// Token counters as the provider reported them.
+///
+/// Every field optional, because a provider that omits one has told us
+/// something — and a zero would say the opposite.
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq)]
+pub struct ProviderUsage {
+    pub input_tokens: Option<u64>,
+    pub cached_input_tokens: Option<u64>,
+    pub output_tokens: Option<u64>,
+    pub reasoning_tokens: Option<u64>,
+}
+
+impl ProviderUsage {
+    /// The canonical JSON form. `null` where the provider said nothing.
+    pub fn to_json(&self) -> serde_json::Value {
+        json_obj(vec![
+            ("input_tokens", opt_u64(self.input_tokens)),
+            ("cached_input_tokens", opt_u64(self.cached_input_tokens)),
+            ("output_tokens", opt_u64(self.output_tokens)),
+            ("reasoning_tokens", opt_u64(self.reasoning_tokens)),
+        ])
+    }
+
+    /// Add another turn's counters. `None` is contagious: a total that silently
+    /// treats a missing counter as zero is a total that understates itself
+    /// without ever saying so.
+    pub fn plus(self, other: ProviderUsage) -> ProviderUsage {
+        fn add(a: Option<u64>, b: Option<u64>) -> Option<u64> {
+            match (a, b) {
+                (Some(x), Some(y)) => Some(x.saturating_add(y)),
+                _ => None,
+            }
+        }
+        ProviderUsage {
+            input_tokens: add(self.input_tokens, other.input_tokens),
+            cached_input_tokens: add(self.cached_input_tokens, other.cached_input_tokens),
+            output_tokens: add(self.output_tokens, other.output_tokens),
+            reasoning_tokens: add(self.reasoning_tokens, other.reasoning_tokens),
+        }
+    }
+}
+
+/// One tool call, normalized out of the provider's shape.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct NormalizedToolCall {
+    pub id: String,
+    pub name: String,
+    pub input: serde_json::Value,
+}
+
+/// The parsed view of a response.
+///
+/// A *view*. It never replaces [`ResponseEnvelope::raw`], which stays beside it
+/// for exactly the cases where the parse turns out to have been wrong.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct NormalizedResponse {
+    pub response_id: Option<String>,
+    pub reported_model: Option<String>,
+    pub stop_reason: Option<String>,
+    pub text: String,
+    pub tool_calls: Vec<NormalizedToolCall>,
+    pub usage: ProviderUsage,
+}
+
+impl NormalizedResponse {
+    fn to_json(&self) -> serde_json::Value {
+        json_obj(vec![
+            ("response_id", opt_str(self.response_id.as_deref())),
+            ("reported_model", opt_str(self.reported_model.as_deref())),
+            ("stop_reason", opt_str(self.stop_reason.as_deref())),
+            ("text", self.text.clone().into()),
+            (
+                "tool_calls",
+                self.tool_calls
+                    .iter()
+                    .map(|c| {
+                        json_obj(vec![
+                            ("id", c.id.clone().into()),
+                            ("name", c.name.clone().into()),
+                            ("input", c.input.clone()),
+                        ])
+                    })
+                    .collect::<Vec<_>>()
+                    .into(),
+            ),
+            ("usage", self.usage.to_json()),
+        ])
+    }
+}
+
+/// Parse a provider response into the normalized view.
+pub fn normalize(provider: ProviderKind, raw: &RawResponse) -> Result<NormalizedResponse> {
+    match provider {
+        ProviderKind::AnthropicMessages => normalize_anthropic(raw),
+    }
+}
+
+/// The provider's own counters, read straight out of a parsed body.
+///
+/// Factored out because it is needed on two paths that must not disagree: the
+/// successful normalization, and the salvage after a content block failed to
+/// parse. `usage` is a SIBLING of `content` in this API's response, so a
+/// malformed block says nothing about whether the counters are readable — and the
+/// generation may well have been billed regardless. Every field stays `Option`;
+/// nothing here invents a number.
+fn usage_of_body(body: &serde_json::Value) -> ProviderUsage {
+    ProviderUsage {
+        input_tokens: body.pointer("/usage/input_tokens").and_then(as_u64),
+        cached_input_tokens: body
+            .pointer("/usage/cache_read_input_tokens")
+            .and_then(as_u64),
+        output_tokens: body.pointer("/usage/output_tokens").and_then(as_u64),
+        reasoning_tokens: body.pointer("/usage/reasoning_tokens").and_then(as_u64),
+    }
+}
+
+/// A best-effort read of the counters from bytes that failed to normalize.
+///
+/// Returns an all-`None` `ProviderUsage` when the body was not JSON at all, which
+/// is the honest answer: unknown, and it stays unknown through the fold.
+fn salvage_usage(raw: &RawResponse) -> ProviderUsage {
+    serde_json::from_slice::<serde_json::Value>(&raw.body)
+        .map(|body| usage_of_body(&body))
+        .unwrap_or_default()
+}
+
+fn normalize_anthropic(raw: &RawResponse) -> Result<NormalizedResponse> {
+    let body: serde_json::Value =
+        serde_json::from_slice(&raw.body).context("provider response body is not valid JSON")?;
+    let mut text = String::new();
+    let mut tool_calls = Vec::new();
+    if let Some(blocks) = body.get("content").and_then(serde_json::Value::as_array) {
+        for block in blocks {
+            match block.get("type").and_then(|v| v.as_str()) {
+                Some("text") => {
+                    if let Some(t) = block.get("text").and_then(|v| v.as_str()) {
+                        text.push_str(t);
+                    }
+                }
+                Some("tool_use") => {
+                    let id = block
+                        .get("id")
+                        .and_then(|v| v.as_str())
+                        .ok_or_else(|| anyhow::anyhow!("tool_use block without an id"))?;
+                    let name = block
+                        .get("name")
+                        .and_then(|v| v.as_str())
+                        .ok_or_else(|| anyhow::anyhow!("tool_use block without a name"))?;
+                    tool_calls.push(NormalizedToolCall {
+                        id: id.to_owned(),
+                        name: name.to_owned(),
+                        input: block
+                            .get("input")
+                            .cloned()
+                            .unwrap_or(serde_json::Value::Null),
+                    });
+                }
+                // Thinking and other block kinds carry no operation and no
+                // answer. Skipped from the normalized view, never from `raw`.
+                _ => {}
+            }
+        }
+    }
+    let usage = usage_of_body(&body);
+    Ok(NormalizedResponse {
+        response_id: body.get("id").and_then(|v| v.as_str()).map(str::to_owned),
+        reported_model: body
+            .get("model")
+            .and_then(|v| v.as_str())
+            .map(str::to_owned),
+        stop_reason: body
+            .get("stop_reason")
+            .and_then(|v| v.as_str())
+            .map(str::to_owned),
+        text,
+        tool_calls,
+        usage,
+    })
+}
+
+/// What one crossing produced — including the crossings that failed.
+///
+/// Four outcomes rather than `Result<ResponseEnvelope>`, because three of the
+/// four are things we specifically want to keep. A provider rejection, a body
+/// that would not parse, and a transport that never got through are each a
+/// finding about the run; collapsing them into an error and aborting the cell
+/// discards the evidence at exactly the moment it becomes interesting.
+///
+/// Every variant carries its attempts. `raw` is present wherever bytes came
+/// back at all, so a rejection can be read rather than described.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum ExchangeOutcome {
+    /// Bytes came back, the status was acceptable, and the body parsed.
+    Completed {
+        raw: RawResponse,
+        normalized: NormalizedResponse,
+        attempts: Vec<TransportAttempt>,
+    },
+    /// Bytes came back carrying a non-success status.
+    ProviderRejected {
+        raw: RawResponse,
+        attempts: Vec<TransportAttempt>,
+        reason: String,
+    },
+    /// Bytes came back with an acceptable status and would not parse.
+    ///
+    /// `usage` is a best-effort read of the provider's own counters, which sit
+    /// beside `content` in the body rather than inside it. A malformed content
+    /// block does not make the counters unreadable, and the provider may well
+    /// have billed the generation anyway — so dropping them here would make a
+    /// broken cell look free, which is the flattering direction for a cost table
+    /// to be wrong in. Still `Option`-per-field and still never synthesized: if
+    /// the body was not JSON at all, this is `None` throughout and the total
+    /// stays honestly unknown.
+    NormalizationFailed {
+        raw: RawResponse,
+        attempts: Vec<TransportAttempt>,
+        reason: String,
+        usage: ProviderUsage,
+    },
+    /// No bytes came back at all. The per-attempt reasons are the record.
+    ///
+    /// This variant asserts something strong — that no response existed — so it
+    /// is reachable only from failures that happened *before* response headers.
+    /// One caveat that cannot be engineered away: a server may have generated a
+    /// reply and lost the connection before sending headers, in which case a
+    /// billed generation is invisible to us and this variant understates the
+    /// cost. Retrying already assumes that did not happen; the `attempts` list is
+    /// the only record of how often the assumption was made.
+    TransportFailed { attempts: Vec<TransportAttempt> },
+    /// Headers arrived and the body was never fully captured.
+    ///
+    /// Distinct from `ProviderRejected`, which means a complete response carrying
+    /// a non-success status — the provider had its say. Here the provider may not
+    /// have refused anything at all; what broke, or was deliberately stopped, was
+    /// our capture of the body. No exact full body exists, so there is nothing
+    /// honest to put in `raw`, and the counters are unknown rather than zero.
+    ResponseCaptureFailed {
+        status: u16,
+        request_id: Option<String>,
+        body_bytes_observed: u64,
+        reason: String,
+        attempts: Vec<TransportAttempt>,
+    },
+}
+
+impl ExchangeOutcome {
+    pub fn attempts(&self) -> &[TransportAttempt] {
+        match self {
+            ExchangeOutcome::Completed { attempts, .. }
+            | ExchangeOutcome::ProviderRejected { attempts, .. }
+            | ExchangeOutcome::NormalizationFailed { attempts, .. }
+            | ExchangeOutcome::ResponseCaptureFailed { attempts, .. }
+            | ExchangeOutcome::TransportFailed { attempts } => attempts,
+        }
+    }
+
+    pub fn raw(&self) -> Option<&RawResponse> {
+        match self {
+            ExchangeOutcome::Completed { raw, .. }
+            | ExchangeOutcome::ProviderRejected { raw, .. }
+            | ExchangeOutcome::NormalizationFailed { raw, .. } => Some(raw),
+            // No complete body was captured. A partial one would be a `RawResponse`
+            // that lies about being the response.
+            ExchangeOutcome::ResponseCaptureFailed { .. }
+            | ExchangeOutcome::TransportFailed { .. } => None,
+        }
+    }
+
+    /// The provider's own counters for this turn, whatever the outcome.
+    ///
+    /// Separate from `normalized()`: a turn can be un-normalizable and still have
+    /// been billed, and the accounting fold needs the counters from both.
+    pub fn reported_usage(&self) -> Option<ProviderUsage> {
+        match self {
+            ExchangeOutcome::Completed { normalized, .. } => Some(normalized.usage),
+            ExchangeOutcome::NormalizationFailed { usage, .. } => Some(*usage),
+            // A rejection body carries no generation to bill, and a request that
+            // never arrived certainly does not. Unknown, and it stays unknown.
+            //
+            // `ResponseCaptureFailed` is the case this distinction exists for: a
+            // generation very likely happened and its counters are in a body we
+            // could not read. `None` here is load-bearing — the fold turns it into
+            // an unknown total rather than quietly omitting a billed turn.
+            ExchangeOutcome::ProviderRejected { .. }
+            | ExchangeOutcome::ResponseCaptureFailed { .. }
+            | ExchangeOutcome::TransportFailed { .. } => None,
+        }
+    }
+
+    pub fn normalized(&self) -> Option<&NormalizedResponse> {
+        match self {
+            ExchangeOutcome::Completed { normalized, .. } => Some(normalized),
+            _ => None,
+        }
+    }
+
+    /// Why the crossing did not complete, if it did not.
+    pub fn failure_reason(&self) -> Option<String> {
+        match self {
+            ExchangeOutcome::Completed { .. } => None,
+            ExchangeOutcome::ProviderRejected { reason, .. }
+            | ExchangeOutcome::NormalizationFailed { reason, .. } => Some(reason.clone()),
+            ExchangeOutcome::ResponseCaptureFailed { reason, .. } => Some(reason.clone()),
+            ExchangeOutcome::TransportFailed { attempts } => Some(format!(
+                "no attempt reached the provider ({} tried)",
+                attempts.len()
+            )),
+        }
+    }
+
+    pub fn kind(&self) -> &'static str {
+        match self {
+            ExchangeOutcome::Completed { .. } => "completed",
+            ExchangeOutcome::ProviderRejected { .. } => "provider-rejected",
+            ExchangeOutcome::NormalizationFailed { .. } => "normalization-failed",
+            ExchangeOutcome::ResponseCaptureFailed { .. } => "response-capture-failed",
+            ExchangeOutcome::TransportFailed { .. } => "transport-failed",
+        }
+    }
+
+    /// Status and request id when a response reached us, whatever became of the
+    /// body. On `ResponseCaptureFailed` this is the only surviving evidence that
+    /// the provider answered at all, so it is serialized rather than dropped.
+    fn response_identity(&self) -> Option<(u16, Option<String>, Option<u64>)> {
+        match self {
+            ExchangeOutcome::ResponseCaptureFailed {
+                status,
+                request_id,
+                body_bytes_observed,
+                ..
+            } => Some((*status, request_id.clone(), Some(*body_bytes_observed))),
+            _ => None,
+        }
+    }
+
+    pub fn to_json(&self) -> serde_json::Value {
+        let mut pairs = vec![("kind", self.kind().into())];
+        pairs.push((
+            "raw",
+            match self.raw() {
+                Some(raw) => raw.to_json(),
+                None => serde_json::Value::Null,
+            },
+        ));
+        pairs.push((
+            "normalized",
+            match self.normalized() {
+                Some(n) => n.to_json(),
+                None => serde_json::Value::Null,
+            },
+        ));
+        pairs.push((
+            "reason",
+            match self.failure_reason() {
+                Some(r) => r.into(),
+                None => serde_json::Value::Null,
+            },
+        ));
+        pairs.push((
+            "attempts",
+            self.attempts()
+                .iter()
+                .map(TransportAttempt::to_json)
+                .collect::<Vec<_>>()
+                .into(),
+        ));
+        // Emitted for every outcome, so the accounting fold is auditable from the
+        // file for every turn — including a turn whose body would not parse, whose
+        // counters exist nowhere else in the record. For `completed` this is the
+        // same value `normalized.usage` already shows: both come from the one
+        // accessor, so the two cannot drift into disagreeing.
+        pairs.push((
+            "reported_usage",
+            match self.reported_usage() {
+                Some(u) => u.to_json(),
+                None => serde_json::Value::Null,
+            },
+        ));
+        // When the body was lost, `raw` is null and these are all that remain to
+        // show a response existed. Dropping them would leave a record that reads
+        // exactly like a request which never arrived.
+        if let Some((status, request_id, observed)) = self.response_identity() {
+            pairs.push(("response_status", status.into()));
+            pairs.push((
+                "response_request_id",
+                match request_id {
+                    Some(id) => id.into(),
+                    None => serde_json::Value::Null,
+                },
+            ));
+            pairs.push((
+                "body_bytes_observed",
+                match observed {
+                    Some(n) => n.into(),
+                    None => serde_json::Value::Null,
+                },
+            ));
+        }
+        json_obj(pairs)
+    }
+}
+
+/// Send a sealed request and record the crossing, however it went.
+///
+/// Total: there is no error path, because every way this can go wrong is a
+/// result worth writing down.
+pub fn exchange(
+    transport: &mut dyn ModelTransport,
+    sealed: &SealedRequest,
+    max_attempts: NonZeroU32,
+) -> ExchangeOutcome {
+    let provider = sealed.envelope().provider;
+    let (delivery, attempts) = deliver(transport, sealed, max_attempts);
+    let raw = match delivery {
+        Delivery::Response(raw) => raw,
+        Delivery::CaptureFailed {
+            status,
+            request_id,
+            body_bytes_observed,
+            reason,
+        } => {
+            return ExchangeOutcome::ResponseCaptureFailed {
+                status,
+                request_id,
+                body_bytes_observed,
+                reason,
+                attempts,
+            };
+        }
+        Delivery::Undelivered => return ExchangeOutcome::TransportFailed { attempts },
+    };
+    if let Some(reason) = rejection_reason(provider, &raw) {
+        return ExchangeOutcome::ProviderRejected {
+            raw,
+            attempts,
+            reason,
+        };
+    }
+    match normalize(provider, &raw) {
+        Ok(normalized) => ExchangeOutcome::Completed {
+            raw,
+            normalized,
+            attempts,
+        },
+        Err(e) => ExchangeOutcome::NormalizationFailed {
+            reason: format!("{e}"),
+            // Read before `raw` is moved. The counters sit beside `content`, so a
+            // malformed block does not make them unreadable — and the provider may
+            // have billed the generation anyway.
+            usage: salvage_usage(&raw),
+            raw,
+            attempts,
+        },
+    }
+}
+
+/// Whether the provider refused, and in its own words where it said so.
+///
+/// Separate from [`normalize`] so a rejection and an unparseable body stay
+/// distinguishable. Folded together, a provider outage and a schema change we
+/// caused would arrive under one label and get investigated as one thing.
+pub fn rejection_reason(provider: ProviderKind, raw: &RawResponse) -> Option<String> {
+    match provider {
+        ProviderKind::AnthropicMessages => {
+            if (200..300).contains(&raw.status) {
+                return None;
+            }
+            let message = serde_json::from_slice::<serde_json::Value>(&raw.body)
+                .ok()
+                .and_then(|b| {
+                    b.pointer("/error/message")
+                        .and_then(|v| v.as_str())
+                        .map(str::to_owned)
+                })
+                .unwrap_or_else(|| "no error message".to_owned());
+            Some(format!("HTTP {}: {message}", raw.status))
+        }
+    }
+}
+
+// ---------------------------------------------------------------------------
+// Transports
+// ---------------------------------------------------------------------------
+
+/// A deterministic transport that never touches a network.
+///
+/// Eval-only, and the reason the whole path — mapping, sealing, delivery,
+/// normalization, the tool loop, accounting — can be exercised in CI without a
+/// model. It replies from a script and records what it was asked, so a test can
+/// assert that the bytes the transport saw are the bytes the record claims.
+#[derive(Debug)]
+pub struct ScriptedTransport {
+    replies: Vec<std::result::Result<RawResponse, SendFailure>>,
+    seen: Vec<Vec<u8>>,
+    next: usize,
+    kind: ProviderKind,
+}
+
+impl ScriptedTransport {
+    /// Replies where a failure is just a reason, taken to mean a *pre-response*
+    /// failure — the ordinary "the socket died" case.
+    pub fn new(replies: Vec<Result<RawResponse, String>>) -> Self {
+        Self::with_failures(
+            replies
+                .into_iter()
+                .map(|r| r.map_err(SendFailure::before))
+                .collect(),
+        )
+    }
+
+    /// Replies that can fail on either side of the response headers, for the
+    /// contracts that care which side it was.
+    pub fn with_failures(replies: Vec<std::result::Result<RawResponse, SendFailure>>) -> Self {
+        ScriptedTransport {
+            replies,
+            seen: Vec::new(),
+            next: 0,
+            kind: ProviderKind::AnthropicMessages,
+        }
+    }
+
+    /// The exact bodies this transport was handed, in order.
+    pub fn seen_bodies(&self) -> &[Vec<u8>] {
+        &self.seen
+    }
+
+    /// Scripted replies still queued. A terminal outcome must leave these
+    /// untouched — that is what "it did not retry" means from the wire's side,
+    /// as opposed to what the record claims about itself.
+    pub fn replies_remaining(&self) -> usize {
+        self.replies.len().saturating_sub(self.next)
+    }
+}
+
+impl ModelTransport for ScriptedTransport {
+    fn target(&self) -> TransportTarget {
+        TransportTarget::stand_in(self.kind)
+    }
+
+    fn send(&mut self, sealed: &SealedRequest) -> std::result::Result<RawResponse, SendFailure> {
+        self.seen.push(sealed.wire_bytes().to_vec());
+        let Some(reply) = self.replies.get(self.next) else {
+            return Err(SendFailure::before(format!(
+                "scripted transport ran out of replies at call {}",
+                self.next
+            )));
+        };
+        self.next = self.next.saturating_add(1);
+        match reply {
+            Ok(raw) => Ok(raw.clone()),
+            Err(failure) => Err(failure.clone()),
+        }
+    }
+}
+
+/// A deterministic stand-in that computes its reply from the request.
+///
+/// Eval-only, and a *stand-in*, not a model: it is a pure function of the
+/// conversation so far. A fixed reply script cannot express the one thing the
+/// forced-query loop requires — an answer citing a result handle that did not
+/// exist when the script was written — so exercising that loop without a model
+/// needs a reply that can read what the previous turn returned.
+///
+/// Nothing it produces is evidence about a model. It exists so the plumbing
+/// around the model can be tested when there is no model, which is a different
+/// claim and must stay one.
+pub struct ProgrammedTransport<F> {
+    reply: F,
+    seen: Vec<Vec<u8>>,
+    calls: usize,
+    kind: ProviderKind,
+}
+
+impl<F> std::fmt::Debug for ProgrammedTransport<F> {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("ProgrammedTransport")
+            .field("calls", &self.calls)
+            .finish_non_exhaustive()
+    }
+}
+
+impl<F> ProgrammedTransport<F>
+where
+    F: FnMut(&SealedRequest, usize) -> Result<RawResponse>,
+{
+    pub fn new(reply: F) -> Self {
+        ProgrammedTransport {
+            reply,
+            seen: Vec::new(),
+            calls: 0,
+            kind: ProviderKind::AnthropicMessages,
+        }
+    }
+
+    /// The exact bodies this transport was handed, in order.
+    pub fn seen_bodies(&self) -> &[Vec<u8>] {
+        &self.seen
+    }
+}
+
+impl<F> ModelTransport for ProgrammedTransport<F>
+where
+    F: FnMut(&SealedRequest, usize) -> Result<RawResponse>,
+{
+    fn target(&self) -> TransportTarget {
+        TransportTarget::stand_in(self.kind)
+    }
+
+    fn send(&mut self, sealed: &SealedRequest) -> std::result::Result<RawResponse, SendFailure> {
+        self.seen.push(sealed.wire_bytes().to_vec());
+        let n = self.calls;
+        self.calls = self.calls.saturating_add(1);
+        // The closure keeps its `anyhow` signature: every existing programmed
+        // stand-in models "no response came back", which is exactly
+        // `BeforeResponse`. A stand-in that needs the other side of the headers
+        // uses `ScriptedTransport::with_failures`.
+        (self.reply)(sealed, n).map_err(|e| SendFailure::before(format!("{e}")))
+    }
+}
+
+/// A live HTTP transport.
+///
+/// Never exercised by the test suite or by CI: every automated path uses
+/// [`ScriptedTransport`]. This exists so the smoke can be run deliberately,
+/// by a person, against a real endpoint — and so that when it is, the bytes
+/// sent are the sealed bytes and nothing assembles a second body along the way.
+#[derive(Debug)]
+pub struct HttpTransport {
+    base_url: String,
+    api_key: String,
+    api_version: String,
+    timeout_secs: u64,
+    /// Built with redirects disabled. Held rather than re-created per send so the
+    /// policy cannot be forgotten at one call site — see `new`.
+    agent: ureq::Agent,
+    max_body_bytes: u64,
+}
+
+impl HttpTransport {
+    /// Build from an explicit endpoint and key.
+    ///
+    /// No default base URL and no ambient key lookup: a transport that finds
+    /// its own credentials can be constructed by accident, and the one thing
+    /// this type must never do is send something nobody asked it to send.
+    pub fn new(
+        base_url: &str,
+        api_key: &str,
+        api_version: &str,
+        timeout_secs: u64,
+    ) -> Result<Self> {
+        if base_url.is_empty() || api_key.is_empty() {
+            bail!("live transport needs both a base URL and an API key");
+        }
+        // HTTPS only. `x-api-key` rides in a header, so a plain-http endpoint
+        // puts the key on the wire in cleartext — and this is the one type in the
+        // crate that holds a real credential. Refused at construction rather than
+        // warned about, because the alternative is discovering it in a packet
+        // capture after the key has already been used.
+        if !base_url.starts_with("https://") {
+            bail!(
+                "live transport requires an https:// base URL; {base_url:?} would send \
+                 the API key in cleartext"
+            );
+        }
+        // A URL carrying userinfo would put a credential into the endpoint,
+        // and the endpoint is written into a committed transcript.
+        let authority = base_url.split("://").nth(1).unwrap_or(base_url);
+        if authority.split('/').next().is_some_and(|a| a.contains('@')) {
+            bail!("base URL must not carry credentials in its authority");
+        }
+        // ureq 2.x hands the duration to the underlying socket, which wants either
+        // no timeout or a strictly positive one; zero is neither "forever" nor
+        // "immediately" but a pathological third thing. A run that meant "no limit"
+        // must say so by choosing a real bound.
+        if timeout_secs == 0 {
+            bail!("live transport timeout must be at least 1 second, got 0");
+        }
+        Ok(HttpTransport {
+            base_url: base_url.trim_end_matches('/').to_owned(),
+            api_key: api_key.to_owned(),
+            api_version: api_version.to_owned(),
+            timeout_secs,
+            // Redirects OFF, not merely bounded. Checking the scheme of the URL
+            // handed to this constructor does not establish an https-only key
+            // path: ureq follows up to five redirects by default and carries the
+            // headers along, so an https endpoint answering 302 to an http
+            // location would put `x-api-key` on the wire in cleartext — the exact
+            // thing the check above exists to prevent, arranged by the server
+            // instead of by the caller. `redirect_auth_headers` does not help;
+            // it governs `Authorization`, and this key rides a custom header.
+            //
+            // It is also the honest choice for provenance. With redirects on, the
+            // `TransportTarget` in the record is where we *aimed*, while the
+            // request went wherever the library was told to go next. A 3xx now
+            // comes back as the response it is and gets recorded as one.
+            agent: live_agent(),
+            max_body_bytes: MAX_RESPONSE_BODY_BYTES,
+        })
+    }
+}
+
+/// The agent the live transport sends through: **no redirects**.
+///
+/// A function rather than an inline builder so a contract test can exercise the
+/// real policy instead of a copy of it. A test that rebuilt its own agent would
+/// keep passing after somebody raised the redirect limit here, which is the one
+/// change it exists to catch.
+pub fn live_agent() -> ureq::Agent {
+    ureq::AgentBuilder::new().redirects(0).build()
+}
+
+/// Read a response body under a hard cap, once headers have already arrived.
+///
+/// Extracted from `send` so the cap is reachable from a test without a live
+/// endpoint and without allocating 64 MiB to confirm arithmetic. Every failure
+/// here is `AfterHeaders` by construction: this function is only ever called
+/// after a status line exists.
+pub fn capture_body(
+    status: u16,
+    request_id: Option<String>,
+    reader: &mut impl std::io::Read,
+    max_bytes: u64,
+) -> std::result::Result<Vec<u8>, SendFailure> {
+    let mut body = Vec::new();
+    // Cap + 1, so "ran past the cap" is distinguishable from "ended exactly at
+    // it". A read of exactly `max_bytes` is a complete body and is kept.
+    let mut bounded = std::io::Read::take(reader, max_bytes.saturating_add(1));
+    if let Err(e) = std::io::Read::read_to_end(&mut bounded, &mut body) {
+        return Err(SendFailure::AfterHeaders {
+            status,
+            request_id,
+            // What we managed to read before it broke. A lower bound, named as one.
+            body_bytes_observed: body.len() as u64,
+            reason: format!("reading the provider response body: {e}"),
+        });
+    }
+    if body.len() as u64 > max_bytes {
+        return Err(SendFailure::AfterHeaders {
+            status,
+            request_id,
+            body_bytes_observed: body.len() as u64,
+            reason: format!(
+                "provider response body exceeded {max_bytes} bytes; \
+                 refusing to record a truncated body"
+            ),
+        });
+    }
+    Ok(body)
+}
+
+impl ModelTransport for HttpTransport {
+    fn target(&self) -> TransportTarget {
+        TransportTarget {
+            kind: ProviderKind::AnthropicMessages,
+            endpoint: self.base_url.clone(),
+            path: ProviderKind::AnthropicMessages.path().to_owned(),
+            api_version: self.api_version.clone(),
+            content_type: "application/json".to_owned(),
+            timeout_secs: self.timeout_secs,
+        }
+    }
+
+    fn send(&mut self, sealed: &SealedRequest) -> std::result::Result<RawResponse, SendFailure> {
+        let url = format!("{}{}", self.base_url, sealed.envelope().provider.path());
+        // Through the agent, not `ureq::post`: the top-level helper uses a default
+        // agent that follows redirects, which is what put the key at risk.
+        let response = self
+            .agent
+            .post(&url)
+            .timeout(std::time::Duration::from_secs(self.timeout_secs))
+            .set("content-type", "application/json")
+            .set("x-api-key", &self.api_key)
+            .set("anthropic-version", &self.api_version)
+            // The sealed buffer, unmodified. Not a re-serialization of the
+            // envelope, which is the whole reason this type takes a
+            // `SealedRequest` instead of a body.
+            .send_bytes(sealed.wire_bytes());
+        let (status, request_id, reader) = match response {
+            Ok(r) => (
+                r.status(),
+                r.header("request-id").map(str::to_owned),
+                r.into_reader(),
+            ),
+            Err(ureq::Error::Status(status, r)) => (
+                status,
+                r.header("request-id").map(str::to_owned),
+                r.into_reader(),
+            ),
+            // No status line: socket, DNS, TLS, timeout. Nothing was produced,
+            // so this is the one shape that may be retried.
+            Err(e) => return Err(SendFailure::before(format!("transport failure: {e}"))),
+        };
+        // Bounded. The body is stored in `RawResponse` and serialized into the
+        // transcript, so an unbounded read lets a misrouted or hostile response
+        // decide how much memory this process uses and how large the evidence file
+        // becomes. A response over the cap fails as a named error rather than
+        // arriving silently truncated, which would be a transcript that lies about
+        // what came back.
+        let mut reader = reader;
+        let body = capture_body(status, request_id.clone(), &mut reader, self.max_body_bytes)?;
+        Ok(RawResponse {
+            status,
+            body,
+            request_id,
+        })
+    }
+}
+
+// ---------------------------------------------------------------------------
+// Small JSON helpers
+// ---------------------------------------------------------------------------
+
+fn json_obj(pairs: Vec<(&str, serde_json::Value)>) -> serde_json::Value {
+    let mut m = serde_json::Map::new();
+    for (k, v) in pairs {
+        m.insert(k.to_owned(), v);
+    }
+    serde_json::Value::Object(m)
+}
+
+fn opt_u64(v: Option<u64>) -> serde_json::Value {
+    match v {
+        Some(n) => n.into(),
+        None => serde_json::Value::Null,
+    }
+}
+
+fn opt_str(v: Option<&str>) -> serde_json::Value {
+    match v {
+        Some(s) => s.into(),
+        None => serde_json::Value::Null,
+    }
+}
+
+fn as_u64(v: &serde_json::Value) -> Option<u64> {
+    v.as_u64()
+}
