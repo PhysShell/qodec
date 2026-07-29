@@ -19,12 +19,42 @@ one endpoint, one requested model, no fallback
         ↓
 PASS / AUTH_FAILURE / RATE_LIMITED / MODEL_NOT_FOUND /
 PROVIDER_5XX / TIMEOUT / TRANSPORT_FAILURE / INVALID_OUTPUT /
-PROVIDER_SUBSTITUTED
+PROVIDER_SUBSTITUTED / ENDPOINT_REJECTED / REDIRECT_NOT_FOLLOWED /
+RESPONSE_CAPTURE_FAILED
 ```
 
 `unknown` never satisfies `--free-only`, `--no-card`, or `--no-training`.
 Provider-reported usage is retained as provider evidence, not normalized into a
 cross-provider token truth.
+
+## The catalog names the URL the credential is sent to
+
+That is the sharp edge of treating discovery as untrusted, and it is not a
+policy question — it is a transport question. `urllib`'s defaults will send a
+bearer token over plaintext `http`, to a host smuggled in as userinfo, or to
+wherever a `302` points, that last one silently and after the key has already
+left the process.
+
+So `probe` and `qualify` share **one** transport, and it refuses the endpoint
+before the key is attached:
+
+| rule | rejected |
+| --- | --- |
+| scheme | anything but `https` |
+| host | absent |
+| userinfo | any `user:password@` |
+| query, fragment | any |
+| redirects | all — the handler cannot follow one |
+| response body | bounded; the bound is on the `read`, not on a complaint after it |
+
+Enforced twice: at `import`, so a hostile row never reaches a plan, and again at
+send time, because a reviewed plan file can be edited afterwards.
+
+A failure is also classified by *when* it stopped. Nothing arrived before the
+headers → the request may never have been served, and `UNAVAILABLE` invites a
+retry. The body was lost after the headers → the generation exists and is on the
+bill, so it is `RESPONSE_CAPTURE_FAILED` and retrying it is a decision somebody
+makes on purpose.
 
 ## Import and freeze
 
@@ -95,12 +125,49 @@ The operation results are canned. The canary qualifies the wire protocol, not
 qodec: a real store would add a second thing that can fail while telling us
 nothing more about whether the provider speaks this dialect.
 
+### A PASS requires the whole cycle, not one forced call
+
+```text
+operation observed
+  → the assistant's tool_calls replayed verbatim
+  → role: tool results returned under their call ids
+  → the provider answered that request successfully
+  → and only now may qodec_answer terminate the run
+```
+
+A target that opens with `qodec_answer` has emitted one forced tool call — which
+the RAW arm also does — and has run no operation and never seen a `role: tool`
+message. That is `PROTOCOL_VIOLATION`, *terminal answer before any
+operation/tool-result roundtrip*, not a pass. The roundtrip counts when the
+**provider accepts** the request carrying the results; a 400 on that request is
+`TOOL_RESULT_REJECTED` and the roundtrip did not happen.
+
+### Arguments are checked against the declared schemas
+
+Not against their required keys. `{"index": 123, "sections": "not-a-list",
+"extra": true}` has every required key and is nonsense; accepting it would report
+PASS for a target the arm cannot use. Every tool call is validated against the
+schema the request actually declared — types, enums, patterns, minimums,
+`minItems`, nested objects, `additionalProperties: false`, and local `$ref` —
+using the frozen `jsonschema_mini` already shared by the corpus tools and the N2
+registries. Violations are recorded in the receipt as `argument_errors`.
+
+Beyond the schema, the terminal answer is graded against the canned data, which
+fixes exactly one correct answer: the bytes must be `alpha`, the handle must be
+one an operation returned, and every citation must be in that result's support.
+Failing that is `CANARY_ANSWER_MISMATCH` — deliberately **not** a protocol cause.
+A target that speaks the dialect perfectly and cites a handle it was never given
+has qualified the wire and failed the task, and the two call for opposite
+actions.
+
 ### Causes are kept apart
 
 ```
-UNAVAILABLE  AUTH_FAILED  RATE_LIMITED  PROVIDER_REJECTED  MODEL_MISSING
+ENDPOINT_REJECTED  UNAVAILABLE  RESPONSE_CAPTURE_FAILED  REDIRECT_NOT_FOLLOWED
+AUTH_FAILED  RATE_LIMITED  PROVIDER_REJECTED  MODEL_MISSING
 PROVIDER_SUBSTITUTED  TOOL_CHOICE_UNSUPPORTED  TOOL_RESULT_REJECTED
-MALFORMED_TOOL_ARGUMENTS  PROTOCOL_VIOLATION  NO_TERMINAL_ANSWER  PASS
+MALFORMED_TOOL_ARGUMENTS  PROTOCOL_VIOLATION  NO_TERMINAL_ANSWER
+CANARY_ANSWER_MISMATCH  PASS
 ```
 
 `TOOL_CHOICE_UNSUPPORTED` earns its own name because a 400 from an incompatible
@@ -110,9 +177,16 @@ The turn matters too: a rejection of the first request is about the tools or the
 forcing, while a rejection of the first request that carries `role: tool`
 messages is about the result shape.
 
-`PROVIDER_SUBSTITUTED` outranks a protocol pass. A run that satisfied every
-structural rule against a model nobody asked for has established the protocol
-and nothing about the target.
+`PROVIDER_SUBSTITUTED` outranks both a protocol pass and a wrong answer. A run
+that satisfied every structural rule against a model nobody asked for has
+established the protocol and nothing about the target.
+
+Which model drifted is the finding, so it survives the fold. Every name the
+provider reported is kept per turn and collected into `reported_models`; the
+top-level `reported_model` is filled in only when a single consistent value
+exists. A run that drifted on the first turn and was correct on the second folds
+to `drifted` — and a single overwritten scalar would have made its detail line
+read "requested X, provider reported X", losing the substituted model entirely.
 
 ### A target is a provider × model pair
 
@@ -132,8 +206,21 @@ python3 -m unittest -v test_provider_matrix.py
 
 # the frozen surface still matches the crate that defines it
 python3 evals/provider-matrix/check_surface.py
+
+# and the tests would notice if the contracts were removed
+python3 evals/provider-matrix/mutations.py
 ```
 
-Every classification above is reachable from the stand-in tests, without a
-network. A qualification whose failure paths can only be exercised against a
-real provider is a qualification whose failure paths are never exercised.
+`mutations.py` states each contract as its own negation — accept an immediate
+terminal answer, skip schema validation, send the credential over plaintext,
+lose the model that drifted — and requires the suite to turn red for every one.
+It verifies that each substitution actually applied before believing the result:
+an anchor that no longer matches runs a green suite and reports "not caught",
+which is the most convincing way to be wrong about a test.
+
+Every classification above except `NO_TERMINAL_ANSWER` is reached in one table
+in `test_every_classification_is_declared`, and that one has its own
+budget-exhaustion test; the table asserts the remainder is exactly
+`{NO_TERMINAL_ANSWER}`, so adding a cause without reaching it turns the suite
+red. A qualification whose failure paths can only be exercised against a real
+provider is a qualification whose failure paths are never exercised.

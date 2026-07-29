@@ -9,15 +9,26 @@ without fallback or model substitution.
 from __future__ import annotations
 
 import argparse
+import base64
+import binascii
 import hashlib
 import json
 import os
 import sys
 import time
 import urllib.error
+import urllib.parse
 import urllib.request
 from pathlib import Path
-from typing import Any
+from typing import Any, NamedTuple
+
+# The frozen, dependency-free validator already used by the N0 corpus tools and
+# the N2 registries. Reused rather than re-implemented: a second hand-rolled
+# validator would be a second set of keywords to get subtly wrong, and the
+# schemas being checked here are the crate's own, not ones written to suit it.
+CORPUS_TOOLS = Path(__file__).resolve().parents[1] / "interop" / "v2" / "corpus" / "tools"
+sys.path.insert(0, str(CORPUS_TOOLS))
+import jsonschema_mini  # noqa: E402
 
 SCHEMA = "qodec-provider-catalog-v1"
 PLAN_SCHEMA = "qodec-provider-plan-v1"
@@ -75,6 +86,143 @@ def source_rows(raw: Any) -> list[dict[str, Any]]:
     return rows
 
 
+# ---------------------------------------------------------------------------
+# Hardened transport
+# ---------------------------------------------------------------------------
+#
+# Every request below carries a provider credential, and the URL it goes to is
+# named by an untrusted discovery source. That is the whole threat: a catalog
+# row is a string somebody else wrote, and `urllib`'s defaults will happily send
+# a bearer token over plaintext http, to a host embedded in userinfo, or to
+# wherever a 302 points — the last one silently, after the key has already left.
+#
+# So there is exactly one transport, used by `probe` and `qualify` alike, and it
+# refuses the endpoint before the key is attached rather than reporting an
+# interesting classification afterwards.
+
+COMPLETIONS_PATH = "/chat/completions"
+MAX_RESPONSE_BYTES = 4 * 1024 * 1024
+
+
+class EndpointRejected(ValueError):
+    """The catalog named an endpoint this transport will not send a key to."""
+
+
+def completions_url(api_base: str) -> str:
+    """Turn a catalog `api_base` into the one URL we are willing to POST to.
+
+    Fail-closed on every axis a hostile row could use to redirect the
+    credential: scheme, host, userinfo, query, fragment. Rejected at intake and
+    again at send time, because a plan file can be hand-edited after review.
+    """
+    parts = urllib.parse.urlsplit(api_base)
+    if parts.scheme != "https":
+        raise EndpointRejected(f"api_base must be https, got {parts.scheme or '(none)'!r}")
+    if not parts.hostname:
+        raise EndpointRejected("api_base must name a host")
+    if parts.username or parts.password:
+        raise EndpointRejected("api_base must not carry userinfo")
+    if parts.query:
+        raise EndpointRejected("api_base must not carry a query string")
+    if parts.fragment:
+        raise EndpointRejected("api_base must not carry a fragment")
+    path = parts.path.rstrip("/")
+    if not path.endswith(COMPLETIONS_PATH):
+        path += COMPLETIONS_PATH
+    return urllib.parse.urlunsplit(("https", parts.netloc, path, "", ""))
+
+
+class _NoRedirects(urllib.request.HTTPRedirectHandler):
+    """Refuse every redirect instead of resending the credential elsewhere.
+
+    Returning `None` makes urllib raise the 3xx as an `HTTPError`, so the status
+    is recorded and classified rather than followed to a host the catalog never
+    named. `build_opener` drops the default redirect handler in favour of this
+    one, so there is no path left that follows a `Location`.
+    """
+
+    def redirect_request(self, req, fp, code, msg, headers, newurl):  # noqa: D102
+        return None
+
+
+_OPENER = urllib.request.build_opener(_NoRedirects)
+
+
+class SendResult(NamedTuple):
+    """What one HTTP attempt established, including *when* it stopped.
+
+    `stage` is the part a bare `(status, body)` cannot express. A failure before
+    any headers arrived means the request may never have been served and is
+    retryable; a failure while reading the body means the provider already
+    generated, already billed, and the response is simply lost. Calling the
+    second one "unavailable" would invite a retry that pays twice.
+    """
+
+    status: int | None
+    body: bytes | None
+    detail: str = ""
+    stage: str = "before-response"  # before-response | after-headers | completed
+
+
+def read_bounded(stream: Any, limit: int) -> bytes:
+    """Read at most `limit` bytes, and say so rather than truncating in silence."""
+    raw = stream.read(limit + 1)
+    if len(raw) > limit:
+        raise ValueError(f"response body exceeded {limit} bytes")
+    return raw
+
+
+def send_json(url: str, body: bytes, key: str, timeout: float, limit: int = MAX_RESPONSE_BYTES) -> SendResult:
+    """POST `body` to `url` with the credential attached. The only network call."""
+    request = urllib.request.Request(
+        url,
+        data=body,
+        method="POST",
+        headers={"Authorization": f"Bearer {key}", "Content-Type": "application/json"},
+    )
+    try:
+        response = _OPENER.open(request, timeout=timeout)
+    except urllib.error.HTTPError as exc:
+        # Headers arrived. The body is the provider's own words about why, and
+        # 3xx lands here too because the redirect handler refused to follow it.
+        try:
+            with exc:
+                raw = read_bounded(exc, limit)
+        except (OSError, ValueError) as read_exc:
+            return SendResult(None, None, str(read_exc), "after-headers")
+        return SendResult(exc.code, raw, "", "completed")
+    except TimeoutError:
+        return SendResult(None, None, "timeout", "before-response")
+    except urllib.error.URLError as exc:
+        reason = exc.reason
+        detail = "timeout" if isinstance(reason, TimeoutError) else str(reason)
+        return SendResult(None, None, detail, "before-response")
+
+    try:
+        with response:
+            status = response.status
+            raw = read_bounded(response, limit)
+    except (OSError, ValueError) as exc:
+        return SendResult(None, None, str(exc), "after-headers")
+    return SendResult(status, raw, "", "completed")
+
+
+def key_bound_sender(key_env: str):
+    """A `send` closed over the env var that holds the key — never over the key.
+
+    The credential is read at call time and stays inside `send_json`. Nothing
+    that gets recorded, hashed, or written to a receipt has ever seen it.
+    """
+
+    def send(url: str, body: bytes, timeout: float) -> SendResult:
+        key = os.environ.get(key_env)
+        if not key:
+            return SendResult(None, None, f"missing env {key_env}", "no-credential")
+        return send_json(url, body, key, timeout)
+
+    return send
+
+
 def normalize_target(row: dict[str, Any]) -> dict[str, Any]:
     provider = required_text(row, "provider").lower()
     model = required_text(row, "model")
@@ -82,6 +230,10 @@ def normalize_target(row: dict[str, Any]) -> dict[str, Any]:
     if api_style != "openai-chat":
         raise ValueError(f"unsupported api_style {api_style!r}; only openai-chat is qualified")
     api_base = required_text(row, "api_base").rstrip("/")
+    try:
+        completions_url(api_base)
+    except EndpointRejected as exc:
+        raise EndpointRejected(f"{provider}/{model}: {exc}") from exc
     key_env = required_text(row, "key_env")
     target = {
         "target_id": f"{provider}--{model}",
@@ -169,6 +321,8 @@ def receipt_filename(target_id: str) -> str:
 
 
 def classify_http(status: int) -> str:
+    if 300 <= status <= 399:
+        return "REDIRECT_NOT_FOLLOWED"
     if status in (401, 403):
         return "AUTH_FAILURE"
     if status == 404:
@@ -180,7 +334,7 @@ def classify_http(status: int) -> str:
     return "HTTP_FAILURE"
 
 
-def probe_target(target: dict[str, Any], timeout: float) -> dict[str, Any]:
+def probe_target(target: dict[str, Any], timeout: float, send: Any = None) -> dict[str, Any]:
     started = time.time()
     request_body = canonical_bytes({
         "model": target["model"],
@@ -188,56 +342,50 @@ def probe_target(target: dict[str, Any], timeout: float) -> dict[str, Any]:
         "temperature": 0,
         "max_tokens": 16,
     })
-    base = target["api_base"]
-    url = base if base.endswith("/chat/completions") else base + "/chat/completions"
     result: dict[str, Any] = {
         "schema": PROBE_SCHEMA,
         "target_id": target["target_id"],
         "provider": target["provider"],
         "requested_model": target["model"],
         "request_sha256": sha256_bytes(request_body),
-        "endpoint": url,
     }
-    key = os.environ.get(target["key_env"])
-    if not key:
-        result.update(classification="AUTH_FAILURE", detail=f"missing env {target['key_env']}")
-        return result
-    request = urllib.request.Request(
-        url,
-        data=request_body,
-        method="POST",
-        headers={"Authorization": f"Bearer {key}", "Content-Type": "application/json"},
-    )
     try:
-        with urllib.request.urlopen(request, timeout=timeout) as response:
-            raw = response.read()
-            status = response.status
-    except urllib.error.HTTPError as exc:
-        raw = exc.read()
-        status = exc.code
+        url = completions_url(target["api_base"])
+    except EndpointRejected as exc:
+        result.update(classification="ENDPOINT_REJECTED", detail=str(exc))
+        return result
+    result["endpoint"] = url
+
+    send = send if send is not None else key_bound_sender(target["key_env"])
+    sent = SendResult(*send(url, request_body, timeout))
+    latency = round((time.time() - started) * 1000)
+    if sent.status is None:
+        # A body-read failure is not unavailability: the provider answered, the
+        # generation exists, and it will appear on the bill. Retrying it is a
+        # decision, not a formality, so it gets its own name.
+        if sent.stage == "no-credential":
+            kind = "AUTH_FAILURE"
+        elif sent.stage == "after-headers":
+            kind = "RESPONSE_CAPTURE_FAILED"
+        else:
+            kind = "TIMEOUT" if sent.detail == "timeout" else "TRANSPORT_FAILURE"
+        result.update(classification=kind, detail=sent.detail, latency_ms=latency)
+        return result
+
+    status, raw = sent.status, sent.body or b""
+    if not 200 <= status < 300:
         result.update(
             classification=classify_http(status),
             http_status=status,
             response_sha256=sha256_bytes(raw),
-            latency_ms=round((time.time() - started) * 1000),
-        )
-        return result
-    except TimeoutError:
-        result.update(classification="TIMEOUT", latency_ms=round((time.time() - started) * 1000))
-        return result
-    except urllib.error.URLError as exc:
-        reason = exc.reason
-        result.update(
-            classification="TIMEOUT" if isinstance(reason, TimeoutError) else "TRANSPORT_FAILURE",
-            detail=str(reason),
-            latency_ms=round((time.time() - started) * 1000),
+            latency_ms=latency,
         )
         return result
 
     result.update(
         http_status=status,
         response_sha256=sha256_bytes(raw),
-        latency_ms=round((time.time() - started) * 1000),
+        latency_ms=latency,
     )
     try:
         payload = json.loads(raw)
@@ -286,7 +434,10 @@ GOLDEN_MODEL = "MODEL-UNDER-QUALIFICATION"
 # rejection into "unavailable" is how a fixable request shape gets recorded as a
 # dead target and quietly dropped from the matrix.
 CLASSIFICATIONS = (
+    "ENDPOINT_REJECTED",
     "UNAVAILABLE",
+    "RESPONSE_CAPTURE_FAILED",
+    "REDIRECT_NOT_FOLLOWED",
     "AUTH_FAILED",
     "RATE_LIMITED",
     "PROVIDER_REJECTED",
@@ -297,8 +448,22 @@ CLASSIFICATIONS = (
     "MALFORMED_TOOL_ARGUMENTS",
     "PROTOCOL_VIOLATION",
     "NO_TERMINAL_ANSWER",
+    "CANARY_ANSWER_MISMATCH",
     "PASS",
 )
+
+# A transport that stopped before any headers may not have been served at all;
+# one that stopped after them produced a generation somebody is paying for.
+STAGE_CAUSE = {
+    "no-credential": "AUTH_FAILED",
+    "before-response": "UNAVAILABLE",
+    "after-headers": "RESPONSE_CAPTURE_FAILED",
+}
+STAGE_OUTCOME = {
+    "no-credential": "no-credential",
+    "before-response": "transport-failure",
+    "after-headers": "response-capture-failure",
+}
 
 QUALIFY_INSTRUCTIONS = (
     "You are answering one question about a document you cannot see. The document is not in "
@@ -335,6 +500,11 @@ CANNED_RESULT = {
 }
 CANNED_RECORDS = {"records": [{"encoding": "base64url-nopad", "data": "YWxwaGE", "display_utf8": "alpha"}]}
 
+# The one answer the canned results support. Deterministic on purpose: the
+# canary asks a question whose answer is fixed by the data it hands back, so
+# "did the model actually read the result" is decidable without a grader.
+CANARY_ANSWER_BYTES = b"alpha"
+
 
 MODEL_STATUS_SEVERITY = {"verified": 0, "missing": 1, "drifted": 2}
 
@@ -364,6 +534,28 @@ def fold_model_status(turns: list[dict[str, Any]]) -> str:
         elif MODEL_STATUS_SEVERITY[status] > MODEL_STATUS_SEVERITY[worst]:
             worst = status
     return worst
+
+
+def fold_reported_models(turns: list[dict[str, Any]]) -> list[Any]:
+    """Every distinct model the provider named, in the order it named them.
+
+    A single top-level `reported_model` overwritten each turn loses exactly the
+    evidence that matters: a run that drifted on turn one and was correct on
+    turn two folds to `drifted`, and then the detail line reads "requested X,
+    provider reported X" because the last write won. The substituted model is
+    the whole finding — it has to survive the fold.
+
+    Turns that never reached a payload contribute nothing, rather than a `null`
+    that would read as "the provider named no model".
+    """
+    seen: list[Any] = []
+    for turn in turns:
+        if "reported_model" not in turn:
+            continue
+        value = turn["reported_model"]
+        if value not in seen:
+            seen.append(value)
+    return seen
 
 
 def load_surface(path: Path) -> dict[str, Any]:
@@ -429,13 +621,14 @@ def opening_messages() -> list[dict[str, Any]]:
     ]
 
 
-def classify_qualify_http(status: int, body: bytes, turn: int) -> tuple[str, str]:
+def classify_qualify_http(status: int, body: bytes, carried_tool_results: bool) -> tuple[str, str]:
     """Map a non-success status to a cause, with the provider's own words kept.
 
-    `turn` matters: a rejection of the very first request is about the tools or
-    the forcing, while a rejection of a later one — the first that carries
-    `role: tool` messages — is about the result shape. Same status, different
-    thing to fix.
+    Whether the rejected request carried `role: tool` messages matters: a
+    rejection of one that did not is about the tools or the forcing, while a
+    rejection of one that did is about the result shape. Same status, different
+    thing to fix. Asked of the request itself rather than inferred from the turn
+    number, which is only a proxy for it.
     """
     detail = ""
     param = ""
@@ -450,6 +643,10 @@ def classify_qualify_http(status: int, body: bytes, turn: int) -> tuple[str, str
     except (json.JSONDecodeError, TypeError):
         detail = body[:400].decode("utf-8", "replace")
 
+    if 300 <= status <= 399:
+        # The transport refused to follow it, so the credential stayed put. This
+        # is an endpoint to correct, not a provider that said no.
+        return "REDIRECT_NOT_FOLLOWED", detail or f"{status} redirect not followed"
     if status in (401, 403):
         return "AUTH_FAILED", detail
     if status == 404:
@@ -463,7 +660,7 @@ def classify_qualify_http(status: int, body: bytes, turn: int) -> tuple[str, str
         if "tool_choice" in haystack or "tool choice" in haystack or "tools" in haystack:
             # Named by the provider, not guessed from the shape of the failure.
             return "TOOL_CHOICE_UNSUPPORTED", detail
-        if turn > 0:
+        if carried_tool_results:
             return "TOOL_RESULT_REJECTED", detail
         return "PROVIDER_REJECTED", detail
     return "PROVIDER_REJECTED", detail
@@ -511,13 +708,70 @@ def decode_arguments(call: dict[str, Any]) -> tuple[dict[str, Any] | None, str |
     return parsed, None
 
 
-def required_keys(surface: dict[str, Any], name: str) -> list[str]:
+def schema_for(surface: dict[str, Any], name: str) -> dict[str, Any] | None:
+    """The declared input schema for a tool, or None if it was never declared."""
     if name == ANSWER_TOOL:
-        return list(surface["terminal_answer"]["schema"].get("required", []))
+        return surface["terminal_answer"]["schema"]
     for op in surface["operations"]:
         if op["name"] == name:
-            return list(op["input_schema"].get("required", []))
-    return []
+            return op["input_schema"]
+    return None
+
+
+def validate_arguments(surface: dict[str, Any], name: str, args: dict[str, Any]) -> list[str]:
+    """Check arguments against the schema the request actually declared.
+
+    Presence of the required keys is the least of it. `{"index": 123,
+    "sections": "not-a-list", "extra": true}` has both required keys and is
+    nonsense the adapter would refuse; a canary that called it valid would
+    report PASS for a target the arm cannot use. The declared schemas carry
+    types, enums, patterns, minimums, nested objects, `additionalProperties:
+    false` and local `$ref` — so all of that is what gets checked.
+    """
+    schema = schema_for(surface, name)
+    if schema is None:
+        return [f"{name} is not a declared tool"]
+    return jsonschema_mini.validate(args, schema)
+
+
+def b64url_decode(data: str) -> bytes:
+    """base64url without padding, as every byte envelope in the surface uses."""
+    if not isinstance(data, str):
+        raise ValueError("expected a string")
+    padded = data + "=" * (-len(data) % 4)
+    return base64.urlsafe_b64decode(padded.encode("ascii"))
+
+
+def canary_answer_errors(args: dict[str, Any]) -> list[str]:
+    """Did the target answer the question, or merely satisfy the schema?
+
+    Kept apart from the protocol causes on purpose. A model that speaks the
+    dialect perfectly and cites a handle it was never given has qualified the
+    wire and failed the task; folding the two together would hide whichever
+    happened to be checked second, and they call for opposite actions — one is
+    a target to drop, the other a prompt to fix.
+    """
+    errors: list[str] = []
+
+    envelope = args.get("answer")
+    data = envelope.get("data") if isinstance(envelope, dict) else None
+    try:
+        decoded = b64url_decode(data)
+    except (binascii.Error, ValueError, UnicodeEncodeError) as exc:
+        errors.append(f"answer data is not base64url: {exc}")
+    else:
+        if decoded != CANARY_ANSWER_BYTES:
+            errors.append(f"answer bytes {decoded!r}, expected {CANARY_ANSWER_BYTES!r}")
+
+    if args.get("handle") != CANNED_HANDLE:
+        errors.append(f"cited handle {args.get('handle')!r} was never returned by any operation")
+
+    support = {json.dumps(row, sort_keys=True) for row in CANNED_RESULT["support"]}
+    cited = args.get("cited")
+    for citation in cited if isinstance(cited, list) else []:
+        if json.dumps(citation, sort_keys=True) not in support:
+            errors.append(f"citation {json.dumps(citation, sort_keys=True)} is not in the result support")
+    return errors
 
 
 def canned_result_for(name: str) -> dict[str, Any]:
@@ -538,26 +792,44 @@ def qualify_target(
     provider is a qualification whose failure paths are never exercised.
     """
     base = target["api_base"]
-    url = base if base.endswith("/chat/completions") else base + "/chat/completions"
     receipt: dict[str, Any] = {
         "schema": QUALIFY_SCHEMA,
         "target_id": target["target_id"],
         "provider": target["provider"],
         "requested_model": target["model"],
         "reported_model": None,
+        "reported_models": [],
         "model_status": "missing",
         "transport_target": {
             "api_style": target["api_style"],
             "endpoint": base,
-            "path": "/chat/completions",
+            "path": COMPLETIONS_PATH,
             "content_type": "application/json",
             "timeout_secs": timeout,
+            "redirects_allowed": 0,
+            "max_response_bytes": MAX_RESPONSE_BYTES,
         },
         "turns": [],
         "turn_count": 0,
+        "tool_result_roundtrip": False,
         "classification": "UNAVAILABLE",
         "detail": "",
     }
+
+    try:
+        url = completions_url(base)
+    except EndpointRejected as exc:
+        receipt.update(classification="ENDPOINT_REJECTED", detail=str(exc))
+        return receipt
+
+    # The two facts the terminal answer is only meaningful after. `awaiting`
+    # says results were handed back and the next completion is the provider's
+    # verdict on them; `roundtrip_seen` says that verdict was a success. Without
+    # them a target that opens with `qodec_answer` — never running an operation,
+    # never being shown a `role: tool` message — would collect a PASS for the
+    # one thing the forced-query arm most needs and this canary never tested.
+    awaiting_roundtrip = False
+    roundtrip_seen = False
 
     messages = opening_messages()
     for turn in range(max_turns):
@@ -566,18 +838,21 @@ def qualify_target(
             "ordinal": turn,
             "request_sha256": sha256_bytes(body),
             "request_bytes": len(body),
+            "carried_tool_results": awaiting_roundtrip,
         }
-        status, raw, detail = send(url, body, timeout)
+        sent = SendResult(*send(url, body, timeout))
+        status, raw, detail = sent.status, sent.body, sent.detail
         record["response_sha256"] = sha256_bytes(raw) if raw is not None else None
         if status is None:
-            record["outcome"] = "transport-failure"
+            kind = STAGE_CAUSE.get(sent.stage, "UNAVAILABLE")
+            record["outcome"] = STAGE_OUTCOME.get(sent.stage, "transport-failure")
             record["detail"] = detail
             receipt["turns"].append(record)
-            receipt.update(classification="UNAVAILABLE", detail=detail, turn_count=turn + 1)
+            receipt.update(classification=kind, detail=detail, turn_count=turn + 1)
             return receipt
         record["http_status"] = status
         if not 200 <= status < 300:
-            kind, message = classify_qualify_http(status, raw, turn)
+            kind, message = classify_qualify_http(status, raw or b"", awaiting_roundtrip)
             record["outcome"] = "provider-rejected"
             record["detail"] = message
             receipt["turns"].append(record)
@@ -594,14 +869,31 @@ def qualify_target(
             receipt.update(classification="PROVIDER_REJECTED", detail=str(exc), turn_count=turn + 1)
             return receipt
 
+        # A successful, readable completion in answer to a request that carried
+        # `role: tool` messages is the provider accepting the result shape. That
+        # — not the mere fact that we sent them — is the roundtrip.
+        if awaiting_roundtrip:
+            roundtrip_seen = True
+            awaiting_roundtrip = False
+        record["tool_result_roundtrip"] = roundtrip_seen
+        receipt["tool_result_roundtrip"] = roundtrip_seen
+
         reported = payload.get("model")
-        receipt["reported_model"] = reported
+        record["reported_model"] = reported
         record["model_status"] = model_status_of(target["model"], reported)
         # Worst turn decides, exactly as the Rust side does: a cell is only as
         # identified as its least identified turn. Folded from the per-turn
         # values at the end rather than accumulated here, so a run with no turns
         # is `missing` — unknown — instead of inheriting a seed nobody set.
         receipt["model_status"] = fold_model_status(receipt["turns"] + [record])
+        # Same reason the fold exists, applied to the names themselves: keep all
+        # of them, and offer a single top-level value only when there is exactly
+        # one to offer. An overwritten scalar reports the last turn as if it were
+        # the run.
+        receipt["reported_models"] = fold_reported_models(receipt["turns"] + [record])
+        receipt["reported_model"] = (
+            receipt["reported_models"][0] if len(receipt["reported_models"]) == 1 else None
+        )
         if isinstance(payload.get("usage"), dict):
             record["reported_usage"] = payload["usage"]
 
@@ -636,11 +928,12 @@ def qualify_target(
                     classification="MALFORMED_TOOL_ARGUMENTS", detail=why, turn_count=turn + 1
                 )
                 return receipt
-            missing = [k for k in required_keys(surface, call["name"]) if k not in args]
-            if missing:
-                why = f"{call['name']} arguments missing required {missing}"
+            errors = validate_arguments(surface, call["name"], args)
+            if errors:
+                why = f"{call['name']} arguments violate the declared schema: " + "; ".join(errors)
                 record["outcome"] = "malformed-arguments"
                 record["detail"] = why
+                record["argument_errors"] = errors
                 receipt["turns"].append(record)
                 receipt.update(
                     classification="MALFORMED_TOOL_ARGUMENTS", detail=why, turn_count=turn + 1
@@ -667,19 +960,47 @@ def qualify_target(
             return receipt
 
         if answers:
+            if not roundtrip_seen:
+                # The arm's whole shape is query, read the result, then answer.
+                # A target that answers immediately has demonstrated that it can
+                # emit one forced tool call — which the RAW arm also does — and
+                # nothing about the loop the forced-query arm is made of.
+                why = "terminal answer before any operation/tool-result roundtrip"
+                record["outcome"] = "protocol-violation"
+                record["detail"] = why
+                receipt["turns"].append(record)
+                receipt.update(classification="PROTOCOL_VIOLATION", detail=why, turn_count=turn + 1)
+                return receipt
+
+            answer_args = next(a for c, a in decoded if c["name"] == ANSWER_TOOL)
+            answer_errors = canary_answer_errors(answer_args)
             record["outcome"] = "terminal-answer"
             record["terminal_answer_valid"] = True
+            record["canary_answer_matches"] = not answer_errors
+            if answer_errors:
+                record["canary_answer_errors"] = answer_errors
             receipt["turns"].append(record)
             receipt.update(classification="PASS", turn_count=turn + 1)
+            if answer_errors:
+                receipt["classification"] = "CANARY_ANSWER_MISMATCH"
+                receipt["detail"] = "; ".join(answer_errors)
             if receipt["model_status"] == "drifted":
+                # Outranks both a protocol pass and a wrong answer: neither says
+                # anything about the target when the generation came from a model
+                # nobody asked for. The substituted names are the finding.
+                substituted = [
+                    name for name in receipt["reported_models"]
+                    if isinstance(name, str) and name != target["model"]
+                ]
                 receipt["classification"] = "PROVIDER_SUBSTITUTED"
                 receipt["detail"] = (
-                    f"requested {target['model']}, provider reported {receipt['reported_model']}"
+                    f"requested {target['model']}, provider reported {', '.join(substituted)}"
                 )
             return receipt
 
         record["outcome"] = "operations"
         receipt["turns"].append(record)
+        awaiting_roundtrip = True
         # Replayed unchanged, with every result keyed to the call that asked for
         # it. A tool result whose id does not match is the provider's most
         # common reason to reject the next request, so the linkage is part of
@@ -711,29 +1032,6 @@ def qualify_target(
         turn_count=max_turns,
     )
     return receipt
-
-
-def http_send(url: str, body: bytes, timeout: float) -> tuple[int | None, bytes | None, str]:
-    """The one place qualification touches a network."""
-    key_env = http_send.key_env  # type: ignore[attr-defined]
-    key = os.environ.get(key_env)
-    if not key:
-        return None, None, f"missing env {key_env}"
-    request = urllib.request.Request(
-        url,
-        data=body,
-        method="POST",
-        headers={"Authorization": f"Bearer {key}", "Content-Type": "application/json"},
-    )
-    try:
-        with urllib.request.urlopen(request, timeout=timeout) as response:
-            return response.status, response.read(), ""
-    except urllib.error.HTTPError as exc:
-        return exc.code, exc.read(), ""
-    except TimeoutError:
-        return None, None, "timeout"
-    except urllib.error.URLError as exc:
-        return None, None, str(exc.reason)
 
 
 def parser() -> argparse.ArgumentParser:
@@ -786,8 +1084,10 @@ def main() -> int:
             surface = load_surface(args.surface)
             args.out_dir.mkdir(parents=True, exist_ok=True)
             for target in plan["selected"]:
-                http_send.key_env = target["key_env"]  # type: ignore[attr-defined]
-                receipt = qualify_target(target, surface, args.timeout, args.max_turns, http_send)
+                receipt = qualify_target(
+                    target, surface, args.timeout, args.max_turns,
+                    key_bound_sender(target["key_env"]),
+                )
                 write_json(args.out_dir / receipt_filename(target["target_id"]), receipt)
     except (OSError, ValueError, json.JSONDecodeError) as exc:
         print(f"provider-matrix: {exc}", file=sys.stderr)

@@ -100,6 +100,18 @@ jobs:
           name: smoke-1x3x1-transcripts
           path: smoke-1x3x1/
           if-no-files-found: warn
+      # The provider qualification canary. Pure Python, no network, no key: it
+      # decides what a `provider x model` target has to demonstrate before a
+      # live run is allowed to mean anything, and every classification is
+      # reachable from the stand-in transport.
+      - name: Provider qualification canary (model-free)
+        run: python3 -m unittest discover -s evals/provider-matrix -p 'test_*.py' -t evals/provider-matrix
+      # The canary sends the crate's own schemas, not a paraphrase of them. If
+      # the frozen artifact drifts from `panel::tool_schemas()`, the canary goes
+      # on reporting PASS for a surface the arm no longer uses, and the receipt
+      # looks exactly as convincing as before.
+      - name: C1 panel surface has not drifted from the crate
+        run: nix develop --command python3 evals/provider-matrix/check_surface.py
 
   build-and-smoke:
     runs-on: ubuntu-latest
