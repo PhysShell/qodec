@@ -37,14 +37,22 @@ const GOLDEN_RESULT_BYTES: &str = "00000001000000000000000e636c693a3a72656164657
 const GOLDEN_RESULT_DIGEST: &str =
     "sha256:2aa08310fcc7f109f454ec56e59065e4859632f1f39d602dcfe6a70c4e57b769";
 // A store plan: one section of lines, one whole-record index.
-const GOLDEN_PLAN_BYTES: &str = "010000000000000001730000000100000000000000046c696e6501";
+const GOLDEN_PLAN_BYTES: &str = "00000001010000000000000001730000000100000000000000046c696e6501";
 const GOLDEN_PLAN_DIGEST: &str =
-    "sha256:d7af90e46c561d06031c00a6c8db8319ec05d33ae8588f55c4a9f547b2cd5d21";
+    "sha256:e033a246b0ea4ee5b464baaf8993a4170340742adbd45445f12da0a87e6af491";
 const GOLDEN_STORE_ID: &str =
-    "sha256:21c3cd3b7182866e52d969fccee1bd57737f59bfe48cd3c092d8fb0aa2d86d6f";
+    "sha256:ad6174618a5b3a1b959227c530036ed7ff89abed9428bb80609bc638c991f975";
 // The same artifact opened with a marked-section plan is a different store.
 const GOLDEN_STORE_ID_MARKED: &str =
-    "sha256:d4a0c9327e629283728f0e36d8aacaa67a595afb66a6ed4cdfeed56c04f2cd94";
+    "sha256:9616510740c84b8710ce6fa68185dd6185805f6e6e31231fe7c2c2f06e398961";
+// The same artifact, the same segmentation, the same indexes — opened to a
+// different depth. The plan bytes differ in the leading u32 and nothing else.
+const GOLDEN_PLAN_BYTES_DEPTH2: &str =
+    "00000002010000000000000001730000000100000000000000046c696e6501";
+const GOLDEN_PLAN_DIGEST_DEPTH2: &str =
+    "sha256:5d610cb44a488be6ba128ea87c16638e8b7e639a456c73b0e4dafb637bde9fb6";
+const GOLDEN_STORE_ID_DEPTH2: &str =
+    "sha256:a17ef117e86aec01bd8a9a2f0b79441251d3e12dcf2e3debdfc39f27cacc7cd1";
 // One candidate backed by one record, from an execution that finished.
 const GOLDEN_SUPPORT_BYTES: &str = "0100000001000000000000000e636c693a3a7265616465725f3137000000010000000000000001730000000000000000";
 const GOLDEN_SUPPORT_DIGEST: &str =
@@ -53,11 +61,11 @@ const GOLDEN_SUPPORT_DIGEST: &str =
 const GOLDEN_SUPPORT_DIGEST_LIMITED: &str =
     "sha256:0b3ead9fa796a211807c6849190ce279ae93496a9171c21f4667a2ce28367d2f";
 const GOLDEN_QRID_1: &str =
-    "sha256:ecad1ec19b24e121950151957812e4aa98be92c54fb382d1aeab74be655a9a5c";
+    "sha256:3e7892d3591e1d2ae96b495f828439992b74e9589f2b3109ded7840e6e8242a2";
 const GOLDEN_QRID_2: &str =
-    "sha256:26500783efc188d0ce78f4d525a75749dfa2a4c1391bd147f473b3ddfab7684a";
+    "sha256:da86985fe65d8043d6e4ac5b65dc4ef90222be3d3b2ebe4b1f52fc14d5e2821f";
 const GOLDEN_QRID_V2SCHEMA: &str =
-    "sha256:7215fa33b08a35c6c63b6d020b877556aae7e368a47a59da381b043d4f290869";
+    "sha256:7800ca377bacc013a5a19c65673a54fe7e973d2fb598fe050f4dccc9a6089fde";
 const SUBST_AS_QUERY: &str =
     "sha256:c83a3f0b7f95b6042477e7607923ed1a6a832a09636d4f00bfe17074a3a07639";
 const SUBST_AS_RESULT: &str =
@@ -88,6 +96,20 @@ fn v1() -> Result<SchemaId> {
 
 fn hex(bytes: &[u8]) -> String {
     bytes.iter().map(|b| format!("{b:02x}")).collect()
+}
+
+/// The inverse of [`hex`], for goldens stated as hex text.
+fn unhex(text: &str) -> Result<Vec<u8>> {
+    if text.len() % 2 != 0 {
+        anyhow::bail!("hex text of odd length: {} chars", text.len());
+    }
+    (0..text.len() / 2)
+        .map(|i| {
+            text.get(i * 2..i * 2 + 2)
+                .ok_or_else(|| anyhow::anyhow!("hex text truncated at byte {i}"))
+                .and_then(|pair| Ok(u8::from_str_radix(pair, 16)?))
+        })
+        .collect()
 }
 
 fn golden_query_1() -> Result<CanonicalQuery> {
@@ -684,6 +706,65 @@ fn a_different_plan_gives_a_different_store_and_identity() -> Result<()> {
         query_result_id(&v1()?, &lines, &qd, &rd, &sd),
         query_result_id(&v1()?, &marked, &qd, &rd, &sd),
         "the same query and result under two plans are two identities"
+    );
+    Ok(())
+}
+
+/// Decode depth is part of the plan, so it is part of every identity below it.
+///
+/// The two plans here differ in exactly four bytes — the leading `u32be` — and
+/// agree on segmentation and index specs. That is the case worth pinning:
+/// depth is the one plan component that changes *what the records are* without
+/// changing anything about how they would be described, so leaving it out of
+/// the preimage would let two genuinely different stores share a name.
+///
+/// The vectors are derived by the independent Python reference, not by the
+/// Rust encoder, so this cannot pass by agreeing with itself.
+#[test]
+fn decode_depth_is_part_of_the_plan_identity() -> Result<()> {
+    let depth1_bytes = unhex(GOLDEN_PLAN_BYTES)?;
+    let depth2_bytes = unhex(GOLDEN_PLAN_BYTES_DEPTH2)?;
+    assert_eq!(
+        depth1_bytes.len(),
+        depth2_bytes.len(),
+        "premise: the two plans differ only in the depth field"
+    );
+    assert_eq!(
+        depth1_bytes.get(4..),
+        depth2_bytes.get(4..),
+        "premise: everything after the leading u32 is identical"
+    );
+    assert_ne!(
+        depth1_bytes.first(),
+        None,
+        "premise: the plan encoding is non-empty"
+    );
+
+    let pd2 = digest_store_plan_bytes(&depth2_bytes);
+    assert_eq!(pd2.to_canonical_text(), GOLDEN_PLAN_DIGEST_DEPTH2);
+    assert_ne!(
+        golden_plan_digest()?,
+        pd2,
+        "one artifact at two depths is two plans"
+    );
+
+    let artifact = ArtifactDigest::parse_canonical_text(GOLDEN_ARTIFACT)?;
+    let sid2 = store_id(&artifact, &pd2);
+    assert_eq!(sid2.to_canonical_text(), GOLDEN_STORE_ID_DEPTH2);
+    assert_ne!(
+        golden_store_id()?,
+        sid2,
+        "…and therefore two stores, whose record ids do not interchange"
+    );
+
+    // And the identity above it moves with the store, not merely alongside it.
+    let qd = canonical_query_digest(&v1()?, &golden_query_1()?)?;
+    let rd = complete_result_digest(&golden_result()?)?;
+    let sd = golden_support_digest()?;
+    assert_ne!(
+        query_result_id(&v1()?, &golden_store_id()?, &qd, &rd, &sd),
+        query_result_id(&v1()?, &sid2, &qd, &rd, &sd),
+        "the same query and result at two depths are two identities"
     );
     Ok(())
 }

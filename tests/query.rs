@@ -16,7 +16,7 @@ use qodec::canon::{
     CanonicalQuery, FieldName, IndexName, KeyBytes, SchemaId, SetName, SCHEMA_QUERY_V1,
 };
 use qodec::query::{ExecutionCompletion, ExecutionLimits, HarnessResultRegistry, VerifyOutcome};
-use qodec::store::{CanonicalStore, IndexSpec, KeyExtractor, RecordId, Segmentation};
+use qodec::store::{CanonicalStore, IndexSpec, KeyExtractor, RecordId, Segmentation, StorePlan};
 
 // Support-digest goldens for the retry-store fixture, derived by
 // tests/reference/canon_reference.py and verified by its `--check` mode in CI.
@@ -56,6 +56,11 @@ fn line_index() -> Result<Vec<IndexSpec>> {
     }])
 }
 
+/// The default plan for these fixtures: one top-level layer.
+fn plan(seg: Segmentation, specs: Vec<IndexSpec>) -> Result<StorePlan> {
+    StorePlan::new(1, seg, specs)
+}
+
 /// Three retry blocks. `alpha` fails in all three; `beta` in two of them.
 /// This is the shape the reader panels kept getting wrong.
 fn retry_store() -> Result<CanonicalStore> {
@@ -65,8 +70,7 @@ fn retry_store() -> Result<CanonicalStore> {
              --- attempt_2 ---\nalpha\ngamma\n\
              --- attempt_3 ---\nalpha\nbeta\n",
         ),
-        &marked_seg()?,
-        &line_index()?,
+        &plan(marked_seg()?, line_index()?)?,
     )
 }
 
@@ -154,8 +158,7 @@ fn the_result_is_bound_to_the_store_that_issued_it() -> Result<()> {
              --- attempt_2 ---\nalpha\ngamma\n\
              --- attempt_3 ---\nalpha\nbeta\n",
         ),
-        &Segmentation::Lines { section: set("s")? },
-        &line_index()?,
+        &plan(Segmentation::Lines { section: set("s")? }, line_index()?)?,
     )?;
     assert_eq!(store.artifact_digest(), other_plan.artifact_digest());
     assert_eq!(
@@ -166,8 +169,7 @@ fn the_result_is_bound_to_the_store_that_issued_it() -> Result<()> {
     // A different artifact entirely.
     let other_artifact = CanonicalStore::open(
         &raw_artifact("--- attempt_1 ---\nzzz\n"),
-        &marked_seg()?,
-        &line_index()?,
+        &plan(marked_seg()?, line_index()?)?,
     )?;
     assert_eq!(
         registry.verify(&other_artifact, &handle, &key(b"alpha"), &[]),

@@ -107,9 +107,23 @@ def artifact_digest(artifact_bytes: bytes) -> bytes:
     return hashlib.sha256(domain_header(DOMAIN_ARTIFACT) + length_prefixed(artifact_bytes)).digest()
 
 
-def plan_bytes(segmentation: bytes, specs) -> bytes:
-    """Canonical bytes of an open plan; specs sorted by index name."""
-    out = segmentation + struct.pack(">I", len(specs))
+def plan_bytes(decode_layers: int, segmentation: bytes, specs) -> bytes:
+    """Canonical bytes of an open plan; specs sorted by index name.
+
+    `u32be(decode_layers) || segmentation || u32be(count) || spec…`
+
+    The depth leads and is part of the identity. The artifact's bytes do not
+    determine how many container layers they are: `container::raw(x)` is
+    `"%q1 raw\\n%q1 body\\n" + x`, so a one-layer artifact with a
+    container-shaped RAW payload is byte-identical to a two-layer pipeline
+    whose inner separator was truncated. Two stores over those same bytes at
+    different depths hold different records, so they are different stores.
+
+    Zero is not encodable: it would mean adopting the container itself as RAW.
+    """
+    if decode_layers < 1:
+        raise ValueError(f"decode_layers must be at least 1, got {decode_layers}")
+    out = struct.pack(">I", decode_layers) + segmentation + struct.pack(">I", len(specs))
     for name, extractor in sorted(specs, key=lambda s: s[0]):
         out += enc_name(name) + extractor
     return out
@@ -200,15 +214,21 @@ def vectors() -> dict:
     raw_key = bytes([0xFF, 0x00, 0xFE, 0x80])
     qb3 = query_bytes_lookup("suite", raw_key)
     rb3 = result_bytes([raw_key, bytes([0xFF, 0x00, 0xFE, 0x81])])
-    # A store plan: one section of lines, one whole-record index.
-    pb = plan_bytes(seg_lines("s"), [("line", extractor_whole())])
+    # A store plan: one layer, one section of lines, one whole-record index.
+    pb = plan_bytes(1, seg_lines("s"), [("line", extractor_whole())])
     pd = store_plan_digest(pb)
     sid = store_id(artifact, pd)
     # The same artifact opened a different way is a different store.
     pb_marked = plan_bytes(
-        seg_marked("--- ", " ---", "preamble"), [("line", extractor_whole())]
+        1, seg_marked("--- ", " ---", "preamble"), [("line", extractor_whole())]
     )
     sid_marked = store_id(artifact, store_plan_digest(pb_marked))
+    # And the same artifact opened to a different *depth* is a different store
+    # too, which is the whole point of putting the depth in the plan: these two
+    # plans differ in nothing else.
+    pb_depth2 = plan_bytes(2, seg_lines("s"), [("line", extractor_whole())])
+    pd_depth2 = store_plan_digest(pb_depth2)
+    sid_depth2 = store_id(artifact, pd_depth2)
     # One candidate backed by one record, from an execution that finished.
     sb = support_bytes(None, {b"cli::reader_17": [("s", 0)]})
     sd = result_support_digest(sb)
@@ -231,6 +251,9 @@ def vectors() -> dict:
         "GOLDEN_PLAN_DIGEST": "sha256:" + pd.hex(),
         "GOLDEN_STORE_ID": "sha256:" + sid.hex(),
         "GOLDEN_STORE_ID_MARKED": "sha256:" + sid_marked.hex(),
+        "GOLDEN_PLAN_BYTES_DEPTH2": pb_depth2.hex(),
+        "GOLDEN_PLAN_DIGEST_DEPTH2": "sha256:" + pd_depth2.hex(),
+        "GOLDEN_STORE_ID_DEPTH2": "sha256:" + sid_depth2.hex(),
         "GOLDEN_SUPPORT_BYTES": sb.hex(),
         "GOLDEN_SUPPORT_DIGEST": "sha256:" + sd.hex(),
         "GOLDEN_SUPPORT_DIGEST_LIMITED": "sha256:" + result_support_digest(sb_limited).hex(),

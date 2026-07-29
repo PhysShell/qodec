@@ -5,33 +5,38 @@
 //! query is a set operation over record IDs and nothing ever looks at the
 //! compressed representation again.
 //!
-//! **The name `decode_once` is deliberately not reused here**, because
-//! [`crate::decode_once`] already exists and means something else — decode
-//! exactly *one container layer*. Wiring the harness to that would leave a
-//! pipeline half-decoded while every type still lined up, so this module calls
-//! [`crate::decode`], which unwraps to RAW, and names its own entry point
-//! [`CanonicalStore::open`]. A collision between "one layer" and "one full
-//! decode" is precisely the kind that stays quiet until the results are wrong.
+//! **The name `decode_once` is deliberately not reused for the entry point**,
+//! because [`crate::decode_once`] already exists and means one *container
+//! layer*, not one full open. This module's entry point is therefore
+//! [`CanonicalStore::open`], and it calls `crate::decode_once` exactly
+//! [`StorePlan::decode_layers`] times. A collision between "one layer" and
+//! "one full decode" is precisely the kind that stays quiet until the results
+//! are wrong.
 //!
-//! Four properties hold, and the tests enforce each:
+//! Five properties hold, and the tests enforce each:
 //!
+//! * **Depth is declared, never inferred.** See [`StorePlan`]. The earlier
+//!   revision called [`crate::decode`], which unwraps until the text stops
+//!   parsing as a container. That is a guess, and it is wrong in both
+//!   directions at once: it walks past the artifact's pipeline boundary when a
+//!   RAW payload is itself container-shaped, and it accepts a corrupt
+//!   intermediate layer as though it were the payload.
 //! * **Keys are bytes.** The artifact is byte-exact, so a key lifted out of it
 //!   is a byte string. Nothing decodes, normalizes, or truncates it.
 //! * **Record identity includes position.** Two identical records at two
 //!   positions are two records, not one record encountered twice.
 //! * **Construction is atomic, and fails closed.** `open` returns a complete
-//!   store or an error; there is no partially-built state to observe. Note
-//!   that this needed explicit work rather than falling out of `decode`:
-//!   [`crate::decode`] is *lenient*, returning input it cannot parse unchanged
-//!   as `Ok`, which is correct for a pipeline unwrapper and would have let a
-//!   malformed artifact be adopted as a raw payload here — a fully populated,
-//!   entirely confident store over garbage.
+//!   store or an error; there is no partially-built state to observe. Every
+//!   one of the `decode_layers` layers must parse *and* decode, so a malformed
+//!   artifact cannot be adopted as a raw payload — a fully populated, entirely
+//!   confident store over garbage.
 //! * **Materialization returns stored bytes.** Not a re-encoding, not a
 //!   reconstruction — the same bytes the store holds.
 
 use std::collections::{BTreeMap, BTreeSet};
+use std::num::NonZeroU32;
 
-use anyhow::{bail, Result};
+use anyhow::{bail, Context, Result};
 
 use crate::canon::{
     digest_store_plan_bytes, encode_bytes, encode_count, encode_name, store_id, ArtifactDigest,
@@ -158,6 +163,81 @@ pub struct IndexSpec {
     pub extractor: KeyExtractor,
 }
 
+/// How an artifact is opened: how deep to decode, how to segment, what to index.
+///
+/// The plan exists because the artifact's bytes do not determine their own
+/// reading. `container::raw(x)` is `"%q1 raw\n%q1 body\n" + x`, so a one-layer
+/// artifact whose RAW payload legitimately begins `%q1 raw` is *byte-identical*
+/// to a two-layer pipeline whose inner separator was truncated. Those two want
+/// opposite answers — return the payload, or refuse as corrupt — and no
+/// examination of the text can tell them apart, because what distinguishes them
+/// is not in the text. An open-ended "unwrap until it stops parsing" loop is
+/// therefore not a conservative default; it is a silent guess.
+///
+/// So depth is declared. It comes from the trusted fixture or store manifest
+/// written alongside the artifact, and never from the model or the query
+/// caller: resolving an ambiguity and then inviting the untrusted party to pick
+/// its resolution would leave exactly the hole it closed.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct StorePlan {
+    decode_layers: NonZeroU32,
+    segmentation: Segmentation,
+    /// Sorted by index name at construction, so the order a caller happened to
+    /// list its specs in cannot change the store's identity.
+    indexes: Vec<IndexSpec>,
+}
+
+impl StorePlan {
+    /// Build a plan, rejecting a depth of zero and duplicate index names.
+    ///
+    /// Zero layers would mean adopting the container *itself* as RAW data —
+    /// indexing `%q1 raw` and the separator line as records and calling the
+    /// result an artifact's contents. The crate has enough ways to be
+    /// confidently wrong already, so the type does not offer that one.
+    pub fn new(
+        decode_layers: u32,
+        segmentation: Segmentation,
+        specs: Vec<IndexSpec>,
+    ) -> Result<Self> {
+        let decode_layers = NonZeroU32::new(decode_layers)
+            .ok_or_else(|| anyhow::anyhow!("decode_layers must be at least 1, got 0"))?;
+        let mut indexes = specs;
+        indexes.sort_by(|a, b| a.name.as_str().cmp(b.name.as_str()));
+        for pair in indexes.windows(2) {
+            if let [a, b] = pair {
+                if a.name == b.name {
+                    bail!("duplicate index name {:?}", a.name.as_str());
+                }
+            }
+        }
+        Ok(StorePlan {
+            decode_layers,
+            segmentation,
+            indexes,
+        })
+    }
+
+    /// How many top-level container layers `open` will decode.
+    pub fn decode_layers(&self) -> NonZeroU32 {
+        self.decode_layers
+    }
+
+    /// How the decoded RAW text is divided into sections and records.
+    pub fn segmentation(&self) -> &Segmentation {
+        &self.segmentation
+    }
+
+    /// The index specs, in canonical (name-sorted) order.
+    pub fn indexes(&self) -> &[IndexSpec] {
+        &self.indexes
+    }
+
+    /// This plan's digest — one of the two halves of a [`StoreId`].
+    pub fn digest(&self) -> Result<StorePlanDigest> {
+        Ok(digest_store_plan_bytes(&self.canonical_bytes()?))
+    }
+}
+
 /// A decoded artifact as a deterministic data store.
 ///
 /// `BTreeMap` throughout, not for love of trees but because the serialized and
@@ -180,39 +260,48 @@ pub struct CanonicalStore {
 }
 
 impl CanonicalStore {
-    /// Decode an artifact once and build the store and every index.
+    /// Decode an artifact to the plan's depth and build the store and indexes.
     ///
     /// Returns a complete store or an error. There is no partially-built
     /// value to observe, because nothing is published until every index is
     /// finished — atomicity here is structural rather than promised.
-    pub fn open(artifact_text: &str, seg: &Segmentation, specs: &[IndexSpec]) -> Result<Self> {
+    ///
+    /// The depth comes from `plan`, never from the artifact and never from a
+    /// caller downstream of the model. See [`StorePlan`] for why it cannot be
+    /// inferred from the bytes.
+    pub fn open(artifact_text: &str, plan: &StorePlan) -> Result<Self> {
         let artifact_digest = ArtifactDigest::of_artifact_bytes(artifact_text.as_bytes());
-        // Require a well-formed container *before* decoding.
+        // Exactly `decode_layers` top-level layers, each of which must parse
+        // and decode. `crate::decode` is *not* used: it loops until the text
+        // stops parsing as a container, which both unwraps past the artifact's
+        // pipeline boundary when a payload is container-shaped and accepts a
+        // corrupt intermediate layer as if it were the payload. Both are the
+        // same guess, made in opposite directions.
         //
-        // `crate::decode` is lenient by design: input it cannot parse is
-        // returned unchanged, as `Ok`. That is right for a pipeline unwrapper
-        // and wrong here — it would let a malformed artifact be adopted as a
-        // raw payload and produce a confident, fully-populated store over
-        // garbage, which is case 1 of the Slice A negative matrix passing
-        // silently. So the container is parsed first and a failure to parse is
-        // a failure to open.
-        crate::container::parse(artifact_text)
-            .map_err(|e| anyhow::anyhow!("artifact is not a well-formed %q1 container: {e}"))?;
-        // ONE full decode. `crate::decode` unwraps pipelines to RAW;
-        // `crate::decode_once` would stop after a single container layer.
-        let raw = crate::decode(artifact_text)?;
-        // The plan is part of the identity, so it is canonicalized before use:
-        // specs are sorted by index name, so the order a caller happened to
-        // pass them in cannot change what the store is called.
-        let store_plan_digest = digest_store_plan_bytes(&canonical_plan_bytes(seg, specs)?);
+        // Note what is *not* counted here: a codec's internal containers — a
+        // mosaic's segments, say — are decoded inside `decode_container` as
+        // part of their own layer, so they never inflate the top-level depth.
+        let mut current = artifact_text.to_owned();
+        for layer in 0..plan.decode_layers.get() {
+            current = crate::decode_once(&current).with_context(|| {
+                format!(
+                    "artifact layer {}/{} is not a valid decodable %q1 container",
+                    layer + 1,
+                    plan.decode_layers
+                )
+            })?;
+        }
+        // Whatever layer `decode_layers` lands on *is* the RAW payload. Its
+        // shape is deliberately not inspected: a payload has every right to
+        // look like a container, and checking would reject valid artifacts
+        // while still not detecting the corrupt ones.
+        let raw = current;
+        let store_plan_digest = plan.digest()?;
         let store_id = store_id(&artifact_digest, &store_plan_digest);
-        let (records, sections) = segment(&raw, seg)?;
+        let (records, sections) = segment(&raw, &plan.segmentation)?;
 
         let mut indexes: IndexSet = BTreeMap::new();
-        for spec in specs {
-            if indexes.contains_key(&spec.name) {
-                bail!("duplicate index name {:?}", spec.name.as_str());
-            }
+        for spec in &plan.indexes {
             let mut index: KeyIndex = BTreeMap::new();
             for (id, bytes) in &records {
                 if let Some(key) = spec.extractor.extract(bytes) {
@@ -536,47 +625,62 @@ fn insert_record(
     Ok(())
 }
 
-/// Canonical bytes of an open plan: the segmentation and every index spec.
-///
-/// Sorted by index name before encoding, so the order a caller happened to
-/// list its specs in cannot change the store's identity. Every variant carries
-/// an explicit frozen discriminant, and every parameter is length-delimited,
-/// for the same reasons the query encoding is.
-fn canonical_plan_bytes(seg: &Segmentation, specs: &[IndexSpec]) -> Result<Vec<u8>> {
-    let mut out = Vec::new();
-    match seg {
-        Segmentation::Lines { section } => {
-            out.push(1);
-            encode_name(&mut out, section.as_str());
-        }
-        Segmentation::MarkedSections {
-            prefix,
-            suffix,
-            preamble,
-        } => {
-            out.push(2);
-            // Markers are data, not protocol names: either may legitimately be
-            // empty, and neither is a schema identifier.
-            encode_bytes(&mut out, prefix.as_bytes());
-            encode_bytes(&mut out, suffix.as_bytes());
-            encode_name(&mut out, preamble.as_str());
-        }
-    }
-    let mut sorted: Vec<&IndexSpec> = specs.iter().collect();
-    sorted.sort_by(|a, b| a.name.as_str().cmp(b.name.as_str()));
-    encode_count(&mut out, sorted.len())?;
-    for spec in sorted {
-        encode_name(&mut out, spec.name.as_str());
-        match &spec.extractor {
-            KeyExtractor::WholeRecord => out.push(1),
-            KeyExtractor::Field { separator, index } => {
+impl StorePlan {
+    /// Canonical bytes of an open plan: depth, segmentation, every index spec.
+    ///
+    /// ```text
+    /// plan := u32be(decode_layers)
+    ///      || segmentation_discriminant || segmentation_parameters…
+    ///      || u32be(index_count) || index_spec…
+    /// ```
+    ///
+    /// `decode_layers` leads, and it belongs to the identity rather than being
+    /// a hint alongside it: two stores over the same bytes at different depths
+    /// hold genuinely different records, so they must be different stores.
+    /// Every variant carries an explicit frozen discriminant and every
+    /// variable-width parameter is length-delimited, for the same reasons the
+    /// query encoding does. The specs were sorted by name at construction, so
+    /// the encoder does not need to re-sort to be canonical.
+    ///
+    /// Public because it is the normative serialization, and an independent
+    /// implementation has to be able to compare against it directly. Pinning
+    /// only [`StorePlan::digest`] would leave the encoder free to drift from
+    /// the published format as long as it drifted consistently with itself.
+    pub fn canonical_bytes(&self) -> Result<Vec<u8>> {
+        let mut out = Vec::new();
+        out.extend_from_slice(&self.decode_layers.get().to_be_bytes());
+        match &self.segmentation {
+            Segmentation::Lines { section } => {
+                out.push(1);
+                encode_name(&mut out, section.as_str());
+            }
+            Segmentation::MarkedSections {
+                prefix,
+                suffix,
+                preamble,
+            } => {
                 out.push(2);
-                out.push(*separator);
-                out.extend_from_slice(&index.to_be_bytes());
+                // Markers are data, not protocol names: either may legitimately
+                // be empty, and neither is a schema identifier.
+                encode_bytes(&mut out, prefix.as_bytes());
+                encode_bytes(&mut out, suffix.as_bytes());
+                encode_name(&mut out, preamble.as_str());
             }
         }
+        encode_count(&mut out, self.indexes.len())?;
+        for spec in &self.indexes {
+            encode_name(&mut out, spec.name.as_str());
+            match &spec.extractor {
+                KeyExtractor::WholeRecord => out.push(1),
+                KeyExtractor::Field { separator, index } => {
+                    out.push(2);
+                    out.push(*separator);
+                    out.extend_from_slice(&index.to_be_bytes());
+                }
+            }
+        }
+        Ok(out)
     }
-    Ok(out)
 }
 
 /// Why a bounded scan stopped early.

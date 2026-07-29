@@ -14,7 +14,7 @@ use qodec::canon::{
     CanonicalResult, CompleteResultDigest, FieldName, IndexName, KeyBytes, SchemaId, SetName,
     StorePlanDigest, StoredQueryResult, SCHEMA_QUERY_V1,
 };
-use qodec::store::{CanonicalStore, IndexSpec, KeyExtractor, RecordId, Segmentation};
+use qodec::store::{CanonicalStore, IndexSpec, KeyExtractor, RecordId, Segmentation, StorePlan};
 
 fn set(name: &str) -> Result<SetName> {
     SetName::parse(name)
@@ -47,6 +47,15 @@ fn whole_record_index() -> Result<Vec<IndexSpec>> {
     }])
 }
 
+/// The default plan for these contracts: one top-level layer.
+///
+/// Depth is spelled out at every open rather than defaulted, because a default
+/// depth is the guess this module exists to remove. Tests that care about depth
+/// call [`StorePlan::new`] directly.
+fn plan(seg: Segmentation, specs: Vec<IndexSpec>) -> Result<StorePlan> {
+    StorePlan::new(1, seg, specs)
+}
+
 // ---------------------------------------------------------------------------
 // Record identity
 // ---------------------------------------------------------------------------
@@ -61,8 +70,7 @@ fn whole_record_index() -> Result<Vec<IndexSpec>> {
 fn identical_records_at_different_positions_stay_distinct() -> Result<()> {
     let store = CanonicalStore::open(
         &raw_artifact("dup\ndup\ndup\n"),
-        &lines_seg()?,
-        &whole_record_index()?,
+        &plan(lines_seg()?, whole_record_index()?)?,
     )?;
     assert_eq!(store.record_count(), 3, "three lines are three records");
 
@@ -81,8 +89,8 @@ fn identical_records_at_different_positions_stay_distinct() -> Result<()> {
 #[test]
 fn record_ids_are_stable_across_replays() -> Result<()> {
     let artifact = raw_artifact("a\nb\nc\n");
-    let first = CanonicalStore::open(&artifact, &lines_seg()?, &whole_record_index()?)?;
-    let second = CanonicalStore::open(&artifact, &lines_seg()?, &whole_record_index()?)?;
+    let first = CanonicalStore::open(&artifact, &plan(lines_seg()?, whole_record_index()?)?)?;
+    let second = CanonicalStore::open(&artifact, &plan(lines_seg()?, whole_record_index()?)?)?;
 
     let ids_a: Vec<RecordId> = first.record_ids().collect();
     let ids_b: Vec<RecordId> = second.record_ids().collect();
@@ -95,8 +103,14 @@ fn record_ids_are_stable_across_replays() -> Result<()> {
 /// mean nothing in another even when they look identical.
 #[test]
 fn artifact_digest_binds_the_store() -> Result<()> {
-    let a = CanonicalStore::open(&raw_artifact("x\n"), &lines_seg()?, &whole_record_index()?)?;
-    let b = CanonicalStore::open(&raw_artifact("y\n"), &lines_seg()?, &whole_record_index()?)?;
+    let a = CanonicalStore::open(
+        &raw_artifact("x\n"),
+        &plan(lines_seg()?, whole_record_index()?)?,
+    )?;
+    let b = CanonicalStore::open(
+        &raw_artifact("y\n"),
+        &plan(lines_seg()?, whole_record_index()?)?,
+    )?;
     assert_ne!(a.artifact_digest(), b.artifact_digest());
     Ok(())
 }
@@ -115,14 +129,16 @@ fn non_utf8_key_round_trips_through_the_index() -> Result<()> {
     // "é" is C3 A9; splitting on A9 leaves a field ending in a lone C3.
     let store = CanonicalStore::open(
         &raw_artifact("é1\n"),
-        &lines_seg()?,
-        &[IndexSpec {
-            name: index("split")?,
-            extractor: KeyExtractor::Field {
-                separator: 0xA9,
-                index: 0,
-            },
-        }],
+        &plan(
+            lines_seg()?,
+            vec![IndexSpec {
+                name: index("split")?,
+                extractor: KeyExtractor::Field {
+                    separator: 0xA9,
+                    index: 0,
+                },
+            }],
+        )?,
     )?;
     let broken = key(&[0xC3]);
     assert!(
@@ -142,14 +158,16 @@ fn non_utf8_key_round_trips_through_the_index() -> Result<()> {
 fn distinct_invalid_sequences_do_not_collapse_in_the_index() -> Result<()> {
     let store = CanonicalStore::open(
         &raw_artifact("é1\nê1\n"),
-        &lines_seg()?,
-        &[IndexSpec {
-            name: index("split")?,
-            extractor: KeyExtractor::Field {
-                separator: 0xA9,
-                index: 0,
-            },
-        }],
+        &plan(
+            lines_seg()?,
+            vec![IndexSpec {
+                name: index("split")?,
+                extractor: KeyExtractor::Field {
+                    separator: 0xA9,
+                    index: 0,
+                },
+            }],
+        )?,
     )?;
     // "é" = C3 A9 → field "C3"; "ê" = C3 AA, which contains no A9, so the
     // whole line is the field. Two different keys, neither of them UTF-8.
@@ -176,8 +194,7 @@ fn distinct_invalid_sequences_do_not_collapse_in_the_index() -> Result<()> {
 fn interior_nul_does_not_truncate_an_index_key() -> Result<()> {
     let store = CanonicalStore::open(
         &raw_artifact("ab\0cd\nab\n"),
-        &lines_seg()?,
-        &whole_record_index()?,
+        &plan(lines_seg()?, whole_record_index()?)?,
     )?;
     assert_eq!(store.lookup(&index("line")?, &key(b"ab\0cd"))?.len(), 1);
     assert_eq!(store.lookup(&index("line")?, &key(b"ab"))?.len(), 1);
@@ -193,8 +210,7 @@ fn interior_nul_does_not_truncate_an_index_key() -> Result<()> {
 fn normalization_forms_index_distinctly() -> Result<()> {
     let store = CanonicalStore::open(
         &raw_artifact("é\ne\u{301}\n"),
-        &lines_seg()?,
-        &whole_record_index()?,
+        &plan(lines_seg()?, whole_record_index()?)?,
     )?;
     assert_eq!(store.record_count(), 2);
     assert_eq!(
@@ -216,14 +232,16 @@ fn normalization_forms_index_distinctly() -> Result<()> {
 fn a_missing_field_is_missing_not_empty() -> Result<()> {
     let store = CanonicalStore::open(
         &raw_artifact("a:b\nnoseparator\n"),
-        &lines_seg()?,
-        &[IndexSpec {
-            name: index("second")?,
-            extractor: KeyExtractor::Field {
-                separator: b':',
-                index: 1,
-            },
-        }],
+        &plan(
+            lines_seg()?,
+            vec![IndexSpec {
+                name: index("second")?,
+                extractor: KeyExtractor::Field {
+                    separator: b':',
+                    index: 1,
+                },
+            }],
+        )?,
     )?;
     assert_eq!(store.lookup(&index("second")?, &key(b"b"))?.len(), 1);
     assert!(
@@ -241,8 +259,8 @@ fn a_missing_field_is_missing_not_empty() -> Result<()> {
 #[test]
 fn index_lists_are_sorted_unique_and_reproducible() -> Result<()> {
     let artifact = raw_artifact("k\nk\nother\nk\n");
-    let first = CanonicalStore::open(&artifact, &lines_seg()?, &whole_record_index()?)?;
-    let second = CanonicalStore::open(&artifact, &lines_seg()?, &whole_record_index()?)?;
+    let first = CanonicalStore::open(&artifact, &plan(lines_seg()?, whole_record_index()?)?)?;
+    let second = CanonicalStore::open(&artifact, &plan(lines_seg()?, whole_record_index()?)?)?;
 
     let a = first.lookup(&index("line")?, &key(b"k"))?;
     let b = second.lookup(&index("line")?, &key(b"k"))?;
@@ -264,7 +282,10 @@ fn index_lists_are_sorted_unique_and_reproducible() -> Result<()> {
 /// read as evidence of absence.
 #[test]
 fn unknown_index_errors_but_absent_key_is_empty() -> Result<()> {
-    let store = CanonicalStore::open(&raw_artifact("a\n"), &lines_seg()?, &whole_record_index()?)?;
+    let store = CanonicalStore::open(
+        &raw_artifact("a\n"),
+        &plan(lines_seg()?, whole_record_index()?)?,
+    )?;
     assert!(store.lookup(&index("nope")?, &key(b"a")).is_err());
     assert!(store.lookup(&index("line")?, &key(b"zzz"))?.is_empty());
     Ok(())
@@ -288,7 +309,7 @@ fn intersect_requires_presence_in_every_section() -> Result<()> {
         suffix: " ---".into(),
         preamble: set("preamble")?,
     };
-    let store = CanonicalStore::open(&artifact, &seg, &whole_record_index()?)?;
+    let store = CanonicalStore::open(&artifact, &plan(seg, whole_record_index()?)?)?;
 
     let all_three = store.intersect(
         &index("line")?,
@@ -309,7 +330,10 @@ fn intersect_requires_presence_in_every_section() -> Result<()> {
 /// otherwise a misspelled section name would read as "nothing qualifies".
 #[test]
 fn unknown_section_is_an_error() -> Result<()> {
-    let store = CanonicalStore::open(&raw_artifact("a\n"), &lines_seg()?, &whole_record_index()?)?;
+    let store = CanonicalStore::open(
+        &raw_artifact("a\n"),
+        &plan(lines_seg()?, whole_record_index()?)?,
+    )?;
     assert!(store.intersect(&index("line")?, &[set("absent")?]).is_err());
     assert!(store.intersect(&index("line")?, &[]).is_err());
     Ok(())
@@ -323,7 +347,10 @@ fn unknown_section_is_an_error() -> Result<()> {
 #[test]
 fn materialized_bytes_equal_the_source_lines() -> Result<()> {
     let body = "first line\nsecond\u{feff} line\nthird\0line\n";
-    let store = CanonicalStore::open(&raw_artifact(body), &lines_seg()?, &whole_record_index()?)?;
+    let store = CanonicalStore::open(
+        &raw_artifact(body),
+        &plan(lines_seg()?, whole_record_index()?)?,
+    )?;
     let ids: Vec<RecordId> = store.record_ids().collect();
     let got = store.materialize(&ids)?;
     let want: Vec<&[u8]> = body.lines().map(str::as_bytes).collect();
@@ -340,12 +367,14 @@ fn materialized_bytes_equal_the_source_lines() -> Result<()> {
 /// is the intended design, not a gap in the suite.
 #[test]
 fn materialize_rejects_foreign_records() -> Result<()> {
-    let store = CanonicalStore::open(&raw_artifact("a\n"), &lines_seg()?, &whole_record_index()?)?;
+    let store = CanonicalStore::open(
+        &raw_artifact("a\n"),
+        &plan(lines_seg()?, whole_record_index()?)?,
+    )?;
     let mut ids: Vec<RecordId> = store.record_ids().collect();
     let other = CanonicalStore::open(
         &raw_artifact("a\nb\n"),
-        &lines_seg()?,
-        &whole_record_index()?,
+        &plan(lines_seg()?, whole_record_index()?)?,
     )?;
     ids.extend(other.record_ids());
     assert!(
@@ -369,13 +398,11 @@ fn materialize_rejects_foreign_records() -> Result<()> {
 fn a_foreign_id_with_local_coordinates_is_rejected() -> Result<()> {
     let a = CanonicalStore::open(
         &raw_artifact("alpha\n"),
-        &lines_seg()?,
-        &whole_record_index()?,
+        &plan(lines_seg()?, whole_record_index()?)?,
     )?;
     let b = CanonicalStore::open(
         &raw_artifact("beta\n"),
-        &lines_seg()?,
-        &whole_record_index()?,
+        &plan(lines_seg()?, whole_record_index()?)?,
     )?;
 
     let from_b: Vec<RecordId> = b.record_ids().collect();
@@ -413,15 +440,17 @@ fn a_foreign_id_with_local_coordinates_is_rejected() -> Result<()> {
 #[test]
 fn record_id_from_another_plan_over_same_artifact_is_rejected() -> Result<()> {
     let artifact = raw_artifact("--- s ---\nalpha\n");
-    let by_lines = CanonicalStore::open(&artifact, &lines_seg()?, &whole_record_index()?)?;
+    let by_lines = CanonicalStore::open(&artifact, &plan(lines_seg()?, whole_record_index()?)?)?;
     let by_marks = CanonicalStore::open(
         &artifact,
-        &Segmentation::MarkedSections {
-            prefix: "--- ".into(),
-            suffix: " ---".into(),
-            preamble: set("preamble")?,
-        },
-        &whole_record_index()?,
+        &plan(
+            Segmentation::MarkedSections {
+                prefix: "--- ".into(),
+                suffix: " ---".into(),
+                preamble: set("preamble")?,
+            },
+            whole_record_index()?,
+        )?,
     )?;
 
     assert_eq!(
@@ -467,17 +496,19 @@ fn record_id_from_another_plan_over_same_artifact_is_rejected() -> Result<()> {
 #[test]
 fn index_specs_are_part_of_the_plan() -> Result<()> {
     let artifact = raw_artifact("a:b\n");
-    let whole = CanonicalStore::open(&artifact, &lines_seg()?, &whole_record_index()?)?;
+    let whole = CanonicalStore::open(&artifact, &plan(lines_seg()?, whole_record_index()?)?)?;
     let field = CanonicalStore::open(
         &artifact,
-        &lines_seg()?,
-        &[IndexSpec {
-            name: index("line")?,
-            extractor: KeyExtractor::Field {
-                separator: b':',
-                index: 0,
-            },
-        }],
+        &plan(
+            lines_seg()?,
+            vec![IndexSpec {
+                name: index("line")?,
+                extractor: KeyExtractor::Field {
+                    separator: b':',
+                    index: 0,
+                },
+            }],
+        )?,
     )?;
     assert_eq!(whole.artifact_digest(), field.artifact_digest());
     assert_ne!(
@@ -504,8 +535,11 @@ fn spec_order_does_not_change_the_store_id() -> Result<()> {
             index: 0,
         },
     };
-    let forward = CanonicalStore::open(&artifact, &lines_seg()?, &[one.clone(), two.clone()])?;
-    let reverse = CanonicalStore::open(&artifact, &lines_seg()?, &[two, one])?;
+    let forward = CanonicalStore::open(
+        &artifact,
+        &plan(lines_seg()?, vec![one.clone(), two.clone()])?,
+    )?;
+    let reverse = CanonicalStore::open(&artifact, &plan(lines_seg()?, vec![two, one])?)?;
     assert_eq!(
         forward.store_id(),
         reverse.store_id(),
@@ -534,7 +568,7 @@ fn a_declared_but_empty_section_intersects_to_nothing() -> Result<()> {
         suffix: " ---".into(),
         preamble: set("preamble")?,
     };
-    let store = CanonicalStore::open(&artifact, &seg, &whole_record_index()?)?;
+    let store = CanonicalStore::open(&artifact, &plan(seg, whole_record_index()?)?)?;
 
     let known: Vec<&SetName> = store.sections().collect();
     assert!(
@@ -559,7 +593,10 @@ fn a_declared_but_empty_section_intersects_to_nothing() -> Result<()> {
 /// An artifact with no records still declares its single section.
 #[test]
 fn an_empty_artifact_still_declares_its_section() -> Result<()> {
-    let store = CanonicalStore::open(&raw_artifact(""), &lines_seg()?, &whole_record_index()?)?;
+    let store = CanonicalStore::open(
+        &raw_artifact(""),
+        &plan(lines_seg()?, whole_record_index()?)?,
+    )?;
     assert_eq!(store.record_count(), 0);
     assert_eq!(store.sections().collect::<Vec<_>>(), [&set("s")?]);
     assert!(store
@@ -583,7 +620,7 @@ fn reopening_a_section_is_refused() -> Result<()> {
         suffix: " ---".into(),
         preamble: set("preamble")?,
     };
-    let outcome = CanonicalStore::open(&artifact, &seg, &whole_record_index()?)
+    let outcome = CanonicalStore::open(&artifact, &plan(seg, whole_record_index()?)?)
         .map(|s| s.record_count())
         .map_err(|e| e.to_string());
     assert!(
@@ -618,13 +655,17 @@ fn failed_open_leaves_no_partial_store() -> Result<()> {
             },
         },
     ];
+    // The rejection now happens one step earlier than it used to, at plan
+    // construction rather than at open. That is the stronger place for it: an
+    // invalid plan never acquires a `StorePlanDigest`, so there is no identity
+    // naming a store that could not be built.
     assert!(
-        CanonicalStore::open(&artifact, &lines_seg()?, &duplicate_specs).is_err(),
-        "a duplicate index name must fail the build"
+        StorePlan::new(1, lines_seg()?, duplicate_specs).is_err(),
+        "a duplicate index name must fail the plan"
     );
 
     // The only way to hold a store is to have been handed a complete one.
-    let good = CanonicalStore::open(&artifact, &lines_seg()?, &whole_record_index()?)?;
+    let good = CanonicalStore::open(&artifact, &plan(lines_seg()?, whole_record_index()?)?)?;
     assert_eq!(good.record_count(), 2);
     Ok(())
 }
@@ -637,8 +678,7 @@ fn malformed_artifact_fails_the_open() -> Result<()> {
     assert!(
         CanonicalStore::open(
             "%q1 nosuchcodec\n%q1 body\nbody\n",
-            &lines_seg()?,
-            &whole_record_index()?
+            &plan(lines_seg()?, whole_record_index()?)?
         )
         .is_err(),
         "an unknown codec must fail rather than yield an empty store"
@@ -648,13 +688,21 @@ fn malformed_artifact_fails_the_open() -> Result<()> {
     // waved through, returning the text unchanged as `Ok` — so the store
     // would have indexed the artifact's own header as if it were payload.
     assert!(
-        CanonicalStore::open("just some text\n", &lines_seg()?, &whole_record_index()?).is_err(),
+        CanonicalStore::open(
+            "just some text\n",
+            &plan(lines_seg()?, whole_record_index()?)?
+        )
+        .is_err(),
         "a non-container must fail to open rather than be adopted as raw payload"
     );
 
     // A truncated container: header present, `%q1 body` line missing.
     assert!(
-        CanonicalStore::open("%q1 raw\ndup\n", &lines_seg()?, &whole_record_index()?).is_err(),
+        CanonicalStore::open(
+            "%q1 raw\ndup\n",
+            &plan(lines_seg()?, whole_record_index()?)?
+        )
+        .is_err(),
         "an unterminated container must fail to open"
     );
     Ok(())
@@ -859,4 +907,224 @@ fn a_self_consistent_result_under_another_plan_is_a_plan_mismatch() -> Result<()
 fn verify_for_store_accepts_the_matching_store() -> Result<()> {
     let record = stored()?;
     record.verify_for_store(&record.artifact_digest, &record.store_plan_digest)
+}
+
+// ---------------------------------------------------------------------------
+// Decode depth — the artifact's bytes do not determine their own reading
+// ---------------------------------------------------------------------------
+
+/// A one-layer artifact whose RAW payload is itself container-shaped.
+///
+/// `container::raw(x)` is `"%q1 raw\n%q1 body\n" + x`, so wrapping a container
+/// produces bytes that are equally well read as one layer over a
+/// container-shaped payload, or as two layers. This helper builds exactly that
+/// ambiguity, and the tests below read the *same bytes* both ways.
+fn nested_artifact() -> String {
+    qodec::container::raw(&qodec::container::raw("payload\n"))
+}
+
+/// Depth 1: the RAW payload is the inner container text, indexed verbatim.
+///
+/// This is the case the old open-ended `decode` loop got wrong. It unwrapped
+/// until the text stopped parsing as a container and returned `"payload\n"`,
+/// so the store indexed one record that does not appear in this artifact's
+/// payload at all, while reporting byte-exactness.
+#[test]
+fn depth_one_keeps_a_container_shaped_payload_whole() -> Result<()> {
+    let store = CanonicalStore::open(
+        &nested_artifact(),
+        &plan(lines_seg()?, whole_record_index()?)?,
+    )?;
+    let ids: Vec<RecordId> = store.record_ids().collect();
+    let bytes = store.materialize(&ids)?;
+    assert_eq!(
+        bytes,
+        vec![
+            b"%q1 raw".to_vec(),
+            b"%q1 body".to_vec(),
+            b"payload".to_vec()
+        ],
+        "one layer means the inner container text *is* the payload"
+    );
+    Ok(())
+}
+
+/// Depth 2 over the identical bytes: a two-layer pipeline, fully unwrapped.
+#[test]
+fn depth_two_unwraps_the_same_bytes_one_layer_further() -> Result<()> {
+    let store = CanonicalStore::open(
+        &nested_artifact(),
+        &StorePlan::new(2, lines_seg()?, whole_record_index()?)?,
+    )?;
+    let ids: Vec<RecordId> = store.record_ids().collect();
+    assert_eq!(
+        store.materialize(&ids)?,
+        vec![b"payload".to_vec()],
+        "two layers means the inner container was a pipeline stage"
+    );
+    Ok(())
+}
+
+/// The two readings above are of the *same artifact bytes*.
+///
+/// Stated as its own contract because it is the reason depth cannot be
+/// inferred. If these two tests used different inputs, the pair would only
+/// show that different artifacts decode differently, which nobody doubted.
+#[test]
+fn the_two_depths_read_byte_identical_artifacts() -> Result<()> {
+    let one = CanonicalStore::open(
+        &nested_artifact(),
+        &plan(lines_seg()?, whole_record_index()?)?,
+    )?;
+    let two = CanonicalStore::open(
+        &nested_artifact(),
+        &StorePlan::new(2, lines_seg()?, whole_record_index()?)?,
+    )?;
+    assert_eq!(
+        one.artifact_digest(),
+        two.artifact_digest(),
+        "premise: the same bytes went in"
+    );
+    assert_ne!(
+        one.record_count(),
+        two.record_count(),
+        "…and produced genuinely different stores"
+    );
+    Ok(())
+}
+
+/// A truncated inner layer fails the open instead of being adopted as payload.
+///
+/// The artifact is well-formed at the outer layer and its body is
+/// container-shaped but missing the `%q1 body` separator. Read at depth 2 that
+/// is a corrupt pipeline and must fail closed.
+#[test]
+fn a_truncated_inner_layer_fails_the_open_at_that_layer() -> Result<()> {
+    let corrupt = qodec::container::raw("%q1 raw\npayload\n");
+    let outcome = CanonicalStore::open(
+        &corrupt,
+        &StorePlan::new(2, lines_seg()?, whole_record_index()?)?,
+    )
+    .map_err(|e| format!("{e:#}"));
+    assert!(
+        outcome
+            .as_ref()
+            .err()
+            .is_some_and(|e| e.contains("layer 2/2")),
+        "the failure must name the layer that could not be decoded; got {outcome:?}"
+    );
+
+    // The same bytes at depth 1 are a perfectly valid artifact whose payload
+    // merely looks container-shaped. This is why validating the final RAW
+    // text cannot be the fix: it would reject this store too.
+    let ok = CanonicalStore::open(&corrupt, &plan(lines_seg()?, whole_record_index()?)?)?;
+    assert_eq!(ok.record_count(), 2, "\"%q1 raw\" and \"payload\"");
+    Ok(())
+}
+
+/// A depth deeper than the artifact actually has fails on the first layer that
+/// is not a container, rather than silently stopping early.
+#[test]
+fn a_depth_beyond_the_artifact_fails_rather_than_stopping_short() -> Result<()> {
+    let outcome = CanonicalStore::open(
+        &raw_artifact("payload\n"),
+        &StorePlan::new(2, lines_seg()?, whole_record_index()?)?,
+    )
+    .map_err(|e| format!("{e:#}"));
+    assert!(
+        outcome
+            .as_ref()
+            .err()
+            .is_some_and(|e| e.contains("layer 2/2")),
+        "an over-deep plan must fail at the undecodable layer; got {outcome:?}"
+    );
+    Ok(())
+}
+
+/// Zero layers is not a plan.
+///
+/// It would mean adopting the container itself as RAW data — indexing
+/// `"%q1 raw"` and the separator line as records of the artifact's contents.
+#[test]
+fn zero_decode_layers_is_refused() -> Result<()> {
+    let outcome = StorePlan::new(0, lines_seg()?, whole_record_index()?).map_err(|e| e.to_string());
+    assert!(
+        outcome
+            .as_ref()
+            .err()
+            .is_some_and(|e| e.contains("at least 1")),
+        "depth zero must be rejected with a reason; got {outcome:?}"
+    );
+    Ok(())
+}
+
+/// Depth is part of the plan, so it is part of every identity derived from it.
+///
+/// Everything else about these two plans is equal: same artifact, same
+/// segmentation, same index specs. Only the depth differs.
+#[test]
+fn decode_depth_changes_the_plan_store_and_result_identities() -> Result<()> {
+    let artifact = nested_artifact();
+    let one = CanonicalStore::open(&artifact, &plan(lines_seg()?, whole_record_index()?)?)?;
+    let two = CanonicalStore::open(
+        &artifact,
+        &StorePlan::new(2, lines_seg()?, whole_record_index()?)?,
+    )?;
+
+    assert_eq!(
+        one.artifact_digest(),
+        two.artifact_digest(),
+        "premise: identical artifact bytes"
+    );
+    assert_ne!(
+        one.store_plan_digest(),
+        two.store_plan_digest(),
+        "depth must reach the plan digest"
+    );
+    assert_ne!(
+        one.store_id(),
+        two.store_id(),
+        "…and therefore the store id"
+    );
+
+    // Record ids issued by one store must not resolve in the other, which is
+    // what makes the depths non-interchangeable in practice rather than only
+    // in the digest.
+    let foreign: Vec<RecordId> = two.record_ids().collect();
+    assert!(
+        one.materialize(&foreign).is_err(),
+        "a record id from the other depth must not resolve here"
+    );
+    Ok(())
+}
+
+/// The crate's plan encoder agrees with the independent reference, byte for
+/// byte — not merely digest for digest.
+///
+/// These constants come from `tests/reference/canon_reference.py`. Until this
+/// contract existed, `GOLDEN_PLAN_BYTES` was only ever fed to
+/// `digest_store_plan_bytes` as a literal, so the reference and the Rust
+/// encoder could have disagreed about the wire format entirely while every
+/// test stayed green. A cross-check that never touches the thing it is
+/// cross-checking is decoration.
+#[test]
+fn the_plan_encoder_matches_the_independent_reference() -> Result<()> {
+    let depth1 = plan(lines_seg()?, whole_record_index()?)?;
+    assert_eq!(
+        hex(&depth1.canonical_bytes()?),
+        "00000001010000000000000001730000000100000000000000046c696e6501",
+        "depth-1 plan bytes must match the reference exactly"
+    );
+
+    let depth2 = StorePlan::new(2, lines_seg()?, whole_record_index()?)?;
+    assert_eq!(
+        hex(&depth2.canonical_bytes()?),
+        "00000002010000000000000001730000000100000000000000046c696e6501",
+        "depth-2 plan bytes must differ from depth-1 in the leading u32 alone"
+    );
+    Ok(())
+}
+
+fn hex(bytes: &[u8]) -> String {
+    bytes.iter().map(|b| format!("{b:02x}")).collect()
 }
