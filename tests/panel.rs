@@ -586,3 +586,64 @@ fn the_adapter_surface_is_the_recorded_surface() -> Result<()> {
     );
     Ok(())
 }
+
+/// Every runtime tool has exactly one schema, and every schema names a runtime
+/// tool. The correspondence runs both ways.
+///
+/// One direction alone leaves a gap in the other: a schema for a tool that does
+/// not exist advertises an operation the model cannot call, and a tool with no
+/// schema is callable but undocumented — invisible to accounting and to any
+/// provider mapper. Typing `PanelToolSchema::name` as `PanelTool` makes the
+/// second half unrepresentable; this pins the first.
+#[test]
+fn tools_and_schemas_correspond_one_to_one() -> Result<()> {
+    use qodec::panel::PanelTool;
+
+    let every_tool = [
+        PanelTool::Lookup,
+        PanelTool::Intersect,
+        PanelTool::Materialize,
+    ];
+    let schemas = qodec::panel::tool_schemas();
+
+    let named: Vec<PanelTool> = schemas.iter().map(|s| s.name).collect();
+    assert_eq!(
+        named.len(),
+        every_tool.len(),
+        "one schema per tool, no duplicates and none missing"
+    );
+    for tool in every_tool {
+        assert_eq!(
+            schemas.iter().filter(|s| s.name == tool).count(),
+            1,
+            "{} must have exactly one schema",
+            tool.name()
+        );
+    }
+    // Canonical order is part of the surface: reordering changes the bytes the
+    // model reads and therefore the accounting.
+    assert_eq!(named, every_tool, "schemas are in canonical tool order");
+    Ok(())
+}
+
+/// The declared surface stays binary-safe.
+///
+/// Rust keeps keys as bytes; if the schema the model reads calls them strings,
+/// the interface is type-safe inside and stringly-typed at the boundary — which
+/// is where the defect then lives.
+#[test]
+fn the_declared_key_type_is_a_byte_envelope() -> Result<()> {
+    let lookup = qodec::panel::lookup_schema();
+    assert_eq!(
+        lookup.input_schema.pointer("/properties/key"),
+        Some(&serde_json::json!({"$ref": "#/$defs/byteEnvelope"})),
+        "a lookup key is arbitrary bytes, and must be declared as such"
+    );
+    let answer = qodec::panel::answer_schema();
+    assert_eq!(
+        answer.schema.pointer("/properties/answer"),
+        Some(&serde_json::json!({"$ref": "#/$defs/byteEnvelope"})),
+        "so is the answer"
+    );
+    Ok(())
+}

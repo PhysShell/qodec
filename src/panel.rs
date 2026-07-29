@@ -62,7 +62,6 @@ pub struct PanelMetadata {
     pub record_count: u64,
     /// Index name to the shape of key it carries, as a short tag.
     pub indexes: BTreeMap<String, String>,
-    pub operations: Vec<String>,
     pub max_candidates: u64,
     pub max_support_records: u64,
     pub max_preview_items: u64,
@@ -130,10 +129,6 @@ impl PanelMetadata {
         for (name, kind) in &self.indexes {
             out.push_str(&format!("  {name}: {kind}\n"));
         }
-        out.push_str("operations:\n");
-        for op in &self.operations {
-            out.push_str(&format!("  {op}\n"));
-        }
         out.push_str(&format!(
             "limits: max_candidates={} max_support_records={} max_preview_items={}\n",
             self.max_candidates, self.max_support_records, self.max_preview_items
@@ -164,6 +159,14 @@ pub struct ToolResult {
 
 /// A provider-neutral tool definition.
 ///
+/// **`output_schema` is a contract, not necessarily a cost.** Not every provider
+/// actually sends an output schema to the model, so the next increment must
+/// count tokens against two separate objects: this provider-neutral contract,
+/// used to check semantic equivalence, and the *actual* request envelope, whose
+/// bytes are what the model was charged for. Declaring the whole
+/// `PanelToolSchema` model-visible would replace an undercount with an
+/// overcount, and the table would still be wrong — just from the other side.
+///
 /// One object serves five roles at once: what the adapter hands the model, what
 /// the opening transcript event records, what token accounting charges for,
 /// what a future provider mapper translates, and what the dry-run gate checks.
@@ -173,7 +176,10 @@ pub struct ToolResult {
 /// record against evidential contracts.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct PanelToolSchema {
-    pub name: &'static str,
+    /// The runtime tool this describes. Typed rather than a loose string so a
+    /// schema cannot name a tool that does not exist, nor drift from the one it
+    /// claims to document.
+    pub name: PanelTool,
     pub description: &'static str,
     pub input_schema: serde_json::Value,
     pub output_schema: serde_json::Value,
@@ -183,7 +189,7 @@ impl PanelToolSchema {
     /// The canonical JSON form, as recorded and as sent.
     pub fn to_json(&self) -> serde_json::Value {
         let mut obj = serde_json::Map::new();
-        obj.insert("name".into(), self.name.into());
+        obj.insert("name".into(), self.name.name().into());
         obj.insert("description".into(), self.description.into());
         obj.insert("input_schema".into(), self.input_schema.clone());
         obj.insert("output_schema".into(), self.output_schema.clone());
@@ -272,6 +278,18 @@ fn byte_ref() -> serde_json::Value {
     obj(vec![("$ref", "#/$defs/byteEnvelope".into())])
 }
 
+/// A content-addressed identity: `sha256:` and 64 lowercase hex digits.
+///
+/// Given its own pattern rather than "any string" so the model is told the
+/// shape it must echo back, and a truncated or re-cased handle is a schema
+/// violation rather than a puzzle discovered at verification time.
+fn digest_schema() -> serde_json::Value {
+    obj(vec![
+        ("type", "string".into()),
+        ("pattern", "^sha256:[0-9a-f]{64}$".into()),
+    ])
+}
+
 fn record_id_schema() -> serde_json::Value {
     obj(vec![
         ("type", "object".into()),
@@ -280,7 +298,7 @@ fn record_id_schema() -> serde_json::Value {
         (
             "properties",
             obj(vec![
-                ("store", obj(vec![("type", "string".into())])),
+                ("store", digest_schema()),
                 ("section", obj(vec![("type", "string".into())])),
                 (
                     "ordinal",
@@ -313,7 +331,7 @@ fn query_result_schema() -> serde_json::Value {
         (
             "properties",
             obj(vec![
-                ("handle", obj(vec![("type", "string".into())])),
+                ("handle", digest_schema()),
                 (
                     "candidate_count",
                     obj(vec![("type", "integer".into()), ("minimum", 0.into())]),
@@ -352,7 +370,7 @@ fn query_result_schema() -> serde_json::Value {
 /// `qodec_lookup`: one index, one key.
 pub fn lookup_schema() -> PanelToolSchema {
     PanelToolSchema {
-        name: "qodec_lookup",
+        name: PanelTool::Lookup,
         description: "Find every record whose index key equals the given bytes. \
                       Returns a result handle, a bounded preview, the full \
                       candidate count, the completion state, and the record ids \
@@ -377,7 +395,7 @@ pub fn lookup_schema() -> PanelToolSchema {
 /// `qodec_intersect`: candidates present in every named section.
 pub fn intersect_schema() -> PanelToolSchema {
     PanelToolSchema {
-        name: "qodec_intersect",
+        name: PanelTool::Intersect,
         description: "Find every index key present in all of the named sections. \
                       Returns the same result envelope as qodec_lookup.",
         input_schema: obj(vec![
@@ -406,7 +424,7 @@ pub fn intersect_schema() -> PanelToolSchema {
 /// `qodec_materialize`: exact bytes for ids inside one result's support.
 pub fn materialize_schema() -> PanelToolSchema {
     PanelToolSchema {
-        name: "qodec_materialize",
+        name: PanelTool::Materialize,
         description: "Return the exact stored bytes for record ids. Only ids in \
                       the support of the given result handle are accepted; the \
                       store cannot be enumerated by guessing ids.",
@@ -417,7 +435,7 @@ pub fn materialize_schema() -> PanelToolSchema {
             (
                 "properties",
                 obj(vec![
-                    ("handle", obj(vec![("type", "string".into())])),
+                    ("handle", digest_schema()),
                     ("record_ids", array_of(record_id_schema())),
                 ]),
             ),
@@ -450,7 +468,7 @@ pub fn answer_schema() -> PanelAnswerSchema {
             (
                 "properties",
                 obj(vec![
-                    ("handle", obj(vec![("type", "string".into())])),
+                    ("handle", digest_schema()),
                     ("answer", byte_ref()),
                     ("cited", array_of(record_id_schema())),
                 ]),
@@ -861,11 +879,6 @@ impl PanelSession {
             sections,
             record_count: u64::try_from(self.store.record_count()).unwrap_or(u64::MAX),
             indexes,
-            operations: self
-                .tool_schemas
-                .iter()
-                .map(|t| t.name.to_owned())
-                .collect(),
             max_candidates: self.limits.max_candidates,
             max_support_records: self.limits.max_support_records,
             max_preview_items: self.limits.max_preview_items,

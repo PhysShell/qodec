@@ -221,6 +221,17 @@ def validate_json_schema(case: str, where: str, schema) -> list[str]:
     for name in required or []:
         if isinstance(props, dict) and name not in props:
             bad.append(f"{case} {where}: required field {name!r} has no property")
+    # Nested object schemas are held to the same rule. Checking only the top
+    # level would let an inner shape stay open, which is the more comfortable
+    # place to add a field nobody declared.
+    for path, node in walk(schema, where):
+        if path == where or not isinstance(node, dict):
+            continue
+        if node.get("type") == "object" and node.get("additionalProperties") is not False:
+            bad.append(
+                f"{case} {path}: nested object schema must set "
+                f"additionalProperties:false"
+            )
     return bad
 
 
