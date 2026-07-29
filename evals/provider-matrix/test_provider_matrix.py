@@ -27,7 +27,7 @@ def registry(providers=None) -> dict:
     }
 
 
-def probe_target(row: dict, model: str = "m") -> dict:
+def probe_row(row: dict, model: str = "m") -> dict:
     return {
         "target_id": f"p--{model}", "provider": "p", "model": model,
         "api_style": "openai-chat", "api_base": "https://x/v1", "key_env": "K",
@@ -73,12 +73,12 @@ class ProviderMatrixTests(unittest.TestCase):
 
     def test_missing_key_is_auth_failure(self):
         with patch.dict("os.environ", {}, clear=True):
-            result = pm.probe_target(probe_target({"key_env": "K"}), 1, None, registry())
+            result = pm.probe_target(probe_row({"key_env": "K"}), 1, None, registry())
         self.assertEqual(result["classification"], "AUTH_FAILURE")
 
     def test_model_substitution_is_not_pass(self):
         body = json.dumps({"model": "other", "choices": [{"message": {"content": "QODEC_PROBE_OK"}}]}).encode()
-        result = pm.probe_target(probe_target({}), 1, scripted([(200, body, "", "completed")]), registry())
+        result = pm.probe_target(probe_row({}), 1, scripted([(200, body, "", "completed")]), registry())
         self.assertEqual(result["classification"], "PROVIDER_SUBSTITUTED")
 
     def test_a_probe_with_no_reported_model_does_not_pass(self):
@@ -90,14 +90,14 @@ class ProviderMatrixTests(unittest.TestCase):
         adapter is allowed to use.
         """
         body = json.dumps({"choices": [{"message": {"content": "QODEC_PROBE_OK"}}]}).encode()
-        result = pm.probe_target(probe_target({}), 1, scripted([(200, body, "", "completed")]), registry())
+        result = pm.probe_target(probe_row({}), 1, scripted([(200, body, "", "completed")]), registry())
         self.assertNotEqual(result["classification"], "PASS")
         self.assertEqual(result["classification"], "MODEL_IDENTITY_MISSING")
         self.assertEqual(result["model_status"], "missing")
 
     def test_exact_probe_passes(self):
         body = json.dumps({"model": "m", "choices": [{"message": {"content": "QODEC_PROBE_OK"}}], "usage": {"prompt_tokens": 9}}).encode()
-        result = pm.probe_target(probe_target({}), 1, scripted([(200, body, "", "completed")]), registry())
+        result = pm.probe_target(probe_row({}), 1, scripted([(200, body, "", "completed")]), registry())
         self.assertEqual(result["classification"], "PASS")
         self.assertEqual(result["model_status"], "verified")
         self.assertEqual(result["provider_usage"]["prompt_tokens"], 9)
@@ -111,12 +111,12 @@ class ProviderMatrixTests(unittest.TestCase):
         """
         plain = registry({"p": {"api_base": "http://x/v1", "api_style": "openai-chat", "key_env": "K"}})
         result = pm.probe_target(
-            probe_target({"api_base": "http://x/v1"}), 1, scripted([(200, b"{}", "", "completed")]), plain,
+            probe_row({"api_base": "http://x/v1"}), 1, scripted([(200, b"{}", "", "completed")]), plain,
         )
         self.assertEqual(result["classification"], "ENDPOINT_REJECTED")
         # And a body that never finished arriving is not "the provider was down".
         result = pm.probe_target(
-            probe_target({}), 1, scripted([(429, None, "body too large", "after-headers", 4096, "req-9")]), registry(),
+            probe_row({}), 1, scripted([(429, None, "body too large", "after-headers", 4096, "req-9")]), registry(),
         )
         self.assertEqual(result["classification"], "RESPONSE_CAPTURE_FAILED")
         # The status the provider already sent is not thrown away with the body.
