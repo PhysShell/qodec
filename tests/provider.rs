@@ -1153,8 +1153,17 @@ fn the_live_agent_refuses_to_follow_a_redirect() -> Result<()> {
         }
     });
 
+    // Bounded. `live_agent` sets no agent-level timeout — the live transport
+    // always supplies a per-request one, and refuses a zero — so without this the
+    // stand-ins above are the only thing keeping the call finite. A stand-in that
+    // dies before writing a status line would then hang this test rather than fail
+    // it, and a hung job is strictly worse than a red one: it burns a runner and
+    // tells you nothing. This repository has already spent one commit on a CI step
+    // wrongly believed to have hung, which is reason enough not to build a test
+    // that genuinely can.
     let response = qodec::provider::live_agent()
         .post(&format!("http://{redirector_addr}/v1/messages"))
+        .timeout(std::time::Duration::from_secs(10))
         .set("x-api-key", "SECRET-KEY-MUST-NOT-TRAVEL")
         .send_bytes(b"{}");
 
