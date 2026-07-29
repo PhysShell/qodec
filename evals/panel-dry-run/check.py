@@ -6,8 +6,8 @@ nothing:
 
 1. run the driver twice and compare JSONL byte-for-byte (determinism);
 2. compare against the committed golden (no silent drift);
-3. validate the transcript schema (every event well-formed);
-4. assert no artifact payload appears outside materialize events;
+3. validate the transcript schema *exactly* — unknown fields fail;
+4. audit every byte envelope by location, and check plaintext containment;
 5. assert the expected event sequence for each case;
 6. assert the refusal case actually contains a refusal;
 7. leave the artifacts on disk for CI upload.
@@ -17,6 +17,7 @@ Exit 0 on success, 1 on any failure, with the specific disagreement printed.
 
 from __future__ import annotations
 
+import base64
 import json
 import subprocess
 import sys
@@ -57,8 +58,13 @@ EXPECTED = {
 }
 
 
-def run(case: str, jsonl: Path, text: Path) -> None:
-    subprocess.run(
+def run(case: str, jsonl: Path, text: Path) -> str | None:
+    """Run the driver; return an error string rather than raising.
+
+    A traceback here would replace the gate's report with a stack dump, which is
+    how a failing check starts looking like a broken check.
+    """
+    proc = subprocess.run(
         [
             "cargo", "run", "-q", "--example", "panel_dry_run", "--",
             "--case", case,
@@ -66,8 +72,13 @@ def run(case: str, jsonl: Path, text: Path) -> None:
             "--text-out", str(text),
         ],
         cwd=ROOT,
-        check=True,
+        capture_output=True,
+        text=True,
     )
+    if proc.returncode != 0:
+        first = (proc.stderr or "").strip().splitlines()
+        return f"{case}: driver exited {proc.returncode}: {first[0] if first else '(no stderr)'}"
+    return None
 
 
 def event_kind(event: dict) -> str:
@@ -75,63 +86,170 @@ def event_kind(event: dict) -> str:
     return event.get("tool", kind) if kind == "tool_call" else kind
 
 
+BYTE_ENVELOPE_KEYS = {"encoding", "data", "display_utf8"}
+
+# Exact key sets. A subset check would accept an added field, which is the shape
+# an exfiltration takes: nothing is removed, one thing is quietly added.
+EVENT_KEYS = {
+    "metadata": {"event", "metadata", "tool_schemas"},
+    "tool_call": {"event", "sequence", "tool", "arguments", "outcome"},
+    "final_answer": {"event", "sequence", "handle", "answer", "cited", "verdict"},
+}
+METADATA_KEYS = {
+    "artifact_digest", "store_id", "schema", "decode_layers", "record_count",
+    "sections", "indexes", "max_candidates", "max_support_records",
+    "max_preview_items",
+}
+ARGUMENT_KEYS = {
+    "qodec_lookup": {"index", "key"},
+    "qodec_intersect": {"index", "sections"},
+    "qodec_materialize": {"handle", "record_ids"},
+}
+QUERY_OUTCOME_KEYS = {"ok", "handle", "candidate_count", "completion", "preview", "support"}
+MATERIALIZE_OUTCOME_KEYS = {"ok", "records"}
+REFUSAL_OUTCOME_KEYS = {"ok", "reason"}
+RECORD_ID_KEYS = {"store", "section", "ordinal"}
+
+# The only places a byte envelope may legitimately appear. Anywhere else, bytes
+# are being smuggled: metadata, tool schemas, refusal reasons, handles and
+# record ids have no business carrying an encoded payload.
+ALLOWED_BYTE_PATHS = {
+    "$.arguments.key",              # the caller's own lookup key
+    "$.outcome.preview[]",          # candidates a query returned
+    "$.outcome.records[]",          # materialize output
+    "$.answer",                     # the final answer
+}
+
+
+def exact_keys(case: str, where: str, obj, expected: set) -> list[str]:
+    if not isinstance(obj, dict):
+        return [f"{case} {where}: expected an object, got {type(obj).__name__}"]
+    actual = set(obj)
+    bad = []
+    for missing in sorted(expected - actual):
+        bad.append(f"{case} {where}: missing field {missing!r}")
+    for extra in sorted(actual - expected):
+        bad.append(
+            f"{case} {where}: unknown field {extra!r} — the schema is exact, "
+            f"because an added field is what an exfiltration looks like"
+        )
+    return bad
+
+
 def validate_schema(case: str, events: list[dict]) -> list[str]:
-    """Every event carries the fields the accounting depends on."""
+    """Exact schemas, not a required-field subset."""
     bad = []
     for i, e in enumerate(events):
         kind = e.get("event")
+        at = f"[{i}] {kind}"
+        if kind not in EVENT_KEYS:
+            bad.append(f"{case} {at}: unknown event kind {kind!r}")
+            continue
+        bad += exact_keys(case, at, e, EVENT_KEYS[kind])
         if kind == "metadata":
-            for field in ("metadata", "tool_schemas"):
-                if field not in e:
-                    bad.append(f"{case}[{i}] metadata event lacks {field!r}")
-            for field in ("record_count", "sections", "indexes", "store_id"):
-                if field not in e.get("metadata", {}):
-                    bad.append(f"{case}[{i}] metadata lacks {field!r}")
+            bad += exact_keys(case, f"{at}.metadata", e.get("metadata"), METADATA_KEYS)
+            if not isinstance(e.get("tool_schemas"), list):
+                bad.append(f"{case} {at}: tool_schemas must be a list")
         elif kind == "tool_call":
-            for field in ("sequence", "tool", "arguments", "outcome"):
-                if field not in e:
-                    bad.append(f"{case}[{i}] tool_call lacks {field!r}")
-            outcome = e.get("outcome", {})
-            if "ok" not in outcome:
-                bad.append(f"{case}[{i}] outcome lacks 'ok'")
-            elif outcome["ok"]:
-                # A successful query must carry values, not counts.
-                if e.get("tool") in ("qodec_lookup", "qodec_intersect"):
-                    for field in ("handle", "candidate_count", "completion",
-                                  "preview", "support"):
-                        if field not in outcome:
-                            bad.append(f"{case}[{i}] query outcome lacks {field!r}")
-                    for field in ("preview", "support"):
-                        if not isinstance(outcome.get(field), list):
-                            bad.append(
-                                f"{case}[{i}] {field!r} must be a list of envelopes, "
-                                f"got {type(outcome.get(field)).__name__} — a count "
-                                f"cannot be tokenized"
-                            )
-                if e.get("tool") == "qodec_materialize":
-                    records = outcome.get("records")
-                    if not isinstance(records, list):
-                        bad.append(f"{case}[{i}] materialize outcome lacks 'records' list")
-                    else:
-                        for r in records:
-                            if r.get("encoding") != "base64url-nopad":
-                                bad.append(
-                                    f"{case}[{i}] materialized bytes must use the byte "
-                                    f"envelope, got {r!r}"
-                                )
-            elif "reason" not in outcome:
-                bad.append(f"{case}[{i}] refusal lacks 'reason'")
+            tool = e.get("tool")
+            if tool not in ARGUMENT_KEYS:
+                bad.append(f"{case} {at}: unknown tool {tool!r}")
+                continue
+            bad += exact_keys(case, f"{at}.arguments", e.get("arguments"), ARGUMENT_KEYS[tool])
+            outcome = e.get("outcome")
+            if not isinstance(outcome, dict) or "ok" not in outcome:
+                bad.append(f"{case} {at}: outcome must be an object carrying 'ok'")
+                continue
+            if not outcome["ok"]:
+                bad += exact_keys(case, f"{at}.outcome", outcome, REFUSAL_OUTCOME_KEYS)
+            elif tool == "qodec_materialize":
+                bad += exact_keys(case, f"{at}.outcome", outcome, MATERIALIZE_OUTCOME_KEYS)
+            else:
+                bad += exact_keys(case, f"{at}.outcome", outcome, QUERY_OUTCOME_KEYS)
+                for field in ("preview", "support"):
+                    if not isinstance(outcome.get(field), list):
+                        bad.append(
+                            f"{case} {at}: {field!r} must be a list of envelopes — "
+                            f"a count cannot be tokenized"
+                        )
+                for rid in outcome.get("support", []) or []:
+                    bad += exact_keys(case, f"{at}.outcome.support[]", rid, RECORD_ID_KEYS)
         elif kind == "final_answer":
-            for field in ("sequence", "handle", "answer", "cited", "verdict"):
-                if field not in e:
-                    bad.append(f"{case}[{i}] final_answer lacks {field!r}")
-        else:
-            bad.append(f"{case}[{i}] unknown event kind {kind!r}")
+            for rid in e.get("cited", []) or []:
+                bad += exact_keys(case, f"{at}.cited[]", rid, RECORD_ID_KEYS)
+    return bad
+
+
+def walk(node, path: str):
+    """Yield (path, object) for every dict, with `[]` collapsing list indices."""
+    if isinstance(node, dict):
+        yield path, node
+        for k, v in node.items():
+            yield from walk(v, f"{path}.{k}")
+    elif isinstance(node, list):
+        for item in node:
+            yield from walk(item, f"{path}[]")
+
+
+def audit_byte_envelopes(case: str, events: list[dict]) -> list[str]:
+    """Every byte envelope is decoded and judged by *where* it sits.
+
+    Substring search over the serialized JSON cannot do this job any more, and
+    that is not a flaw in the search — it is the transcript doing its job. Byte
+    values are deliberately base64url-encoded, so a metadata field holding
+    `base64url(artifact_body)` contains no literal `%q1 body` to find. Two
+    correct decisions compose into one blind spot; the fix is to stop looking
+    for text and start checking locations.
+    """
+    bad = []
+    for i, e in enumerate(events):
+        for path, obj in walk(e, "$"):
+            if obj.get("encoding") != "base64url-nopad":
+                continue
+            extra = set(obj) - BYTE_ENVELOPE_KEYS
+            if extra:
+                bad.append(f"{case}[{i}] byte envelope at {path} has unknown fields {sorted(extra)}")
+            allowed = path in ALLOWED_BYTE_PATHS
+            if not allowed:
+                bad.append(
+                    f"{case}[{i}] byte envelope at {path} is not an allowed "
+                    f"byte-bearing location {sorted(ALLOWED_BYTE_PATHS)}"
+                )
+            # Decode regardless. Reporting the location and stopping would say
+            # *that* bytes are somewhere they should not be, and never say what
+            # they were — which is the half of the answer nobody can act on.
+            data = obj.get("data")
+            if not isinstance(data, str):
+                bad.append(f"{case}[{i}] byte envelope at {path} has no string 'data'")
+                continue
+            try:
+                raw = base64.urlsafe_b64decode(data + "=" * (-len(data) % 4))
+            except Exception as exc:  # noqa: BLE001 - report, do not raise
+                bad.append(f"{case}[{i}] byte envelope at {path} is not base64url: {exc}")
+                continue
+            text = raw.decode("utf-8", errors="replace")
+            for marker in STRUCTURE_MARKERS:
+                if marker in text:
+                    bad.append(
+                        f"{case}[{i}] decoded bytes at {path} carry artifact structure "
+                        f"{marker!r} — only a handed-over body contains that"
+                    )
+            if path != "$.outcome.records[]":
+                for marker in UNQUERIED_RECORDS:
+                    if marker in text:
+                        bad.append(
+                            f"{case}[{i}] decoded bytes at {path} carry the unqueried "
+                            f"record {marker!r}"
+                        )
     return bad
 
 
 def check_payload_containment(case: str, events: list[dict]) -> list[str]:
-    """The artifact never crosses the boundary.
+    """Plaintext containment, complementing the byte-envelope audit.
+
+    Kept alongside the decode-and-locate pass rather than replaced by it, so a
+    leak has to defeat two independent checks: one that reads locations and one
+    that reads text.
 
     Structural text is forbidden everywhere, materialize included: no operation
     returns container framing, so its presence would mean the body had been
@@ -164,15 +282,63 @@ def check_payload_containment(case: str, events: list[dict]) -> list[str]:
     return bad
 
 
+def self_test() -> list[str]:
+    """Prove the gate can detect the leak it exists to detect.
+
+    Run against synthetic events rather than the driver, because the driver has
+    its own containment guard and would abort first — leaving the gate's
+    detection power asserted but never exercised. A check whose sensitivity is
+    only claimed is the same shape of problem as a gate that gates nothing.
+
+    The planted leak is a metadata field holding `base64url(artifact_body)`. It
+    must be rejected twice, by two independent causes: the exact schema does not
+    permit the field, and the envelope audit does not permit bytes at that
+    location. One well-phrased string is not a safety property.
+    """
+    body = "%q1 raw\n%q1 body\n--- attempt_1 ---\nalpha\nbeta\n"
+    encoded = base64.urlsafe_b64encode(body.encode()).decode().rstrip("=")
+    leaked = {
+        "event": "metadata",
+        "metadata": {
+            "artifact_digest": "sha256:00", "store_id": "sha256:00",
+            "schema": "qodec.query.v1", "decode_layers": 1, "record_count": 6,
+            "sections": {}, "indexes": {}, "max_candidates": 1,
+            "max_support_records": 1, "max_preview_items": 1,
+            "artifact_sample": {"encoding": "base64url-nopad", "data": encoded},
+        },
+        "tool_schemas": [],
+    }
+    bad = []
+    by_schema = validate_schema("self-test", [leaked])
+    if not any("artifact_sample" in m for m in by_schema):
+        bad.append("self-test: the exact schema failed to reject an added metadata field")
+    by_envelope = audit_byte_envelopes("self-test", [leaked])
+    if not any("not an allowed byte-bearing location" in m for m in by_envelope):
+        bad.append("self-test: the envelope audit failed to reject bytes in metadata")
+    if not any("artifact structure" in m for m in by_envelope):
+        bad.append("self-test: the envelope audit decoded nothing, or missed the body")
+
+    # And the plaintext pass must NOT be what catches it — otherwise the two
+    # causes are one cause wearing two names.
+    if any("artifact structure" in m for m in check_payload_containment("self-test", [leaked])):
+        bad.append(
+            "self-test: plaintext containment caught a base64url'd body, which means "
+            "the fixture is not actually testing the blind spot"
+        )
+    return bad
+
+
 def main() -> int:
-    bad: list[str] = []
+    bad: list[str] = self_test()
     with tempfile.TemporaryDirectory() as tmp:
         tmpdir = Path(tmp)
         for case in ("happy", "refusal"):
             first_j, first_t = tmpdir / f"{case}.1.jsonl", tmpdir / f"{case}.1.txt"
             second_j, second_t = tmpdir / f"{case}.2.jsonl", tmpdir / f"{case}.2.txt"
-            run(case, first_j, first_t)
-            run(case, second_j, second_t)
+            failure = run(case, first_j, first_t) or run(case, second_j, second_t)
+            if failure:
+                bad.append(failure)
+                continue
 
             a, b = first_j.read_bytes(), second_j.read_bytes()
             if a != b:
@@ -194,6 +360,7 @@ def main() -> int:
 
             events = [json.loads(line) for line in a.decode("utf-8").splitlines()]
             bad += validate_schema(case, events)
+            bad += audit_byte_envelopes(case, events)
             bad += check_payload_containment(case, events)
 
             seen = [event_kind(e) for e in events]
