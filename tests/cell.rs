@@ -20,7 +20,7 @@ use qodec::cell::{
 use qodec::panel::{PanelEvent, PanelSession};
 use qodec::provider::{
     Arm, ContentBlock, FixtureIdentity, ModelIdentity, ModelStatus, ProgrammedTransport,
-    ProviderKind, RawResponse, SamplingParams, SealedRequest,
+    ProviderKind, RawResponse, SamplingParams, ScriptedTransport, SealedRequest, SendFailure,
 };
 use qodec::query::{ExecutionLimits, VerifyOutcome};
 use qodec::store::{IndexSpec, KeyExtractor, Segmentation, StorePlan};
@@ -1107,5 +1107,82 @@ fn a_malformed_forced_answer_keeps_the_turns_and_transcript() -> Result<()> {
         record.accounting.deterministic_local.operation_call_count, 1,
         "the intersect the model really ran is still charged"
     );
+    Ok(())
+}
+
+/// A turn whose counters could not be read makes the whole provider total
+/// unknown, rather than vanishing from the sum.
+///
+/// This is the turn-level half of the contagion rule, and it was broken while
+/// the field-level half worked — so `one_unreported_turn_makes_the_total_unreported`
+/// passed and this case went unnoticed. The fold used
+/// `filter_map(|t| t.exchange.reported_usage())`, which *drops* a turn that
+/// reports nothing instead of poisoning the total. A two-turn cell then presented
+/// turn one's counters as the whole bill while turn two — a response the provider
+/// answered and may well have charged for — contributed silently nothing.
+///
+/// A smaller-than-true total is a lie a reader cannot detect from the file. An
+/// unknown total is merely less useful, and every turn's own `reported_usage` is
+/// still there to be added up by anyone who wants the partial sum.
+#[test]
+fn a_turn_with_unknown_usage_makes_the_cell_total_unknown() -> Result<()> {
+    let spec = spec(Arm::ForcedQuery)?;
+    let mut session = session()?;
+    // Turn one succeeds and reports 12 input / 6 output. Turn two answers with
+    // headers and then loses the body, which is exactly the case that may have
+    // been billed and cannot be counted.
+    let mut transport = ScriptedTransport::with_failures(vec![
+        reply(
+            MODEL,
+            vec![intersect_call(&["attempt_1", "attempt_2", "attempt_3"])],
+        )
+        .map_err(|e| SendFailure::before(e.to_string())),
+        Err(SendFailure::AfterHeaders {
+            status: 200,
+            request_id: Some("req_lost_body".to_owned()),
+            body_bytes_observed: 67_108_865,
+            reason: "provider response body exceeded the cap".to_owned(),
+        }),
+    ]);
+    let record = run_forced_query_cell(&spec, &mut session, &mut transport)?;
+
+    let [counted, lost] = record.turns.as_slice() else {
+        return Err(anyhow!(
+            "both turns belong in the record, including the one that broke; got {}",
+            record.turns.len()
+        ));
+    };
+    assert!(
+        counted.exchange.reported_usage().is_some(),
+        "turn one really did report its counters"
+    );
+    assert_eq!(
+        lost.exchange.kind(),
+        "response-capture-failed",
+        "and turn two is a capture failure, not a non-delivery"
+    );
+    assert!(lost.exchange.reported_usage().is_none());
+
+    // The whole point. Every field unknown — not turn one's numbers wearing the
+    // cell's name.
+    let total = record.accounting.provider_reported;
+    assert_eq!(
+        total.input_tokens, None,
+        "turn one reported 12 input tokens; if this is Some(12) the cell is \
+         presenting a partial sum as the total"
+    );
+    assert_eq!(total.output_tokens, None);
+    assert_eq!(total.cached_input_tokens, None);
+    assert_eq!(total.reasoning_tokens, None);
+
+    // And it survives serialization as null rather than as a zero.
+    let json = record.to_json();
+    for field in ["input_tokens", "output_tokens"] {
+        assert!(
+            json.pointer(&format!("/accounting/provider_reported/{field}"))
+                .is_some_and(serde_json::Value::is_null),
+            "provider_reported.{field} must serialize null, never 0"
+        );
+    }
     Ok(())
 }

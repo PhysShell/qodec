@@ -1011,6 +1011,42 @@ fn attempt_budget(spec: &CellSpec) -> Result<NonZeroU32> {
         .ok_or_else(|| anyhow::anyhow!("max_transport_attempts must be at least 1"))
 }
 
+/// The provider plane for a cell: the fold of what the turns themselves recorded.
+///
+/// Unknown is contagious **across turns**, not merely across the fields of one
+/// turn. The previous version filtered the unknown turns out before reducing,
+/// which is the opposite of what its own comment promised: a turn the provider
+/// may have billed but whose counters we could not read simply vanished, and the
+/// cell then presented the sum of the remaining turns as if it were the whole
+/// bill. In a multi-turn forced-query cell that reads as an exact total which is
+/// quietly missing a generation — wrong in the flattering direction, which is the
+/// direction nobody audits.
+///
+/// So one unknown turn makes every field of the total unknown. That is a real
+/// cost: a cell with one 429 among four good turns now reports `null` rather than
+/// the four sums, and `ProviderRejected` has nothing to bill. The trade is
+/// deliberate. Reporting a smaller number than the truth is a lie a reader cannot
+/// detect; reporting `null` is merely less useful, and the per-turn
+/// `reported_usage` values are all still in the file for anyone who wants to add
+/// up the turns that did report.
+fn fold_reported_usage(turns: &[TurnRecord]) -> ProviderUsage {
+    let mut total: Option<ProviderUsage> = None;
+    for turn in turns {
+        // `default()` is all-`None`: unknown, not zero. Returning it early is the
+        // contagion.
+        let Some(usage) = turn.exchange.reported_usage() else {
+            return ProviderUsage::default();
+        };
+        total = Some(match total {
+            Some(running) => running.plus(usage),
+            None => usage,
+        });
+    }
+    // No turns at all is also unknown rather than zero — nothing has been
+    // established about what the provider counted.
+    total.unwrap_or_default()
+}
+
 fn finish(
     spec: &CellSpec,
     turns: Vec<TurnRecord>,
@@ -1019,19 +1055,9 @@ fn finish(
     panel_transcript: Vec<PanelEvent>,
     outcome: ArmOutcome,
 ) -> CellRecord {
-    // Folded here, from the turns, rather than accumulated as they arrive.
-    // An accumulator seeded with `ProviderUsage::default()` starts every field
-    // at `None`, and `None` is contagious by design, so the first addition
-    // annihilates the total and every cell reports "the provider said
-    // nothing" — which is exactly what a provider outage looks like. `reduce`
-    // seeds from the first real turn instead, so contagion still means what it
-    // is supposed to mean: one turn actually failed to report.
     let mut accounting = accounting;
-    accounting.provider_reported = turns
-        .iter()
-        .filter_map(|t| t.exchange.reported_usage())
-        .reduce(ProviderUsage::plus)
-        .unwrap_or_default();
+    // See `fold_reported_usage`.
+    accounting.provider_reported = fold_reported_usage(&turns);
     CellRecord {
         arm: spec.arm,
         fixture: spec.fixture.clone(),

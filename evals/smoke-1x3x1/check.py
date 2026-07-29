@@ -185,7 +185,24 @@ LOCAL_KEYS = {
 TURN_KEYS = {"ordinal", "request", "exchange"}
 REQUEST_KEYS = {"envelope", "wire_digest", "wire_bytes_len", "wire_body"}
 EXCHANGE_KEYS = {"kind", "raw", "normalized", "reason", "attempts", "reported_usage"}
-ATTEMPT_KEYS = {"ordinal", "request_digest", "target", "outcome", "status", "body_len", "reason"}
+# Present exactly when the response arrived and its body was never captured. On
+# that outcome `raw` is null, so without these the record would read exactly like
+# a request that never left — which is the confusion the outcome exists to end.
+# Required there and forbidden everywhere else, rather than merely tolerated:
+# "tolerated" is how a field starts appearing on outcomes it makes no sense on.
+CAPTURE_FAILURE_KEYS = {"response_status", "response_request_id", "body_bytes_observed"}
+ATTEMPT_KEYS = {
+    "ordinal",
+    "request_digest",
+    "target",
+    "outcome",
+    "status",
+    "body_len",
+    "reason",
+    # A lower bound on a body that was never fully read. Deliberately not
+    # `body_len`, which would present that bound as the total.
+    "body_bytes_observed",
+}
 TARGET_KEYS = {"kind", "endpoint", "path", "api_version", "content_type", "timeout_secs"}
 
 
@@ -214,9 +231,31 @@ def check_schema(records: list[dict]) -> None:
             ordinal = turn.get("ordinal", "?")
             exact_keys(f"record[{arm}].turns[{ordinal}]", turn, TURN_KEYS)
             exact_keys(f"record[{arm}].turns[{ordinal}].request", turn.get("request"), REQUEST_KEYS)
+            exchange = turn.get("exchange") or {}
+            where_x = f"record[{arm}].turns[{ordinal}].exchange"
+            captured = exchange.get("kind") == "response-capture-failed"
             exact_keys(
-                f"record[{arm}].turns[{ordinal}].exchange", turn.get("exchange"), EXCHANGE_KEYS
+                where_x,
+                exchange,
+                EXCHANGE_KEYS | CAPTURE_FAILURE_KEYS if captured else EXCHANGE_KEYS,
             )
+            if captured:
+                # The whole point of this outcome is that it is NOT a
+                # non-delivery. Each of these is a way the distinction could be
+                # lost while the kind string still looked right.
+                if exchange.get("raw") is not None:
+                    fail(f"{where_x}: no complete body was captured, so raw must be null")
+                if exchange.get("normalized") is not None:
+                    fail(f"{where_x}: nothing was normalized from a body that was not captured")
+                if exchange.get("reported_usage") is not None:
+                    fail(
+                        f"{where_x}: the provider's counters were in the body that was lost, "
+                        f"so they are unknown — null, never a zero"
+                    )
+                if not isinstance(exchange.get("response_status"), int):
+                    fail(f"{where_x}: a response arrived and the record must carry its status")
+                if not isinstance(exchange.get("body_bytes_observed"), int):
+                    fail(f"{where_x}: body_bytes_observed must be the count actually read")
             for attempt in turn.get("exchange", {}).get("attempts", []):
                 where = f"record[{arm}].turns[{ordinal}].attempt[{attempt.get('ordinal')}]"
                 extra = set(attempt) - ATTEMPT_KEYS
@@ -312,6 +351,16 @@ def check_accounting(records: list[dict]) -> None:
         # the file showed nothing to justify it — a number no reader can check.
         # `None` is contagious by design, so a single unreported turn makes the
         # whole field null rather than silently dropping to a smaller sum.
+        #
+        # This check was RIGHT while the code was wrong, and that is worth
+        # recording. `cell.rs` folded with `filter_map`, which drops a turn whose
+        # usage is unknown instead of poisoning the total; the rule below poisons.
+        # The two disagreed for the entire life of the file and nothing caught it,
+        # because every arm of this fixture is `completed` and the disagreement is
+        # only reachable through a turn that reports nothing. An independent
+        # re-implementation is worth having precisely for this — but only if
+        # something ever exercises the branch where the two could differ, and here
+        # nothing did. The contract tests in `tests/cell.rs` now do.
         for field in ("input_tokens", "cached_input_tokens", "output_tokens", "reasoning_tokens"):
             per_turn = [
                 (t.get("exchange", {}).get("reported_usage") or {}).get(field)

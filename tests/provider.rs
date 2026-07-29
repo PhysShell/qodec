@@ -12,10 +12,10 @@ use anyhow::{anyhow, Result};
 use qodec::canon::KeyBytes;
 use qodec::panel::{answer_schema, lookup_schema, tool_schemas};
 use qodec::provider::{
-    deliver, exchange, map_answer, map_tool, normalize, Arm, ExchangeOutcome, FixtureIdentity,
-    Message, ModelIdentity, ModelStatus, ModelTransport, ProviderKind, ProviderResponseFormat,
-    RawResponse, RequestEnvelope, RequestMapping, SamplingParams, ScriptedTransport, SealedRequest,
-    ANSWER_TOOL_NAME,
+    deliver, exchange, map_answer, map_tool, normalize, Arm, AttemptOutcome, ExchangeOutcome,
+    FixtureIdentity, Message, ModelIdentity, ModelStatus, ModelTransport, ProviderKind,
+    ProviderResponseFormat, RawResponse, RequestEnvelope, RequestMapping, SamplingParams,
+    ScriptedTransport, SealedRequest, SendFailure, ANSWER_TOOL_NAME,
 };
 
 const PROVIDER: ProviderKind = ProviderKind::AnthropicMessages;
@@ -839,6 +839,341 @@ fn the_live_transport_requires_https_and_a_real_timeout() -> Result<()> {
         qodec::provider::HttpTransport::new("https://api.example.invalid", key, "2023-06-01", 30)
             .is_ok(),
         "https with a real timeout must still be accepted"
+    );
+    Ok(())
+}
+
+// ---------------------------------------------------------------------------
+// Which side of the response headers the attempt died on
+// ---------------------------------------------------------------------------
+//
+// `TransportFailed` asserts that no response bytes existed. Once HTTP response
+// headers have arrived that assertion is false, and acting on it is expensive
+// rather than merely untidy: the provider has produced a generation it may bill
+// for, so a retry buys a second one we can read no better than the first, and
+// the cell then records `transport-failed` with no usage for work that was paid
+// for. These contracts pin the boundary from both sides.
+
+/// A reader that yields some bytes and then fails, like a connection dropped
+/// after the status line.
+struct BreaksAfter {
+    remaining: usize,
+}
+
+impl std::io::Read for BreaksAfter {
+    fn read(&mut self, buf: &mut [u8]) -> std::io::Result<usize> {
+        if self.remaining == 0 {
+            return Err(std::io::Error::new(
+                std::io::ErrorKind::ConnectionAborted,
+                "peer went away mid-body",
+            ));
+        }
+        let n = buf.len().min(self.remaining);
+        for b in buf.iter_mut().take(n) {
+            *b = b'x';
+        }
+        self.remaining -= n;
+        Ok(n)
+    }
+}
+
+/// A failure before any response is retried, and the budget is spent.
+///
+/// The pre-header half of the boundary. Nothing was produced, so asking again is
+/// asking the same question a second time.
+#[test]
+fn a_pre_header_failure_is_retried_to_the_budget() -> Result<()> {
+    let s = sampling(None)?;
+    let sealed = SealedRequest::seal(envelope(panel_mapping(&s), s)?)?;
+    let mut transport = ScriptedTransport::with_failures(vec![
+        Err(SendFailure::before("connection reset")),
+        Err(SendFailure::before("connection reset")),
+        Err(SendFailure::before("connection reset")),
+    ]);
+    let outcome = exchange(&mut transport, &sealed, tries(3)?);
+
+    let ExchangeOutcome::TransportFailed { attempts } = &outcome else {
+        return Err(anyhow!("expected transport-failed, got {}", outcome.kind()));
+    };
+    assert_eq!(
+        attempts.len(),
+        3,
+        "all three attempts were made and recorded"
+    );
+    assert_eq!(
+        transport.seen_bodies().len(),
+        3,
+        "and really sent three times"
+    );
+    for attempt in attempts {
+        assert!(matches!(
+            attempt.outcome,
+            AttemptOutcome::TransportError { .. }
+        ));
+    }
+    Ok(())
+}
+
+/// A failure after headers is terminal: one call, one attempt, nothing else
+/// consumed.
+///
+/// The queued successes are the point. If the implementation retried, it would
+/// find a working reply waiting and report a cheerful `completed` — hiding both
+/// the extra generation and the fact that a retry happened at all.
+#[test]
+fn a_post_header_failure_is_not_retried() -> Result<()> {
+    let s = sampling(None)?;
+    let sealed = SealedRequest::seal(envelope(panel_mapping(&s), s)?)?;
+    let mut transport = ScriptedTransport::with_failures(vec![
+        Err(SendFailure::AfterHeaders {
+            status: 200,
+            request_id: Some("req_capture".to_owned()),
+            body_bytes_observed: 4096,
+            reason: "body exceeded the cap".to_owned(),
+        }),
+        plain_reply("hi").map_err(|e| SendFailure::before(e.to_string())),
+        plain_reply("hi").map_err(|e| SendFailure::before(e.to_string())),
+    ]);
+    let outcome = exchange(&mut transport, &sealed, tries(3)?);
+
+    let ExchangeOutcome::ResponseCaptureFailed {
+        status,
+        request_id,
+        body_bytes_observed,
+        attempts,
+        ..
+    } = &outcome
+    else {
+        return Err(anyhow!(
+            "expected response-capture-failed, got {}",
+            outcome.kind()
+        ));
+    };
+    assert_eq!(*status, 200);
+    assert_eq!(request_id.as_deref(), Some("req_capture"));
+    assert_eq!(*body_bytes_observed, 4096);
+
+    assert_eq!(attempts.len(), 1, "exactly one attempt was recorded");
+    assert_eq!(
+        transport.seen_bodies().len(),
+        1,
+        "and exactly one request left the process — this is the billing claim"
+    );
+    assert_eq!(
+        transport.replies_remaining(),
+        2,
+        "the queued successes must be untouched; consuming one means a retry happened"
+    );
+    let [only] = attempts.as_slice() else {
+        return Err(anyhow!(
+            "expected exactly one attempt, got {}",
+            attempts.len()
+        ));
+    };
+    assert!(matches!(
+        only.outcome,
+        AttemptOutcome::ResponseCaptureFailed { .. }
+    ));
+
+    // Not a non-delivery, and it must not be able to masquerade as one.
+    assert!(outcome.raw().is_none(), "no complete body was captured");
+    assert!(outcome.normalized().is_none());
+    assert!(
+        outcome.reported_usage().is_none(),
+        "counters are unknown, and unknown is not zero"
+    );
+    Ok(())
+}
+
+/// The serialized form keeps the evidence that a response existed.
+///
+/// `raw` is null here, so without status and request id the record would read
+/// exactly like a request that never arrived — which is the confusion the whole
+/// variant exists to remove.
+#[test]
+fn a_capture_failure_serializes_as_its_own_kind() -> Result<()> {
+    let s = sampling(None)?;
+    let sealed = SealedRequest::seal(envelope(panel_mapping(&s), s)?)?;
+    let mut transport = ScriptedTransport::with_failures(vec![Err(SendFailure::AfterHeaders {
+        status: 200,
+        request_id: Some("req_xyz".to_owned()),
+        body_bytes_observed: 67_108_865,
+        reason: "provider response body exceeded 67108864 bytes".to_owned(),
+    })]);
+    let outcome = exchange(&mut transport, &sealed, once());
+    let json = outcome.to_json();
+
+    assert_eq!(
+        json.pointer("/kind").and_then(|v| v.as_str()),
+        Some("response-capture-failed"),
+        "and specifically NOT transport-failed"
+    );
+    assert!(json.pointer("/raw").is_some_and(serde_json::Value::is_null));
+    assert!(json
+        .pointer("/normalized")
+        .is_some_and(serde_json::Value::is_null));
+    assert!(
+        json.pointer("/reported_usage")
+            .is_some_and(serde_json::Value::is_null),
+        "a turn whose counters are unknown must serialize null, never a zero"
+    );
+    assert_eq!(
+        json.pointer("/response_status").and_then(|v| v.as_u64()),
+        Some(200),
+        "the response did arrive, and the record has to say so"
+    );
+    assert_eq!(
+        json.pointer("/response_request_id")
+            .and_then(|v| v.as_str()),
+        Some("req_xyz")
+    );
+    assert_eq!(
+        json.pointer("/body_bytes_observed")
+            .and_then(|v| v.as_u64()),
+        Some(67_108_865),
+        "a lower bound, named as one — not body_len"
+    );
+    assert_eq!(
+        json.pointer("/attempts/0/outcome").and_then(|v| v.as_str()),
+        Some("response-capture-failed")
+    );
+    Ok(())
+}
+
+/// The body cap, from both sides, and an I/O error partway through.
+///
+/// Driven through `capture_body` with a small limit: the contract is about the
+/// boundary, and allocating 64 MiB to confirm arithmetic would be a ceremony
+/// rather than a test. Exactly-at-limit is a complete body and must be kept —
+/// an off-by-one here silently discards a legitimate response.
+#[test]
+fn the_body_cap_is_exact_and_both_failures_are_post_header() -> Result<()> {
+    use qodec::provider::capture_body;
+
+    // Exactly at the limit: kept.
+    let at_limit = vec![b'a'; 64];
+    let mut r = at_limit.as_slice();
+    let body = capture_body(200, Some("req_a".to_owned()), &mut r, 64)
+        .map_err(|f| anyhow!("a body exactly at the cap must be accepted, got: {f}"))?;
+    assert_eq!(body.len(), 64);
+
+    // One byte over: refused, and refused as a post-header failure.
+    let over = vec![b'a'; 65];
+    let mut r = over.as_slice();
+    let Err(failure) = capture_body(200, Some("req_b".to_owned()), &mut r, 64) else {
+        return Err(anyhow!(
+            "a body past the cap must be refused, not silently truncated"
+        ));
+    };
+    let SendFailure::AfterHeaders {
+        status,
+        request_id,
+        body_bytes_observed,
+        reason,
+    } = &failure
+    else {
+        return Err(anyhow!(
+            "the cap is only ever hit after headers, so this must never be retryable: {failure}"
+        ));
+    };
+    assert_eq!(*status, 200);
+    assert_eq!(request_id.as_deref(), Some("req_b"));
+    assert_eq!(*body_bytes_observed, 65);
+    assert!(
+        reason.contains("exceeded"),
+        "the reason must name what happened, got {reason:?}"
+    );
+
+    // A reader that dies mid-body: also post-header, and the observed count is
+    // what was actually read rather than anything claimed by a header.
+    let mut broken = BreaksAfter { remaining: 10 };
+    let Err(failure) = capture_body(200, None, &mut broken, 64) else {
+        return Err(anyhow!(
+            "an I/O error mid-body does not yield a complete response"
+        ));
+    };
+    let SendFailure::AfterHeaders {
+        body_bytes_observed,
+        reason,
+        ..
+    } = &failure
+    else {
+        return Err(anyhow!(
+            "a body that broke after the status line must not be retried: {failure}"
+        ));
+    };
+    assert_eq!(*body_bytes_observed, 10, "a lower bound, honestly counted");
+    assert!(reason.contains("reading the provider response body"));
+    Ok(())
+}
+
+/// The live agent does not follow redirects, so the key cannot ride one.
+///
+/// Checking the scheme of the constructor's URL does not establish an https-only
+/// key path: with redirects on, an https endpoint answering 302 to an http
+/// location moves the request — and `x-api-key` with it — onto cleartext, chosen
+/// by the server rather than by us. The sink's connection count is the real
+/// assertion; the returned status only shows the 3xx was recorded as the response
+/// it is.
+#[test]
+fn the_live_agent_refuses_to_follow_a_redirect() -> Result<()> {
+    use std::io::{Read as _, Write as _};
+    use std::net::TcpListener;
+    use std::sync::atomic::{AtomicUsize, Ordering};
+    use std::sync::Arc;
+
+    let sink = TcpListener::bind("127.0.0.1:0")?;
+    let sink_addr = sink.local_addr()?;
+    let sink_hits = Arc::new(AtomicUsize::new(0));
+    let hits = Arc::clone(&sink_hits);
+    std::thread::spawn(move || {
+        for stream in sink.incoming() {
+            hits.fetch_add(1, Ordering::SeqCst);
+            if let Ok(mut stream) = stream {
+                let mut buf = [0u8; 1024];
+                let _ = stream.read(&mut buf);
+                let _ = stream.write_all(b"HTTP/1.1 200 OK\r\ncontent-length: 2\r\n\r\nhi");
+            }
+        }
+    });
+
+    let redirector = TcpListener::bind("127.0.0.1:0")?;
+    let redirector_addr = redirector.local_addr()?;
+    std::thread::spawn(move || {
+        for mut stream in redirector.incoming().flatten() {
+            {
+                let mut buf = [0u8; 4096];
+                let _ = stream.read(&mut buf);
+                let response = format!(
+                    "HTTP/1.1 302 Found\r\nlocation: http://{sink_addr}/v1/messages\r\n\
+                     content-length: 0\r\n\r\n"
+                );
+                let _ = stream.write_all(response.as_bytes());
+            }
+        }
+    });
+
+    let response = qodec::provider::live_agent()
+        .post(&format!("http://{redirector_addr}/v1/messages"))
+        .set("x-api-key", "SECRET-KEY-MUST-NOT-TRAVEL")
+        .send_bytes(b"{}");
+
+    let status = match response {
+        Ok(r) => r.status(),
+        Err(ureq::Error::Status(s, _)) => s,
+        Err(e) => return Err(anyhow!("the redirector should have answered: {e}")),
+    };
+    assert_eq!(
+        status, 302,
+        "the 3xx is the response; it must be recorded, not acted on"
+    );
+
+    // Give a hypothetical follow-up time to land before concluding it did not.
+    std::thread::sleep(std::time::Duration::from_millis(200));
+    assert_eq!(
+        sink_hits.load(Ordering::SeqCst),
+        0,
+        "the redirect target received a request — the API key just travelled in cleartext"
     );
     Ok(())
 }

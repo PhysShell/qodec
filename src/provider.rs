@@ -919,7 +919,11 @@ pub trait ModelTransport {
     /// would be a caller's belief about the transport.
     fn target(&self) -> TransportTarget;
 
-    fn send(&mut self, sealed: &SealedRequest) -> Result<RawResponse>;
+    /// Typed failure, because the caller must know which side of the response
+    /// headers the attempt died on. An untyped error forces `deliver` to guess,
+    /// and the only available guess — "assume nothing arrived" — is the one that
+    /// re-bills the provider and then reports the turn as free.
+    fn send(&mut self, sealed: &SealedRequest) -> std::result::Result<RawResponse, SendFailure>;
 }
 
 /// What happened on one attempt to deliver one sealed request.
@@ -941,8 +945,99 @@ pub struct TransportAttempt {
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum AttemptOutcome {
-    Response { status: u16, body_len: u64 },
-    TransportError { reason: String },
+    Response {
+        status: u16,
+        body_len: u64,
+    },
+    /// Nothing came back: socket, DNS, TLS, timeout. Nothing was produced, so
+    /// re-sending the identical body asks the same question a second time.
+    TransportError {
+        reason: String,
+    },
+    /// Response headers arrived and capturing the body did not finish.
+    ///
+    /// `body_bytes_observed` is deliberately not named `body_len`: after an I/O
+    /// error partway through, or on a body that ran past the cap, the full size
+    /// is not known. It is a lower bound, and presenting a lower bound as the
+    /// total would be one more carefully serialized lie.
+    ResponseCaptureFailed {
+        status: u16,
+        body_bytes_observed: u64,
+        reason: String,
+    },
+}
+
+/// Why one attempt did not yield a usable response.
+///
+/// The split is the whole point. `TransportFailed` carries a hard claim — no
+/// response bytes existed — and once HTTP response headers have arrived that
+/// claim is false. Retrying past that line is not a retry: the provider has
+/// already produced a generation and is entitled to bill for it, so a second
+/// send buys a second one to throw away, and the cell then records
+/// `transport-failed` with no usage for work that was paid for.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum SendFailure {
+    /// Nothing was received. Retry is meaningful.
+    BeforeResponse { reason: String },
+    /// Headers arrived; capturing the body failed or was deliberately stopped.
+    /// Terminal — see the type-level note.
+    AfterHeaders {
+        status: u16,
+        request_id: Option<String>,
+        body_bytes_observed: u64,
+        reason: String,
+    },
+}
+
+impl SendFailure {
+    /// A pre-response failure, for the common case of "the socket died".
+    pub fn before(reason: impl Into<String>) -> Self {
+        SendFailure::BeforeResponse {
+            reason: reason.into(),
+        }
+    }
+
+    pub fn reason(&self) -> &str {
+        match self {
+            SendFailure::BeforeResponse { reason } | SendFailure::AfterHeaders { reason, .. } => {
+                reason
+            }
+        }
+    }
+}
+
+impl std::fmt::Display for SendFailure {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            SendFailure::BeforeResponse { reason } => write!(f, "{reason}"),
+            SendFailure::AfterHeaders {
+                status,
+                body_bytes_observed,
+                reason,
+                ..
+            } => write!(
+                f,
+                "{reason} (status {status}, {body_bytes_observed} bytes observed)"
+            ),
+        }
+    }
+}
+
+/// What delivery produced, once retrying has stopped.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum Delivery {
+    /// A complete response body.
+    Response(RawResponse),
+    /// Headers arrived and the body was never fully captured. Not a
+    /// non-delivery, and must not be recorded as one.
+    CaptureFailed {
+        status: u16,
+        request_id: Option<String>,
+        body_bytes_observed: u64,
+        reason: String,
+    },
+    /// No attempt got as far as a response.
+    Undelivered,
 }
 
 impl TransportAttempt {
@@ -966,6 +1061,16 @@ impl TransportAttempt {
                 pairs.push(("outcome", "transport-error".into()));
                 pairs.push(("reason", reason.clone().into()));
             }
+            AttemptOutcome::ResponseCaptureFailed {
+                status,
+                body_bytes_observed,
+                reason,
+            } => {
+                pairs.push(("outcome", "response-capture-failed".into()));
+                pairs.push(("status", (*status).into()));
+                pairs.push(("body_bytes_observed", (*body_bytes_observed).into()));
+                pairs.push(("reason", reason.clone().into()));
+            }
         }
         json_obj(pairs)
     }
@@ -986,7 +1091,7 @@ pub fn deliver(
     transport: &mut dyn ModelTransport,
     sealed: &SealedRequest,
     max_attempts: NonZeroU32,
-) -> (Option<RawResponse>, Vec<TransportAttempt>) {
+) -> (Delivery, Vec<TransportAttempt>) {
     let mut attempts = Vec::new();
     for ordinal in 0..max_attempts.get() {
         let target = transport.target();
@@ -1001,21 +1106,48 @@ pub fn deliver(
                         body_len: raw.body.len() as u64,
                     },
                 });
-                return (Some(raw), attempts);
+                return (Delivery::Response(raw), attempts);
             }
-            Err(e) => {
+            Err(SendFailure::BeforeResponse { reason }) => {
                 attempts.push(TransportAttempt {
                     ordinal,
                     request_digest: sealed.digest(),
                     target,
-                    outcome: AttemptOutcome::TransportError {
-                        reason: format!("{e}"),
+                    outcome: AttemptOutcome::TransportError { reason },
+                });
+            }
+            // Terminal. The provider answered; only our capture of that answer
+            // failed. Another send would ask for a second generation we have no
+            // more ability to read than the first, and would be billed for it.
+            Err(SendFailure::AfterHeaders {
+                status,
+                request_id,
+                body_bytes_observed,
+                reason,
+            }) => {
+                attempts.push(TransportAttempt {
+                    ordinal,
+                    request_digest: sealed.digest(),
+                    target,
+                    outcome: AttemptOutcome::ResponseCaptureFailed {
+                        status,
+                        body_bytes_observed,
+                        reason: reason.clone(),
                     },
                 });
+                return (
+                    Delivery::CaptureFailed {
+                        status,
+                        request_id,
+                        body_bytes_observed,
+                        reason,
+                    },
+                    attempts,
+                );
             }
         }
     }
-    (None, attempts)
+    (Delivery::Undelivered, attempts)
 }
 
 // ---------------------------------------------------------------------------
@@ -1243,7 +1375,29 @@ pub enum ExchangeOutcome {
         usage: ProviderUsage,
     },
     /// No bytes came back at all. The per-attempt reasons are the record.
+    ///
+    /// This variant asserts something strong — that no response existed — so it
+    /// is reachable only from failures that happened *before* response headers.
+    /// One caveat that cannot be engineered away: a server may have generated a
+    /// reply and lost the connection before sending headers, in which case a
+    /// billed generation is invisible to us and this variant understates the
+    /// cost. Retrying already assumes that did not happen; the `attempts` list is
+    /// the only record of how often the assumption was made.
     TransportFailed { attempts: Vec<TransportAttempt> },
+    /// Headers arrived and the body was never fully captured.
+    ///
+    /// Distinct from `ProviderRejected`, which means a complete response carrying
+    /// a non-success status — the provider had its say. Here the provider may not
+    /// have refused anything at all; what broke, or was deliberately stopped, was
+    /// our capture of the body. No exact full body exists, so there is nothing
+    /// honest to put in `raw`, and the counters are unknown rather than zero.
+    ResponseCaptureFailed {
+        status: u16,
+        request_id: Option<String>,
+        body_bytes_observed: u64,
+        reason: String,
+        attempts: Vec<TransportAttempt>,
+    },
 }
 
 impl ExchangeOutcome {
@@ -1252,6 +1406,7 @@ impl ExchangeOutcome {
             ExchangeOutcome::Completed { attempts, .. }
             | ExchangeOutcome::ProviderRejected { attempts, .. }
             | ExchangeOutcome::NormalizationFailed { attempts, .. }
+            | ExchangeOutcome::ResponseCaptureFailed { attempts, .. }
             | ExchangeOutcome::TransportFailed { attempts } => attempts,
         }
     }
@@ -1261,7 +1416,10 @@ impl ExchangeOutcome {
             ExchangeOutcome::Completed { raw, .. }
             | ExchangeOutcome::ProviderRejected { raw, .. }
             | ExchangeOutcome::NormalizationFailed { raw, .. } => Some(raw),
-            ExchangeOutcome::TransportFailed { .. } => None,
+            // No complete body was captured. A partial one would be a `RawResponse`
+            // that lies about being the response.
+            ExchangeOutcome::ResponseCaptureFailed { .. }
+            | ExchangeOutcome::TransportFailed { .. } => None,
         }
     }
 
@@ -1275,9 +1433,14 @@ impl ExchangeOutcome {
             ExchangeOutcome::NormalizationFailed { usage, .. } => Some(*usage),
             // A rejection body carries no generation to bill, and a request that
             // never arrived certainly does not. Unknown, and it stays unknown.
-            ExchangeOutcome::ProviderRejected { .. } | ExchangeOutcome::TransportFailed { .. } => {
-                None
-            }
+            //
+            // `ResponseCaptureFailed` is the case this distinction exists for: a
+            // generation very likely happened and its counters are in a body we
+            // could not read. `None` here is load-bearing — the fold turns it into
+            // an unknown total rather than quietly omitting a billed turn.
+            ExchangeOutcome::ProviderRejected { .. }
+            | ExchangeOutcome::ResponseCaptureFailed { .. }
+            | ExchangeOutcome::TransportFailed { .. } => None,
         }
     }
 
@@ -1294,6 +1457,7 @@ impl ExchangeOutcome {
             ExchangeOutcome::Completed { .. } => None,
             ExchangeOutcome::ProviderRejected { reason, .. }
             | ExchangeOutcome::NormalizationFailed { reason, .. } => Some(reason.clone()),
+            ExchangeOutcome::ResponseCaptureFailed { reason, .. } => Some(reason.clone()),
             ExchangeOutcome::TransportFailed { attempts } => Some(format!(
                 "no attempt reached the provider ({} tried)",
                 attempts.len()
@@ -1306,7 +1470,23 @@ impl ExchangeOutcome {
             ExchangeOutcome::Completed { .. } => "completed",
             ExchangeOutcome::ProviderRejected { .. } => "provider-rejected",
             ExchangeOutcome::NormalizationFailed { .. } => "normalization-failed",
+            ExchangeOutcome::ResponseCaptureFailed { .. } => "response-capture-failed",
             ExchangeOutcome::TransportFailed { .. } => "transport-failed",
+        }
+    }
+
+    /// Status and request id when a response reached us, whatever became of the
+    /// body. On `ResponseCaptureFailed` this is the only surviving evidence that
+    /// the provider answered at all, so it is serialized rather than dropped.
+    fn response_identity(&self) -> Option<(u16, Option<String>, Option<u64>)> {
+        match self {
+            ExchangeOutcome::ResponseCaptureFailed {
+                status,
+                request_id,
+                body_bytes_observed,
+                ..
+            } => Some((*status, request_id.clone(), Some(*body_bytes_observed))),
+            _ => None,
         }
     }
 
@@ -1353,6 +1533,26 @@ impl ExchangeOutcome {
                 None => serde_json::Value::Null,
             },
         ));
+        // When the body was lost, `raw` is null and these are all that remain to
+        // show a response existed. Dropping them would leave a record that reads
+        // exactly like a request which never arrived.
+        if let Some((status, request_id, observed)) = self.response_identity() {
+            pairs.push(("response_status", status.into()));
+            pairs.push((
+                "response_request_id",
+                match request_id {
+                    Some(id) => id.into(),
+                    None => serde_json::Value::Null,
+                },
+            ));
+            pairs.push((
+                "body_bytes_observed",
+                match observed {
+                    Some(n) => n.into(),
+                    None => serde_json::Value::Null,
+                },
+            ));
+        }
         json_obj(pairs)
     }
 }
@@ -1367,9 +1567,24 @@ pub fn exchange(
     max_attempts: NonZeroU32,
 ) -> ExchangeOutcome {
     let provider = sealed.envelope().provider;
-    let (raw, attempts) = deliver(transport, sealed, max_attempts);
-    let Some(raw) = raw else {
-        return ExchangeOutcome::TransportFailed { attempts };
+    let (delivery, attempts) = deliver(transport, sealed, max_attempts);
+    let raw = match delivery {
+        Delivery::Response(raw) => raw,
+        Delivery::CaptureFailed {
+            status,
+            request_id,
+            body_bytes_observed,
+            reason,
+        } => {
+            return ExchangeOutcome::ResponseCaptureFailed {
+                status,
+                request_id,
+                body_bytes_observed,
+                reason,
+                attempts,
+            };
+        }
+        Delivery::Undelivered => return ExchangeOutcome::TransportFailed { attempts },
     };
     if let Some(reason) = rejection_reason(provider, &raw) {
         return ExchangeOutcome::ProviderRejected {
@@ -1432,14 +1647,27 @@ pub fn rejection_reason(provider: ProviderKind, raw: &RawResponse) -> Option<Str
 /// assert that the bytes the transport saw are the bytes the record claims.
 #[derive(Debug)]
 pub struct ScriptedTransport {
-    replies: Vec<Result<RawResponse, String>>,
+    replies: Vec<std::result::Result<RawResponse, SendFailure>>,
     seen: Vec<Vec<u8>>,
     next: usize,
     kind: ProviderKind,
 }
 
 impl ScriptedTransport {
+    /// Replies where a failure is just a reason, taken to mean a *pre-response*
+    /// failure — the ordinary "the socket died" case.
     pub fn new(replies: Vec<Result<RawResponse, String>>) -> Self {
+        Self::with_failures(
+            replies
+                .into_iter()
+                .map(|r| r.map_err(SendFailure::before))
+                .collect(),
+        )
+    }
+
+    /// Replies that can fail on either side of the response headers, for the
+    /// contracts that care which side it was.
+    pub fn with_failures(replies: Vec<std::result::Result<RawResponse, SendFailure>>) -> Self {
         ScriptedTransport {
             replies,
             seen: Vec::new(),
@@ -1452,6 +1680,13 @@ impl ScriptedTransport {
     pub fn seen_bodies(&self) -> &[Vec<u8>] {
         &self.seen
     }
+
+    /// Scripted replies still queued. A terminal outcome must leave these
+    /// untouched — that is what "it did not retry" means from the wire's side,
+    /// as opposed to what the record claims about itself.
+    pub fn replies_remaining(&self) -> usize {
+        self.replies.len().saturating_sub(self.next)
+    }
 }
 
 impl ModelTransport for ScriptedTransport {
@@ -1459,18 +1694,18 @@ impl ModelTransport for ScriptedTransport {
         TransportTarget::stand_in(self.kind)
     }
 
-    fn send(&mut self, sealed: &SealedRequest) -> Result<RawResponse> {
+    fn send(&mut self, sealed: &SealedRequest) -> std::result::Result<RawResponse, SendFailure> {
         self.seen.push(sealed.wire_bytes().to_vec());
         let Some(reply) = self.replies.get(self.next) else {
-            bail!(
+            return Err(SendFailure::before(format!(
                 "scripted transport ran out of replies at call {}",
                 self.next
-            );
+            )));
         };
         self.next = self.next.saturating_add(1);
         match reply {
             Ok(raw) => Ok(raw.clone()),
-            Err(reason) => bail!("scripted transport error: {reason}"),
+            Err(failure) => Err(failure.clone()),
         }
     }
 }
@@ -1528,11 +1763,15 @@ where
         TransportTarget::stand_in(self.kind)
     }
 
-    fn send(&mut self, sealed: &SealedRequest) -> Result<RawResponse> {
+    fn send(&mut self, sealed: &SealedRequest) -> std::result::Result<RawResponse, SendFailure> {
         self.seen.push(sealed.wire_bytes().to_vec());
         let n = self.calls;
         self.calls = self.calls.saturating_add(1);
-        (self.reply)(sealed, n)
+        // The closure keeps its `anyhow` signature: every existing programmed
+        // stand-in models "no response came back", which is exactly
+        // `BeforeResponse`. A stand-in that needs the other side of the headers
+        // uses `ScriptedTransport::with_failures`.
+        (self.reply)(sealed, n).map_err(|e| SendFailure::before(format!("{e}")))
     }
 }
 
@@ -1548,6 +1787,10 @@ pub struct HttpTransport {
     api_key: String,
     api_version: String,
     timeout_secs: u64,
+    /// Built with redirects disabled. Held rather than re-created per send so the
+    /// policy cannot be forgotten at one call site — see `new`.
+    agent: ureq::Agent,
+    max_body_bytes: u64,
 }
 
 impl HttpTransport {
@@ -1594,8 +1837,72 @@ impl HttpTransport {
             api_key: api_key.to_owned(),
             api_version: api_version.to_owned(),
             timeout_secs,
+            // Redirects OFF, not merely bounded. Checking the scheme of the URL
+            // handed to this constructor does not establish an https-only key
+            // path: ureq follows up to five redirects by default and carries the
+            // headers along, so an https endpoint answering 302 to an http
+            // location would put `x-api-key` on the wire in cleartext — the exact
+            // thing the check above exists to prevent, arranged by the server
+            // instead of by the caller. `redirect_auth_headers` does not help;
+            // it governs `Authorization`, and this key rides a custom header.
+            //
+            // It is also the honest choice for provenance. With redirects on, the
+            // `TransportTarget` in the record is where we *aimed*, while the
+            // request went wherever the library was told to go next. A 3xx now
+            // comes back as the response it is and gets recorded as one.
+            agent: live_agent(),
+            max_body_bytes: MAX_RESPONSE_BODY_BYTES,
         })
     }
+}
+
+/// The agent the live transport sends through: **no redirects**.
+///
+/// A function rather than an inline builder so a contract test can exercise the
+/// real policy instead of a copy of it. A test that rebuilt its own agent would
+/// keep passing after somebody raised the redirect limit here, which is the one
+/// change it exists to catch.
+pub fn live_agent() -> ureq::Agent {
+    ureq::AgentBuilder::new().redirects(0).build()
+}
+
+/// Read a response body under a hard cap, once headers have already arrived.
+///
+/// Extracted from `send` so the cap is reachable from a test without a live
+/// endpoint and without allocating 64 MiB to confirm arithmetic. Every failure
+/// here is `AfterHeaders` by construction: this function is only ever called
+/// after a status line exists.
+pub fn capture_body(
+    status: u16,
+    request_id: Option<String>,
+    reader: &mut impl std::io::Read,
+    max_bytes: u64,
+) -> std::result::Result<Vec<u8>, SendFailure> {
+    let mut body = Vec::new();
+    // Cap + 1, so "ran past the cap" is distinguishable from "ended exactly at
+    // it". A read of exactly `max_bytes` is a complete body and is kept.
+    let mut bounded = std::io::Read::take(reader, max_bytes.saturating_add(1));
+    if let Err(e) = std::io::Read::read_to_end(&mut bounded, &mut body) {
+        return Err(SendFailure::AfterHeaders {
+            status,
+            request_id,
+            // What we managed to read before it broke. A lower bound, named as one.
+            body_bytes_observed: body.len() as u64,
+            reason: format!("reading the provider response body: {e}"),
+        });
+    }
+    if body.len() as u64 > max_bytes {
+        return Err(SendFailure::AfterHeaders {
+            status,
+            request_id,
+            body_bytes_observed: body.len() as u64,
+            reason: format!(
+                "provider response body exceeded {max_bytes} bytes; \
+                 refusing to record a truncated body"
+            ),
+        });
+    }
+    Ok(body)
 }
 
 impl ModelTransport for HttpTransport {
@@ -1610,9 +1917,13 @@ impl ModelTransport for HttpTransport {
         }
     }
 
-    fn send(&mut self, sealed: &SealedRequest) -> Result<RawResponse> {
+    fn send(&mut self, sealed: &SealedRequest) -> std::result::Result<RawResponse, SendFailure> {
         let url = format!("{}{}", self.base_url, sealed.envelope().provider.path());
-        let response = ureq::post(&url)
+        // Through the agent, not `ureq::post`: the top-level helper uses a default
+        // agent that follows redirects, which is what put the key at risk.
+        let response = self
+            .agent
+            .post(&url)
             .timeout(std::time::Duration::from_secs(self.timeout_secs))
             .set("content-type", "application/json")
             .set("x-api-key", &self.api_key)
@@ -1632,7 +1943,9 @@ impl ModelTransport for HttpTransport {
                 r.header("request-id").map(str::to_owned),
                 r.into_reader(),
             ),
-            Err(e) => return Err(anyhow::anyhow!("transport failure: {e}")),
+            // No status line: socket, DNS, TLS, timeout. Nothing was produced,
+            // so this is the one shape that may be retried.
+            Err(e) => return Err(SendFailure::before(format!("transport failure: {e}"))),
         };
         // Bounded. The body is stored in `RawResponse` and serialized into the
         // transcript, so an unbounded read lets a misrouted or hostile response
@@ -1640,16 +1953,8 @@ impl ModelTransport for HttpTransport {
         // becomes. A response over the cap fails as a named error rather than
         // arriving silently truncated, which would be a transcript that lies about
         // what came back.
-        let mut body = Vec::new();
-        let mut reader = std::io::Read::take(reader, MAX_RESPONSE_BODY_BYTES + 1);
-        std::io::Read::read_to_end(&mut reader, &mut body)
-            .context("reading the provider response body")?;
-        if body.len() as u64 > MAX_RESPONSE_BODY_BYTES {
-            bail!(
-                "provider response body exceeded {MAX_RESPONSE_BODY_BYTES} bytes; \
-                 refusing to record a truncated body"
-            );
-        }
+        let mut reader = reader;
+        let body = capture_body(status, request_id.clone(), &mut reader, self.max_body_bytes)?;
         Ok(RawResponse {
             status,
             body,
