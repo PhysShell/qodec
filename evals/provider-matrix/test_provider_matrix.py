@@ -10,6 +10,31 @@ from unittest.mock import patch
 import provider_matrix as pm
 
 
+def registry(providers=None) -> dict:
+    """A stand-in trusted registry.
+
+    Deliberately not the committed one for the discovery tests: those need
+    several providers, and adding fictional entries to the real registry to keep
+    a test happy is how a registry stops being a trust boundary.
+    """
+    return {
+        "schema": pm.REGISTRY_SCHEMA,
+        "providers": providers or {
+            "groq": {"api_base": "https://example/v1", "api_style": "openai-chat", "key_env": "GROQ_API_KEY"},
+            "openrouter": {"api_base": "https://example/v1", "api_style": "openai-chat", "key_env": "OPENROUTER_API_KEY"},
+            "p": {"api_base": "https://x/v1", "api_style": "openai-chat", "key_env": "K"},
+        },
+    }
+
+
+def probe_target(row: dict, model: str = "m") -> dict:
+    return {
+        "target_id": f"p--{model}", "provider": "p", "model": model,
+        "api_style": "openai-chat", "api_base": "https://x/v1", "key_env": "K",
+        **row,
+    }
+
+
 class ProviderMatrixTests(unittest.TestCase):
     def source(self, root: Path) -> Path:
         path = root / "source.json"
@@ -22,14 +47,17 @@ class ProviderMatrixTests(unittest.TestCase):
     def test_import_is_deterministic_and_sorted(self):
         with tempfile.TemporaryDirectory() as td:
             root = Path(td)
-            first = pm.import_catalog(self.source(root), "2026-07-28T00:00:00Z")
-            second = pm.import_catalog(self.source(root), "2026-07-28T00:00:00Z")
+            first = pm.import_catalog(self.source(root), "2026-07-28T00:00:00Z", registry())
+            second = pm.import_catalog(self.source(root), "2026-07-28T00:00:00Z", registry())
             self.assertEqual(pm.canonical_bytes(first), pm.canonical_bytes(second))
             self.assertEqual([x["provider"] for x in first["targets"]], ["groq", "openrouter"])
+            # The catalog records which registry its origins came from, so it
+            # cannot be replayed later against a different one invisibly.
+            self.assertEqual(first["registry_sha256"], pm.sha256_bytes(pm.canonical_bytes(registry())))
 
     def test_unknown_policy_fails_closed(self):
         with tempfile.TemporaryDirectory() as td:
-            catalog = pm.import_catalog(self.source(Path(td)), "2026-07-28T00:00:00Z")
+            catalog = pm.import_catalog(self.source(Path(td)), "2026-07-28T00:00:00Z", registry())
             args = argparse.Namespace(free_only=True, no_card=True, no_training=True)
             plan = pm.build_plan(catalog, args)
             self.assertEqual([x["target_id"] for x in plan["selected"]], ["openrouter--m2"])
@@ -41,25 +69,37 @@ class ProviderMatrixTests(unittest.TestCase):
             row = {"provider": "p", "model": "m", "api_base": "https://x/v1", "key_env": "K"}
             source.write_text(json.dumps([row, row]), encoding="utf-8")
             with self.assertRaisesRegex(ValueError, "duplicate"):
-                pm.import_catalog(source, "2026-07-28T00:00:00Z")
+                pm.import_catalog(source, "2026-07-28T00:00:00Z", registry())
 
     def test_missing_key_is_auth_failure(self):
-        target = {"target_id": "p--m", "provider": "p", "model": "m", "api_base": "https://x/v1", "key_env": "ABSENT"}
         with patch.dict("os.environ", {}, clear=True):
-            result = pm.probe_target(target, 1)
+            result = pm.probe_target(probe_target({"key_env": "K"}), 1, None, registry())
         self.assertEqual(result["classification"], "AUTH_FAILURE")
 
     def test_model_substitution_is_not_pass(self):
-        target = {"target_id": "p--m", "provider": "p", "model": "m", "api_base": "https://x/v1", "key_env": "K"}
         body = json.dumps({"model": "other", "choices": [{"message": {"content": "QODEC_PROBE_OK"}}]}).encode()
-        result = pm.probe_target(target, 1, scripted([(200, body, "", "completed")]))
+        result = pm.probe_target(probe_target({}), 1, scripted([(200, body, "", "completed")]), registry())
         self.assertEqual(result["classification"], "PROVIDER_SUBSTITUTED")
 
+    def test_a_probe_with_no_reported_model_does_not_pass(self):
+        """The exact text plus no `model` field used to be a PASS.
+
+        `if reported_model and reported_model != target["model"]` skipped its
+        first branch when the field was absent, so a response whose origin was
+        never established satisfied the gate that decides which targets the
+        adapter is allowed to use.
+        """
+        body = json.dumps({"choices": [{"message": {"content": "QODEC_PROBE_OK"}}]}).encode()
+        result = pm.probe_target(probe_target({}), 1, scripted([(200, body, "", "completed")]), registry())
+        self.assertNotEqual(result["classification"], "PASS")
+        self.assertEqual(result["classification"], "MODEL_IDENTITY_MISSING")
+        self.assertEqual(result["model_status"], "missing")
+
     def test_exact_probe_passes(self):
-        target = {"target_id": "p--m", "provider": "p", "model": "m", "api_base": "https://x/v1", "key_env": "K"}
         body = json.dumps({"model": "m", "choices": [{"message": {"content": "QODEC_PROBE_OK"}}], "usage": {"prompt_tokens": 9}}).encode()
-        result = pm.probe_target(target, 1, scripted([(200, body, "", "completed")]))
+        result = pm.probe_target(probe_target({}), 1, scripted([(200, body, "", "completed")]), registry())
         self.assertEqual(result["classification"], "PASS")
+        self.assertEqual(result["model_status"], "verified")
         self.assertEqual(result["provider_usage"]["prompt_tokens"], 9)
         self.assertEqual(result["endpoint"], "https://x/v1/chat/completions")
 
@@ -69,13 +109,20 @@ class ProviderMatrixTests(unittest.TestCase):
         Two transports would mean two chances to send the credential somewhere
         the other one refuses to.
         """
-        target = {"target_id": "p--m", "provider": "p", "model": "m", "api_base": "http://x/v1", "key_env": "K"}
-        result = pm.probe_target(target, 1, scripted([(200, b"{}", "", "completed")]))
+        plain = registry({"p": {"api_base": "http://x/v1", "api_style": "openai-chat", "key_env": "K"}})
+        result = pm.probe_target(
+            probe_target({"api_base": "http://x/v1"}), 1, scripted([(200, b"{}", "", "completed")]), plain,
+        )
         self.assertEqual(result["classification"], "ENDPOINT_REJECTED")
         # And a body that never finished arriving is not "the provider was down".
-        target["api_base"] = "https://x/v1"
-        result = pm.probe_target(target, 1, scripted([(None, None, "body too large", "after-headers")]))
+        result = pm.probe_target(
+            probe_target({}), 1, scripted([(429, None, "body too large", "after-headers", 4096, "req-9")]), registry(),
+        )
         self.assertEqual(result["classification"], "RESPONSE_CAPTURE_FAILED")
+        # The status the provider already sent is not thrown away with the body.
+        self.assertEqual(result["http_status"], 429)
+        self.assertEqual(result["body_bytes_observed"], 4096)
+        self.assertEqual(result["request_id"], "req-9")
 
 
 # ---------------------------------------------------------------------------
@@ -281,11 +328,41 @@ class QualificationTests(unittest.TestCase):
         self.assertEqual(receipt["reported_models"], ["openai/gpt-oss-120b"])
         self.assertEqual(receipt["reported_model"], "openai/gpt-oss-120b")
 
-    def test_an_unnamed_model_is_missing_not_verified(self):
-        answer = json.dumps({"id": "x", "choices": [{"message": {"tool_calls": [call("qodec_answer", ANSWER_ARGS, "call_ans")]}}]}).encode()
-        receipt, _ = self.run_qualify(OPERATION_THEN((200, answer, "")))
+    def test_an_unnamed_model_is_missing_and_does_not_pass(self):
+        """`missing` is not a milder `drifted`; both fail, only `verified` passes.
+
+        The receipt used to record `model_status: missing` and classify the run
+        `PASS` anyway, because only `drifted` overrode the verdict. A target
+        whose identity was never established could then satisfy the "PASS on
+        both probes" gate that decides what the adapter may be pointed at.
+        """
+        answer = json.dumps({"id": "x", "choices": [{"message": {
+            "role": "assistant", "tool_calls": [call("qodec_answer", ANSWER_ARGS, "call_ans")],
+        }}]}).encode()
+        receipt, _ = self.run_qualify([
+            (200, json.dumps({"id": "x", "choices": [{"message": {
+                "role": "assistant", "tool_calls": [call("qodec_intersect", INTERSECT_ARGS, "call_op")],
+            }}]}).encode(), ""),
+            (200, answer, ""),
+        ])
         self.assertEqual(receipt["model_status"], "missing")
+        self.assertNotEqual(receipt["classification"], "PASS")
+        self.assertEqual(receipt["classification"], "MODEL_IDENTITY_MISSING")
+        self.assertIn("unestablished", receipt["detail"])
         self.assertIsNone(receipt["turns"][1]["reported_model"])
+        # The protocol itself held — that is why the cause is about identity.
+        self.assertEqual(receipt["turns"][1]["outcome"], "terminal-answer")
+        self.assertTrue(receipt["tool_result_roundtrip"])
+
+    def test_one_named_turn_is_enough_to_establish_identity(self):
+        """`missing` folds worst-turn, so a single unnamed turn still fails."""
+        unnamed = json.dumps({"id": "x", "choices": [{"message": {
+            "role": "assistant", "tool_calls": [call("qodec_intersect", INTERSECT_ARGS, "call_op")],
+        }}]}).encode()
+        receipt, _ = self.run_qualify([(200, unnamed, ""), ANSWER_REPLY])
+        self.assertEqual(receipt["model_status"], "missing")
+        self.assertEqual(receipt["classification"], "MODEL_IDENTITY_MISSING")
+        self.assertEqual(receipt["reported_models"], [None, "openai/gpt-oss-120b"])
 
     def test_unparseable_arguments_are_malformed_not_a_protocol_violation(self):
         receipt, _ = self.run_qualify([(200, completion([call("qodec_answer", "{not json")]), "")])
@@ -349,6 +426,10 @@ class QualificationTests(unittest.TestCase):
              "PROVIDER_SUBSTITUTED"),
             (OPERATION_THEN((200, completion([call("qodec_answer", WRONG_ANSWER_ARGS, "call_ans")]), "")),
              "CANARY_ANSWER_MISMATCH"),
+            ([(200, completion([call("qodec_answer", json.loads(ANSWER_ARGS))]), "")], "DIALECT_MISMATCH"),
+            (OPERATION_THEN((200, json.dumps({"id": "x", "choices": [{"message": {
+                "role": "assistant", "tool_calls": [call("qodec_answer", ANSWER_ARGS, "call_ans")],
+            }}]}).encode(), "")), "MODEL_IDENTITY_MISSING"),
         ):
             receipt, _ = self.run_qualify(replies)
             self.assertEqual(receipt["classification"], expected)
@@ -562,17 +643,6 @@ class TransportHardeningTests(unittest.TestCase):
             "https://api.groq.com/openai/v1/chat/completions",
         )
 
-    def test_a_hostile_catalog_row_never_becomes_a_target(self):
-        """Fail closed at intake, so a bad row cannot reach a plan at all."""
-        with tempfile.TemporaryDirectory() as td:
-            source = Path(td) / "source.json"
-            source.write_text(json.dumps([{
-                "provider": "p", "model": "m",
-                "api_base": "http://exfiltrate.example/v1", "key_env": "K",
-            }]), encoding="utf-8")
-            with self.assertRaisesRegex(pm.EndpointRejected, "https"):
-                pm.import_catalog(source, "2026-07-28T00:00:00Z")
-
     def test_a_hand_edited_plan_is_still_refused_at_send_time(self):
         """Intake is the first gate, not the only one."""
         receipt = pm.qualify_target(
@@ -581,6 +651,200 @@ class TransportHardeningTests(unittest.TestCase):
         )
         self.assertEqual(receipt["classification"], "ENDPOINT_REJECTED")
         self.assertEqual(receipt["turns"], [])
+
+
+class TrustedRegistryTests(unittest.TestCase):
+    """https and a valid certificate do not make a stranger into Groq."""
+
+    def import_row(self, row, reg=None):
+        with tempfile.TemporaryDirectory() as td:
+            source = Path(td) / "source.json"
+            source.write_text(json.dumps([row]), encoding="utf-8")
+            return pm.import_catalog(source, "2026-07-28T00:00:00Z", reg or registry())
+
+    def test_a_valid_https_exfiltration_host_is_refused(self):
+        """The defect this registry exists for.
+
+        Every URL rule passes this row: it is https, it names a host, it carries
+        no userinfo, no query, no fragment, and it will not be redirected
+        anywhere. TLS then guarantees the credential arrives at `steal.example`
+        confidentially and intact. A certificate proves who answered, never that
+        they are the provider the row claims.
+        """
+        with self.assertRaisesRegex(pm.EndpointRejected, "trusted registry"):
+            self.import_row({
+                "provider": "groq", "model": "openai/gpt-oss-120b",
+                "api_base": "https://steal.example/v1", "key_env": "GROQ_API_KEY",
+            })
+
+    def test_an_arbitrary_key_env_is_refused(self):
+        """A row does not get to choose which secret is read out of the process."""
+        with self.assertRaisesRegex(pm.EndpointRejected, "key_env"):
+            self.import_row({
+                "provider": "groq", "model": "m",
+                "api_base": "https://example/v1", "key_env": "ANTHROPIC_API_KEY",
+            })
+
+    def test_a_provider_outside_the_registry_never_reaches_a_plan(self):
+        with self.assertRaisesRegex(pm.EndpointRejected, "not in the trusted registry"):
+            self.import_row({"provider": "unheard-of", "model": "m"})
+
+    def test_a_row_that_omits_origin_and_key_is_fine(self):
+        """Discovery supplies provider, model and metadata. Nothing more."""
+        catalog = self.import_row({
+            "provider": "groq", "model": "m", "free_tier": "yes",
+            "source_url": "https://www.modelhubby.com/providers/",
+        })
+        target_row = catalog["targets"][0]
+        self.assertEqual(target_row["api_base"], "https://example/v1")
+        self.assertEqual(target_row["key_env"], "GROQ_API_KEY")
+        self.assertEqual(target_row["api_style"], "openai-chat")
+
+    def test_a_hand_edited_plan_cannot_repoint_a_provider(self):
+        """The catalog is not the only file that exists after review."""
+        edited = dict(target(), api_base="https://steal.example/v1")
+        receipt = pm.qualify_target(edited, surface(), 30.0, 6, scripted([]))
+        self.assertEqual(receipt["classification"], "ENDPOINT_REJECTED")
+        self.assertIn("steal.example", receipt["detail"])
+        self.assertEqual(receipt["turns"], [])
+
+    def test_a_hand_edited_plan_cannot_repoint_the_key(self):
+        edited = dict(target(), key_env="ANTHROPIC_API_KEY")
+        receipt = pm.qualify_target(edited, surface(), 30.0, 6, scripted([]))
+        self.assertEqual(receipt["classification"], "ENDPOINT_REJECTED")
+        self.assertIn("key_env", receipt["detail"])
+
+    def test_the_committed_registry_is_loadable_and_bound_to_this_target(self):
+        """The tests above use a stand-in; this one pins the real file."""
+        real = pm.load_registry()
+        self.assertEqual(real["schema"], pm.REGISTRY_SCHEMA)
+        groq = real["providers"]["groq"]
+        self.assertEqual(groq["api_base"], "https://api.groq.com/openai/v1")
+        self.assertEqual(groq["key_env"], "GROQ_API_KEY")
+        self.assertEqual(groq["api_style"], "openai-chat")
+
+    def test_a_registry_entry_must_itself_survive_the_url_rules(self):
+        with tempfile.TemporaryDirectory() as td:
+            path = Path(td) / "registry.json"
+            path.write_text(json.dumps({
+                "schema": pm.REGISTRY_SCHEMA,
+                "providers": {"p": {"api_base": "http://x/v1", "api_style": "openai-chat", "key_env": "K"}},
+            }), encoding="utf-8")
+            with self.assertRaisesRegex(pm.EndpointRejected, "https"):
+                pm.load_registry(path)
+
+    def test_the_url_rules_still_apply_to_a_registry_built_in_memory(self):
+        """`load_registry` is the usual door, not the only one.
+
+        Callers may pass a registry dict directly — the tests here do — so the
+        URL rules stay on the path that builds the request as well as on the one
+        that loads the file. Otherwise a registry that never went through
+        `load_registry` would hand the transport an origin nobody vetted.
+        """
+        plain = registry({"p": {"api_base": "http://x/v1", "api_style": "openai-chat", "key_env": "K"}})
+        with tempfile.TemporaryDirectory() as td:
+            source = Path(td) / "source.json"
+            source.write_text(json.dumps([{"provider": "p", "model": "m"}]), encoding="utf-8")
+            with self.assertRaisesRegex(pm.EndpointRejected, "https"):
+                pm.import_catalog(source, "2026-07-28T00:00:00Z", plain)
+
+        planned = {
+            "target_id": "p--m", "provider": "p", "model": "m",
+            "api_style": "openai-chat", "api_base": "http://x/v1", "key_env": "K",
+        }
+        receipt = pm.qualify_target(planned, surface(), 30.0, 6, scripted([]), plain)
+        self.assertEqual(receipt["classification"], "ENDPOINT_REJECTED")
+        self.assertIn("https", receipt["detail"])
+
+
+class StrictOpenAiDialectTests(unittest.TestCase):
+    """The canary must not accept a response the adapter will reject.
+
+    `api_style: openai-chat` is what is being qualified, and `OpenAiChatCompletions`
+    is what will consume the PASS. Accepting a looser shape here is the same
+    defect as paraphrasing the schemas, moved to the response side.
+    """
+
+    def run_qualify(self, message_body):
+        body = json.dumps({"id": "x", "model": "openai/gpt-oss-120b",
+                           "choices": [{"message": message_body}]}).encode()
+        return pm.qualify_target(target(), surface(), 30.0, 6, scripted([(200, body, "")]))
+
+    def test_object_arguments_are_a_dialect_mismatch_not_a_courtesy(self):
+        """Anthropic sends an object. That is a different adapter, not a nicety.
+
+        The canary used to accept both and call it politeness toward dialects.
+        It qualified a response `OpenAiChatCompletions` would refuse to
+        deserialize.
+        """
+        receipt = self.run_qualify({
+            "role": "assistant",
+            "tool_calls": [call("qodec_answer", json.loads(ANSWER_ARGS))],
+        })
+        self.assertEqual(receipt["classification"], "DIALECT_MISMATCH")
+        self.assertIn("JSON string", receipt["detail"])
+        self.assertNotEqual(receipt["classification"], "PASS")
+
+    def test_a_non_function_tool_call_type_is_rejected(self):
+        entry = call("qodec_answer", ANSWER_ARGS)
+        entry["type"] = "custom"
+        receipt = self.run_qualify({"role": "assistant", "tool_calls": [entry]})
+        self.assertEqual(receipt["classification"], "PROTOCOL_VIOLATION")
+        self.assertIn("'function'", receipt["detail"])
+
+    def test_a_missing_tool_call_type_is_rejected(self):
+        entry = call("qodec_answer", ANSWER_ARGS)
+        del entry["type"]
+        receipt = self.run_qualify({"role": "assistant", "tool_calls": [entry]})
+        self.assertEqual(receipt["classification"], "PROTOCOL_VIOLATION")
+
+    def test_duplicate_tool_call_ids_are_rejected(self):
+        """Results are returned keyed by id; two calls sharing one make it a guess."""
+        receipt = self.run_qualify({"role": "assistant", "tool_calls": [
+            call("qodec_lookup", json.dumps({"index": "line", "key": {"encoding": "base64url-nopad", "data": "YQ"}}), "same"),
+            call("qodec_intersect", INTERSECT_ARGS, "same"),
+        ]})
+        self.assertEqual(receipt["classification"], "PROTOCOL_VIOLATION")
+        self.assertIn("more than once", receipt["detail"])
+
+    def test_an_empty_tool_call_id_is_rejected(self):
+        receipt = self.run_qualify({"role": "assistant", "tool_calls": [call("qodec_answer", ANSWER_ARGS, "")]})
+        self.assertEqual(receipt["classification"], "PROTOCOL_VIOLATION")
+
+    def test_tool_calls_under_the_wrong_role_are_rejected(self):
+        receipt = self.run_qualify({"role": "tool", "tool_calls": [call("qodec_answer", ANSWER_ARGS)]})
+        self.assertEqual(receipt["classification"], "PROTOCOL_VIOLATION")
+        self.assertIn("assistant", receipt["detail"])
+
+    def test_tool_calls_that_are_not_an_array_are_rejected(self):
+        receipt = self.run_qualify({"role": "assistant", "tool_calls": {"0": call("qodec_answer", ANSWER_ARGS)}})
+        self.assertEqual(receipt["classification"], "PROTOCOL_VIOLATION")
+
+    def test_non_string_non_object_arguments_are_rejected(self):
+        entry = call("qodec_answer", ANSWER_ARGS)
+        entry["function"]["arguments"] = 42
+        receipt = self.run_qualify({"role": "assistant", "tool_calls": [entry]})
+        self.assertEqual(receipt["classification"], "PROTOCOL_VIOLATION")
+
+    def test_the_replay_echoes_the_providers_own_tool_calls(self):
+        """Verbatim means the provider's array, not one rebuilt from our view.
+
+        A rebuilt array drops fields the parser does not model and re-encodes
+        the arguments, so a provider that only accepts its own emission back
+        would fail for a reason this canary invented.
+        """
+        emitted = call("qodec_intersect", INTERSECT_ARGS, "call_op")
+        emitted["index"] = 0          # a field the parser does not model
+        body = json.dumps({"id": "x", "model": "openai/gpt-oss-120b", "choices": [{"message": {
+            "role": "assistant", "content": None, "tool_calls": [emitted],
+        }}]}).encode()
+        send = scripted([(200, body, ""), ANSWER_REPLY])
+        receipt = pm.qualify_target(target(), surface(), 30.0, 6, send)
+        self.assertEqual(receipt["classification"], "PASS")
+        replayed = json.loads(send.seen[1][1])["messages"][2]["tool_calls"]
+        self.assertEqual(replayed, [emitted])
+        self.assertEqual(replayed[0]["index"], 0)
+        self.assertEqual(replayed[0]["function"]["arguments"], INTERSECT_ARGS)
 
     def test_redirects_are_disabled_in_the_opener(self):
         """Not "we classify 3xx" — the handler must not be able to follow one."""
@@ -658,15 +922,61 @@ class TransportHardeningTests(unittest.TestCase):
         self.assertEqual((sent.status, sent.body, sent.stage), (302, b"moved", "completed"))
         self.assertEqual(pm.classify_qualify_http(302, b"moved", False)[0], "REDIRECT_NOT_FOLLOWED")
 
-    def test_an_oversize_error_body_stops_after_headers(self):
+    def test_an_oversize_error_body_keeps_the_status_it_already_had(self):
+        """`status is None` must mean "no headers", nothing else.
+
+        Losing the body is not a reason to also forget that the provider said
+        401 — that is the most useful fact in the exchange, and filing it as a
+        nameless capture failure discards it.
+        """
         err = urllib.error.HTTPError(
-            "https://api.example/v1", 500, "boom", {}, io.BytesIO(b"z" * 300),
+            "https://api.example/v1", 401, "nope", {"x-request-id": "req-77"}, io.BytesIO(b"z" * 300),
         )
         with patch.object(pm._OPENER, "open", side_effect=err):
             sent = pm.send_json("https://api.example/v1", b"{}", "k", 1, limit=100)
         self.assertEqual(sent.stage, "after-headers")
-        self.assertIsNone(sent.status)
+        self.assertEqual(sent.status, 401)
+        self.assertIsNone(sent.body)
+        self.assertEqual(sent.body_bytes_observed, 101)
+        self.assertEqual(sent.request_id, "req-77")
         self.assertIn("exceeded", sent.detail)
+
+    def test_a_lost_body_on_a_success_keeps_its_status_too(self):
+        class Response:
+            status = 200
+            headers = {"x-groq-request-id": "req-42"}
+
+            def read(self, size=-1):
+                return b"z" * 300
+
+            def __enter__(self):
+                return self
+
+            def __exit__(self, *exc):
+                return False
+
+        with patch.object(pm._OPENER, "open", side_effect=lambda *a, **k: Response()):
+            sent = pm.send_json("https://api.example/v1", b"{}", "k", 1, limit=100)
+        self.assertEqual((sent.stage, sent.status), ("after-headers", 200))
+        self.assertEqual(sent.request_id, "req-42")
+
+    def test_a_status_of_none_means_no_headers_ever_arrived(self):
+        with patch.object(pm._OPENER, "open", side_effect=urllib.error.URLError("refused")):
+            sent = pm.send_json("https://api.example/v1", b"{}", "k", 1)
+        self.assertIsNone(sent.status)
+        self.assertEqual(sent.stage, "before-response")
+
+    def test_the_receipt_keeps_the_status_when_the_body_is_lost(self):
+        receipt = pm.qualify_target(
+            target(), surface(), 30.0, 6,
+            scripted([(401, None, "response body exceeded", "after-headers", 4194305, "req-3")]),
+        )
+        self.assertEqual(receipt["classification"], "RESPONSE_CAPTURE_FAILED")
+        self.assertIn("HTTP 401", receipt["detail"])
+        turn = receipt["turns"][0]
+        self.assertEqual(turn["http_status"], 401)
+        self.assertEqual(turn["body_bytes_observed"], 4194305)
+        self.assertEqual(turn["request_id"], "req-3")
 
     def test_a_connect_failure_stops_before_the_response(self):
         with patch.object(pm._OPENER, "open", side_effect=urllib.error.URLError("refused")):

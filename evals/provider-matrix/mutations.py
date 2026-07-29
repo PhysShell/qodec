@@ -85,12 +85,18 @@ MUTATIONS = [
     ("C6 a lost body after headers called unavailability",
      "    \"after-headers\": \"RESPONSE_CAPTURE_FAILED\",",
      "    \"after-headers\": \"UNAVAILABLE\","),
-    ("C7 endpoint not re-checked at send time",
-     "    try:\n        url = completions_url(base)\n    except EndpointRejected as exc:",
-     "    try:\n        url = base + COMPLETIONS_PATH\n    except EndpointRejected as exc:"),
-    ("C8 hostile row admitted at intake",
+    ("C7 qualify builds the URL without applying the rules",
+     "        url = completions_url(base)",
+     "        url = base + COMPLETIONS_PATH"),
+    ("C8 the probe builds the URL without applying the rules",
+     "        url = completions_url(target[\"api_base\"])",
+     "        url = target[\"api_base\"] + COMPLETIONS_PATH"),
+    ("C9 an unvetted origin admitted at intake",
      "    try:\n        completions_url(api_base)\n    except EndpointRejected as exc:",
      "    try:\n        pass\n    except EndpointRejected as exc:"),
+    ("C10 a registry file is loaded without vetting its origins",
+     "        completions_url(entry[\"api_base\"])",
+     "        pass"),
 
     # -- D: the drifting model kept in evidence --
     ("D1 reported_model overwritten each turn",
@@ -102,6 +108,61 @@ MUTATIONS = [
     ("D3 drift detail names the requested model back at us",
      "                    f\"requested {target['model']}, provider reported {', '.join(substituted)}\"",
      "                    f\"requested {target['model']}, provider reported {receipt['reported_models'][-1]}\""),
+
+    # -- E: the trusted provider registry --
+    ("E1 a catalog row's api_base and key_env regain authority",
+     "        if isinstance(claimed, str) and claimed.strip().rstrip(\"/\") != entry[field].rstrip(\"/\"):",
+     "        if False:"),
+    ("E2 an unknown provider gets a default origin instead of a refusal",
+     "    entry = registry[\"providers\"].get(provider)",
+     "    entry = registry[\"providers\"].get(provider) or "
+     "{\"api_base\": \"https://steal.example/v1\", \"api_style\": \"openai-chat\", \"key_env\": \"GROQ_API_KEY\"}"),
+    ("E3 the plan is not re-checked against the registry before send",
+     "        verify_against_registry(target, registry)\n        url = completions_url(base)",
+     "        url = completions_url(base)"),
+    ("E4 the probe skips the registry check",
+     "        verify_against_registry(target, registry)\n        url = completions_url(target[\"api_base\"])",
+     "        url = completions_url(target[\"api_base\"])"),
+
+    # -- F: only a verified model identity may pass --
+    ("F1 a run whose model was never named still passes qualification",
+     "            elif status != \"verified\":",
+     "            elif False:"),
+    ("F2 a probe whose model was never named still passes",
+     "    elif status_of_model == \"missing\":",
+     "    elif False:"),
+
+    # -- G: the status survives a lost body --
+    ("G1 an error status is discarded when its body is lost",
+     "            return SendResult(exc.code, None, str(read_exc), \"after-headers\", observed, request_id)",
+     "            return SendResult(None, None, str(read_exc), \"after-headers\", observed, request_id)"),
+    ("G2 a success status is discarded when its body is lost",
+     "        return SendResult(status, None, str(exc), \"after-headers\", observed, request_id)",
+     "        return SendResult(None, None, str(exc), \"after-headers\", observed, request_id)"),
+    ("G3 the receipt drops a status it was handed",
+     "        if status is not None:\n            record[\"http_status\"] = status",
+     "        if False:\n            record[\"http_status\"] = status"),
+    ("G4 observed byte count not carried out of the bounded read",
+     "        raise BodyTooLarge(len(raw), limit)",
+     "        raise ValueError(f\"response body exceeded {limit} bytes\")"),
+
+    # -- H: the strict openai-chat response contract --
+    ("H1 object arguments no longer named as a different dialect",
+     "        if isinstance(arguments, (dict, list)):",
+     "        if False:"),
+    ("H2 tool_call.type not checked",
+     "        if kind != \"function\":",
+     "        if False:"),
+    ("H3 duplicate tool_call ids accepted",
+     "        if call_id in seen_ids:",
+     "        if False:"),
+    ("H4 tool calls accepted under any role",
+     "    if role != \"assistant\":",
+     "    if False:"),
+    ("H5 the replay rebuilds the tool calls instead of echoing them",
+     "            \"tool_calls\": message[\"tool_calls\"],",
+     "            \"tool_calls\": [{\"id\": c[\"id\"], \"type\": \"function\", \"function\": "
+     "{\"name\": c[\"name\"], \"arguments\": c[\"raw_arguments\"]}} for c, _ in decoded],"),
 ]
 
 

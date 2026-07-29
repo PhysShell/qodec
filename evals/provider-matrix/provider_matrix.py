@@ -103,9 +103,90 @@ def source_rows(raw: Any) -> list[dict[str, Any]]:
 COMPLETIONS_PATH = "/chat/completions"
 MAX_RESPONSE_BYTES = 4 * 1024 * 1024
 
+REGISTRY_SCHEMA = "qodec-provider-registry-v1"
+REGISTRY_PATH = Path(__file__).resolve().parent / "trusted-providers.json"
+
+# Headers providers use to name the generation. Kept because it is the only
+# handle support has when a body is lost after the headers arrived.
+REQUEST_ID_HEADERS = ("x-request-id", "x-groq-request-id", "openai-request-id", "request-id")
+
 
 class EndpointRejected(ValueError):
     """The catalog named an endpoint this transport will not send a key to."""
+
+
+def load_registry(path: Path | None = None) -> dict[str, Any]:
+    """The trusted `provider -> origin + key_env` binding, from outside the catalog.
+
+    `https` and a valid certificate prove that the connection to
+    `steal.example` is confidential. They prove nothing about whether
+    `steal.example` is Groq. A row naming provider `groq` with an `api_base`
+    somebody else chose is a correctly encrypted delivery of our credential to a
+    stranger, and every URL rule in this file passes it.
+
+    So origin and key are not the catalog's to supply. They live here, in a file
+    that changes only by reviewed commit; discovery contributes the provider
+    name, the model, the free-tier metadata and its own provenance, and nothing
+    that carries authority.
+    """
+    registry = read_json(path or REGISTRY_PATH)
+    if registry.get("schema") != REGISTRY_SCHEMA:
+        raise ValueError(f"expected {REGISTRY_SCHEMA}, got {registry.get('schema')!r}")
+    providers = registry.get("providers")
+    if not isinstance(providers, dict) or not providers:
+        raise ValueError("the trusted registry declares no providers")
+    for name, entry in providers.items():
+        for field in ("api_base", "api_style", "key_env"):
+            if not isinstance(entry.get(field), str) or not entry[field].strip():
+                raise ValueError(f"trusted provider {name!r} is missing {field}")
+        completions_url(entry["api_base"])
+    return registry
+
+
+def trusted_entry(registry: dict[str, Any], provider: str) -> dict[str, Any]:
+    entry = registry["providers"].get(provider)
+    if entry is None:
+        known = ", ".join(sorted(registry["providers"]))
+        raise EndpointRejected(
+            f"provider {provider!r} is not in the trusted registry (known: {known}); "
+            "add it in a reviewed commit rather than through a catalog row"
+        )
+    return entry
+
+
+def bind_to_registry(row: dict[str, Any], provider: str, model: str, registry: dict[str, Any]) -> dict[str, Any]:
+    """Take origin, key name and dialect from the registry — never from the row.
+
+    A row that also carries them is not quietly overruled: disagreement is
+    reported. Silently ignoring a hostile `api_base` would mean a tampered
+    catalog produces a perfectly valid plan and nobody ever learns it was
+    tampered with.
+    """
+    entry = trusted_entry(registry, provider)
+    for field in ("api_base", "key_env", "api_style"):
+        claimed = row.get(field)
+        if isinstance(claimed, str) and claimed.strip().rstrip("/") != entry[field].rstrip("/"):
+            raise EndpointRejected(
+                f"{provider}/{model}: catalog claims {field}={claimed.strip()!r}, "
+                f"trusted registry says {entry[field]!r}"
+            )
+    return entry
+
+
+def verify_against_registry(target: dict[str, Any], registry: dict[str, Any]) -> None:
+    """Re-check a planned target immediately before the key is attached.
+
+    Intake is the first gate, not the only one: a plan is a reviewed file that
+    still sits on disk afterwards, and an edited one must not be able to point a
+    provider name at somebody else's host.
+    """
+    entry = trusted_entry(registry, target["provider"])
+    for field in ("api_base", "key_env", "api_style"):
+        if str(target.get(field, "")).rstrip("/") != entry[field].rstrip("/"):
+            raise EndpointRejected(
+                f"{target['target_id']}: {field}={target.get(field)!r} does not match the "
+                f"trusted registry ({entry[field]!r})"
+            )
 
 
 def completions_url(api_base: str) -> str:
@@ -156,20 +237,66 @@ class SendResult(NamedTuple):
     retryable; a failure while reading the body means the provider already
     generated, already billed, and the response is simply lost. Calling the
     second one "unavailable" would invite a retry that pays twice.
+
+    `status is None` means one thing only: **no headers were ever received.** A
+    body lost after the headers keeps the status, because by then the provider
+    has already said something — losing a 401 and filing it as a nameless
+    capture failure discards the most useful fact in the exchange. `request_id`
+    and `body_bytes_observed` are kept for the same reason: when the body is
+    gone, they are all support has to go on.
     """
 
     status: int | None
     body: bytes | None
     detail: str = ""
     stage: str = "before-response"  # before-response | after-headers | completed
+    body_bytes_observed: int | None = None
+    request_id: str | None = None
+
+
+class BodyTooLarge(ValueError):
+    """Carries how much was seen, so the receipt is not left saying only "lost"."""
+
+    def __init__(self, observed: int, limit: int) -> None:
+        super().__init__(f"response body exceeded {limit} bytes (stopped after {observed})")
+        self.observed = observed
+
+
+def as_send_result(value: Any) -> SendResult:
+    """Accept a `SendResult`, or a positional tuple from an injected `send`.
+
+    A three-field tuple carries no stage, and only one reading of it is
+    consistent: a status means the exchange completed, no status means nothing
+    arrived. Spelled out here rather than as a NamedTuple default, because a
+    default cannot depend on another field — and defaulting to "completed"
+    unconditionally would quietly turn every transport failure into a 200.
+    """
+    if isinstance(value, SendResult):
+        return value
+    fields = tuple(value)
+    result = SendResult(*fields)
+    if len(fields) >= 4:
+        return result
+    return result._replace(stage="completed" if result.status is not None else "before-response")
 
 
 def read_bounded(stream: Any, limit: int) -> bytes:
     """Read at most `limit` bytes, and say so rather than truncating in silence."""
     raw = stream.read(limit + 1)
     if len(raw) > limit:
-        raise ValueError(f"response body exceeded {limit} bytes")
+        raise BodyTooLarge(len(raw), limit)
     return raw
+
+
+def request_id_of(headers: Any) -> str | None:
+    for name in REQUEST_ID_HEADERS:
+        try:
+            value = headers.get(name)
+        except AttributeError:
+            return None
+        if value:
+            return str(value)
+    return None
 
 
 def send_json(url: str, body: bytes, key: str, timeout: float, limit: int = MAX_RESPONSE_BYTES) -> SendResult:
@@ -185,12 +312,14 @@ def send_json(url: str, body: bytes, key: str, timeout: float, limit: int = MAX_
     except urllib.error.HTTPError as exc:
         # Headers arrived. The body is the provider's own words about why, and
         # 3xx lands here too because the redirect handler refused to follow it.
+        request_id = request_id_of(exc.headers)
         try:
             with exc:
                 raw = read_bounded(exc, limit)
         except (OSError, ValueError) as read_exc:
-            return SendResult(None, None, str(read_exc), "after-headers")
-        return SendResult(exc.code, raw, "", "completed")
+            observed = getattr(read_exc, "observed", None)
+            return SendResult(exc.code, None, str(read_exc), "after-headers", observed, request_id)
+        return SendResult(exc.code, raw, "", "completed", len(raw), request_id)
     except TimeoutError:
         return SendResult(None, None, "timeout", "before-response")
     except urllib.error.URLError as exc:
@@ -198,13 +327,17 @@ def send_json(url: str, body: bytes, key: str, timeout: float, limit: int = MAX_
         detail = "timeout" if isinstance(reason, TimeoutError) else str(reason)
         return SendResult(None, None, detail, "before-response")
 
+    status = None
+    request_id = None
     try:
         with response:
             status = response.status
+            request_id = request_id_of(getattr(response, "headers", None))
             raw = read_bounded(response, limit)
     except (OSError, ValueError) as exc:
-        return SendResult(None, None, str(exc), "after-headers")
-    return SendResult(status, raw, "", "completed")
+        observed = getattr(exc, "observed", None)
+        return SendResult(status, None, str(exc), "after-headers", observed, request_id)
+    return SendResult(status, raw, "", "completed", len(raw), request_id)
 
 
 def key_bound_sender(key_env: str):
@@ -223,18 +356,19 @@ def key_bound_sender(key_env: str):
     return send
 
 
-def normalize_target(row: dict[str, Any]) -> dict[str, Any]:
+def normalize_target(row: dict[str, Any], registry: dict[str, Any]) -> dict[str, Any]:
     provider = required_text(row, "provider").lower()
     model = required_text(row, "model")
-    api_style = str(row.get("api_style", "openai-chat")).strip().lower()
+    entry = bind_to_registry(row, provider, model, registry)
+    api_style = entry["api_style"]
     if api_style != "openai-chat":
         raise ValueError(f"unsupported api_style {api_style!r}; only openai-chat is qualified")
-    api_base = required_text(row, "api_base").rstrip("/")
+    api_base = entry["api_base"].rstrip("/")
     try:
         completions_url(api_base)
     except EndpointRejected as exc:
         raise EndpointRejected(f"{provider}/{model}: {exc}") from exc
-    key_env = required_text(row, "key_env")
+    key_env = entry["key_env"]
     target = {
         "target_id": f"{provider}--{model}",
         "provider": provider,
@@ -251,10 +385,11 @@ def normalize_target(row: dict[str, Any]) -> dict[str, Any]:
     return target
 
 
-def import_catalog(source: Path, observed_at: str) -> dict[str, Any]:
+def import_catalog(source: Path, observed_at: str, registry: dict[str, Any] | None = None) -> dict[str, Any]:
+    registry = registry if registry is not None else load_registry()
     raw_bytes = source.read_bytes()
     rows = source_rows(json.loads(raw_bytes))
-    targets = [normalize_target(row) for row in rows]
+    targets = [normalize_target(row, registry) for row in rows]
     targets.sort(key=lambda row: (row["provider"], row["model"], row["api_base"]))
     ids = [row["target_id"] for row in targets]
     if len(ids) != len(set(ids)):
@@ -266,6 +401,9 @@ def import_catalog(source: Path, observed_at: str) -> dict[str, Any]:
             "observed_at": observed_at,
             "raw_sha256": sha256_bytes(raw_bytes),
         },
+        # The registry the origins came from, so a catalog cannot be replayed
+        # later against a different one without the change being visible.
+        "registry_sha256": sha256_bytes(canonical_bytes(registry)),
         "targets": targets,
     }
 
@@ -334,7 +472,13 @@ def classify_http(status: int) -> str:
     return "HTTP_FAILURE"
 
 
-def probe_target(target: dict[str, Any], timeout: float, send: Any = None) -> dict[str, Any]:
+def probe_target(
+    target: dict[str, Any],
+    timeout: float,
+    send: Any = None,
+    registry: dict[str, Any] | None = None,
+) -> dict[str, Any]:
+    registry = registry if registry is not None else load_registry()
     started = time.time()
     request_body = canonical_bytes({
         "model": target["model"],
@@ -350,6 +494,7 @@ def probe_target(target: dict[str, Any], timeout: float, send: Any = None) -> di
         "request_sha256": sha256_bytes(request_body),
     }
     try:
+        verify_against_registry(target, registry)
         url = completions_url(target["api_base"])
     except EndpointRejected as exc:
         result.update(classification="ENDPOINT_REJECTED", detail=str(exc))
@@ -357,12 +502,15 @@ def probe_target(target: dict[str, Any], timeout: float, send: Any = None) -> di
     result["endpoint"] = url
 
     send = send if send is not None else key_bound_sender(target["key_env"])
-    sent = SendResult(*send(url, request_body, timeout))
+    sent = as_send_result(send(url, request_body, timeout))
     latency = round((time.time() - started) * 1000)
-    if sent.status is None:
+    if sent.request_id:
+        result["request_id"] = sent.request_id
+    if sent.stage != "completed":
         # A body-read failure is not unavailability: the provider answered, the
         # generation exists, and it will appear on the bill. Retrying it is a
-        # decision, not a formality, so it gets its own name.
+        # decision, not a formality, so it gets its own name — and keeps the
+        # status the provider already sent.
         if sent.stage == "no-credential":
             kind = "AUTH_FAILURE"
         elif sent.stage == "after-headers":
@@ -370,6 +518,11 @@ def probe_target(target: dict[str, Any], timeout: float, send: Any = None) -> di
         else:
             kind = "TIMEOUT" if sent.detail == "timeout" else "TRANSPORT_FAILURE"
         result.update(classification=kind, detail=sent.detail, latency_ms=latency)
+        if sent.status is not None:
+            result["http_status"] = sent.status
+            result["detail"] = f"HTTP {sent.status}: {sent.detail}"
+        if sent.body_bytes_observed is not None:
+            result["body_bytes_observed"] = sent.body_bytes_observed
         return result
 
     status, raw = sent.status, sent.body or b""
@@ -396,8 +549,17 @@ def probe_target(target: dict[str, Any], timeout: float, send: Any = None) -> di
         result["classification"] = "INVALID_OUTPUT"
         return result
     result["reported_model"] = reported_model
-    if reported_model and reported_model != target["model"]:
+    # Three-valued, like the qualification side. The old `if reported_model and
+    # ...` let a response that named no model fall through to PASS whenever the
+    # text happened to be right, so a target whose identity was never
+    # established could satisfy the "PASS on both probes" gate.
+    status_of_model = model_status_of(target["model"], reported_model)
+    result["model_status"] = status_of_model
+    if status_of_model == "drifted":
         result["classification"] = "PROVIDER_SUBSTITUTED"
+    elif status_of_model == "missing":
+        result["classification"] = "MODEL_IDENTITY_MISSING"
+        result["detail"] = "the response named no model; identity unestablished"
     elif content != "QODEC_PROBE_OK":
         result["classification"] = "INVALID_OUTPUT"
     else:
@@ -441,16 +603,30 @@ CLASSIFICATIONS = (
     "AUTH_FAILED",
     "RATE_LIMITED",
     "PROVIDER_REJECTED",
+    # `MODEL_MISSING` is HTTP 404: the provider has no such model. It is not the
+    # same finding as a 200 that never says which model produced it, which is
+    # why that one is `MODEL_IDENTITY_MISSING` and not a reuse of this name.
     "MODEL_MISSING",
+    "MODEL_IDENTITY_MISSING",
     "PROVIDER_SUBSTITUTED",
     "TOOL_CHOICE_UNSUPPORTED",
     "TOOL_RESULT_REJECTED",
+    "DIALECT_MISMATCH",
     "MALFORMED_TOOL_ARGUMENTS",
     "PROTOCOL_VIOLATION",
     "NO_TERMINAL_ANSWER",
     "CANARY_ANSWER_MISMATCH",
     "PASS",
 )
+
+# Only a verified identity may pass. `drifted` and `missing` are different
+# failures — one names the wrong model, the other names none — and both make the
+# run say nothing about the target that was asked for.
+MODEL_STATUS_VERDICT = {
+    "verified": "PASS",
+    "drifted": "PROVIDER_SUBSTITUTED",
+    "missing": "MODEL_IDENTITY_MISSING",
+}
 
 # A transport that stopped before any headers may not have been served at all;
 # one that stopped after them produced a generation somebody is paying for.
@@ -666,39 +842,82 @@ def classify_qualify_http(status: int, body: bytes, carried_tool_results: bool) 
     return "PROVIDER_REJECTED", detail
 
 
-def parse_tool_calls(message: dict[str, Any]) -> tuple[list[dict[str, Any]], str | None]:
-    """Normalize `assistant.tool_calls`, or say why it could not be read."""
+def parse_tool_calls(message: dict[str, Any]) -> tuple[list[dict[str, Any]], tuple[str, str] | None]:
+    """Read `assistant.tool_calls` under the OpenAI-chat contract, strictly.
+
+    This vertical qualifies `api_style: openai-chat`, and the adapter that will
+    consume a PASS is `OpenAiChatCompletions`. A canary that accepted a looser
+    shape than the adapter would hand out a PASS for a response the adapter
+    rejects — the same defect as paraphrasing the schemas, moved to the response
+    side. So the contract is exactly what a strict mapper requires:
+
+        message.role == "assistant"
+        tool_calls is a non-empty array
+        every tool_call.type == "function"
+        every id is a non-empty string, and unique within the response
+        function.name is a non-empty string
+        function.arguments is a JSON *string* (not an object)
+
+    Returns `(calls, problem)`, where `problem` is `(classification, detail)`.
+    """
+    role = message.get("role")
+    if role != "assistant":
+        return [], ("PROTOCOL_VIOLATION", f"tool calls arrived under role {role!r}, not 'assistant'")
     raw = message.get("tool_calls")
-    if not isinstance(raw, list) or not raw:
-        return [], "assistant message carried no tool_calls"
-    calls = []
+    if raw is None:
+        return [], ("NO_TERMINAL_ANSWER", "assistant message carried no tool_calls")
+    if not isinstance(raw, list):
+        return [], ("PROTOCOL_VIOLATION", f"tool_calls was {type(raw).__name__}, not an array")
+    if not raw:
+        return [], ("NO_TERMINAL_ANSWER", "assistant message carried an empty tool_calls array")
+
+    calls: list[dict[str, Any]] = []
+    seen_ids: set[str] = set()
     for entry in raw:
         if not isinstance(entry, dict):
-            return [], "a tool call was not an object"
-        function = entry.get("function")
+            return [], ("PROTOCOL_VIOLATION", "a tool call was not an object")
+        kind = entry.get("type")
+        if kind != "function":
+            # Not pedantry: a strict mapper switches on this field, and a call
+            # arriving as anything else is a shape it will not deserialize.
+            return [], ("PROTOCOL_VIOLATION", f"tool call type was {kind!r}, not 'function'")
         call_id = entry.get("id")
-        if not isinstance(function, dict) or not isinstance(call_id, str) or not call_id:
-            return [], "a tool call lacked an id or a function"
+        if not isinstance(call_id, str) or not call_id:
+            return [], ("PROTOCOL_VIOLATION", "a tool call lacked a non-empty string id")
+        if call_id in seen_ids:
+            # Results are returned keyed by id. Two calls sharing one id make the
+            # linkage ambiguous, and the ambiguity is resolved by whichever
+            # result happens to be written last.
+            return [], ("PROTOCOL_VIOLATION", f"tool call id {call_id!r} appeared more than once")
+        seen_ids.add(call_id)
+        function = entry.get("function")
+        if not isinstance(function, dict):
+            return [], ("PROTOCOL_VIOLATION", f"tool call {call_id} lacked a function object")
         name = function.get("name")
         if not isinstance(name, str) or not name:
-            return [], "a tool call lacked a function name"
-        calls.append({"id": call_id, "name": name, "raw_arguments": function.get("arguments")})
+            return [], ("PROTOCOL_VIOLATION", f"tool call {call_id} lacked a function name")
+        arguments = function.get("arguments")
+        if isinstance(arguments, (dict, list)):
+            # A coherent other dialect — Anthropic sends arguments as an object —
+            # not a malformed OpenAI response. Named separately because the fix
+            # is a different adapter, not a better prompt.
+            return [], (
+                "DIALECT_MISMATCH",
+                f"{name} arguments arrived as a JSON {type(arguments).__name__}; "
+                "openai-chat requires a JSON string",
+            )
+        if not isinstance(arguments, str):
+            return [], (
+                "PROTOCOL_VIOLATION",
+                f"{name} arguments were {type(arguments).__name__}, not a string",
+            )
+        calls.append({"id": call_id, "name": name, "raw_arguments": arguments})
     return calls, None
 
 
 def decode_arguments(call: dict[str, Any]) -> tuple[dict[str, Any] | None, str | None]:
-    """OpenAI-chat sends arguments as a JSON *string*; Anthropic sends an object.
-
-    Handling both is not politeness toward sloppy providers — it is the one
-    place where the two dialects genuinely differ in kind rather than in naming,
-    and a qualification that only accepted one would misreport the other as
-    malformed.
-    """
+    """Decode the JSON string `parse_tool_calls` already insisted on."""
     raw = call["raw_arguments"]
-    if isinstance(raw, dict):
-        return raw, None
-    if not isinstance(raw, str):
-        return None, f"arguments for {call['name']} were neither an object nor a string"
     try:
         parsed = json.loads(raw)
     except json.JSONDecodeError as exc:
@@ -784,6 +1003,7 @@ def qualify_target(
     timeout: float,
     max_turns: int,
     send: Any,
+    registry: dict[str, Any] | None = None,
 ) -> dict[str, Any]:
     """Run the C1 protocol shape against one provider × model target.
 
@@ -791,6 +1011,7 @@ def qualify_target(
     A qualification whose failure paths can only be exercised against a real
     provider is a qualification whose failure paths are never exercised.
     """
+    registry = registry if registry is not None else load_registry()
     base = target["api_base"]
     receipt: dict[str, Any] = {
         "schema": QUALIFY_SCHEMA,
@@ -817,6 +1038,9 @@ def qualify_target(
     }
 
     try:
+        # Identity of the destination before anything else: a valid https URL is
+        # not evidence that the host behind it is the provider the target names.
+        verify_against_registry(target, registry)
         url = completions_url(base)
     except EndpointRejected as exc:
         receipt.update(classification="ENDPOINT_REJECTED", detail=str(exc))
@@ -840,17 +1064,30 @@ def qualify_target(
             "request_bytes": len(body),
             "carried_tool_results": awaiting_roundtrip,
         }
-        sent = SendResult(*send(url, body, timeout))
+        sent = as_send_result(send(url, body, timeout))
         status, raw, detail = sent.status, sent.body, sent.detail
         record["response_sha256"] = sha256_bytes(raw) if raw is not None else None
-        if status is None:
+        # Whatever the provider managed to say is kept, even when the exchange
+        # failed. `http_status` is present here whenever headers arrived, which
+        # is exactly when it exists.
+        if status is not None:
+            record["http_status"] = status
+        if sent.request_id:
+            record["request_id"] = sent.request_id
+        if sent.body_bytes_observed is not None:
+            record["body_bytes_observed"] = sent.body_bytes_observed
+        if sent.stage != "completed":
             kind = STAGE_CAUSE.get(sent.stage, "UNAVAILABLE")
             record["outcome"] = STAGE_OUTCOME.get(sent.stage, "transport-failure")
             record["detail"] = detail
             receipt["turns"].append(record)
+            if status is not None:
+                # The status is the most useful thing left when the body is
+                # gone; burying it in a turn record and reporting a bare cause
+                # would throw away what the provider already told us.
+                detail = f"HTTP {status}: {detail}"
             receipt.update(classification=kind, detail=detail, turn_count=turn + 1)
             return receipt
-        record["http_status"] = status
         if not 200 <= status < 300:
             kind, message = classify_qualify_http(status, raw or b"", awaiting_roundtrip)
             record["outcome"] = "provider-rejected"
@@ -897,12 +1134,13 @@ def qualify_target(
         if isinstance(payload.get("usage"), dict):
             record["reported_usage"] = payload["usage"]
 
-        calls, why = parse_tool_calls(message)
-        if why:
-            record["outcome"] = "no-tool-call"
+        calls, problem = parse_tool_calls(message)
+        if problem:
+            kind, why = problem
+            record["outcome"] = "no-tool-call" if kind == "NO_TERMINAL_ANSWER" else "dialect-violation"
             record["detail"] = why
             receipt["turns"].append(record)
-            receipt.update(classification="NO_TERMINAL_ANSWER", detail=why, turn_count=turn + 1)
+            receipt.update(classification=kind, detail=why, turn_count=turn + 1)
             return receipt
         record["tool_names"] = [c["name"] for c in calls]
         record["tool_call_ids"] = [c["id"] for c in calls]
@@ -984,40 +1222,42 @@ def qualify_target(
             if answer_errors:
                 receipt["classification"] = "CANARY_ANSWER_MISMATCH"
                 receipt["detail"] = "; ".join(answer_errors)
-            if receipt["model_status"] == "drifted":
-                # Outranks both a protocol pass and a wrong answer: neither says
-                # anything about the target when the generation came from a model
-                # nobody asked for. The substituted names are the finding.
+            # Identity outranks both a protocol pass and a wrong answer. A run
+            # that satisfied every structural rule tells us nothing about the
+            # target unless we know which model produced it — and "the provider
+            # named none" is not a milder version of that than "it named another
+            # one". Both fail; only `verified` may pass.
+            status = receipt["model_status"]
+            if status == "drifted":
                 substituted = [
                     name for name in receipt["reported_models"]
                     if isinstance(name, str) and name != target["model"]
                 ]
-                receipt["classification"] = "PROVIDER_SUBSTITUTED"
+                receipt["classification"] = MODEL_STATUS_VERDICT["drifted"]
                 receipt["detail"] = (
                     f"requested {target['model']}, provider reported {', '.join(substituted)}"
+                )
+            elif status != "verified":
+                receipt["classification"] = MODEL_STATUS_VERDICT.get(status, "MODEL_IDENTITY_MISSING")
+                receipt["detail"] = (
+                    f"requested {target['model']}, and no successful response named a model; "
+                    "the protocol held but the identity of what produced it is unestablished"
                 )
             return receipt
 
         record["outcome"] = "operations"
         receipt["turns"].append(record)
         awaiting_roundtrip = True
-        # Replayed unchanged, with every result keyed to the call that asked for
-        # it. A tool result whose id does not match is the provider's most
-        # common reason to reject the next request, so the linkage is part of
-        # what is being qualified.
+        # The provider's own `tool_calls` array, echoed by reference rather than
+        # rebuilt from the parsed view. Reconstructing it would drop whatever
+        # fields the parser does not model and re-encode the arguments, so a
+        # provider that only accepts its own emission back would fail here for a
+        # reason this canary invented. Strictness above is what makes echoing
+        # safe: the array reached this point only by satisfying the contract.
         messages.append({
             "role": "assistant",
             "content": message.get("content"),
-            "tool_calls": [
-                {
-                    "id": c["id"],
-                    "type": "function",
-                    "function": {"name": c["name"], "arguments": c["raw_arguments"]
-                                 if isinstance(c["raw_arguments"], str)
-                                 else json.dumps(c["raw_arguments"], sort_keys=True)},
-                }
-                for c, _ in decoded
-            ],
+            "tool_calls": message["tool_calls"],
         })
         for call, _args in decoded:
             messages.append({
@@ -1034,11 +1274,19 @@ def qualify_target(
     return receipt
 
 
+def add_registry_flag(parser_: argparse.ArgumentParser) -> None:
+    parser_.add_argument(
+        "--registry", type=Path, default=REGISTRY_PATH,
+        help="trusted provider -> origin + key_env bindings (default: the committed registry)",
+    )
+
+
 def parser() -> argparse.ArgumentParser:
     p = argparse.ArgumentParser()
     sub = p.add_subparsers(dest="command", required=True)
     imp = sub.add_parser("import")
     imp.add_argument("--source", type=Path, required=True)
+    add_registry_flag(imp)
     imp.add_argument("--observed-at", required=True, help="UTC ISO-8601 timestamp, supplied explicitly")
     imp.add_argument("--out", type=Path, required=True)
     plan = sub.add_parser("plan")
@@ -1051,12 +1299,14 @@ def parser() -> argparse.ArgumentParser:
     probe.add_argument("--plan", type=Path, required=True)
     probe.add_argument("--out-dir", type=Path, required=True)
     probe.add_argument("--timeout", type=float, default=30.0)
+    add_registry_flag(probe)
     qualify = sub.add_parser("qualify")
     qualify.add_argument("--plan", type=Path, required=True)
     qualify.add_argument("--surface", type=Path, required=True)
     qualify.add_argument("--out-dir", type=Path, required=True)
     qualify.add_argument("--timeout", type=float, default=60.0)
     qualify.add_argument("--max-turns", type=int, default=6)
+    add_registry_flag(qualify)
     return p
 
 
@@ -1064,29 +1314,31 @@ def main() -> int:
     args = parser().parse_args()
     try:
         if args.command == "import":
-            write_json(args.out, import_catalog(args.source, args.observed_at))
+            write_json(args.out, import_catalog(args.source, args.observed_at, load_registry(args.registry)))
         elif args.command == "plan":
             write_json(args.out, build_plan(read_json(args.catalog), args))
         elif args.command == "probe":
             plan = read_json(args.plan)
             if plan.get("schema") != PLAN_SCHEMA:
                 raise ValueError(f"expected {PLAN_SCHEMA}")
+            registry = load_registry(args.registry)
             args.out_dir.mkdir(parents=True, exist_ok=True)
             for target in plan["selected"]:
                 write_json(
                     args.out_dir / receipt_filename(target["target_id"]),
-                    probe_target(target, args.timeout),
+                    probe_target(target, args.timeout, None, registry),
                 )
         else:
             plan = read_json(args.plan)
             if plan.get("schema") != PLAN_SCHEMA:
                 raise ValueError(f"expected {PLAN_SCHEMA}")
             surface = load_surface(args.surface)
+            registry = load_registry(args.registry)
             args.out_dir.mkdir(parents=True, exist_ok=True)
             for target in plan["selected"]:
                 receipt = qualify_target(
                     target, surface, args.timeout, args.max_turns,
-                    key_bound_sender(target["key_env"]),
+                    key_bound_sender(target["key_env"]), registry,
                 )
                 write_json(args.out_dir / receipt_filename(target["target_id"]), receipt)
     except (OSError, ValueError, json.JSONDecodeError) as exc:

@@ -10,8 +10,8 @@ receipt per target.
 
 ```text
 ModelHubby/exported notes (untrusted, mutable)
-        ↓ import
-canonical catalog snapshot + raw SHA-256
+        ↓ import, bound to trusted-providers.json
+canonical catalog snapshot + raw SHA-256 + registry SHA-256
         ↓ plan
 fail-closed policy filters + explicit target IDs
         ↓ probe
@@ -19,24 +19,55 @@ one endpoint, one requested model, no fallback
         ↓
 PASS / AUTH_FAILURE / RATE_LIMITED / MODEL_NOT_FOUND /
 PROVIDER_5XX / TIMEOUT / TRANSPORT_FAILURE / INVALID_OUTPUT /
-PROVIDER_SUBSTITUTED / ENDPOINT_REJECTED / REDIRECT_NOT_FOLLOWED /
-RESPONSE_CAPTURE_FAILED
+PROVIDER_SUBSTITUTED / MODEL_IDENTITY_MISSING / ENDPOINT_REJECTED /
+REDIRECT_NOT_FOLLOWED / RESPONSE_CAPTURE_FAILED
 ```
 
 `unknown` never satisfies `--free-only`, `--no-card`, or `--no-training`.
 Provider-reported usage is retained as provider evidence, not normalized into a
 cross-provider token truth.
 
-## The catalog names the URL the credential is sent to
+## Discovery does not get to name the endpoint
 
-That is the sharp edge of treating discovery as untrusted, and it is not a
-policy question — it is a transport question. `urllib`'s defaults will send a
-bearer token over plaintext `http`, to a host smuggled in as userinfo, or to
-wherever a `302` points, that last one silently and after the key has already
-left the process.
+The sharp edge of treating discovery as untrusted is that a catalog row decides
+where a credential is sent. This row satisfies every URL rule below — https, a
+real host, no userinfo, no query, no fragment, no redirect:
 
-So `probe` and `qualify` share **one** transport, and it refuses the endpoint
-before the key is attached:
+```json
+{"provider": "groq", "model": "openai/gpt-oss-120b",
+ "api_base": "https://steal.example/v1", "key_env": "GROQ_API_KEY"}
+```
+
+TLS then delivers the key to `steal.example` confidentially and intact. A
+certificate proves who answered; it never proves they are Groq.
+
+So origin, key name and dialect are **not the catalog's to supply**. They live
+in `trusted-providers.json`, which changes only by reviewed commit:
+
+```json
+{"schema": "qodec-provider-registry-v1",
+ "providers": {"groq": {"api_base": "https://api.groq.com/openai/v1",
+                        "api_style": "openai-chat", "key_env": "GROQ_API_KEY"}}}
+```
+
+Discovery contributes `provider`, `model`, the free-tier metadata and its own
+provenance — nothing that carries authority. A row that *also* names an
+`api_base` or `key_env` is not silently overruled: a disagreement is reported,
+because quietly ignoring a hostile value means a tampered catalog produces a
+perfectly valid plan and nobody ever learns it was tampered with. A provider
+absent from the registry never becomes a target at all.
+
+Checked at `import`, and again immediately before the key is attached — a plan
+is a reviewed file that still sits on disk afterwards. The catalog records the
+`registry_sha256` its origins came from, so it cannot be replayed later against
+a different registry invisibly.
+
+## The transport itself
+
+`probe` and `qualify` share **one** transport, and it refuses the endpoint
+before the key is attached. `urllib`'s defaults will send a bearer token over
+plaintext `http`, to a host smuggled in as userinfo, or to wherever a `302`
+points — that last one silently, after the key has already left the process.
 
 | rule | rejected |
 | --- | --- |
@@ -47,14 +78,16 @@ before the key is attached:
 | redirects | all — the handler cannot follow one |
 | response body | bounded; the bound is on the `read`, not on a complaint after it |
 
-Enforced twice: at `import`, so a hostile row never reaches a plan, and again at
-send time, because a reviewed plan file can be edited afterwards.
-
 A failure is also classified by *when* it stopped. Nothing arrived before the
 headers → the request may never have been served, and `UNAVAILABLE` invites a
 retry. The body was lost after the headers → the generation exists and is on the
 bill, so it is `RESPONSE_CAPTURE_FAILED` and retrying it is a decision somebody
 makes on purpose.
+
+`status is None` means one thing only: **no headers were ever received.** A body
+lost after the headers keeps its status, its `request_id` and how many bytes were
+seen — losing a `401` and filing it as a nameless capture failure would discard
+the most useful fact in the exchange.
 
 ## Import and freeze
 
@@ -89,9 +122,11 @@ python3 evals/provider-matrix/provider_matrix.py probe \
 ```
 
 The canary asks for exactly `QODEC_PROBE_OK` with temperature zero and records
-the request/response hashes, endpoint, latency, requested model, reported
-model, classification, and provider usage when present. A different reported
-model is `PROVIDER_SUBSTITUTED`, never a pass.
+the request/response hashes, endpoint, latency, requested model, reported model,
+three-valued model status, classification, and provider usage when present. A
+different reported model is `PROVIDER_SUBSTITUTED`; **no** reported model is
+`MODEL_IDENTITY_MISSING`. Neither is a pass — the exact text plus an unnamed
+model is still a response whose origin was never established.
 
 ## Qualification: does the target speak the C1 protocol?
 
@@ -99,7 +134,7 @@ An availability probe sends no tools. A target can pass it and still be unable
 to run C1's forced-query arm at all, so `PASS` there means "alive and not
 substituted", not "usable". The arm needs four tool declarations accepted,
 forcing honoured, a multi-turn loop with results returned under their call ids,
-and a terminal answer whose arguments parse. Nothing in a bare completion
+and a terminal answer whose arguments validate. Nothing in a bare completion
 predicts any of that.
 
 `qualify` runs the structural contract of the arm — the same four tools, the
@@ -129,7 +164,7 @@ nothing more about whether the provider speaks this dialect.
 
 ```text
 operation observed
-  → the assistant's tool_calls replayed verbatim
+  → the provider's own tool_calls array echoed back by reference
   → role: tool results returned under their call ids
   → the provider answered that request successfully
   → and only now may qodec_answer terminate the run
@@ -141,6 +176,44 @@ message. That is `PROTOCOL_VIOLATION`, *terminal answer before any
 operation/tool-result roundtrip*, not a pass. The roundtrip counts when the
 **provider accepts** the request carrying the results; a 400 on that request is
 `TOOL_RESULT_REJECTED` and the roundtrip did not happen.
+
+### The response contract is the adapter's, not a lenient superset
+
+This vertical qualifies `api_style: openai-chat`, and the adapter that will
+consume a `PASS` is `OpenAiChatCompletions`. A canary that accepted a looser
+shape than the adapter would hand out a `PASS` for a response the adapter
+rejects — the same defect as paraphrasing the schemas, moved to the response
+side. So the contract is exactly what a strict mapper requires:
+
+```text
+message.role == "assistant"
+tool_calls is a non-empty array
+every tool_call.type == "function"
+every id is a non-empty string, and unique within the response
+function.arguments is a JSON *string*, decoding to an object
+```
+
+`arguments` arriving as an object is Anthropic's dialect, not a sloppy OpenAI
+response, so it is `DIALECT_MISMATCH` and not quietly repaired: the fix is a
+different adapter, not a better prompt. The provider's own `tool_calls` array is
+then echoed back **by reference** rather than rebuilt from the parsed view —
+rebuilding drops fields the parser does not model and re-encodes the arguments,
+so a provider that only accepts its own emission back would fail for a reason
+this canary invented.
+
+### Only a verified model identity may pass
+
+```text
+model_status == verified  → PASS
+model_status == drifted   → PROVIDER_SUBSTITUTED
+model_status == missing   → MODEL_IDENTITY_MISSING
+```
+
+`missing` is not a milder `drifted`. A successful response that names no model
+leaves the origin of the generation unestablished, and a target whose identity
+was never established must not satisfy the gate that decides what the adapter
+may be pointed at. This is distinct from `MODEL_MISSING`, which is HTTP 404 —
+the provider has no such model. Different fact, different name.
 
 ### Arguments are checked against the declared schemas
 
@@ -165,9 +238,9 @@ actions.
 ```
 ENDPOINT_REJECTED  UNAVAILABLE  RESPONSE_CAPTURE_FAILED  REDIRECT_NOT_FOLLOWED
 AUTH_FAILED  RATE_LIMITED  PROVIDER_REJECTED  MODEL_MISSING
-PROVIDER_SUBSTITUTED  TOOL_CHOICE_UNSUPPORTED  TOOL_RESULT_REJECTED
-MALFORMED_TOOL_ARGUMENTS  PROTOCOL_VIOLATION  NO_TERMINAL_ANSWER
-CANARY_ANSWER_MISMATCH  PASS
+MODEL_IDENTITY_MISSING  PROVIDER_SUBSTITUTED  TOOL_CHOICE_UNSUPPORTED
+TOOL_RESULT_REJECTED  DIALECT_MISMATCH  MALFORMED_TOOL_ARGUMENTS
+PROTOCOL_VIOLATION  NO_TERMINAL_ANSWER  CANARY_ANSWER_MISMATCH  PASS
 ```
 
 `TOOL_CHOICE_UNSUPPORTED` earns its own name because a 400 from an incompatible
@@ -196,7 +269,28 @@ per `target_id` for that reason.
 
 This is intentionally the thin discovery/probe layer. Full Qodec A/B runs stay
 in their existing eval harnesses and should consume only targets whose frozen
-receipts are `PASS` for **both** probes.
+receipts are `PASS` for **both** probes — which is exactly why neither may pass
+on an unestablished identity.
+
+## Adding a provider
+
+Edit `trusted-providers.json` in a reviewed commit. Nothing else grants a
+provider an origin or a key name, and the file is validated on load: every entry
+must carry `api_base`, `api_style` and `key_env`, and its `api_base` must survive
+the same URL rules as any other endpoint.
+
+```json
+{"schema": "qodec-provider-registry-v1",
+ "providers": {
+   "groq":     {"api_base": "https://api.groq.com/openai/v1",
+                "api_style": "openai-chat", "key_env": "GROQ_API_KEY"},
+   "<new>":    {"api_base": "https://…", "api_style": "openai-chat",
+                "key_env": "<PROVIDER>_API_KEY"}}}
+```
+
+`--registry` points the commands at a different file; that is an explicit local
+act, the same kind of act as editing this one, and it is recorded in the
+catalog's `registry_sha256`.
 
 ## Tests
 
@@ -212,11 +306,13 @@ python3 evals/provider-matrix/mutations.py
 ```
 
 `mutations.py` states each contract as its own negation — accept an immediate
-terminal answer, skip schema validation, send the credential over plaintext,
-lose the model that drifted — and requires the suite to turn red for every one.
-It verifies that each substitution actually applied before believing the result:
-an anchor that no longer matches runs a green suite and reports "not caught",
-which is the most convincing way to be wrong about a test.
+terminal answer, degrade validation to required keys, let a catalog row choose
+the origin or the key, follow a redirect, pass a run whose model was never
+named, discard a status when its body is lost, accept object arguments, rebuild
+the replayed tool calls — and requires the suite to turn red for every one. It
+verifies that each substitution actually applied before believing the result: an
+anchor that no longer matches runs a green suite and reports "not caught", which
+is the most convincing way to be wrong about a test.
 
 Every classification above except `NO_TERMINAL_ANSWER` is reached in one table
 in `test_every_classification_is_declared`, and that one has its own

@@ -1,0 +1,1 @@
+{"providers":{"groq":{"api_base":"https://api.groq.com/openai/v1","api_style":"openai-chat","key_env":"GROQ_API_KEY"}},"schema":"qodec-provider-registry-v1"}
