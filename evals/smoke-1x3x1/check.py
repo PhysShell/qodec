@@ -532,31 +532,7 @@ def self_test() -> None:
 # ---------------------------------------------------------------------------
 
 
-def publish(out_dir: Path, jsonl: bytes, text: bytes) -> None:
-    """Write the verified artifacts where CI can upload them.
-
-    Emitted by the gate rather than by a separate step that re-runs the driver
-    a third time. Fewer invocations is the smaller point; the larger one is that
-    an artifact produced by a *different* run than the one that was checked is
-    an artifact nobody checked.
-    """
-    out_dir.mkdir(parents=True, exist_ok=True)
-    (out_dir / "smoke.jsonl").write_bytes(jsonl)
-    (out_dir / "smoke.txt").write_bytes(text)
-
-
 def main() -> int:
-    out_dir: Path | None = None
-    args = sys.argv[1:]
-    i = 0
-    while i < len(args):
-        if args[i] == "--out-dir" and i + 1 < len(args):
-            out_dir = Path(args[i + 1])
-            i += 2
-        else:
-            print(f"FAIL unknown argument {args[i]!r}")
-            return 1
-
     self_test()
 
     with tempfile.TemporaryDirectory() as tmp:
@@ -597,9 +573,6 @@ def main() -> int:
         check_model_status(records)
         check_not_live(records)
         check_text_matches_jsonl(first_txt.read_text(encoding="utf-8"), records)
-
-        if out_dir is not None:
-            publish(out_dir, a, first_txt.read_bytes())
 
     if failures:
         print(f"\n{len(failures)} failure(s)")
