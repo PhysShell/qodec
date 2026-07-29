@@ -35,6 +35,18 @@ const FIXTURE: &str = "%q1 raw\n%q1 body\n\
 --- attempt_2 ---\nalpha\nbeta\n\
 --- attempt_3 ---\nalpha\ngamma\n";
 
+/// Every structural line of the fixture: container framing and section markers.
+///
+/// Derived from `FIXTURE` rather than listed by hand. A hardcoded list is a list
+/// that goes stale the first time a section is added, and it goes stale silently
+/// — the check keeps passing while covering less than it says.
+fn structural_markers() -> Vec<&'static str> {
+    FIXTURE
+        .lines()
+        .filter(|l| l.starts_with("%q1 ") || l.starts_with("--- "))
+        .collect()
+}
+
 fn plan() -> Result<StorePlan> {
     StorePlan::new(
         1,
@@ -280,8 +292,10 @@ fn main() -> Result<()> {
             }
         }
         let line = event.to_json().to_string();
-        if line.contains("--- attempt_1 ---") {
-            bail!("a non-materialize event leaked artifact text: {line}");
+        for marker in structural_markers() {
+            if line.contains(marker) {
+                bail!("a non-materialize event leaked artifact structure {marker:?}: {line}");
+            }
         }
     }
 

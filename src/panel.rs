@@ -314,8 +314,19 @@ fn array_of(item: serde_json::Value) -> serde_json::Value {
 }
 
 /// The result envelope both query tools return.
+///
+/// Describes the *payload* a successful call yields. The transcript wraps it in
+/// an `ok` discriminator so a refusal and a result are distinguishable in one
+/// stream; `ok` therefore belongs to the record rather than to the tool's return
+/// contract. The dry-run gate checks that relationship rather than trusting this
+/// paragraph — `outcome` minus `ok` must equal the declared `required` set.
+///
+/// Carries its own `$defs`: a schema document is validated on its own, so a
+/// `$ref` that resolves only because some *other* document happens to define
+/// the target is an unresolved reference wearing a working one's clothes.
 fn query_result_schema() -> serde_json::Value {
     obj(vec![
+        ("$defs", byte_envelope_defs()),
         ("type", "object".into()),
         (
             "required",
@@ -804,7 +815,10 @@ pub struct PanelSession {
 impl PanelSession {
     /// Open an artifact for the forced-query arm.
     ///
-    /// `artifact_text` is consumed here and never exposed again. No accessor on
+    /// `artifact_text` is *borrowed* — the caller keeps it, and this type makes
+    /// no claim about what the caller does with its own string. The guarantee is
+    /// narrower and is the one that matters: the session never re-exposes it. No
+    /// accessor on
     /// this type returns the payload, the decoded RAW, or any record's bytes
     /// except through [`PanelSession::materialize`], which is scoped to an
     /// issued result's own support.

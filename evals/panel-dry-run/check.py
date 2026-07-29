@@ -10,7 +10,9 @@ nothing:
 4. audit every byte envelope by location, and check plaintext containment;
 5. assert the expected event sequence for each case;
 6. assert the refusal case actually contains a refusal;
-7. leave the artifacts on disk for CI upload.
+7. exit non-zero on any disagreement. Artifact *retention* is the calling
+   workflow step's job — this script's own runs live in a temp dir, so do not
+   come looking for persistence logic here.
 
 Exit 0 on success, 1 on any failure, with the specific disagreement printed.
 """
@@ -19,6 +21,7 @@ from __future__ import annotations
 
 import base64
 import json
+import re
 import subprocess
 import sys
 import tempfile
@@ -39,7 +42,29 @@ GOLDEN = HERE / "golden"
 # The real claim is narrower and stronger: the *artifact* never crosses the
 # boundary. Container framing and section markers are structure the model would
 # only have if it had been handed the body, and no query returns them.
-STRUCTURE_MARKERS = ["%q1 raw", "%q1 body", "--- attempt_1 ---", "--- attempt_2 ---"]
+def _fixture_markers() -> list[str]:
+    """Derive the structural markers from the driver's own fixture.
+
+    Listed by hand, this went stale the moment a third section existed: the
+    check kept passing while covering less than it claimed. Parsing the fixture
+    means the two cannot disagree, and a parse that yields nothing is a failure
+    rather than an empty — and therefore vacuously satisfied — marker list.
+    """
+    src = (ROOT / "examples" / "panel_dry_run.rs").read_text(encoding="utf-8")
+    m = re.search(r'const FIXTURE: &str = "(.*?)";', src, re.S)
+    if not m:
+        raise SystemExit("FAIL cannot locate FIXTURE in examples/panel_dry_run.rs")
+    # Rust line continuations (backslash + newline + indentation) join the
+    # literal; then the usual escapes apply.
+    literal = re.sub(r"\\\n\s*", "", m.group(1))
+    text = literal.encode("utf-8").decode("unicode_escape")
+    markers = [l for l in text.split("\n") if l.startswith("%q1 ") or l.startswith("--- ")]
+    if not markers:
+        raise SystemExit("FAIL FIXTURE parsed to no structural markers")
+    return markers
+
+
+STRUCTURE_MARKERS = _fixture_markers()
 
 # Records that no query in either case ever names. If one of these surfaces, the
 # transcript is carrying data nobody asked for.
@@ -125,6 +150,13 @@ TOOL_INPUT_REQUIRED = {
     "qodec_intersect": ["index", "sections"],
     "qodec_materialize": ["handle", "record_ids"],
 }
+# What each tool's output_schema declares as required. The transcript's
+# `outcome` is this set plus the `ok` discriminator, and nothing else.
+TOOL_OUTPUT_REQUIRED = {
+    "qodec_lookup": ["handle", "candidate_count", "completion", "preview", "support"],
+    "qodec_intersect": ["handle", "candidate_count", "completion", "preview", "support"],
+    "qodec_materialize": ["records"],
+}
 BYTE_REF = {"$ref": "#/$defs/byteEnvelope"}
 TOOL_BYTE_FIELDS = {"qodec_lookup": ["key"]}
 
@@ -179,6 +211,14 @@ def validate_schema(case: str, events: list[dict]) -> list[str]:
                 bad += exact_keys(case, f"{at}.outcome", outcome, REFUSAL_OUTCOME_KEYS)
             elif tool == "qodec_materialize":
                 bad += exact_keys(case, f"{at}.outcome", outcome, MATERIALIZE_OUTCOME_KEYS)
+                declared = TOOL_OUTPUT_REQUIRED.get(tool)
+                if declared is not None:
+                    payload = sorted(set(outcome) - {"ok"})
+                    if payload != sorted(declared):
+                        bad.append(
+                            f"{case} {at}: outcome payload {payload} != declared "
+                            f"output_schema required {sorted(declared)}"
+                        )
             else:
                 bad += exact_keys(case, f"{at}.outcome", outcome, QUERY_OUTCOME_KEYS)
                 for field in ("preview", "support"):
@@ -186,6 +226,18 @@ def validate_schema(case: str, events: list[dict]) -> list[str]:
                         bad.append(
                             f"{case} {at}: {field!r} must be a list of envelopes — "
                             f"a count cannot be tokenized"
+                        )
+                # The declared output_schema describes the payload; the
+                # transcript adds `ok`. Asserted rather than explained, so the
+                # schema and the serialization cannot drift apart while a
+                # comment insists they agree.
+                declared = TOOL_OUTPUT_REQUIRED.get(tool)
+                if declared is not None:
+                    payload = sorted(set(outcome) - {"ok"})
+                    if payload != sorted(declared):
+                        bad.append(
+                            f"{case} {at}: outcome payload {payload} != declared "
+                            f"output_schema required {sorted(declared)}"
                         )
                 for rid in outcome.get("support", []) or []:
                     bad += exact_keys(case, f"{at}.outcome.support[]", rid, RECORD_ID_KEYS)
@@ -221,6 +273,25 @@ def validate_json_schema(case: str, where: str, schema) -> list[str]:
     for name in required or []:
         if isinstance(props, dict) and name not in props:
             bad.append(f"{case} {where}: required field {name!r} has no property")
+    # Every $ref must resolve inside this document. The gate checked required
+    # fields and closed objects and never once checked that a reference pointed
+    # at anything — so a schema could be exact, closed, and unusable by any
+    # validator that tried to follow it.
+    defs = schema.get("$defs")
+    for path, node in walk(schema, where):
+        ref = node.get("$ref") if isinstance(node, dict) else None
+        if ref is None:
+            continue
+        if not ref.startswith("#/$defs/"):
+            bad.append(f"{case} {path}: only local #/$defs/ references are allowed, got {ref!r}")
+            continue
+        target = ref[len("#/$defs/"):]
+        if not isinstance(defs, dict) or target not in defs:
+            bad.append(
+                f"{case} {path}: {ref} does not resolve in this schema document — "
+                f"a reference that only works because another document defines "
+                f"the target is unresolved with better manners"
+            )
     # Nested object schemas are held to the same rule. Checking only the top
     # level would let an inner shape stay open, which is the more comfortable
     # place to add a field nobody declared.
@@ -469,7 +540,9 @@ def main() -> int:
                     f"{case}: JSONL drifted from the golden\n"
                     f"  golden: {golden_j}\n  run:    {first_j}"
                 )
-            if golden_t.exists() and golden_t.read_bytes() != first_t.read_bytes():
+            if not golden_t.exists():
+                bad.append(f"{case}: no committed golden at {golden_t}")
+            elif golden_t.read_bytes() != first_t.read_bytes():
                 bad.append(f"{case}: the human rendering drifted from its golden")
 
             events = [json.loads(line) for line in a.decode("utf-8").splitlines()]

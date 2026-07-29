@@ -408,12 +408,20 @@ fn the_transcript_records_the_whole_tool_path_with_real_values() -> Result<()> {
     let mut sess = session(&artifact, &marked_plan()?)?;
 
     sess.metadata()?;
+    // Calling it twice must not add a second opening event: the metadata is
+    // recorded once because it crossed the boundary once, and a duplicate would
+    // both double-count the surface and shift every sequence number after it.
+    sess.metadata()?;
     let hit = sess.intersect(&IndexName::parse("line")?, &attempts()?)?;
     // A refused materialize, then a valid one.
     let beta = sess.lookup(&IndexName::parse("line")?, &key(b"beta"))?;
     assert!(sess.materialize(&hit.handle, &beta.support).is_err());
     sess.materialize(&hit.handle, &hit.support)?;
-    let answer = hit.preview.first().cloned().unwrap_or_else(|| key(b""));
+    let answer = hit
+        .preview
+        .first()
+        .cloned()
+        .ok_or_else(|| anyhow::anyhow!("premise: the preview holds a candidate"))?;
     sess.answer(&hit.handle, &answer, &hit.support);
 
     let jsonl = sess.transcript_jsonl();
