@@ -16,6 +16,7 @@ pub mod legend;
 pub mod meter;
 pub mod mine;
 pub mod mosaic;
+pub mod panel;
 pub mod paper;
 pub mod ppl;
 pub mod profile;

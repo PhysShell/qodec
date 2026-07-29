@@ -51,6 +51,33 @@ jobs:
       # contract suite could fail completely and leave the workflow green.
       - name: Rust test suite
         run: nix build .#checks.x86_64-linux.qodec-tests --no-update-lock-file --print-build-logs
+      # Model-free rehearsal of the C1 forced-query arm: runs the dry-run driver
+      # twice, compares byte-for-byte, checks the committed golden, validates the
+      # transcript schema, and asserts the artifact never crosses the boundary.
+      - name: Panel dry-run transcript (model-free)
+        run: nix develop --command python3 evals/panel-dry-run/check.py
+      # NOT under `result/`: earlier `nix build` steps leave that as a symlink
+      # into the read-only store, so writing there fails with EACCES rather than
+      # anything that reads like a real problem.
+      - name: Stage panel transcripts
+        if: always()
+        run: |
+          mkdir -p panel-transcripts
+          nix develop --command cargo run -q --example panel_dry_run -- \
+            --case happy \
+            --jsonl-out panel-transcripts/happy.jsonl \
+            --text-out panel-transcripts/happy.txt || true
+          nix develop --command cargo run -q --example panel_dry_run -- \
+            --case refusal \
+            --jsonl-out panel-transcripts/refusal.jsonl \
+            --text-out panel-transcripts/refusal.txt || true
+      - name: Upload panel transcripts
+        if: always()
+        uses: actions/upload-artifact@b4b15b8c7c6ac21ea08fcf65892d2ee8f75cf882 # v4.4.3
+        with:
+          name: panel-dry-run-transcripts
+          path: panel-transcripts/
+          if-no-files-found: warn
 
   build-and-smoke:
     runs-on: ubuntu-latest
