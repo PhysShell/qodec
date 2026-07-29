@@ -270,6 +270,53 @@
             src = qodecArgs.src;
           };
 
+          # The Rust test suite. Without this the whole workflow can be green
+          # while every canonicalization, store and query contract fails: the
+          # package sets `doCheck = false`, and the only other Rust checks are
+          # clippy and fmt, neither of which runs a test. Caught by Codex on
+          # PR #18 — a gate that gates nothing is worse than no gate at all,
+          # because it gets quoted as evidence.
+          qodec-tests = craneLib.cargoTest (qodecArgs // {
+            cargoArtifacts = qodecDeps;
+            pname = "qodec-tests";
+            # The suite reads fixtures that `cleanCargoSource` strips as
+            # non-Cargo input; the first two runs of this check failed with
+            # ENOENT for exactly that reason, first in `adapter` and then in
+            # `risk`. Listed explicitly rather than by a broad pattern: `evals/`
+            # is ~150 MB of frozen run artifacts and only this one subtree is a
+            # test input, so copying the parent into the store to satisfy two
+            # `read_to_string` calls would be a poor trade. Dependency
+            # resolution still uses the clean source.
+            src =
+              let
+                root = toString ./.;
+                fixtures = [ "/corpus" "/evals/agent-g5/tasks-density" ];
+                # Keep a path when it is a fixture tree, is inside one, or is an
+                # ancestor of one — `cleanSourceWith` prunes directories, so a
+                # rejected parent hides everything beneath it.
+                #
+                # Matching is on whole path components, not raw string prefixes.
+                # A bare `hasPrefix` also admits siblings that merely share a
+                # name prefix — `/corpus-archive`, `/evals/agent-g5/tasks-density-v2`
+                # — and, in the ancestor direction, unrelated shorter paths such
+                # as a top-level file named `corp`. With `evals/` at ~150 MB, an
+                # accidental match is exactly the cost this filter exists to avoid.
+                wanted = path:
+                  let rel = pkgs.lib.removePrefix root (toString path);
+                  in pkgs.lib.any
+                    (f:
+                      rel == f
+                      || pkgs.lib.hasPrefix "${f}/" rel
+                      || pkgs.lib.hasPrefix "${rel}/" f)
+                    fixtures;
+              in
+              pkgs.lib.cleanSourceWith {
+                src = ./.;
+                filter = path: type:
+                  (craneLib.filterCargoSources path type) || (wanted path);
+              };
+          });
+
           # ---- Interop Benchmark v2 substrate checks (no model/tokenizer net) -- #
           qodec-build = qodec;
           rtk-pinned-build = rtk-pinned;
