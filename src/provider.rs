@@ -16,11 +16,23 @@
 //!   which only one was charged for. Rebuilding the envelope from config after
 //!   the call would be a recollection, and a recollection agrees with the
 //!   config by construction rather than with the wire.
-//! * **Raw and normalized never substitute for each other.** A
-//!   [`ResponseEnvelope`] carries the provider's exact bytes *and* the parsed
+//! * **Raw and normalized never substitute for each other.** An
+//!   [`ExchangeOutcome`] carries the provider's exact bytes *and* the parsed
 //!   view. Keeping only the parse discards the evidence for the parse; keeping
 //!   only the bytes makes every later reader re-derive it, slightly
 //!   differently.
+//! * **A crossing that failed is still a crossing.** [`exchange`] is total: a
+//!   provider rejection, an unparseable body and a transport that never got
+//!   through are each an outcome carrying its attempts, not an `Err` that takes
+//!   the record with it. Those are the runs most worth having a file about.
+//!
+//! ## What "the same request, tried again" means
+//!
+//! [`ProviderRequestDigest`] proves the JSON body was identical. On its own
+//! that proves identical bytes went *somewhere*. Endpoint, API version, content
+//! type and timeout decide what the provider actually received, so every
+//! attempt also records a [`TransportTarget`] — public by construction, with no
+//! field a credential could occupy. A retry is one digest **and** one target.
 //! * **The provider-neutral schema is the meaning; the provider envelope is
 //!   the fact.** [`crate::panel::PanelToolSchema`] stays normative for what an
 //!   operation *is*. The mapping records what a specific provider was actually
@@ -53,6 +65,8 @@
 //! the arms differing in which tools exist and in nothing else; left to the
 //! default, a direct arm would answer in prose and its score would become a
 //! measurement of the matcher written to read it.
+
+use std::num::NonZeroU32;
 
 use anyhow::{bail, Context, Result};
 
@@ -163,6 +177,67 @@ impl ModelIdentity {
 
     pub fn as_str(&self) -> &str {
         &self.0
+    }
+}
+
+/// Whether the provider ran the model that was asked for.
+///
+/// Three values, not two. A boolean `drifted` has to decide what to say when
+/// the provider reported no model at all, and the convenient answer — "not
+/// drifted" — silently converts *we do not know* into *it matched*. A great
+/// many comparison tables rest on precisely that substitution.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum ModelStatus {
+    /// The provider named the model, and it is the one requested.
+    Verified,
+    /// The provider named no model. Not agreement — absence of evidence.
+    Missing,
+    /// The provider named a different model.
+    Drifted,
+}
+
+impl ModelStatus {
+    pub fn of(requested: &ModelIdentity, reported: Option<&str>) -> Self {
+        match reported {
+            None => ModelStatus::Missing,
+            Some(m) if m == requested.as_str() => ModelStatus::Verified,
+            Some(_) => ModelStatus::Drifted,
+        }
+    }
+
+    pub fn label(self) -> &'static str {
+        match self {
+            ModelStatus::Verified => "verified",
+            ModelStatus::Missing => "missing",
+            ModelStatus::Drifted => "drifted",
+        }
+    }
+
+    /// Rank, worst first: a cell is only as good as its weakest turn.
+    fn severity(self) -> u8 {
+        match self {
+            ModelStatus::Verified => 0,
+            ModelStatus::Missing => 1,
+            ModelStatus::Drifted => 2,
+        }
+    }
+
+    /// Combine two turns' statuses, keeping the worse.
+    pub fn worst(self, other: Self) -> Self {
+        if other.severity() > self.severity() {
+            other
+        } else {
+            self
+        }
+    }
+
+    /// Whether a cell carrying this status may be compared with another arm.
+    ///
+    /// Only [`ModelStatus::Verified`]. `Missing` is not a weaker yes; it is a
+    /// different claim entirely, and a row built on it says something the run
+    /// never established.
+    pub fn comparable(self) -> bool {
+        matches!(self, ModelStatus::Verified)
     }
 }
 
@@ -775,12 +850,68 @@ impl RawResponse {
     }
 }
 
+/// Where a request was actually sent, in public terms.
+///
+/// The body digest proves the JSON was identical. It does not prove the retry
+/// went to the same endpoint, under the same API version, through the same
+/// transport — and those decide what the provider actually received. A retry is
+/// only a retry when the target matches too; otherwise the record says "we sent
+/// the same bytes somewhere" and calls it reproducibility.
+///
+/// Carries no credential, and has no field one could be put in. This value is
+/// written into a committed transcript, and a struct that *could* hold a key
+/// eventually holds one.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct TransportTarget {
+    pub kind: ProviderKind,
+    pub endpoint: String,
+    pub path: String,
+    pub api_version: String,
+    pub content_type: String,
+    pub timeout_secs: u64,
+}
+
+impl TransportTarget {
+    /// The target of a transport that reaches no network.
+    ///
+    /// Given a scheme of its own rather than a plausible-looking URL, so a
+    /// stand-in run can never be mistaken for a run against an endpoint.
+    pub fn stand_in(kind: ProviderKind) -> Self {
+        TransportTarget {
+            kind,
+            endpoint: "stand-in:none".to_owned(),
+            path: kind.path().to_owned(),
+            api_version: "n/a".to_owned(),
+            content_type: "application/json".to_owned(),
+            timeout_secs: 0,
+        }
+    }
+
+    pub fn to_json(&self) -> serde_json::Value {
+        json_obj(vec![
+            ("kind", self.kind.label().into()),
+            ("endpoint", self.endpoint.clone().into()),
+            ("path", self.path.clone().into()),
+            ("api_version", self.api_version.clone().into()),
+            ("content_type", self.content_type.clone().into()),
+            ("timeout_secs", self.timeout_secs.into()),
+        ])
+    }
+}
+
 /// Anything that can carry a sealed request to a model and bring bytes back.
 ///
 /// Takes `&SealedRequest` rather than a body, a URL, or a struct to serialize.
 /// A transport that built its own body could send something the record does not
 /// describe, and the record would still look complete.
 pub trait ModelTransport {
+    /// Where this transport sends, minus anything secret.
+    ///
+    /// On the trait rather than passed in beside it: the transport is the only
+    /// thing that knows where it actually goes, so anywhere else this value
+    /// would be a caller's belief about the transport.
+    fn target(&self) -> TransportTarget;
+
     fn send(&mut self, sealed: &SealedRequest) -> Result<RawResponse>;
 }
 
@@ -795,6 +926,9 @@ pub struct TransportAttempt {
     /// asked again after a socket died — from a semantic retry, which is a
     /// different question wearing the first one's clothes.
     pub request_digest: ProviderRequestDigest,
+    /// Where this attempt went. Together with `request_digest` this is what
+    /// "the same request, tried again" actually means.
+    pub target: TransportTarget,
     pub outcome: AttemptOutcome,
 }
 
@@ -805,13 +939,15 @@ pub enum AttemptOutcome {
 }
 
 impl TransportAttempt {
-    fn to_json(&self) -> serde_json::Value {
+    /// The canonical JSON form: which request, sent where, and how it went.
+    pub fn to_json(&self) -> serde_json::Value {
         let mut pairs = vec![
             ("ordinal", self.ordinal.into()),
             (
                 "request_digest",
                 self.request_digest.to_canonical_text().into(),
             ),
+            ("target", self.target.to_json()),
         ];
         match &self.outcome {
             AttemptOutcome::Response { status, body_len } => {
@@ -834,45 +970,45 @@ impl TransportAttempt {
 /// same request" is a property of the signature rather than a promise in a
 /// comment. A caller that wants to ask a *different* question must seal a new
 /// request, which produces a new digest and a visibly new attempt sequence.
+///
+/// Returns the attempts **unconditionally**. An earlier version returned a bare
+/// `Err` when every attempt failed, taking the record of what was tried with
+/// it; the most interesting failure is exactly the one that leaves nothing
+/// behind but a line on stderr and somebody's recollection.
 pub fn deliver(
     transport: &mut dyn ModelTransport,
     sealed: &SealedRequest,
-    max_attempts: u32,
-) -> Result<(RawResponse, Vec<TransportAttempt>)> {
-    if max_attempts == 0 {
-        bail!("max_attempts must be at least 1");
-    }
+    max_attempts: NonZeroU32,
+) -> (Option<RawResponse>, Vec<TransportAttempt>) {
     let mut attempts = Vec::new();
-    let mut last_error: Option<anyhow::Error> = None;
-    for ordinal in 0..max_attempts {
+    for ordinal in 0..max_attempts.get() {
+        let target = transport.target();
         match transport.send(sealed) {
             Ok(raw) => {
                 attempts.push(TransportAttempt {
                     ordinal,
                     request_digest: sealed.digest(),
+                    target,
                     outcome: AttemptOutcome::Response {
                         status: raw.status,
                         body_len: raw.body.len() as u64,
                     },
                 });
-                return Ok((raw, attempts));
+                return (Some(raw), attempts);
             }
             Err(e) => {
                 attempts.push(TransportAttempt {
                     ordinal,
                     request_digest: sealed.digest(),
+                    target,
                     outcome: AttemptOutcome::TransportError {
                         reason: format!("{e}"),
                     },
                 });
-                last_error = Some(e);
             }
         }
     }
-    let attempted = attempts.len();
-    Err(last_error
-        .unwrap_or_else(|| anyhow::anyhow!("transport made no attempt"))
-        .context(format!("all {attempted} transport attempts failed")))
+    (None, attempts)
 }
 
 // ---------------------------------------------------------------------------
@@ -979,13 +1115,6 @@ pub fn normalize(provider: ProviderKind, raw: &RawResponse) -> Result<Normalized
 fn normalize_anthropic(raw: &RawResponse) -> Result<NormalizedResponse> {
     let body: serde_json::Value =
         serde_json::from_slice(&raw.body).context("provider response body is not valid JSON")?;
-    if raw.status < 200 || raw.status >= 300 {
-        let message = body
-            .pointer("/error/message")
-            .and_then(|v| v.as_str())
-            .unwrap_or("no error message");
-        bail!("provider returned HTTP {}: {message}", raw.status);
-    }
     let mut text = String::new();
     let mut tool_calls = Vec::new();
     if let Some(blocks) = body.get("content").and_then(serde_json::Value::as_array) {
@@ -1044,44 +1173,180 @@ fn normalize_anthropic(raw: &RawResponse) -> Result<NormalizedResponse> {
     })
 }
 
-/// The complete record of one round trip.
+/// What one crossing produced — including the crossings that failed.
+///
+/// Four outcomes rather than `Result<ResponseEnvelope>`, because three of the
+/// four are things we specifically want to keep. A provider rejection, a body
+/// that would not parse, and a transport that never got through are each a
+/// finding about the run; collapsing them into an error and aborting the cell
+/// discards the evidence at exactly the moment it becomes interesting.
+///
+/// Every variant carries its attempts. `raw` is present wherever bytes came
+/// back at all, so a rejection can be read rather than described.
 #[derive(Debug, Clone, PartialEq, Eq)]
-pub struct ResponseEnvelope {
-    pub raw: RawResponse,
-    pub normalized: NormalizedResponse,
-    pub attempts: Vec<TransportAttempt>,
+pub enum ExchangeOutcome {
+    /// Bytes came back, the status was acceptable, and the body parsed.
+    Completed {
+        raw: RawResponse,
+        normalized: NormalizedResponse,
+        attempts: Vec<TransportAttempt>,
+    },
+    /// Bytes came back carrying a non-success status.
+    ProviderRejected {
+        raw: RawResponse,
+        attempts: Vec<TransportAttempt>,
+        reason: String,
+    },
+    /// Bytes came back with an acceptable status and would not parse.
+    NormalizationFailed {
+        raw: RawResponse,
+        attempts: Vec<TransportAttempt>,
+        reason: String,
+    },
+    /// No bytes came back at all. The per-attempt reasons are the record.
+    TransportFailed { attempts: Vec<TransportAttempt> },
 }
 
-impl ResponseEnvelope {
+impl ExchangeOutcome {
+    pub fn attempts(&self) -> &[TransportAttempt] {
+        match self {
+            ExchangeOutcome::Completed { attempts, .. }
+            | ExchangeOutcome::ProviderRejected { attempts, .. }
+            | ExchangeOutcome::NormalizationFailed { attempts, .. }
+            | ExchangeOutcome::TransportFailed { attempts } => attempts,
+        }
+    }
+
+    pub fn raw(&self) -> Option<&RawResponse> {
+        match self {
+            ExchangeOutcome::Completed { raw, .. }
+            | ExchangeOutcome::ProviderRejected { raw, .. }
+            | ExchangeOutcome::NormalizationFailed { raw, .. } => Some(raw),
+            ExchangeOutcome::TransportFailed { .. } => None,
+        }
+    }
+
+    pub fn normalized(&self) -> Option<&NormalizedResponse> {
+        match self {
+            ExchangeOutcome::Completed { normalized, .. } => Some(normalized),
+            _ => None,
+        }
+    }
+
+    /// Why the crossing did not complete, if it did not.
+    pub fn failure_reason(&self) -> Option<String> {
+        match self {
+            ExchangeOutcome::Completed { .. } => None,
+            ExchangeOutcome::ProviderRejected { reason, .. }
+            | ExchangeOutcome::NormalizationFailed { reason, .. } => Some(reason.clone()),
+            ExchangeOutcome::TransportFailed { attempts } => Some(format!(
+                "no attempt reached the provider ({} tried)",
+                attempts.len()
+            )),
+        }
+    }
+
+    pub fn kind(&self) -> &'static str {
+        match self {
+            ExchangeOutcome::Completed { .. } => "completed",
+            ExchangeOutcome::ProviderRejected { .. } => "provider-rejected",
+            ExchangeOutcome::NormalizationFailed { .. } => "normalization-failed",
+            ExchangeOutcome::TransportFailed { .. } => "transport-failed",
+        }
+    }
+
     pub fn to_json(&self) -> serde_json::Value {
-        json_obj(vec![
-            ("raw", self.raw.to_json()),
-            ("normalized", self.normalized.to_json()),
-            (
-                "attempts",
-                self.attempts
-                    .iter()
-                    .map(TransportAttempt::to_json)
-                    .collect::<Vec<_>>()
-                    .into(),
-            ),
-        ])
+        let mut pairs = vec![("kind", self.kind().into())];
+        pairs.push((
+            "raw",
+            match self.raw() {
+                Some(raw) => raw.to_json(),
+                None => serde_json::Value::Null,
+            },
+        ));
+        pairs.push((
+            "normalized",
+            match self.normalized() {
+                Some(n) => n.to_json(),
+                None => serde_json::Value::Null,
+            },
+        ));
+        pairs.push((
+            "reason",
+            match self.failure_reason() {
+                Some(r) => r.into(),
+                None => serde_json::Value::Null,
+            },
+        ));
+        pairs.push((
+            "attempts",
+            self.attempts()
+                .iter()
+                .map(TransportAttempt::to_json)
+                .collect::<Vec<_>>()
+                .into(),
+        ));
+        json_obj(pairs)
     }
 }
 
-/// Send a sealed request and record both halves of the crossing.
+/// Send a sealed request and record the crossing, however it went.
+///
+/// Total: there is no error path, because every way this can go wrong is a
+/// result worth writing down.
 pub fn exchange(
     transport: &mut dyn ModelTransport,
     sealed: &SealedRequest,
-    max_attempts: u32,
-) -> Result<ResponseEnvelope> {
-    let (raw, attempts) = deliver(transport, sealed, max_attempts)?;
-    let normalized = normalize(sealed.envelope().provider, &raw)?;
-    Ok(ResponseEnvelope {
-        raw,
-        normalized,
-        attempts,
-    })
+    max_attempts: NonZeroU32,
+) -> ExchangeOutcome {
+    let provider = sealed.envelope().provider;
+    let (raw, attempts) = deliver(transport, sealed, max_attempts);
+    let Some(raw) = raw else {
+        return ExchangeOutcome::TransportFailed { attempts };
+    };
+    if let Some(reason) = rejection_reason(provider, &raw) {
+        return ExchangeOutcome::ProviderRejected {
+            raw,
+            attempts,
+            reason,
+        };
+    }
+    match normalize(provider, &raw) {
+        Ok(normalized) => ExchangeOutcome::Completed {
+            raw,
+            normalized,
+            attempts,
+        },
+        Err(e) => ExchangeOutcome::NormalizationFailed {
+            raw,
+            attempts,
+            reason: format!("{e}"),
+        },
+    }
+}
+
+/// Whether the provider refused, and in its own words where it said so.
+///
+/// Separate from [`normalize`] so a rejection and an unparseable body stay
+/// distinguishable. Folded together, a provider outage and a schema change we
+/// caused would arrive under one label and get investigated as one thing.
+pub fn rejection_reason(provider: ProviderKind, raw: &RawResponse) -> Option<String> {
+    match provider {
+        ProviderKind::AnthropicMessages => {
+            if (200..300).contains(&raw.status) {
+                return None;
+            }
+            let message = serde_json::from_slice::<serde_json::Value>(&raw.body)
+                .ok()
+                .and_then(|b| {
+                    b.pointer("/error/message")
+                        .and_then(|v| v.as_str())
+                        .map(str::to_owned)
+                })
+                .unwrap_or_else(|| "no error message".to_owned());
+            Some(format!("HTTP {}: {message}", raw.status))
+        }
+    }
 }
 
 // ---------------------------------------------------------------------------
@@ -1094,11 +1359,12 @@ pub fn exchange(
 /// normalization, the tool loop, accounting — can be exercised in CI without a
 /// model. It replies from a script and records what it was asked, so a test can
 /// assert that the bytes the transport saw are the bytes the record claims.
-#[derive(Debug, Default)]
+#[derive(Debug)]
 pub struct ScriptedTransport {
     replies: Vec<Result<RawResponse, String>>,
     seen: Vec<Vec<u8>>,
     next: usize,
+    kind: ProviderKind,
 }
 
 impl ScriptedTransport {
@@ -1107,6 +1373,7 @@ impl ScriptedTransport {
             replies,
             seen: Vec::new(),
             next: 0,
+            kind: ProviderKind::AnthropicMessages,
         }
     }
 
@@ -1117,6 +1384,10 @@ impl ScriptedTransport {
 }
 
 impl ModelTransport for ScriptedTransport {
+    fn target(&self) -> TransportTarget {
+        TransportTarget::stand_in(self.kind)
+    }
+
     fn send(&mut self, sealed: &SealedRequest) -> Result<RawResponse> {
         self.seen.push(sealed.wire_bytes().to_vec());
         let Some(reply) = self.replies.get(self.next) else {
@@ -1148,6 +1419,7 @@ pub struct ProgrammedTransport<F> {
     reply: F,
     seen: Vec<Vec<u8>>,
     calls: usize,
+    kind: ProviderKind,
 }
 
 impl<F> std::fmt::Debug for ProgrammedTransport<F> {
@@ -1167,6 +1439,7 @@ where
             reply,
             seen: Vec::new(),
             calls: 0,
+            kind: ProviderKind::AnthropicMessages,
         }
     }
 
@@ -1180,6 +1453,10 @@ impl<F> ModelTransport for ProgrammedTransport<F>
 where
     F: FnMut(&SealedRequest, usize) -> Result<RawResponse>,
 {
+    fn target(&self) -> TransportTarget {
+        TransportTarget::stand_in(self.kind)
+    }
+
     fn send(&mut self, sealed: &SealedRequest) -> Result<RawResponse> {
         self.seen.push(sealed.wire_bytes().to_vec());
         let n = self.calls;
@@ -1217,6 +1494,12 @@ impl HttpTransport {
         if base_url.is_empty() || api_key.is_empty() {
             bail!("live transport needs both a base URL and an API key");
         }
+        // A URL carrying userinfo would put a credential into the endpoint,
+        // and the endpoint is written into a committed transcript.
+        let authority = base_url.split("://").nth(1).unwrap_or(base_url);
+        if authority.split('/').next().is_some_and(|a| a.contains('@')) {
+            bail!("base URL must not carry credentials in its authority");
+        }
         Ok(HttpTransport {
             base_url: base_url.trim_end_matches('/').to_owned(),
             api_key: api_key.to_owned(),
@@ -1227,6 +1510,17 @@ impl HttpTransport {
 }
 
 impl ModelTransport for HttpTransport {
+    fn target(&self) -> TransportTarget {
+        TransportTarget {
+            kind: ProviderKind::AnthropicMessages,
+            endpoint: self.base_url.clone(),
+            path: ProviderKind::AnthropicMessages.path().to_owned(),
+            api_version: self.api_version.clone(),
+            content_type: "application/json".to_owned(),
+            timeout_secs: self.timeout_secs,
+        }
+    }
+
     fn send(&mut self, sealed: &SealedRequest) -> Result<RawResponse> {
         let url = format!("{}{}", self.base_url, sealed.envelope().provider.path());
         let response = ureq::post(&url)

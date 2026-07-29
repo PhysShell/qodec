@@ -277,7 +277,8 @@ fn run_all(chosen: &Chosen, model: &ModelIdentity) -> Result<Vec<CellRecord>> {
 fn render(jsonl: &str) -> Result<String> {
     let mut out = String::new();
     out.push_str(
-        "arm             correct  verdict              prov_in  prov_out  visible_B  mat_B  calls\n",
+        "arm             correct  verdict              model     cmp  prov_in  prov_out  \
+visible_B  mat_B  calls\n",
     );
     for line in jsonl.lines() {
         let v: serde_json::Value = serde_json::from_str(line)?;
@@ -300,9 +301,18 @@ fn render(jsonl: &str) -> Result<String> {
                 .map(|n| n.to_string())
                 .unwrap_or_else(|| "-".to_owned())
         };
+        let status = v
+            .get("model_status")
+            .and_then(|x| x.as_str())
+            .unwrap_or("?");
+        let comparable = v
+            .get("comparable")
+            .and_then(serde_json::Value::as_bool)
+            .unwrap_or(false);
         out.push_str(&format!(
-            "{arm:<15} {:<8} {verdict:<20} {:<8} {:<9} {:<10} {:<6} {}\n",
+            "{arm:<15} {:<8} {verdict:<20} {status:<9} {:<4} {:<8} {:<9} {:<10} {:<6} {}\n",
             if correct { "yes" } else { "no" },
+            if comparable { "yes" } else { "NO" },
             num("/accounting/provider_reported/input_tokens"),
             num("/accounting/provider_reported/output_tokens"),
             num("/accounting/deterministic_local/model_visible_transcript_bytes"),

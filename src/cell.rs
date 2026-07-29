@@ -28,8 +28,29 @@
 //!
 //! Transport retries are a different thing entirely and are permitted: the
 //! *same sealed request*, delivered again after a socket died, recorded as
-//! repeated attempts carrying one request digest. See
-//! [`crate::provider::deliver`].
+//! repeated attempts carrying one request digest **and one transport target**.
+//! See [`crate::provider::deliver`].
+//!
+//! ## The terminal answer is exactly one
+//!
+//! A response is either operations or an answer, never both, and never two
+//! answers. Anything else is a [`ProtocolViolation`] rather than a shape to be
+//! resolved by taking the first element of an array — that is a coin toss with
+//! a tidy implementation, and the record afterwards is indistinguishable from a
+//! run where the model was unambiguous. An answer arriving beside operations is
+//! refused for a second reason: it would rest on results the model had not yet
+//! seen.
+//!
+//! ## A failed crossing is still a record
+//!
+//! Every cell produces a [`CellRecord`], including the cells where the model
+//! never answered. Transport exhaustion, a provider rejection and a body that
+//! would not parse are each an [`ArmOutcome::CrossingFailed`] with the attempts
+//! and any returned bytes kept in the turn. The alternative — returning an
+//! error and writing no artifact — loses exactly the run that has nothing else
+//! to leave behind.
+
+use std::num::NonZeroU32;
 
 use anyhow::{bail, Context, Result};
 
@@ -39,9 +60,9 @@ use crate::panel::{
     PanelSession, PanelTool,
 };
 use crate::provider::{
-    exchange, Arm, ContentBlock, FixtureIdentity, Message, MessageRole, ModelIdentity,
-    ModelTransport, NormalizedToolCall, ProviderKind, ProviderUsage, RequestEnvelope,
-    RequestMapping, ResponseEnvelope, SamplingParams, SealedRequest, ANSWER_TOOL_NAME,
+    exchange, Arm, ContentBlock, ExchangeOutcome, FixtureIdentity, Message, MessageRole,
+    ModelIdentity, ModelStatus, ModelTransport, NormalizedToolCall, ProviderKind, ProviderUsage,
+    RequestEnvelope, RequestMapping, SamplingParams, SealedRequest, ANSWER_TOOL_NAME,
 };
 use crate::query::VerifyOutcome;
 use crate::store::RecordId;
@@ -185,6 +206,104 @@ impl CellAccounting {
 }
 
 // ---------------------------------------------------------------------------
+// The terminal-answer protocol
+// ---------------------------------------------------------------------------
+
+/// A response that does not follow the protocol.
+///
+/// Every variant here is a case where the harness could have picked one of
+/// several readings and carried on. Picking the first element of a JSON array
+/// is not disambiguation; it is a coin toss with a tidy implementation, and the
+/// record afterwards looks exactly like a run where the model was unambiguous.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum ProtocolViolation {
+    /// The model produced no tool call at all, despite being required to act.
+    NoToolCall,
+    /// More than one terminal answer. Two answers may contradict each other,
+    /// and the harness has no standing to prefer the earlier one.
+    MultipleAnswers { count: usize },
+    /// An answer arrived in the same response as operations. The answer would
+    /// then rest on results the model had not yet seen.
+    AnswerMixedWithOperations { operations: usize },
+    /// A direct arm sent more than the single answer call it was offered.
+    ExtraCallsInDirectArm { count: usize },
+    /// A direct arm's single call was not the answer channel.
+    UnexpectedToolInDirectArm { name: String },
+}
+
+impl ProtocolViolation {
+    pub fn describe(&self) -> String {
+        match self {
+            ProtocolViolation::NoToolCall => "the model made no tool call".to_owned(),
+            ProtocolViolation::MultipleAnswers { count } => {
+                format!("{count} terminal answers in one response")
+            }
+            ProtocolViolation::AnswerMixedWithOperations { operations } => {
+                format!("a terminal answer alongside {operations} operation(s)")
+            }
+            ProtocolViolation::ExtraCallsInDirectArm { count } => {
+                format!("{count} tool calls in a direct arm, which offers one")
+            }
+            ProtocolViolation::UnexpectedToolInDirectArm { name } => {
+                format!("a direct arm called {name:?}")
+            }
+        }
+    }
+
+    fn slug(&self) -> &'static str {
+        match self {
+            ProtocolViolation::NoToolCall => "no-tool-call",
+            ProtocolViolation::MultipleAnswers { .. } => "multiple-answers",
+            ProtocolViolation::AnswerMixedWithOperations { .. } => "answer-mixed-with-operations",
+            ProtocolViolation::ExtraCallsInDirectArm { .. } => "extra-calls-in-direct-arm",
+            ProtocolViolation::UnexpectedToolInDirectArm { .. } => "unexpected-tool-in-direct-arm",
+        }
+    }
+}
+
+/// What a well-formed forced-query response may be.
+#[derive(Debug, Clone, PartialEq, Eq)]
+enum ResponseShape {
+    /// One or more operations and no answer.
+    Operations(Vec<NormalizedToolCall>),
+    /// Exactly one answer and no operations.
+    Answer(NormalizedToolCall),
+}
+
+/// Classify a forced-query response, strictly.
+fn classify_forced(calls: &[NormalizedToolCall]) -> Result<ResponseShape, ProtocolViolation> {
+    let (answers, operations): (Vec<_>, Vec<_>) =
+        calls.iter().partition(|c| c.name == ANSWER_TOOL_NAME);
+    match (answers.len(), operations.len()) {
+        (0, 0) => Err(ProtocolViolation::NoToolCall),
+        (0, _) => Ok(ResponseShape::Operations(
+            operations.into_iter().cloned().collect(),
+        )),
+        (1, 0) => match answers.first() {
+            Some(answer) => Ok(ResponseShape::Answer((*answer).clone())),
+            None => Err(ProtocolViolation::NoToolCall),
+        },
+        (1, n) => Err(ProtocolViolation::AnswerMixedWithOperations { operations: n }),
+        (n, _) => Err(ProtocolViolation::MultipleAnswers { count: n }),
+    }
+}
+
+/// Classify a direct-arm response: exactly one call, and it is the answer.
+fn classify_direct(calls: &[NormalizedToolCall]) -> Result<NormalizedToolCall, ProtocolViolation> {
+    match calls.len() {
+        0 => Err(ProtocolViolation::NoToolCall),
+        1 => match calls.first() {
+            Some(call) if call.name == ANSWER_TOOL_NAME => Ok(call.clone()),
+            Some(call) => Err(ProtocolViolation::UnexpectedToolInDirectArm {
+                name: call.name.clone(),
+            }),
+            None => Err(ProtocolViolation::NoToolCall),
+        },
+        n => Err(ProtocolViolation::ExtraCallsInDirectArm { count: n }),
+    }
+}
+
+// ---------------------------------------------------------------------------
 // Outcome and record
 // ---------------------------------------------------------------------------
 
@@ -200,8 +319,14 @@ pub enum ArmOutcome {
         verdict: VerifyOutcome,
         correct: bool,
     },
-    /// No answer was produced within the turn budget, or the model stopped.
+    /// No answer was produced within the turn budget.
     NoAnswer { reason: String },
+    /// The model's response did not follow the protocol. Not a wrong answer —
+    /// an unreadable one, kept distinct so the two never share a column.
+    ProtocolViolation { violation: ProtocolViolation },
+    /// The crossing itself did not complete. The turn record still holds the
+    /// attempts and whatever bytes came back.
+    CrossingFailed { kind: String, reason: String },
 }
 
 impl ArmOutcome {
@@ -228,6 +353,16 @@ impl ArmOutcome {
                 ("kind", "no-answer".into()),
                 ("reason", reason.clone().into()),
             ]),
+            ArmOutcome::ProtocolViolation { violation } => obj(vec![
+                ("kind", "protocol-violation".into()),
+                ("violation", violation.slug().into()),
+                ("reason", violation.describe().into()),
+            ]),
+            ArmOutcome::CrossingFailed { kind, reason } => obj(vec![
+                ("kind", "crossing-failed".into()),
+                ("crossing", kind.clone().into()),
+                ("reason", reason.clone().into()),
+            ]),
         }
     }
 }
@@ -251,7 +386,9 @@ fn verdict_name(v: VerifyOutcome) -> &'static str {
 pub struct TurnRecord {
     pub ordinal: u32,
     pub request: SealedRequest,
-    pub response: ResponseEnvelope,
+    /// The crossing, however it went. A turn exists whether or not the model
+    /// answered, so a failed run leaves an artifact rather than a memory.
+    pub exchange: ExchangeOutcome,
 }
 
 impl TurnRecord {
@@ -259,7 +396,7 @@ impl TurnRecord {
         obj(vec![
             ("ordinal", self.ordinal.into()),
             ("request", self.request.to_json()),
-            ("response", self.response.to_json()),
+            ("exchange", self.exchange.to_json()),
         ])
     }
 }
@@ -280,17 +417,27 @@ pub struct CellRecord {
 }
 
 impl CellRecord {
-    /// Whether any turn ran a model other than the one requested.
+    /// Whether the provider ran the requested model, across every turn.
     ///
-    /// Checked rather than assumed. An alias resolving to a new snapshot
-    /// mid-experiment keeps every row looking like it names one model while
-    /// the arms stop being comparable, which is the kind of defect that shows
-    /// up as unexplained variance and gets attributed to the arms.
-    pub fn model_drifted(&self) -> bool {
-        self.models_reported.iter().any(|m| {
-            m.as_deref()
-                .is_some_and(|m| m != self.model_requested.as_str())
-        })
+    /// The worst turn decides. A cell with one `Missing` turn is `Missing`:
+    /// the run did not establish what it would need to establish, and a row
+    /// that treats silence as agreement is asserting something nobody checked.
+    /// A cell with no turns at all is `Missing` for the same reason.
+    pub fn model_status(&self) -> ModelStatus {
+        self.models_reported
+            .iter()
+            .map(|m| ModelStatus::of(&self.model_requested, m.as_deref()))
+            .reduce(ModelStatus::worst)
+            .unwrap_or(ModelStatus::Missing)
+    }
+
+    /// Whether this cell may stand beside another arm in a table.
+    ///
+    /// Requires `Verified` on every turn. Anything else means the identity of
+    /// the thing being measured is in question, and comparing two arms whose
+    /// models might differ measures the models rather than the arms.
+    pub fn comparable(&self) -> bool {
+        self.model_status().comparable()
     }
 
     pub fn to_json(&self) -> serde_json::Value {
@@ -313,7 +460,8 @@ impl CellRecord {
                     .collect::<Vec<_>>()
                     .into(),
             ),
-            ("model_drifted", self.model_drifted().into()),
+            ("model_status", self.model_status().label().into()),
+            ("comparable", self.comparable().into()),
             ("outcome", self.outcome.to_json()),
             ("accounting", self.accounting.to_json()),
             (
@@ -367,23 +515,35 @@ pub fn run_direct_cell(
     // the others. `max_turns` governs the forced-query loop, where extra turns
     // buy tool calls rather than pressure.
     let sealed = seal(spec, DIRECT_INSTRUCTIONS, &messages, &mapping)?;
-    let response = exchange(transport, &sealed, spec.max_transport_attempts)?;
+    let exchange = exchange(transport, &sealed, attempt_budget(spec)?);
     let mut accounting = CellAccounting::default();
-    charge(&mut accounting, &sealed, &response);
-    let models_reported = vec![response.normalized.reported_model.clone()];
-    let calls = response.normalized.tool_calls.clone();
+    charge(&mut accounting, &sealed, &exchange);
+    let models_reported = vec![exchange.normalized().and_then(|n| n.reported_model.clone())];
+    let normalized = exchange.normalized().cloned();
     let turns = vec![TurnRecord {
         ordinal: 0,
         request: sealed,
-        response,
+        exchange,
     }];
 
-    let outcome = match calls.iter().find(|c| c.name == ANSWER_TOOL_NAME) {
-        None => ArmOutcome::NoAnswer {
-            reason: "model produced no qodec_answer call".to_owned(),
+    let outcome = match normalized {
+        // The crossing did not complete. The turn above already holds the
+        // attempts and any bytes that came back, so this is a recorded finding
+        // rather than a lost one.
+        None => match turns.first().map(|t| &t.exchange) {
+            Some(e) => ArmOutcome::CrossingFailed {
+                kind: e.kind().to_owned(),
+                reason: e.failure_reason().unwrap_or_default(),
+            },
+            None => ArmOutcome::NoAnswer {
+                reason: "no turn was recorded".to_owned(),
+            },
         },
-        Some(call) => ArmOutcome::Answered {
-            correct: parse_direct_answer(&call.input)? == spec.expected,
+        Some(normalized) => match classify_direct(&normalized.tool_calls) {
+            Err(violation) => ArmOutcome::ProtocolViolation { violation },
+            Ok(call) => ArmOutcome::Answered {
+                correct: parse_direct_answer(&call.input)? == spec.expected,
+            },
         },
     };
     Ok(finish(
@@ -422,6 +582,7 @@ pub fn run_forced_query_cell(
         session.answer_schema(),
         &spec.sampling,
     );
+    let budget = attempt_budget(spec)?;
     let mut messages = vec![Message::user_text(format!(
         "{}\n\n--- artifact metadata ---\n{}",
         spec.task,
@@ -434,34 +595,56 @@ pub fn run_forced_query_cell(
 
     for ordinal in 0..spec.max_turns {
         let sealed = seal(spec, FORCED_QUERY_INSTRUCTIONS, &messages, &mapping)?;
-        let response = exchange(transport, &sealed, spec.max_transport_attempts)?;
-        charge(&mut accounting, &sealed, &response);
-        models_reported.push(response.normalized.reported_model.clone());
-        let calls = response.normalized.tool_calls.clone();
-        let assistant = assistant_turn(&response);
+        let exchange = exchange(transport, &sealed, budget);
+        charge(&mut accounting, &sealed, &exchange);
+        models_reported.push(exchange.normalized().and_then(|n| n.reported_model.clone()));
+        let normalized = exchange.normalized().cloned();
+        let failure = match &normalized {
+            Some(_) => None,
+            None => Some(ArmOutcome::CrossingFailed {
+                kind: exchange.kind().to_owned(),
+                reason: exchange.failure_reason().unwrap_or_default(),
+            }),
+        };
         turns.push(TurnRecord {
             ordinal,
             request: sealed,
-            response,
+            exchange,
         });
 
-        if calls.is_empty() {
+        let Some(normalized) = normalized else {
             return Ok(finish(
                 spec,
                 turns,
                 accounting,
                 models_reported,
                 session.transcript().to_vec(),
-                ArmOutcome::NoAnswer {
-                    reason: "model made no tool call".to_owned(),
-                },
+                failure.unwrap_or(ArmOutcome::NoAnswer {
+                    reason: "the crossing did not complete".to_owned(),
+                }),
             ));
-        }
-        messages.push(assistant);
+        };
 
-        let mut results = Vec::new();
-        for call in &calls {
-            if call.name == ANSWER_TOOL_NAME {
+        // Strict: operations or an answer, never both, never two answers. A
+        // harness that took the first answer out of a mixed response would be
+        // choosing between readings the model itself left contradictory.
+        let shape = match classify_forced(&normalized.tool_calls) {
+            Ok(shape) => shape,
+            Err(violation) => {
+                return Ok(finish(
+                    spec,
+                    turns,
+                    accounting,
+                    models_reported,
+                    session.transcript().to_vec(),
+                    ArmOutcome::ProtocolViolation { violation },
+                ));
+            }
+        };
+        messages.push(assistant_turn(&normalized));
+
+        match shape {
+            ResponseShape::Answer(call) => {
                 let (handle, answer, cited) = parse_panel_answer(&call.input)?;
                 let cell = session.answer(&handle, &answer, &cited);
                 let correct = answer == spec.expected;
@@ -482,21 +665,27 @@ pub fn run_forced_query_cell(
                     outcome,
                 ));
             }
-            let (content, is_error, materialized) = dispatch(session, call, &mut accounting);
-            accounting.deterministic_local.materialized_raw_bytes = accounting
-                .deterministic_local
-                .materialized_raw_bytes
-                .saturating_add(materialized);
-            results.push(ContentBlock::ToolResult {
-                tool_use_id: call.id.clone(),
-                content,
-                is_error,
-            });
+            ResponseShape::Operations(calls) => {
+                let mut results = Vec::new();
+                for call in &calls {
+                    let (content, is_error, materialized) =
+                        dispatch(session, call, &mut accounting);
+                    accounting.deterministic_local.materialized_raw_bytes = accounting
+                        .deterministic_local
+                        .materialized_raw_bytes
+                        .saturating_add(materialized);
+                    results.push(ContentBlock::ToolResult {
+                        tool_use_id: call.id.clone(),
+                        content,
+                        is_error,
+                    });
+                }
+                messages.push(Message {
+                    role: MessageRole::User,
+                    content: results,
+                });
+            }
         }
-        messages.push(Message {
-            role: MessageRole::User,
-            content: results,
-        });
     }
     Ok(finish(
         spec,
@@ -730,14 +919,14 @@ fn seal(
 }
 
 /// Rebuild the assistant turn from what the model actually returned.
-fn assistant_turn(response: &ResponseEnvelope) -> Message {
+fn assistant_turn(normalized: &crate::provider::NormalizedResponse) -> Message {
     let mut content = Vec::new();
-    if !response.normalized.text.is_empty() {
+    if !normalized.text.is_empty() {
         content.push(ContentBlock::Text {
-            text: response.normalized.text.clone(),
+            text: normalized.text.clone(),
         });
     }
-    for call in &response.normalized.tool_calls {
+    for call in &normalized.tool_calls {
         content.push(ContentBlock::ToolUse {
             id: call.id.clone(),
             name: call.name.clone(),
@@ -750,20 +939,33 @@ fn assistant_turn(response: &ResponseEnvelope) -> Message {
     }
 }
 
-fn charge(accounting: &mut CellAccounting, sealed: &SealedRequest, response: &ResponseEnvelope) {
+/// Charge a turn, whether or not it completed.
+///
+/// A crossing that failed still cost request bytes and may have returned a
+/// body; leaving it uncharged would make a failed run look cheaper than it was,
+/// which is the wrong direction for a cost table to be wrong in.
+fn charge(accounting: &mut CellAccounting, sealed: &SealedRequest, exchange: &ExchangeOutcome) {
     let l = &mut accounting.deterministic_local;
     l.request_bytes = l
         .request_bytes
         .saturating_add(sealed.wire_bytes().len() as u64);
-    l.response_bytes = l
-        .response_bytes
-        .saturating_add(response.raw.body.len() as u64);
+    if let Some(raw) = exchange.raw() {
+        l.response_bytes = l.response_bytes.saturating_add(raw.body.len() as u64);
+    }
     l.model_visible_transcript_bytes = l
         .model_visible_transcript_bytes
         .saturating_add(sealed.envelope().model_visible_bytes());
-    l.tool_call_count = l
-        .tool_call_count
-        .saturating_add(response.normalized.tool_calls.len() as u64);
+    if let Some(normalized) = exchange.normalized() {
+        l.tool_call_count = l
+            .tool_call_count
+            .saturating_add(normalized.tool_calls.len() as u64);
+    }
+}
+
+/// The transport-attempt budget, as a value that cannot be zero.
+fn attempt_budget(spec: &CellSpec) -> Result<NonZeroU32> {
+    NonZeroU32::new(spec.max_transport_attempts)
+        .ok_or_else(|| anyhow::anyhow!("max_transport_attempts must be at least 1"))
 }
 
 fn finish(
@@ -784,7 +986,7 @@ fn finish(
     let mut accounting = accounting;
     accounting.provider_reported = turns
         .iter()
-        .map(|t| t.response.normalized.usage)
+        .filter_map(|t| t.exchange.normalized().map(|n| n.usage))
         .reduce(ProviderUsage::plus)
         .unwrap_or_default();
     CellRecord {

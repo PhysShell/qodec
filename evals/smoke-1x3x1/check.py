@@ -14,8 +14,10 @@ quietly, so this checks the properties that make the rows mean anything:
 5. the two accounting planes are present, separate, and never summed;
 6. the request digest recomputes from the recorded bytes, and every transport
    attempt within a turn carries that one digest;
-7. the golden is a stand-in run, never a live one — a golden containing
-   evidence about a real model is not a model-free golden;
+7. every arm's model is `verified` and the cell comparable, and the golden is a
+   stand-in run — checked on the transport target, not only on the model name,
+   since a golden produced against a real endpoint is a live artifact whatever
+   the reply claimed to be;
 8. a self-test proving the gate can actually catch what it claims to catch.
 
 Exit 0 on success, 1 on any failure, with the specific disagreement printed.
@@ -158,7 +160,8 @@ RECORD_KEYS = {
     "fixture_source_digest",
     "model_requested",
     "models_reported",
-    "model_drifted",
+    "model_status",
+    "comparable",
     "outcome",
     "accounting",
     "turns",
@@ -179,9 +182,11 @@ LOCAL_KEYS = {
     "tool_call_count",
     "operation_call_count",
 }
-TURN_KEYS = {"ordinal", "request", "response"}
+TURN_KEYS = {"ordinal", "request", "exchange"}
 REQUEST_KEYS = {"envelope", "wire_digest", "wire_bytes_len", "wire_body"}
-RESPONSE_KEYS = {"raw", "normalized", "attempts"}
+EXCHANGE_KEYS = {"kind", "raw", "normalized", "reason", "attempts"}
+ATTEMPT_KEYS = {"ordinal", "request_digest", "target", "outcome", "status", "body_len", "reason"}
+TARGET_KEYS = {"kind", "endpoint", "path", "api_version", "content_type", "timeout_secs"}
 
 
 def exact_keys(where: str, obj: object, expected: set[str]) -> None:
@@ -210,8 +215,14 @@ def check_schema(records: list[dict]) -> None:
             exact_keys(f"record[{arm}].turns[{ordinal}]", turn, TURN_KEYS)
             exact_keys(f"record[{arm}].turns[{ordinal}].request", turn.get("request"), REQUEST_KEYS)
             exact_keys(
-                f"record[{arm}].turns[{ordinal}].response", turn.get("response"), RESPONSE_KEYS
+                f"record[{arm}].turns[{ordinal}].exchange", turn.get("exchange"), EXCHANGE_KEYS
             )
+            for attempt in turn.get("exchange", {}).get("attempts", []):
+                where = f"record[{arm}].turns[{ordinal}].attempt[{attempt.get('ordinal')}]"
+                extra = set(attempt) - ATTEMPT_KEYS
+                if extra:
+                    fail(f"{where} carries unexpected field(s) {sorted(extra)}")
+                exact_keys(f"{where}.target", attempt.get("target"), TARGET_KEYS)
 
 
 # ---------------------------------------------------------------------------
@@ -346,12 +357,21 @@ def check_identity(records: list[dict]) -> None:
 
             # A transport retry is the same request tried again, so every
             # attempt in a turn must carry that one identity.
-            for attempt in turn.get("response", {}).get("attempts", []):
+            # A retry is the same body sent to the same place. The digest alone
+            # would prove only that identical JSON went somewhere.
+            targets = []
+            for attempt in turn.get("exchange", {}).get("attempts", []):
                 if attempt.get("request_digest") != recomputed:
                     fail(
                         f"{arm} turn {turn.get('ordinal')} attempt {attempt.get('ordinal')} "
                         "carries a different request identity — that is a semantic retry"
                     )
+                targets.append(json.dumps(attempt.get("target"), sort_keys=True))
+            if len(set(targets)) > 1:
+                fail(
+                    f"{arm} turn {turn.get('ordinal')}: attempts went to different targets, "
+                    "so they are not one request tried again"
+                )
 
             # And the display form, when present, must agree with the bytes.
             shown = envelope.get("display_utf8")
@@ -392,10 +412,39 @@ def check_text_matches_jsonl(text: str, records: list[dict]) -> None:
             fail(f"the text table has a row for {arm!r}, which is not in the record")
 
 
-def check_not_live(records: list[dict]) -> None:
-    """A golden holding evidence about a real model is not a model-free golden."""
+def check_model_status(records: list[dict]) -> None:
+    """Every arm must have run a model we can name, or it is not comparable.
+
+    `missing` is not a weaker `verified`. A row built on a turn where the
+    provider named no model asserts something the run never established, and
+    the primary smoke is exactly the place that must not happen.
+    """
     for record in records:
         arm = record.get("arm", "?")
+        status = record.get("model_status")
+        if status != "verified":
+            fail(f"{arm}: model status is {status!r}; a primary cell needs every turn verified")
+        if record.get("comparable") is not True:
+            fail(f"{arm}: cell is not comparable, so it cannot stand in a three-arm table")
+
+
+def check_not_live(records: list[dict]) -> None:
+    """A golden holding evidence about a real model is not a model-free golden.
+
+    Checked on the transport target too, not only on the model name: a golden
+    produced against a real endpoint is a live artifact whatever the reply said
+    its model was.
+    """
+    for record in records:
+        arm = record.get("arm", "?")
+        for turn in record.get("turns", []):
+            for attempt in turn.get("exchange", {}).get("attempts", []):
+                endpoint = attempt.get("target", {}).get("endpoint", "")
+                if not endpoint.startswith("stand-in:"):
+                    fail(
+                        f"{arm}: golden records an attempt against {endpoint!r}; "
+                        "a live run must never be committed as a model-free golden"
+                    )
         if record.get("model_requested") != STAND_IN_MODEL:
             fail(
                 f"{arm}: golden was produced against {record.get('model_requested')!r}, "
@@ -433,7 +482,8 @@ def self_test() -> None:
             "fixture_source_digest": "sha256:" + "0" * 64,
             "model_requested": STAND_IN_MODEL,
             "models_reported": [STAND_IN_MODEL],
-            "model_drifted": False,
+            "model_status": "verified",
+            "comparable": True,
             "outcome": {"kind": "answered", "correct": True},
             "accounting": {
                 "provider_reported": dict.fromkeys(PROVIDER_KEYS),
@@ -451,7 +501,13 @@ def self_test() -> None:
                             "data": b64url_nopad(leaked_body),
                         },
                     },
-                    "response": {"raw": {}, "normalized": {}, "attempts": []},
+                    "exchange": {
+                        "kind": "completed",
+                        "raw": {},
+                        "normalized": {},
+                        "reason": None,
+                        "attempts": [],
+                    },
                 }
             ],
             "panel_transcript": [],
@@ -514,6 +570,7 @@ def main() -> int:
         check_containment(records)
         check_accounting(records)
         check_identity(records)
+        check_model_status(records)
         check_not_live(records)
         check_text_matches_jsonl(first_txt.read_text(encoding="utf-8"), records)
 

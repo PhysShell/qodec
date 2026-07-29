@@ -14,12 +14,13 @@ use anyhow::{anyhow, Result};
 
 use qodec::canon::{IndexName, KeyBytes, SchemaId, SetName, SCHEMA_QUERY_V1};
 use qodec::cell::{
-    run_direct_cell, run_forced_query_cell, ArmOutcome, CellRecord, CellSpec, TurnRecord,
+    run_direct_cell, run_forced_query_cell, ArmOutcome, CellRecord, CellSpec, ProtocolViolation,
+    TurnRecord,
 };
 use qodec::panel::{PanelEvent, PanelSession};
 use qodec::provider::{
-    Arm, ContentBlock, FixtureIdentity, ModelIdentity, ProgrammedTransport, ProviderKind,
-    RawResponse, SamplingParams, SealedRequest,
+    Arm, ContentBlock, FixtureIdentity, ModelIdentity, ModelStatus, ProgrammedTransport,
+    ProviderKind, RawResponse, SamplingParams, SealedRequest,
 };
 use qodec::query::{ExecutionLimits, VerifyOutcome};
 use qodec::store::{IndexSpec, KeyExtractor, Segmentation, StorePlan};
@@ -495,7 +496,7 @@ fn the_local_plane_is_recomputable_from_the_record() -> Result<()> {
     let expected_response: u64 = record
         .turns
         .iter()
-        .map(|t| t.response.raw.body.len() as u64)
+        .filter_map(|t| t.exchange.raw().map(|r| r.body.len() as u64))
         .sum();
     assert_eq!(
         record.accounting.deterministic_local.request_bytes,
@@ -677,13 +678,287 @@ fn a_substituted_model_is_detected() -> Result<()> {
         )
     });
     let record = run_direct_cell(&spec, RAW_BODY, &mut transport)?;
-    assert!(record.model_drifted(), "a swapped snapshot must be visible");
+    assert_eq!(record.model_status(), ModelStatus::Drifted);
+    assert!(
+        !record.comparable(),
+        "a drifted cell cannot stand in a table"
+    );
 
     let faithful = run_direct_arm_answering("alpha")?;
-    assert!(
-        !faithful.model_drifted(),
-        "and must not fire when the provider ran what was asked for"
+    assert_eq!(faithful.model_status(), ModelStatus::Verified);
+    assert!(faithful.comparable());
+    Ok(())
+}
+
+/// A provider that reported no model leaves the cell incomparable.
+///
+/// Not "probably fine". The run did not establish which model produced the
+/// answer, and a row built on that asserts something nobody checked.
+#[test]
+fn a_cell_whose_model_was_never_reported_is_not_comparable() -> Result<()> {
+    let spec = spec(Arm::Raw)?;
+    let mut transport = ProgrammedTransport::new(|_: &SealedRequest, _| {
+        Ok(RawResponse {
+            status: 200,
+            body: serde_json::to_vec(&serde_json::json!({
+                "id": "msg_test",
+                "stop_reason": "tool_use",
+                "content": [tool_use(
+                    "call_answer",
+                    "qodec_answer",
+                    serde_json::json!({"answer": KeyBytes::new(b"alpha".to_vec()).to_envelope()}),
+                )],
+                "usage": {"input_tokens": 1, "output_tokens": 1},
+            }))?,
+            request_id: None,
+        })
+    });
+    let record = run_direct_cell(&spec, RAW_BODY, &mut transport)?;
+
+    assert!(record.outcome.correct(), "the answer itself was right");
+    assert_eq!(
+        record.model_status(),
+        ModelStatus::Missing,
+        "silence is not agreement"
     );
+    assert!(
+        !record.comparable(),
+        "a correct answer from an unidentified model is still not comparable"
+    );
+    Ok(())
+}
+
+// ---------------------------------------------------------------------------
+// The terminal-answer protocol
+// ---------------------------------------------------------------------------
+
+/// Two answers in one response are a violation, not a choice.
+///
+/// Taking the first would be a coin toss with a tidy implementation, and the
+/// record afterwards would look exactly like a run where the model was
+/// unambiguous. The two answers here disagree, so whichever was picked, the
+/// harness would confidently report a result the model never settled on.
+#[test]
+fn two_terminal_answers_are_a_protocol_violation() -> Result<()> {
+    let spec = spec(Arm::ForcedQuery)?;
+    let mut session = session()?;
+    let mut transport =
+        ProgrammedTransport::new(|sealed: &SealedRequest, turn: usize| match turn {
+            0 => reply(
+                MODEL,
+                vec![intersect_call(&["attempt_1", "attempt_2", "attempt_3"])],
+            ),
+            _ => {
+                let result = last_tool_result(sealed)?;
+                let handle = result
+                    .get("handle")
+                    .and_then(|v| v.as_str())
+                    .ok_or_else(|| anyhow!("no handle"))?;
+                let mk = |id: &str, text: &[u8]| {
+                    tool_use(
+                        id,
+                        "qodec_answer",
+                        serde_json::json!({
+                            "handle": handle,
+                            "answer": KeyBytes::new(text.to_vec()).to_envelope(),
+                            "cited": [],
+                        }),
+                    )
+                };
+                reply(MODEL, vec![mk("a1", b"alpha"), mk("a2", b"gamma")])
+            }
+        });
+    let record = run_forced_query_cell(&spec, &mut session, &mut transport)?;
+
+    let ArmOutcome::ProtocolViolation { violation } = &record.outcome else {
+        return Err(anyhow!(
+            "expected a protocol violation, got {:?}",
+            record.outcome
+        ));
+    };
+    assert_eq!(*violation, ProtocolViolation::MultipleAnswers { count: 2 });
+    assert!(
+        !record.outcome.correct(),
+        "an unreadable response is not a right one"
+    );
+    Ok(())
+}
+
+/// An answer arriving beside operations is a violation: the answer would rest
+/// on results the model had not yet seen.
+#[test]
+fn an_answer_mixed_with_operations_is_a_protocol_violation() -> Result<()> {
+    let spec = spec(Arm::ForcedQuery)?;
+    let mut session = session()?;
+    let mut transport = ProgrammedTransport::new(|_: &SealedRequest, _| {
+        reply(
+            MODEL,
+            vec![
+                intersect_call(&["attempt_1", "attempt_2", "attempt_3"]),
+                tool_use(
+                    "a1",
+                    "qodec_answer",
+                    serde_json::json!({
+                        "handle": "sha256:".to_owned() + &"0".repeat(64),
+                        "answer": KeyBytes::new(b"alpha".to_vec()).to_envelope(),
+                        "cited": [],
+                    }),
+                ),
+            ],
+        )
+    });
+    let record = run_forced_query_cell(&spec, &mut session, &mut transport)?;
+
+    let ArmOutcome::ProtocolViolation { violation } = &record.outcome else {
+        return Err(anyhow!(
+            "expected a protocol violation, got {:?}",
+            record.outcome
+        ));
+    };
+    assert_eq!(
+        *violation,
+        ProtocolViolation::AnswerMixedWithOperations { operations: 1 }
+    );
+    Ok(())
+}
+
+/// A direct arm gets exactly one call, and it must be the answer channel.
+#[test]
+fn a_direct_arm_sending_more_than_one_call_is_a_protocol_violation() -> Result<()> {
+    let spec = spec(Arm::Raw)?;
+    let answer = || {
+        tool_use(
+            "a",
+            "qodec_answer",
+            serde_json::json!({"answer": KeyBytes::new(b"alpha".to_vec()).to_envelope()}),
+        )
+    };
+    let mut transport = ProgrammedTransport::new(move |_: &SealedRequest, _| {
+        reply(MODEL, vec![answer(), answer()])
+    });
+    let record = run_direct_cell(&spec, RAW_BODY, &mut transport)?;
+    assert!(matches!(
+        record.outcome,
+        ArmOutcome::ProtocolViolation {
+            violation: ProtocolViolation::ExtraCallsInDirectArm { count: 2 }
+        }
+    ));
+
+    let mut wrong_tool = ProgrammedTransport::new(|_: &SealedRequest, _| {
+        reply(
+            MODEL,
+            vec![tool_use("a", "qodec_lookup", serde_json::json!({}))],
+        )
+    });
+    let record = run_direct_cell(&spec, RAW_BODY, &mut wrong_tool)?;
+    assert!(matches!(
+        record.outcome,
+        ArmOutcome::ProtocolViolation {
+            violation: ProtocolViolation::UnexpectedToolInDirectArm { .. }
+        }
+    ));
+    Ok(())
+}
+
+/// One answer and no operations is the well-formed terminal response, and it
+/// still works. Without this, every test above would pass on an implementation
+/// that rejected everything.
+#[test]
+fn one_answer_and_no_operations_is_accepted() -> Result<()> {
+    let record = run_happy_forced_query()?;
+    assert!(matches!(
+        record.outcome,
+        ArmOutcome::Answered { correct: true }
+    ));
+    Ok(())
+}
+
+// ---------------------------------------------------------------------------
+// A failed crossing still leaves a record
+// ---------------------------------------------------------------------------
+
+/// A transport that never gets through still produces a CellRecord.
+///
+/// Otherwise the most interesting live defect leaves behind a line on stderr
+/// and somebody's recollection of roughly how it fell over.
+#[test]
+fn a_cell_whose_transport_never_succeeded_still_produces_a_record() -> Result<()> {
+    let mut spec = spec(Arm::Raw)?;
+    spec.max_transport_attempts = 3;
+    let mut transport =
+        ProgrammedTransport::new(|_: &SealedRequest, _| Err(anyhow!("connection reset")));
+    let record = run_direct_cell(&spec, RAW_BODY, &mut transport)?;
+
+    let ArmOutcome::CrossingFailed { kind, reason } = &record.outcome else {
+        return Err(anyhow!(
+            "expected a failed crossing, got {:?}",
+            record.outcome
+        ));
+    };
+    assert_eq!(kind, "transport-failed");
+    assert!(!reason.is_empty());
+
+    let turn = record
+        .turns
+        .first()
+        .ok_or_else(|| anyhow!("a failed crossing must still record its turn"))?;
+    assert_eq!(turn.exchange.attempts().len(), 3, "every attempt is kept");
+    assert!(turn.exchange.raw().is_none());
+
+    // The request that failed is still fully recorded, bytes and all.
+    assert!(!turn.request.wire_bytes().is_empty());
+    assert!(record.accounting.deterministic_local.request_bytes > 0);
+
+    // And it serializes, which is where a record has to survive.
+    let json = record.to_json();
+    assert_eq!(
+        json.pointer("/turns/0/exchange/kind")
+            .and_then(|v| v.as_str()),
+        Some("transport-failed")
+    );
+    Ok(())
+}
+
+/// A provider rejection likewise: the cell ends, and the bytes are in the file.
+#[test]
+fn a_rejected_cell_keeps_the_rejection_body() -> Result<()> {
+    let spec = spec(Arm::Raw)?;
+    let mut transport = ProgrammedTransport::new(|_: &SealedRequest, _| {
+        Ok(RawResponse {
+            status: 429,
+            body: serde_json::to_vec(&serde_json::json!({
+                "type": "error",
+                "error": {"type": "rate_limit_error", "message": "slow down"},
+            }))?,
+            request_id: Some("req_429".to_owned()),
+        })
+    });
+    let record = run_direct_cell(&spec, RAW_BODY, &mut transport)?;
+
+    let ArmOutcome::CrossingFailed { kind, reason } = &record.outcome else {
+        return Err(anyhow!(
+            "expected a failed crossing, got {:?}",
+            record.outcome
+        ));
+    };
+    assert_eq!(kind, "provider-rejected");
+    assert!(
+        reason.contains("429"),
+        "the status belongs in the reason: {reason}"
+    );
+
+    let json = record.to_json();
+    let body = json
+        .pointer("/turns/0/exchange/raw/body")
+        .ok_or_else(|| anyhow!("the rejection body must be kept"))?;
+    let bytes = KeyBytes::from_envelope(body)?;
+    assert!(
+        String::from_utf8_lossy(bytes.as_bytes()).contains("slow down"),
+        "the provider's own words survive into the record"
+    );
+    // Charged, not free: a failed crossing that looks cheap makes the cost
+    // table wrong in the flattering direction.
+    assert!(record.accounting.deterministic_local.response_bytes > 0);
     Ok(())
 }
 
