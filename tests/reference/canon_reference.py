@@ -285,7 +285,27 @@ def check() -> int:
     tests = Path(__file__).resolve().parents[1]
     sources = {p.name: p.read_text(encoding="utf-8") for p in sorted(tests.glob("*.rs"))}
     bad = 0
-    for name, want in vectors().items():
+    derived = vectors()
+
+    # The reverse direction. Scanning only the names this file derives would
+    # check that every Python vector reached Rust, and say nothing about a Rust
+    # constant that no reference ever computed — which is precisely the
+    # self-attested state the docstring above claims to prevent. The claim was
+    # true of the intent and false of the code until this loop existed.
+    #
+    # The namespace is GOLDEN_* and SUBST_*, not every string constant: the
+    # test files also hold fixture text (DOC, SAMPLE, QUESTIONS, KEY_TEXT) that
+    # is input to the contracts rather than an identity anyone should derive.
+    rust_vectors = set()
+    for src in sources.values():
+        rust_vectors |= set(
+            re.findall(r"const ((?:GOLDEN|SUBST)_[A-Z0-9_]+): &str\s*=", src)
+        )
+    for name in sorted(rust_vectors - set(derived)):
+        print(f"SELF-ATTESTED: {name} is a Rust identity vector the reference never derives")
+        bad += 1
+
+    for name, want in derived.items():
         pattern = re.compile(rf'const {re.escape(name)}: &str =\s*"([^"]+)"')
         found = {f: m.group(1) for f, src in sources.items() if (m := pattern.search(src))}
         if not found:

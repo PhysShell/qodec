@@ -291,13 +291,23 @@
               let
                 root = toString ./.;
                 fixtures = [ "/corpus" "/evals/agent-g5/tasks-density" ];
-                # Keep a path when it is inside a fixture tree, or is an
+                # Keep a path when it is a fixture tree, is inside one, or is an
                 # ancestor of one — `cleanSourceWith` prunes directories, so a
                 # rejected parent hides everything beneath it.
+                #
+                # Matching is on whole path components, not raw string prefixes.
+                # A bare `hasPrefix` also admits siblings that merely share a
+                # name prefix — `/corpus-archive`, `/evals/agent-g5/tasks-density-v2`
+                # — and, in the ancestor direction, unrelated shorter paths such
+                # as a top-level file named `corp`. With `evals/` at ~150 MB, an
+                # accidental match is exactly the cost this filter exists to avoid.
                 wanted = path:
                   let rel = pkgs.lib.removePrefix root (toString path);
                   in pkgs.lib.any
-                    (f: pkgs.lib.hasPrefix f rel || pkgs.lib.hasPrefix rel f)
+                    (f:
+                      rel == f
+                      || pkgs.lib.hasPrefix "${f}/" rel
+                      || pkgs.lib.hasPrefix "${rel}/" f)
                     fixtures;
               in
               pkgs.lib.cleanSourceWith {
