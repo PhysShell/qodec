@@ -2,10 +2,11 @@
 """Break each contract in `provider_matrix.py` and confirm the suite turns red.
 
 A green suite proves that the tests pass, not that they would notice. These are
-the four hardening contracts stated as their own negations: if the canary can be
-made to accept an immediate terminal answer, skip schema validation, send the
-credential over plaintext, or lose the model that drifted — and the tests stay
-green — then the tests are decoration.
+every hardening contract stated as its own negation: if the canary can be made
+to accept an immediate terminal answer, skip schema validation, take a padded
+byte envelope, cite a handle nothing returned, let a catalog row choose the
+origin, promote a lost body to a completed exchange, or write a provider's error
+prose into a receipt — and the tests stay green — then the tests are decoration.
 
 Every mutation verifies that the substitution *actually applied* before
 believing the result. An anchor that no longer matches, or a replacement that
@@ -18,22 +19,54 @@ failures, never as passes.
 Exit 0 when every mutation is killed, 1 when any survives, 2 when the baseline
 is already red — in which case nothing below means anything.
 
-The source file is restored in a `finally`, including on Ctrl-C. If a crash ever
-does leave it mutated, `git diff evals/provider-matrix/provider_matrix.py` shows
-exactly what to revert.
+Mutations are applied to a **throwaway copy** of this directory, never to the
+checkout. A harness that edits a tracked file in place and restores it in a
+`finally` is one SIGKILL away from leaving a mutated working tree that looks
+like deliberate work; copying removes the failure mode instead of apologising
+for it. The tree is therefore byte-clean by construction, and CI still runs
+`git diff --exit-code` afterwards to say so out loud.
 """
+import os
 import shutil
 import subprocess
 import sys
+import tempfile
 from pathlib import Path
 
 HERE = Path(__file__).resolve().parent
 SRC = HERE / "provider_matrix.py"
-BACKUP = SRC.with_suffix(".py.orig")
+# `jsonschema_mini` is resolved relative to the real tree, so the working copy
+# below reaches it through PYTHONPATH rather than through its own parent.
+CORPUS_TOOLS = HERE.parent / "interop" / "v2" / "corpus" / "tools"
 
 # (name, exact source to find, what to put there instead). The anchor must match
 # exactly once — a pattern that matches twice is mutating something the name
 # does not describe, and a pattern that matches zero times is a silent pass.
+#
+# `old` and `new` may be equal-length lists, which removes several guards of the
+# *same fact* at once. Two independent guards for one fact are good engineering
+# and individually unkillable: whichever is mutated, the other still holds. The
+# choice is between deleting the redundancy to make a mutation score look tidy
+# and admitting that the unit under test is the fact, not the line.
+#
+# Three checks are deliberately absent from this list, because after the trusted
+# registry landed they became belts behind a brace and no single mutation can
+# reach them:
+#
+#   * `completions_url` at the two send sites and at intake — by then the origin
+#     is a registry value that `normalize_registry` already vetted, so the call
+#     builds a URL rather than guarding one. `C10` is the mutation that proves
+#     the gate, and `test_the_url_rules_still_apply_to_a_registry_built_in_memory`
+#     is the test that proves a bypass is refused.
+#   * the canonical round-trip in `envelope_errors` — given the dangling and
+#     trailing-bit checks, `encode(decode(x)) == x` is provable rather than
+#     testable. It stays as an assertion about the pair, not as a third gate.
+#   * the `isinstance(payload, dict)` check on the *qualification* path —
+#     `[]["choices"]` raises `TypeError` on its own, and that is already in the
+#     except tuple, so the subscript is the gate and the check only buys a
+#     better message. The probe path is different: `payload.get("model")` on a
+#     list raises `AttributeError`, which nothing caught until this round, and
+#     `M1` removes both of its guards together to prove it.
 MUTATIONS = [
     # -- A: the multi-turn roundtrip guard --
     ("A1 terminal answer accepted without a roundtrip",
@@ -46,25 +79,28 @@ MUTATIONS = [
      "        awaiting_roundtrip = True",
      "        awaiting_roundtrip = False"),
     ("A4 a rejection of the results blamed on the request shape",
-     "        if carried_tool_results:",
-     "        if False:"),
+     "    if status == 400 and carried_tool_results:",
+     "    if False:"),
 
     # -- B: schema validation and the canary answer --
     ("B1 validation degraded to required-key presence",
-     "    return jsonschema_mini.validate(args, schema)",
-     "    return [f\"missing {k}\" for k in schema.get(\"required\", []) if k not in args]"),
+     "    errors = jsonschema_mini.validate(args, schema)",
+     "    errors = [f\"missing {k}\" for k in schema.get(\"required\", []) if k not in args]"),
     ("B2 arguments never validated at all",
      "            errors = validate_arguments(surface, call[\"name\"], args)",
      "            errors = []"),
     ("B3 canary answer never graded",
-     "            answer_errors = canary_answer_errors(answer_args)",
+     "            answer_errors = canary_answer_errors(answer_args, observed)",
      "            answer_errors = []"),
     ("B4 wrong answer bytes tolerated",
-     "        if decoded != CANARY_ANSWER_BYTES:",
-     "        if False:"),
+     "    if decoded is not None and decoded not in observed.bytes:",
+     "    if False:"),
     ("B5 citations outside the support tolerated",
-     "        if json.dumps(citation, sort_keys=True) not in support:",
+     "        if spelled not in observed.support:",
      "        if False:"),
+    ("B6 the envelope oracle never reaches tool arguments",
+     "    for label, envelope in walk_envelopes(args):",
+     "    for label, envelope in []:"),
 
     # -- C: transport hardening --
     ("C1 plaintext http accepted",
@@ -73,8 +109,11 @@ MUTATIONS = [
     ("C2 userinfo accepted",
      "    if parts.username or parts.password:",
      "    if False:"),
-    ("C3 query and fragment accepted",
+    ("C3a a query string accepted",
      "    if parts.query:",
+     "    if False:"),
+    ("C3b a fragment accepted",
+     "    if parts.fragment:",
      "    if False:"),
     ("C4 redirects followed",
      "    def redirect_request(self, req, fp, code, msg, headers, newurl):  # noqa: D102\n        return None",
@@ -85,15 +124,6 @@ MUTATIONS = [
     ("C6 a lost body after headers called unavailability",
      "    \"after-headers\": \"RESPONSE_CAPTURE_FAILED\",",
      "    \"after-headers\": \"UNAVAILABLE\","),
-    ("C7 qualify builds the URL without applying the rules",
-     "        url = completions_url(base)",
-     "        url = base + COMPLETIONS_PATH"),
-    ("C8 the probe builds the URL without applying the rules",
-     "        url = completions_url(target[\"api_base\"])",
-     "        url = target[\"api_base\"] + COMPLETIONS_PATH"),
-    ("C9 an unvetted origin admitted at intake",
-     "    try:\n        completions_url(api_base)\n    except EndpointRejected as exc:",
-     "    try:\n        pass\n    except EndpointRejected as exc:"),
     ("C10 a registry file is loaded without vetting its origins",
      "        completions_url(entry[\"api_base\"])",
      "        pass"),
@@ -111,8 +141,29 @@ MUTATIONS = [
 
     # -- E: the trusted provider registry --
     ("E1 a catalog row's api_base and key_env regain authority",
-     "        if isinstance(claimed, str) and claimed.strip().rstrip(\"/\") != entry[field].rstrip(\"/\"):",
+     "        if claimed.strip().rstrip(\"/\") != entry[field].rstrip(\"/\"):",
      "        if False:"),
+    ("E5 a non-string authority claim is ignored instead of refused",
+     "        if not isinstance(claimed, str):",
+     "        if False:"),
+    ("E6 a caller-supplied registry skips normalization",
+     "    registry = normalize_registry(registry) if registry is not None else load_registry()\n    base = target[\"api_base\"]",
+     "    registry = registry if registry is not None else load_registry()\n    base = target[\"api_base\"]"),
+    ("E7 duplicate provider keys resolved by document order",
+     "        if key in seen:",
+     "        if False:"),
+    ("E8 unknown fields allowed on a registry entry",
+     "        extra = sorted(set(entry) - set(AUTHORITY_FIELDS))\n        if extra:",
+     "        extra = []\n        if extra:"),
+    ("E9 an implausible key_env accepted",
+     "        if not KEY_ENV_PATTERN.match(entry[\"key_env\"]):",
+     "        if False:"),
+    ("E10 a non-lowercase provider name accepted",
+     "        if not isinstance(name, str) or name != name.strip().lower() or not name:",
+     "        if False:"),
+    ("E11 normalization aliases the caller's mutable entry",
+     "        normalized[name] = {\n            \"api_base\": entry[\"api_base\"].rstrip(\"/\"),\n            \"api_style\": entry[\"api_style\"],\n            \"key_env\": entry[\"key_env\"],\n        }",
+     "        normalized[name] = entry"),
     ("E2 an unknown provider gets a default origin instead of a refusal",
      "    entry = registry[\"providers\"].get(provider)",
      "    entry = registry[\"providers\"].get(provider) or "
@@ -126,7 +177,7 @@ MUTATIONS = [
 
     # -- F: only a verified model identity may pass --
     ("F1 a run whose model was never named still passes qualification",
-     "            elif status != \"verified\":",
+     "            elif identity != \"verified\":",
      "            elif False:"),
     ("F2 a probe whose model was never named still passes",
      "    elif status_of_model == \"missing\":",
@@ -159,6 +210,71 @@ MUTATIONS = [
     ("H4 tool calls accepted under any role",
      "    if role != \"assistant\":",
      "    if False:"),
+    # -- I: the byte envelope, decoded as the crate decodes it --
+    ("I1 the lenient stdlib decoder restored",
+     "        decoded = b64url_nopad_decode(data)",
+     "        decoded = __import__(\"base64\").urlsafe_b64decode(data + \"=\" * (-len(data) % 4))"),
+    ("I2 non-zero trailing bits tolerated",
+     "    if bits > 0 and (acc & ((1 << bits) - 1)) != 0:",
+     "    if False:"),
+    ("I3 a dangling character tolerated",
+     "    if bits >= 6:",
+     "    if False:"),
+    ("I5 a disagreeing display_utf8 tolerated",
+     "                if decoded.decode(\"utf-8\") != shown:",
+     "                if False:"),
+    ("I6 unknown envelope fields tolerated",
+     "        f\"{label}: unknown field {key!r} in byte value envelope\"\n        for key in value\n        if key not in ENVELOPE_FIELDS",
+     "        f\"{label}: unknown field {key!r} in byte value envelope\"\n        for key in value\n        if False"),
+    ("I7 a wrong envelope encoding tolerated",
+     "    if value.get(\"encoding\") != ENVELOPE_ENCODING:",
+     "    if False:"),
+
+    # -- J: the answer is graded against this run --
+    ("J1 an answer may cite a handle no operation returned",
+     "    elif handle not in observed.handles:",
+     "    elif False:"),
+    ("J2 a run that returned no handle still admits a cited one",
+     "    if not observed.handles:",
+     "    if False:"),
+    ("J3 returned results never enter the observable set",
+     "            observed.record(result)",
+     "            pass"),
+
+    # -- K: transport state is a table, not an inference --
+    ("K1 a status without a body promoted to completed",
+     "    return \"completed\" if body is not None else \"after-headers\"",
+     "    return \"completed\""),
+    ("K2 a body without a status silently accepted",
+     "        if body is not None:\n            raise ValueError(\"invalid send result: a response body without a status\")",
+     "        if False:\n            raise ValueError(\"invalid send result: a response body without a status\")"),
+
+    # -- L: nothing untrusted, and no credential, reaches an artifact --
+    ("L1 the provider's error prose written into the receipt",
+     "        return \"TOOL_CHOICE_UNSUPPORTED\", \"tools-or-tool-choice-named-in-a-400\"",
+     "        return \"TOOL_CHOICE_UNSUPPORTED\", body.decode(\"utf-8\", \"replace\")"),
+    ("L2 a malformed credential reaches the header builder",
+     "    if not credential_is_header_safe(key):",
+     "    if False:"),
+    ("L3 the crash receipt repeats the exception message",
+     "            \"detail\": f\"provider-matrix raised {type(exc).__name__}\",",
+     "            \"detail\": str(exc),"),
+
+    # -- M: one target's failure is one target's receipt --
+    # Both guards for one fact, removed together: the explicit shape check and
+    # the `AttributeError` that would otherwise catch `[].get`.
+    ("M1 nothing stops a non-object probe payload from raising",
+     ["        if not isinstance(payload, dict):\n            raise TypeError(f\"completion was a {type(payload).__name__}, not an object\")\n        reported_model = payload.get(\"model\")",
+      "    except (json.JSONDecodeError, KeyError, TypeError, IndexError, AttributeError):"],
+     ["        reported_model = payload.get(\"model\")",
+      "    except (json.JSONDecodeError, KeyError, TypeError, IndexError):"]),
+    ("M3 an unmappable 2xx filed as a refusal",
+     "            receipt.update(classification=\"INVALID_OUTPUT\", detail=why, turn_count=turn + 1)",
+     "            receipt.update(classification=\"PROVIDER_REJECTED\", detail=why, turn_count=turn + 1)"),
+    ("M4 a crashing target ends the matrix",
+     "    except Exception as exc:  # noqa: BLE001 — deliberate: see the docstring",
+     "    except ZeroDivisionError as exc:"),
+
     ("H5 the replay rebuilds the tool calls instead of echoing them",
      "            \"tool_calls\": message[\"tool_calls\"],",
      "            \"tool_calls\": [{\"id\": c[\"id\"], \"type\": \"function\", \"function\": "
@@ -166,56 +282,65 @@ MUTATIONS = [
 ]
 
 
-def run_suite() -> tuple[bool, str]:
+def run_suite(workdir: Path) -> tuple[bool, str]:
+    env = dict(os.environ, PYTHONPATH=str(CORPUS_TOOLS), PYTHONDONTWRITEBYTECODE="1")
     proc = subprocess.run(
         [sys.executable, "-m", "unittest", "test_provider_matrix.py"],
-        cwd=HERE, capture_output=True, text=True,
+        cwd=workdir, capture_output=True, text=True, env=env,
     )
-    return proc.returncode == 0, (proc.stdout + proc.stderr).strip().splitlines()[-1]
+    tail = (proc.stdout + proc.stderr).strip().splitlines()
+    return proc.returncode == 0, tail[-1] if tail else "(no output)"
 
 
 def main() -> int:
-    shutil.copy(SRC, BACKUP)
-    original = BACKUP.read_text(encoding="utf-8")
-    try:
-        ok, verdict = run_suite()
+    original = SRC.read_text(encoding="utf-8")
+    failures: list[str] = []
+    with tempfile.TemporaryDirectory() as tmp:
+        work = Path(tmp) / "provider-matrix"
+        shutil.copytree(HERE, work, ignore=shutil.ignore_patterns("__pycache__"))
+        target = work / "provider_matrix.py"
+
+        ok, verdict = run_suite(work)
         print(f"baseline: {'GREEN' if ok else 'RED'} ({verdict})")
         if not ok:
             print("baseline is red; nothing below means anything")
             return 2
 
-        failures = []
         for name, old, new in MUTATIONS:
-            count = original.count(old)
-            if count != 1:
-                print(f"  SKIPPED  {name}: anchor matched {count} times, not 1")
+            edits = list(zip(old, new)) if isinstance(old, list) else [(old, new)]
+            mutated = original
+            bad = None
+            for find, replace in edits:
+                count = mutated.count(find)
+                if count != 1:
+                    bad = f"anchor {find[:40]!r} matched {count} times, not 1"
+                    break
+                stepped = mutated.replace(find, replace)
+                if stepped == mutated:
+                    bad = f"substitution for {find[:40]!r} changed nothing"
+                    break
+                mutated = stepped
+            if bad:
+                print(f"  SKIPPED  {name}: {bad}")
                 failures.append(name)
                 continue
-            mutated = original.replace(old, new)
-            if mutated == original:
-                print(f"  NO-OP    {name}: substitution changed nothing")
-                failures.append(name)
-                continue
-            SRC.write_text(mutated, encoding="utf-8")
-            ok, verdict = run_suite()
-            SRC.write_text(original, encoding="utf-8")
+            target.write_text(mutated, encoding="utf-8")
+            ok, verdict = run_suite(work)
+            target.write_text(original, encoding="utf-8")
             if ok:
                 print(f"  SURVIVED {name}  <-- the suite did not notice ({verdict})")
                 failures.append(name)
             else:
                 print(f"  killed   {name}  ({verdict})")
 
-        print()
-        if failures:
-            print(f"{len(failures)} of {len(MUTATIONS)} mutations unaccounted for:")
-            for name in failures:
-                print(f"  - {name}")
-            return 1
-        print(f"all {len(MUTATIONS)} mutations killed")
-        return 0
-    finally:
-        SRC.write_text(original, encoding="utf-8")
-        BACKUP.unlink()
+    print()
+    if failures:
+        print(f"{len(failures)} of {len(MUTATIONS)} mutations unaccounted for:")
+        for name in failures:
+            print(f"  - {name}")
+        return 1
+    print(f"all {len(MUTATIONS)} mutations killed")
+    return 0
 
 
 if __name__ == "__main__":

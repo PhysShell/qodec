@@ -9,11 +9,10 @@ without fallback or model substitution.
 from __future__ import annotations
 
 import argparse
-import base64
-import binascii
 import hashlib
 import json
 import os
+import re
 import sys
 import time
 import urllib.error
@@ -105,6 +104,8 @@ MAX_RESPONSE_BYTES = 4 * 1024 * 1024
 
 REGISTRY_SCHEMA = "qodec-provider-registry-v1"
 REGISTRY_PATH = Path(__file__).resolve().parent / "trusted-providers.json"
+AUTHORITY_FIELDS = ("api_base", "key_env", "api_style")
+KEY_ENV_PATTERN = re.compile(r"[A-Z][A-Z0-9_]*\Z")
 
 # Headers providers use to name the generation. Kept because it is the only
 # handle support has when a body is lost after the headers arrived.
@@ -113,6 +114,145 @@ REQUEST_ID_HEADERS = ("x-request-id", "x-groq-request-id", "openai-request-id", 
 
 class EndpointRejected(ValueError):
     """The catalog named an endpoint this transport will not send a key to."""
+
+
+# ---------------------------------------------------------------------------
+# The byte envelope, decoded exactly as the crate decodes it
+# ---------------------------------------------------------------------------
+#
+# `base64.urlsafe_b64decode` is not the rule this project uses. It accepts
+# padding, and it does not care about non-zero trailing bits — so `YWxwaGE=`
+# and a nonsense-tailed spelling both decode to `alpha`, and a value with two
+# spellings has no business in a content address. `canon.rs` refuses both, and
+# `KeyBytes::from_envelope` additionally refuses unknown fields and a
+# `display_utf8` that disagrees with the decoded bytes.
+#
+# A canary that accepts what the mapper refuses qualifies a response the mapper
+# will reject. That is the same defect as paraphrasing the schemas, so the rule
+# is ported rather than approximated, and the negative corpus below is the
+# evidence that the two agree.
+
+B64URL_ALPHABET = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789-_"
+B64URL_VALUE = {ch: index for index, ch in enumerate(B64URL_ALPHABET)}
+ENVELOPE_FIELDS = ("encoding", "data", "display_utf8")
+ENVELOPE_ENCODING = "base64url-nopad"
+
+
+class NoncanonicalEncoding(ValueError):
+    """`data` is not the one canonical spelling of the bytes it denotes."""
+
+
+def b64url_nopad_decode(text: str) -> bytes:
+    """Decode strictly: no padding, no `+/`, no whitespace, no trailing bits.
+
+    A transcription of `canon.rs::base64url_nopad_decode`. Kept as a bit
+    accumulator rather than delegated to `base64` precisely because the standard
+    decoder is lenient about the two things that matter here.
+    """
+    acc = 0
+    bits = 0
+    out = bytearray()
+    for ch in text:
+        value = B64URL_VALUE.get(ch)
+        if value is None:
+            raise NoncanonicalEncoding(
+                f"base64url-nopad rejects {ch!r}; padding and '+/' are not accepted"
+            )
+        acc = (acc << 6) | value
+        bits += 6
+        if bits >= 8:
+            bits -= 8
+            out.append((acc >> bits) & 0xFF)
+    if bits >= 6:
+        raise NoncanonicalEncoding("base64url-nopad input has a dangling character")
+    if bits > 0 and (acc & ((1 << bits) - 1)) != 0:
+        raise NoncanonicalEncoding(
+            "base64url-nopad input has non-zero trailing bits; encoding is not canonical"
+        )
+    return bytes(out)
+
+
+def b64url_nopad_encode(raw: bytes) -> str:
+    out = []
+    acc = 0
+    bits = 0
+    for byte in raw:
+        acc = (acc << 8) | byte
+        bits += 8
+        while bits >= 6:
+            bits -= 6
+            out.append(B64URL_ALPHABET[(acc >> bits) & 0x3F])
+    if bits:
+        out.append(B64URL_ALPHABET[(acc << (6 - bits)) & 0x3F])
+    return "".join(out)
+
+
+def envelope_errors(value: Any, label: str) -> tuple[list[str], bytes | None]:
+    """Validate one byte envelope with the strictness the crate applies.
+
+    Schema keywords can reject an obviously wrong shape, but they cannot express
+    trailing-bit canonicality or agreement between `data` and `display_utf8`.
+    Those need a procedure, so this is one — and it returns the decoded bytes so
+    the caller does not decode a second time with a different rule.
+    """
+    if not isinstance(value, dict):
+        return [f"{label}: byte value envelope must be an object"], None
+
+    errors = [
+        f"{label}: unknown field {key!r} in byte value envelope"
+        for key in value
+        if key not in ENVELOPE_FIELDS
+    ]
+    if value.get("encoding") != ENVELOPE_ENCODING:
+        errors.append(f"{label}: encoding must be {ENVELOPE_ENCODING!r}, got {value.get('encoding')!r}")
+
+    data = value.get("data")
+    if not isinstance(data, str):
+        errors.append(f"{label}: envelope needs a string `data`")
+        return errors, None
+
+    try:
+        decoded = b64url_nopad_decode(data)
+    except NoncanonicalEncoding as exc:
+        errors.append(f"{label}: {exc}")
+        return errors, None
+
+    # Belt and braces over the bit checks above: if any spelling other than the
+    # canonical one survived, the round trip is where it shows.
+    if b64url_nopad_encode(decoded) != data:
+        errors.append(f"{label}: {data!r} is not the canonical spelling of the bytes it decodes to")
+
+    if "display_utf8" in value:
+        shown = value["display_utf8"]
+        if not isinstance(shown, str):
+            errors.append(f"{label}: `display_utf8` must be a string")
+        else:
+            try:
+                if decoded.decode("utf-8") != shown:
+                    errors.append(f"{label}: `display_utf8` disagrees with the decoded bytes")
+            except UnicodeDecodeError:
+                errors.append(f"{label}: `display_utf8` present but the bytes are not UTF-8")
+    return errors, decoded
+
+
+def walk_envelopes(value: Any, path: str = "") -> list[tuple[str, Any]]:
+    """Every byte envelope inside a decoded argument object.
+
+    Found structurally — any object carrying an `encoding` key — rather than by
+    a list of field names, so an envelope added to the surface later is checked
+    the day it appears instead of the day somebody remembers to add it here.
+    """
+    found: list[tuple[str, Any]] = []
+    if isinstance(value, dict):
+        if "encoding" in value:
+            found.append((path or "<envelope>", value))
+            return found
+        for key, sub in value.items():
+            found.extend(walk_envelopes(sub, f"{path}.{key}" if path else key))
+    elif isinstance(value, list):
+        for index, sub in enumerate(value):
+            found.extend(walk_envelopes(sub, f"{path}[{index}]"))
+    return found
 
 
 def load_registry(path: Path | None = None) -> dict[str, Any]:
@@ -129,18 +269,72 @@ def load_registry(path: Path | None = None) -> dict[str, Any]:
     name, the model, the free-tier metadata and its own provenance, and nothing
     that carries authority.
     """
-    registry = read_json(path or REGISTRY_PATH)
-    if registry.get("schema") != REGISTRY_SCHEMA:
-        raise ValueError(f"expected {REGISTRY_SCHEMA}, got {registry.get('schema')!r}")
-    providers = registry.get("providers")
+    text = (path or REGISTRY_PATH).read_text(encoding="utf-8")
+    return normalize_registry(json.loads(text, object_pairs_hook=_reject_duplicate_keys))
+
+
+def _reject_duplicate_keys(pairs: list[tuple[str, Any]]) -> dict[str, Any]:
+    """`json.loads` keeps the last of two identical keys, silently.
+
+    In a registry that means two entries for one provider and whichever the
+    parser happened to keep decides where a credential goes. The ambiguity has
+    to be an error, not a coin toss resolved by document order.
+    """
+    seen: set[str] = set()
+    for key, _ in pairs:
+        if key in seen:
+            raise ValueError(f"duplicate key {key!r} in the trusted registry")
+        seen.add(key)
+    return dict(pairs)
+
+
+def normalize_registry(raw: Any) -> dict[str, Any]:
+    """Validate a registry and return a fresh normalized object.
+
+    Applied to a caller-supplied dict exactly as to the committed file — a
+    registry that skipped validation because it arrived as an object rather than
+    a path would be a trust boundary with a side door. The result is newly
+    built, so nothing downstream holds a reference to a mutable object somebody
+    else can still change.
+    """
+    if not isinstance(raw, dict):
+        raise ValueError("a trusted registry must be an object")
+    if raw.get("schema") != REGISTRY_SCHEMA:
+        raise ValueError(f"expected {REGISTRY_SCHEMA}, got {raw.get('schema')!r}")
+    unknown = sorted(set(raw) - {"schema", "providers"})
+    if unknown:
+        raise ValueError(f"unknown registry fields {unknown}")
+    providers = raw.get("providers")
     if not isinstance(providers, dict) or not providers:
         raise ValueError("the trusted registry declares no providers")
+
+    normalized: dict[str, Any] = {}
     for name, entry in providers.items():
-        for field in ("api_base", "api_style", "key_env"):
+        if not isinstance(name, str) or name != name.strip().lower() or not name:
+            raise ValueError(f"provider name {name!r} must be a non-empty lowercase string")
+        if not isinstance(entry, dict):
+            raise ValueError(f"trusted provider {name!r} must be an object")
+        extra = sorted(set(entry) - set(AUTHORITY_FIELDS))
+        if extra:
+            raise ValueError(f"trusted provider {name!r} has unknown fields {extra}")
+        for field in AUTHORITY_FIELDS:
             if not isinstance(entry.get(field), str) or not entry[field].strip():
                 raise ValueError(f"trusted provider {name!r} is missing {field}")
+        if entry["api_style"] != "openai-chat":
+            raise ValueError(f"trusted provider {name!r} has unsupported api_style {entry['api_style']!r}")
+        if not KEY_ENV_PATTERN.match(entry["key_env"]):
+            raise ValueError(f"trusted provider {name!r} has an implausible key_env {entry['key_env']!r}")
         completions_url(entry["api_base"])
-    return registry
+        normalized[name] = {
+            "api_base": entry["api_base"].rstrip("/"),
+            "api_style": entry["api_style"],
+            "key_env": entry["key_env"],
+        }
+    return {"schema": REGISTRY_SCHEMA, "providers": normalized}
+
+
+def registry_digest(registry: dict[str, Any]) -> str:
+    return sha256_bytes(canonical_bytes(registry))
 
 
 def trusted_entry(registry: dict[str, Any], provider: str) -> dict[str, Any]:
@@ -161,11 +355,24 @@ def bind_to_registry(row: dict[str, Any], provider: str, model: str, registry: d
     reported. Silently ignoring a hostile `api_base` would mean a tampered
     catalog produces a perfectly valid plan and nobody ever learns it was
     tampered with.
+
+    Absence is allowed; *presence* is always validated. An earlier version
+    checked only `isinstance(claimed, str)`, so `"api_base": {"host":
+    "steal.example"}` slipped past as "not a string, therefore no
+    disagreement" — which is precisely the quiet overrule the rule exists to
+    prevent.
     """
     entry = trusted_entry(registry, provider)
-    for field in ("api_base", "key_env", "api_style"):
-        claimed = row.get(field)
-        if isinstance(claimed, str) and claimed.strip().rstrip("/") != entry[field].rstrip("/"):
+    for field in AUTHORITY_FIELDS:
+        if field not in row:
+            continue
+        claimed = row[field]
+        if not isinstance(claimed, str):
+            raise EndpointRejected(
+                f"{provider}/{model}: catalog {field} is a {type(claimed).__name__}, not a string; "
+                "a value that cannot be compared to the registry cannot be accepted"
+            )
+        if claimed.strip().rstrip("/") != entry[field].rstrip("/"):
             raise EndpointRejected(
                 f"{provider}/{model}: catalog claims {field}={claimed.strip()!r}, "
                 f"trusted registry says {entry[field]!r}"
@@ -262,14 +469,34 @@ class BodyTooLarge(ValueError):
         self.observed = observed
 
 
+def infer_stage(status: int | None, body: bytes | None) -> str:
+    """The stage a legacy tuple implies — a table, not a guess.
+
+    | status | body  | stage                                    |
+    | ------ | ----- | ---------------------------------------- |
+    | None   | None  | before-response: nothing ever arrived     |
+    | int    | None  | after-headers: the body was lost          |
+    | int    | bytes | completed                                 |
+    | None   | bytes | impossible; a body without a status       |
+
+    `b""` is a **complete empty body**, not a lost one — a provider that returns
+    200 with nothing in it has been fully received and simply fails to parse,
+    which is a different fact from a read that died halfway. Inferring purely
+    from "is there a status" promoted `(503, None)` to `completed`, so a billed
+    after-headers loss was reported as retryable `UNAVAILABLE`.
+    """
+    if status is None:
+        if body is not None:
+            raise ValueError("invalid send result: a response body without a status")
+        return "before-response"
+    return "completed" if body is not None else "after-headers"
+
+
 def as_send_result(value: Any) -> SendResult:
     """Accept a `SendResult`, or a positional tuple from an injected `send`.
 
-    A three-field tuple carries no stage, and only one reading of it is
-    consistent: a status means the exchange completed, no status means nothing
-    arrived. Spelled out here rather than as a NamedTuple default, because a
-    default cannot depend on another field — and defaulting to "completed"
-    unconditionally would quietly turn every transport failure into a 200.
+    Deliberately narrow: this is the test-injection boundary, not a general
+    coercion. Everything inside this module builds a `SendResult` directly.
     """
     if isinstance(value, SendResult):
         return value
@@ -277,7 +504,7 @@ def as_send_result(value: Any) -> SendResult:
     result = SendResult(*fields)
     if len(fields) >= 4:
         return result
-    return result._replace(stage="completed" if result.status is not None else "before-response")
+    return result._replace(stage=infer_stage(result.status, result.body))
 
 
 def read_bounded(stream: Any, limit: int) -> bytes:
@@ -299,8 +526,20 @@ def request_id_of(headers: Any) -> str | None:
     return None
 
 
+def credential_is_header_safe(key: str) -> bool:
+    """Printable ASCII, no spaces, no control bytes — a bearer token's shape."""
+    return bool(key) and all("\x21" <= ch <= "\x7e" for ch in key)
+
+
 def send_json(url: str, body: bytes, key: str, timeout: float, limit: int = MAX_RESPONSE_BYTES) -> SendResult:
     """POST `body` to `url` with the credential attached. The only network call."""
+    # Validated *before* the header exists. `http.client` raises
+    # `ValueError: Invalid header value b'Bearer sk-...'` for a key carrying a
+    # stray newline — an exception whose message is the secret, which `main`
+    # would then print to stderr and CI would keep forever. The check is on the
+    # value; the error never repeats it.
+    if not credential_is_header_safe(key):
+        return SendResult(None, None, "credential is not a valid header value", "no-credential")
     request = urllib.request.Request(
         url,
         data=body,
@@ -351,7 +590,14 @@ def key_bound_sender(key_env: str):
         key = os.environ.get(key_env)
         if not key:
             return SendResult(None, None, f"missing env {key_env}", "no-credential")
-        return send_json(url, body, key, timeout)
+        try:
+            return send_json(url, body, key, timeout)
+        except ValueError as exc:
+            # Last resort. `send_json` validates the key first, so this should be
+            # unreachable — but an exception carrying a header value must never
+            # escape toward `main`, which prints `ValueError` to stderr.
+            del exc
+            return SendResult(None, None, "the request could not be constructed", "before-response")
 
     return send
 
@@ -386,7 +632,7 @@ def normalize_target(row: dict[str, Any], registry: dict[str, Any]) -> dict[str,
 
 
 def import_catalog(source: Path, observed_at: str, registry: dict[str, Any] | None = None) -> dict[str, Any]:
-    registry = registry if registry is not None else load_registry()
+    registry = normalize_registry(registry) if registry is not None else load_registry()
     raw_bytes = source.read_bytes()
     rows = source_rows(json.loads(raw_bytes))
     targets = [normalize_target(row, registry) for row in rows]
@@ -403,7 +649,7 @@ def import_catalog(source: Path, observed_at: str, registry: dict[str, Any] | No
         },
         # The registry the origins came from, so a catalog cannot be replayed
         # later against a different one without the change being visible.
-        "registry_sha256": sha256_bytes(canonical_bytes(registry)),
+        "registry_sha256": registry_digest(registry),
         "targets": targets,
     }
 
@@ -478,7 +724,7 @@ def probe_target(
     send: Any = None,
     registry: dict[str, Any] | None = None,
 ) -> dict[str, Any]:
-    registry = registry if registry is not None else load_registry()
+    registry = normalize_registry(registry) if registry is not None else load_registry()
     started = time.time()
     request_body = canonical_bytes({
         "model": target["model"],
@@ -542,10 +788,16 @@ def probe_target(
     )
     try:
         payload = json.loads(raw)
+        # `[]`, `null` and `5` are valid JSON. `payload.get` on any of them
+        # raises `AttributeError`, which nothing caught — so one provider
+        # returning a bare array ended the whole matrix run and every later
+        # target lost its receipt.
+        if not isinstance(payload, dict):
+            raise TypeError(f"completion was a {type(payload).__name__}, not an object")
         reported_model = payload.get("model")
         choices = payload.get("choices", [])
         content = choices[0]["message"]["content"] if choices else None
-    except (json.JSONDecodeError, KeyError, TypeError, IndexError):
+    except (json.JSONDecodeError, KeyError, TypeError, IndexError, AttributeError):
         result["classification"] = "INVALID_OUTPUT"
         return result
     result["reported_model"] = reported_model
@@ -614,8 +866,16 @@ CLASSIFICATIONS = (
     "DIALECT_MISMATCH",
     "MALFORMED_TOOL_ARGUMENTS",
     "PROTOCOL_VIOLATION",
+    # A 2xx the canary cannot map is not a refusal: the provider accepted the
+    # request, generated, and will bill for it. Filing that under
+    # `PROVIDER_REJECTED` would lose the difference between "it said no" and
+    # "it said something we cannot read".
+    "INVALID_OUTPUT",
     "NO_TERMINAL_ANSWER",
     "CANARY_ANSWER_MISMATCH",
+    # Reserved for a defect in this tool, so one target's crash cannot deprive
+    # every later target of a receipt.
+    "INTERNAL_ERROR",
     "PASS",
 )
 
@@ -797,8 +1057,28 @@ def opening_messages() -> list[dict[str, Any]]:
     ]
 
 
+# The reasons a receipt is allowed to state. Fixed, local strings: a provider
+# error body is untrusted text that ends up in a committed artifact, and a
+# gateway that echoes a rejected `Authorization` header into `error.message`
+# would write the credential straight into evidence. The body is *read* — that
+# is how a dialect rejection is told from a missing model — but what gets
+# recorded is our conclusion plus the status, request id, byte count and digest.
+# Scrubbing arbitrary provider prose with a regex is a losing game: a key can
+# come back base64'd, JSON-escaped, or split across fields.
+QUALIFY_REASONS = (
+    "redirect-not-followed",
+    "auth-rejected",
+    "model-not-found",
+    "rate-limited",
+    "server-error",
+    "tools-or-tool-choice-named-in-a-400",
+    "tool-results-rejected",
+    "request-rejected",
+)
+
+
 def classify_qualify_http(status: int, body: bytes, carried_tool_results: bool) -> tuple[str, str]:
-    """Map a non-success status to a cause, with the provider's own words kept.
+    """Map a non-success status to a cause and a local reason code.
 
     Whether the rejected request carried `role: tool` messages matters: a
     rejection of one that did not is about the tools or the forcing, while a
@@ -806,40 +1086,41 @@ def classify_qualify_http(status: int, body: bytes, carried_tool_results: bool) 
     thing to fix. Asked of the request itself rather than inferred from the turn
     number, which is only a proxy for it.
     """
-    detail = ""
-    param = ""
-    try:
-        payload = json.loads(body)
-        error = payload.get("error") if isinstance(payload, dict) else None
-        if isinstance(error, dict):
-            detail = str(error.get("message", ""))
-            param = str(error.get("param", "") or "")
-        elif isinstance(payload, dict):
-            detail = str(payload.get("message", ""))
-    except (json.JSONDecodeError, TypeError):
-        detail = body[:400].decode("utf-8", "replace")
-
     if 300 <= status <= 399:
         # The transport refused to follow it, so the credential stayed put. This
         # is an endpoint to correct, not a provider that said no.
-        return "REDIRECT_NOT_FOLLOWED", detail or f"{status} redirect not followed"
+        return "REDIRECT_NOT_FOLLOWED", "redirect-not-followed"
     if status in (401, 403):
-        return "AUTH_FAILED", detail
+        return "AUTH_FAILED", "auth-rejected"
     if status == 404:
-        return "MODEL_MISSING", detail
+        return "MODEL_MISSING", "model-not-found"
     if status == 429:
-        return "RATE_LIMITED", detail
+        return "RATE_LIMITED", "rate-limited"
     if 500 <= status <= 599:
-        return "UNAVAILABLE", detail
-    if status == 400:
-        haystack = f"{param} {detail}".lower()
-        if "tool_choice" in haystack or "tool choice" in haystack or "tools" in haystack:
-            # Named by the provider, not guessed from the shape of the failure.
-            return "TOOL_CHOICE_UNSUPPORTED", detail
-        if carried_tool_results:
-            return "TOOL_RESULT_REJECTED", detail
-        return "PROVIDER_REJECTED", detail
-    return "PROVIDER_REJECTED", detail
+        return "UNAVAILABLE", "server-error"
+    if status == 400 and provider_named_the_tools(body):
+        # Named by the provider, not guessed from the shape of the failure.
+        return "TOOL_CHOICE_UNSUPPORTED", "tools-or-tool-choice-named-in-a-400"
+    if status == 400 and carried_tool_results:
+        return "TOOL_RESULT_REJECTED", "tool-results-rejected"
+    return "PROVIDER_REJECTED", "request-rejected"
+
+
+def provider_named_the_tools(body: bytes) -> bool:
+    """Did the provider blame the tools or the forcing? Read, never retained."""
+    try:
+        payload = json.loads(body)
+    except (json.JSONDecodeError, TypeError, UnicodeDecodeError):
+        return False
+    if not isinstance(payload, dict):
+        return False
+    error = payload.get("error")
+    if isinstance(error, dict):
+        haystack = f"{error.get('param', '')} {error.get('message', '')}"
+    else:
+        haystack = str(payload.get("message", ""))
+    haystack = haystack.lower()
+    return "tool_choice" in haystack or "tool choice" in haystack or "tools" in haystack
 
 
 def parse_tool_calls(message: dict[str, Any]) -> tuple[list[dict[str, Any]], tuple[str, str] | None]:
@@ -950,18 +1231,46 @@ def validate_arguments(surface: dict[str, Any], name: str, args: dict[str, Any])
     schema = schema_for(surface, name)
     if schema is None:
         return [f"{name} is not a declared tool"]
-    return jsonschema_mini.validate(args, schema)
+    errors = jsonschema_mini.validate(args, schema)
+    # Schema keywords cannot express trailing-bit canonicality or agreement
+    # between `data` and `display_utf8`, so every envelope also goes through the
+    # oracle that matches the crate.
+    for label, envelope in walk_envelopes(args):
+        errors.extend(envelope_errors(envelope, label)[0])
+    return errors
 
 
-def b64url_decode(data: str) -> bytes:
-    """base64url without padding, as every byte envelope in the surface uses."""
-    if not isinstance(data, str):
-        raise ValueError("expected a string")
-    padded = data + "=" * (-len(data) % 4)
-    return base64.urlsafe_b64decode(padded.encode("ascii"))
+class Observed:
+    """What the operations of *this run* actually handed back.
+
+    Grading against module constants let a script that ran only
+    `qodec_materialize` — whose result carries `records` and no handle at all —
+    cite `CANNED_HANDLE` and pass, because the comparison was to a global truth
+    rather than to anything the provider had been shown. That is not a
+    qualification of the protocol, it is a reward for guessing a constant.
+
+    So the observable set is accumulated as results are returned, and the
+    terminal answer may only cite what is in it.
+    """
+
+    def __init__(self) -> None:
+        self.handles: set[str] = set()
+        self.support: set[str] = set()
+        self.bytes: set[bytes] = set()
+
+    def record(self, result: dict[str, Any]) -> None:
+        handle = result.get("handle")
+        if isinstance(handle, str):
+            self.handles.add(handle)
+        for row in result.get("support", []):
+            self.support.add(json.dumps(row, sort_keys=True))
+        for envelope in list(result.get("preview", [])) + list(result.get("records", [])):
+            errors, decoded = envelope_errors(envelope, "canned")
+            if not errors and decoded is not None:
+                self.bytes.add(decoded)
 
 
-def canary_answer_errors(args: dict[str, Any]) -> list[str]:
+def canary_answer_errors(args: dict[str, Any], observed: Observed) -> list[str]:
     """Did the target answer the question, or merely satisfy the schema?
 
     Kept apart from the protocol causes on purpose. A model that speaks the
@@ -969,27 +1278,29 @@ def canary_answer_errors(args: dict[str, Any]) -> list[str]:
     wire and failed the task; folding the two together would hide whichever
     happened to be checked second, and they call for opposite actions — one is
     a target to drop, the other a prompt to fix.
+
+    Every comparison below is against `observed`, never against a constant.
     """
     errors: list[str] = []
 
-    envelope = args.get("answer")
-    data = envelope.get("data") if isinstance(envelope, dict) else None
-    try:
-        decoded = b64url_decode(data)
-    except (binascii.Error, ValueError, UnicodeEncodeError) as exc:
-        errors.append(f"answer data is not base64url: {exc}")
-    else:
-        if decoded != CANARY_ANSWER_BYTES:
-            errors.append(f"answer bytes {decoded!r}, expected {CANARY_ANSWER_BYTES!r}")
+    envelope_problems, decoded = envelope_errors(args.get("answer"), "answer")
+    errors.extend(envelope_problems)
+    if decoded is not None and decoded not in observed.bytes:
+        errors.append(
+            f"answer bytes {decoded!r} were not in any result this run returned"
+        )
 
-    if args.get("handle") != CANNED_HANDLE:
-        errors.append(f"cited handle {args.get('handle')!r} was never returned by any operation")
+    handle = args.get("handle")
+    if not observed.handles:
+        errors.append(f"cited handle {handle!r} but no operation in this run returned a handle")
+    elif handle not in observed.handles:
+        errors.append(f"cited handle {handle!r} was never returned by any operation in this run")
 
-    support = {json.dumps(row, sort_keys=True) for row in CANNED_RESULT["support"]}
     cited = args.get("cited")
     for citation in cited if isinstance(cited, list) else []:
-        if json.dumps(citation, sort_keys=True) not in support:
-            errors.append(f"citation {json.dumps(citation, sort_keys=True)} is not in the result support")
+        spelled = json.dumps(citation, sort_keys=True)
+        if spelled not in observed.support:
+            errors.append(f"citation {spelled} is not in the support this run returned")
     return errors
 
 
@@ -1011,7 +1322,7 @@ def qualify_target(
     A qualification whose failure paths can only be exercised against a real
     provider is a qualification whose failure paths are never exercised.
     """
-    registry = registry if registry is not None else load_registry()
+    registry = normalize_registry(registry) if registry is not None else load_registry()
     base = target["api_base"]
     receipt: dict[str, Any] = {
         "schema": QUALIFY_SCHEMA,
@@ -1054,6 +1365,7 @@ def qualify_target(
     # one thing the forced-query arm most needs and this canary never tested.
     awaiting_roundtrip = False
     roundtrip_seen = False
+    observed = Observed()
 
     messages = opening_messages()
     for turn in range(max_turns):
@@ -1098,12 +1410,17 @@ def qualify_target(
 
         try:
             payload = json.loads(raw)
+            if not isinstance(payload, dict):
+                raise TypeError(f"completion was a {type(payload).__name__}, not an object")
             message = payload["choices"][0]["message"]
-        except (json.JSONDecodeError, KeyError, IndexError, TypeError) as exc:
+            if not isinstance(message, dict):
+                raise TypeError("choices[0].message was not an object")
+        except (json.JSONDecodeError, KeyError, IndexError, TypeError, AttributeError) as exc:
+            why = f"unmappable 2xx completion: {type(exc).__name__}"
             record["outcome"] = "unreadable-response"
-            record["detail"] = str(exc)
+            record["detail"] = why
             receipt["turns"].append(record)
-            receipt.update(classification="PROVIDER_REJECTED", detail=str(exc), turn_count=turn + 1)
+            receipt.update(classification="INVALID_OUTPUT", detail=why, turn_count=turn + 1)
             return receipt
 
         # A successful, readable completion in answer to a request that carried
@@ -1211,7 +1528,7 @@ def qualify_target(
                 return receipt
 
             answer_args = next(a for c, a in decoded if c["name"] == ANSWER_TOOL)
-            answer_errors = canary_answer_errors(answer_args)
+            answer_errors = canary_answer_errors(answer_args, observed)
             record["outcome"] = "terminal-answer"
             record["terminal_answer_valid"] = True
             record["canary_answer_matches"] = not answer_errors
@@ -1227,8 +1544,8 @@ def qualify_target(
             # target unless we know which model produced it — and "the provider
             # named none" is not a milder version of that than "it named another
             # one". Both fail; only `verified` may pass.
-            status = receipt["model_status"]
-            if status == "drifted":
+            identity = receipt["model_status"]
+            if identity == "drifted":
                 substituted = [
                     name for name in receipt["reported_models"]
                     if isinstance(name, str) and name != target["model"]
@@ -1237,8 +1554,8 @@ def qualify_target(
                 receipt["detail"] = (
                     f"requested {target['model']}, provider reported {', '.join(substituted)}"
                 )
-            elif status != "verified":
-                receipt["classification"] = MODEL_STATUS_VERDICT.get(status, "MODEL_IDENTITY_MISSING")
+            elif identity != "verified":
+                receipt["classification"] = MODEL_STATUS_VERDICT.get(identity, "MODEL_IDENTITY_MISSING")
                 receipt["detail"] = (
                     f"requested {target['model']}, and no successful response named a model; "
                     "the protocol held but the identity of what produced it is unestablished"
@@ -1260,10 +1577,15 @@ def qualify_target(
             "tool_calls": message["tool_calls"],
         })
         for call, _args in decoded:
+            result = canned_result_for(call["name"])
+            # The grading set grows only from results the provider was actually
+            # shown. `qodec_materialize` returns records and no handle, so a
+            # materialize-only run establishes no handle to cite.
+            observed.record(result)
             messages.append({
                 "role": "tool",
                 "tool_call_id": call["id"],
-                "content": json.dumps(canned_result_for(call["name"]), sort_keys=True),
+                "content": json.dumps(result, sort_keys=True),
             })
 
     receipt.update(
@@ -1279,6 +1601,31 @@ def add_registry_flag(parser_: argparse.ArgumentParser) -> None:
         "--registry", type=Path, default=REGISTRY_PATH,
         help="trusted provider -> origin + key_env bindings (default: the committed registry)",
     )
+
+
+def guarded_receipt(schema: str, target: dict[str, Any], run: Any) -> dict[str, Any]:
+    """One target's failure must not cost every later target its receipt.
+
+    Receipts are written in a loop, so an exception anywhere in a single
+    target's path used to abort the run and leave the remaining targets with no
+    evidence at all — the least informative possible outcome, produced by the
+    least interesting possible cause. A crash is now a receipt like any other.
+
+    The exception *type* is recorded and its message is not: an exception raised
+    while building a request can carry the credential, and this receipt is
+    written to disk.
+    """
+    try:
+        return run()
+    except Exception as exc:  # noqa: BLE001 — deliberate: see the docstring
+        return {
+            "schema": schema,
+            "target_id": target.get("target_id"),
+            "provider": target.get("provider"),
+            "requested_model": target.get("model"),
+            "classification": "INTERNAL_ERROR",
+            "detail": f"provider-matrix raised {type(exc).__name__}",
+        }
 
 
 def parser() -> argparse.ArgumentParser:
@@ -1326,7 +1673,8 @@ def main() -> int:
             for target in plan["selected"]:
                 write_json(
                     args.out_dir / receipt_filename(target["target_id"]),
-                    probe_target(target, args.timeout, None, registry),
+                    guarded_receipt(PROBE_SCHEMA, target,
+                                    lambda t=target: probe_target(t, args.timeout, None, registry)),
                 )
         else:
             plan = read_json(args.plan)
@@ -1336,10 +1684,10 @@ def main() -> int:
             registry = load_registry(args.registry)
             args.out_dir.mkdir(parents=True, exist_ok=True)
             for target in plan["selected"]:
-                receipt = qualify_target(
-                    target, surface, args.timeout, args.max_turns,
-                    key_bound_sender(target["key_env"]), registry,
-                )
+                receipt = guarded_receipt(QUALIFY_SCHEMA, target, lambda t=target: qualify_target(
+                    t, surface, args.timeout, args.max_turns,
+                    key_bound_sender(t["key_env"]), registry,
+                ))
                 write_json(args.out_dir / receipt_filename(target["target_id"]), receipt)
     except (OSError, ValueError, json.JSONDecodeError) as exc:
         print(f"provider-matrix: {exc}", file=sys.stderr)

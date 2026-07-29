@@ -31,11 +31,19 @@ def main() -> int:
         print(f"FAIL missing {FROZEN.name}; generate it with the emitter")
         return 1
 
-    proc = subprocess.run(
-        ["cargo", "run", "-q", "--example", "emit_panel_surface"],
-        cwd=ROOT,
-        capture_output=True,
-    )
+    try:
+        proc = subprocess.run(
+            ["cargo", "run", "-q", "--example", "emit_panel_surface"],
+            cwd=ROOT,
+            capture_output=True,
+        )
+    except OSError as exc:
+        # The `returncode` branch below only covers a cargo that exists and
+        # fails. A cargo that is not installed raised `FileNotFoundError`
+        # straight through, which is the traceback this file's docstring argues
+        # against two paragraphs earlier.
+        print(f"FAIL could not run the emitter: {exc}")
+        return 1
     if proc.returncode != 0:
         # Reported rather than raised: an emitter that will not run is a result,
         # and a traceback from CalledProcessError buries the reason.

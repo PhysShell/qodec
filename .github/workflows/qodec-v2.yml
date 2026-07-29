@@ -106,6 +106,14 @@ jobs:
       # reachable from the stand-in transport.
       - name: Provider qualification canary (model-free)
         run: python3 -m unittest discover -s evals/provider-matrix -p 'test_*.py' -t evals/provider-matrix
+      # A green suite proves the tests pass, not that they would notice. Every
+      # hardening contract is stated as its own negation here and must turn the
+      # suite red. Run in a throwaway copy, so the checkout is never mutated —
+      # the guard below then says so out loud rather than trusting it.
+      - name: Provider canary mutation harness (model-free)
+        run: python3 evals/provider-matrix/mutations.py
+      - name: The mutation harness left the tree byte-clean
+        run: git diff --exit-code && git status --porcelain --untracked-files=all evals/provider-matrix
       # The canary sends the crate's own schemas, not a paraphrase of them. If
       # the frozen artifact drifts from `panel::tool_schemas()`, the canary goes
       # on reporting PASS for a surface the arm no longer uses, and the receipt

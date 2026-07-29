@@ -18,9 +18,9 @@ fail-closed policy filters + explicit target IDs
 one endpoint, one requested model, no fallback
         ↓
 PASS / AUTH_FAILURE / RATE_LIMITED / MODEL_NOT_FOUND /
-PROVIDER_5XX / TIMEOUT / TRANSPORT_FAILURE / INVALID_OUTPUT /
+PROVIDER_5XX / HTTP_FAILURE / TIMEOUT / TRANSPORT_FAILURE / INVALID_OUTPUT /
 PROVIDER_SUBSTITUTED / MODEL_IDENTITY_MISSING / ENDPOINT_REJECTED /
-REDIRECT_NOT_FOLLOWED / RESPONSE_CAPTURE_FAILED
+REDIRECT_NOT_FOLLOWED / RESPONSE_CAPTURE_FAILED / INTERNAL_ERROR
 ```
 
 `unknown` never satisfies `--free-only`, `--no-card`, or `--no-training`.
@@ -51,11 +51,28 @@ in `trusted-providers.json`, which changes only by reviewed commit:
 ```
 
 Discovery contributes `provider`, `model`, the free-tier metadata and its own
-provenance — nothing that carries authority. A row that *also* names an
-`api_base` or `key_env` is not silently overruled: a disagreement is reported,
-because quietly ignoring a hostile value means a tampered catalog produces a
-perfectly valid plan and nobody ever learns it was tampered with. A provider
-absent from the registry never becomes a target at all.
+provenance — nothing that carries authority. The rule for each of `api_base`,
+`key_env` and `api_style` is:
+
+| the row says | outcome |
+| --- | --- |
+| nothing | the registry supplies it |
+| exactly the trusted string | accepted, and kept as tamper evidence |
+| a different string | refused |
+| a non-string value | refused |
+
+The last line is not pedantry: checking `isinstance(claimed, str)` before
+comparing meant `"api_base": {"host": "steal.example"}` was read as "not a
+string, therefore no disagreement" and quietly overruled — the exact silence the
+rule exists to prevent. A provider absent from the registry never becomes a
+target at all.
+
+A registry supplied as an object takes the same validation path as the file:
+schema, unknown fields, types, lowercase provider names, plausible `key_env`,
+URL rules, and duplicate JSON keys (which `json.loads` otherwise resolves by
+document order — a coin toss deciding where a credential goes). The result is a
+freshly built object, so nothing downstream holds a reference the caller can
+still mutate.
 
 Checked at `import`, and again immediately before the key is attached — a plan
 is a reviewed file that still sits on disk afterwards. The catalog records the
@@ -87,7 +104,43 @@ makes on purpose.
 `status is None` means one thing only: **no headers were ever received.** A body
 lost after the headers keeps its status, its `request_id` and how many bytes were
 seen — losing a `401` and filing it as a nameless capture failure would discard
-the most useful fact in the exchange.
+the most useful fact in the exchange. The stage is a table, not an inference:
+
+| status | body    | stage                                          |
+| ------ | ------- | ---------------------------------------------- |
+| `None` | `None`  | `before-response` — nothing arrived; retryable  |
+| int    | `None`  | `after-headers` — the body was lost; billed     |
+| int    | `bytes` | `completed`                                     |
+| `None` | `bytes` | rejected: a body without a status is impossible |
+
+`b""` is a **complete empty body**, not a lost one. Inferring the stage from
+"is there a status" alone promoted `(503, None)` to `completed`, so a billed
+after-headers loss was reported as retryable `UNAVAILABLE`.
+
+### Nothing untrusted, and no credential, reaches an artifact
+
+Receipts are committed and read by more people than the secret is. So a receipt
+records **facts, not the provider's prose**: HTTP status, request id, capture
+stage, body byte count, body digest, and one reason code from a fixed local
+vocabulary. The provider's error body is *read* — that is how a dialect
+rejection is told from a missing model — and then dropped. Scrubbing arbitrary
+provider text with a regex is a losing game: a key can come back base64'd,
+JSON-escaped, or split across fields.
+
+The credential is validated *before* an `Authorization` header exists, because
+`http.client` reports a bad header value by putting it in the exception message,
+and `main` prints exceptions to stderr. A whole-pipeline sentinel test runs every
+failure path with a unique fake key and asserts it appears in no receipt, no
+stdout, no stderr and no exception text.
+
+### One malformed target costs one receipt
+
+`[]`, `null` and `5` are valid JSON, and `payload.get` on any of them raises
+`AttributeError`. Nothing caught it, so a single provider returning a bare array
+ended the whole matrix and every later target lost its receipt — the least
+informative outcome, from the least interesting cause. Each target is now
+wrapped individually: a crash becomes an `INTERNAL_ERROR` receipt naming the
+exception *type* and not its message, and the run continues.
 
 ## Import and freeze
 
@@ -240,7 +293,8 @@ ENDPOINT_REJECTED  UNAVAILABLE  RESPONSE_CAPTURE_FAILED  REDIRECT_NOT_FOLLOWED
 AUTH_FAILED  RATE_LIMITED  PROVIDER_REJECTED  MODEL_MISSING
 MODEL_IDENTITY_MISSING  PROVIDER_SUBSTITUTED  TOOL_CHOICE_UNSUPPORTED
 TOOL_RESULT_REJECTED  DIALECT_MISMATCH  MALFORMED_TOOL_ARGUMENTS
-PROTOCOL_VIOLATION  NO_TERMINAL_ANSWER  CANARY_ANSWER_MISMATCH  PASS
+PROTOCOL_VIOLATION  INVALID_OUTPUT  NO_TERMINAL_ANSWER
+CANARY_ANSWER_MISMATCH  INTERNAL_ERROR  PASS
 ```
 
 `TOOL_CHOICE_UNSUPPORTED` earns its own name because a 400 from an incompatible
