@@ -184,7 +184,7 @@ LOCAL_KEYS = {
 }
 TURN_KEYS = {"ordinal", "request", "exchange"}
 REQUEST_KEYS = {"envelope", "wire_digest", "wire_bytes_len", "wire_body"}
-EXCHANGE_KEYS = {"kind", "raw", "normalized", "reason", "attempts"}
+EXCHANGE_KEYS = {"kind", "raw", "normalized", "reason", "attempts", "reported_usage"}
 ATTEMPT_KEYS = {"ordinal", "request_digest", "target", "outcome", "status", "body_len", "reason"}
 TARGET_KEYS = {"kind", "endpoint", "path", "api_version", "content_type", "timeout_secs"}
 
@@ -306,6 +306,26 @@ def check_accounting(records: list[dict]) -> None:
 
         if arm != "forced-query" and local.get("materialized_raw_bytes", 0) != 0:
             fail(f"{arm}: a direct arm cannot materialize records")
+
+        # The provider plane must be the fold of the counters the turns actually
+        # recorded. Without this, a salvaged usage could feed the cell total while
+        # the file showed nothing to justify it — a number no reader can check.
+        # `None` is contagious by design, so a single unreported turn makes the
+        # whole field null rather than silently dropping to a smaller sum.
+        for field in ("input_tokens", "cached_input_tokens", "output_tokens", "reasoning_tokens"):
+            per_turn = [
+                (t.get("exchange", {}).get("reported_usage") or {}).get(field)
+                if t.get("exchange", {}).get("reported_usage") is not None
+                else None
+                for t in record.get("turns", [])
+            ]
+            expected = None if not per_turn or any(v is None for v in per_turn) else sum(per_turn)
+            got = acc.get("provider_reported", {}).get(field)
+            if got != expected:
+                fail(
+                    f"{arm}: provider_reported.{field} is {got!r} but the turns' own "
+                    f"reported_usage folds to {expected!r}"
+                )
 
     # No field anywhere claims to be a total across the two planes; they have
     # different units and a single number would have to reinterpret one.
@@ -506,6 +526,7 @@ def self_test() -> None:
                         "raw": {},
                         "normalized": {},
                         "reason": None,
+                        "reported_usage": None,
                         "attempts": [],
                     },
                 }

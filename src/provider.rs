@@ -75,6 +75,13 @@ use crate::canon::{
 };
 use crate::panel::{PanelAnswerSchema, PanelToolSchema};
 
+/// The largest provider response body this transport will read.
+///
+/// 64 MiB: far above any real Messages response, far below "however much the
+/// other end feels like sending". The cap exists because the body is both held in
+/// memory and written into the transcript.
+pub const MAX_RESPONSE_BODY_BYTES: u64 = 64 * 1024 * 1024;
+
 /// The name of the terminal answer channel on the wire.
 pub const ANSWER_TOOL_NAME: &str = "qodec_answer";
 
@@ -1112,6 +1119,35 @@ pub fn normalize(provider: ProviderKind, raw: &RawResponse) -> Result<Normalized
     }
 }
 
+/// The provider's own counters, read straight out of a parsed body.
+///
+/// Factored out because it is needed on two paths that must not disagree: the
+/// successful normalization, and the salvage after a content block failed to
+/// parse. `usage` is a SIBLING of `content` in this API's response, so a
+/// malformed block says nothing about whether the counters are readable — and the
+/// generation may well have been billed regardless. Every field stays `Option`;
+/// nothing here invents a number.
+fn usage_of_body(body: &serde_json::Value) -> ProviderUsage {
+    ProviderUsage {
+        input_tokens: body.pointer("/usage/input_tokens").and_then(as_u64),
+        cached_input_tokens: body
+            .pointer("/usage/cache_read_input_tokens")
+            .and_then(as_u64),
+        output_tokens: body.pointer("/usage/output_tokens").and_then(as_u64),
+        reasoning_tokens: body.pointer("/usage/reasoning_tokens").and_then(as_u64),
+    }
+}
+
+/// A best-effort read of the counters from bytes that failed to normalize.
+///
+/// Returns an all-`None` `ProviderUsage` when the body was not JSON at all, which
+/// is the honest answer: unknown, and it stays unknown through the fold.
+fn salvage_usage(raw: &RawResponse) -> ProviderUsage {
+    serde_json::from_slice::<serde_json::Value>(&raw.body)
+        .map(|body| usage_of_body(&body))
+        .unwrap_or_default()
+}
+
 fn normalize_anthropic(raw: &RawResponse) -> Result<NormalizedResponse> {
     let body: serde_json::Value =
         serde_json::from_slice(&raw.body).context("provider response body is not valid JSON")?;
@@ -1149,14 +1185,7 @@ fn normalize_anthropic(raw: &RawResponse) -> Result<NormalizedResponse> {
             }
         }
     }
-    let usage = ProviderUsage {
-        input_tokens: body.pointer("/usage/input_tokens").and_then(as_u64),
-        cached_input_tokens: body
-            .pointer("/usage/cache_read_input_tokens")
-            .and_then(as_u64),
-        output_tokens: body.pointer("/usage/output_tokens").and_then(as_u64),
-        reasoning_tokens: body.pointer("/usage/reasoning_tokens").and_then(as_u64),
-    };
+    let usage = usage_of_body(&body);
     Ok(NormalizedResponse {
         response_id: body.get("id").and_then(|v| v.as_str()).map(str::to_owned),
         reported_model: body
@@ -1198,10 +1227,20 @@ pub enum ExchangeOutcome {
         reason: String,
     },
     /// Bytes came back with an acceptable status and would not parse.
+    ///
+    /// `usage` is a best-effort read of the provider's own counters, which sit
+    /// beside `content` in the body rather than inside it. A malformed content
+    /// block does not make the counters unreadable, and the provider may well
+    /// have billed the generation anyway — so dropping them here would make a
+    /// broken cell look free, which is the flattering direction for a cost table
+    /// to be wrong in. Still `Option`-per-field and still never synthesized: if
+    /// the body was not JSON at all, this is `None` throughout and the total
+    /// stays honestly unknown.
     NormalizationFailed {
         raw: RawResponse,
         attempts: Vec<TransportAttempt>,
         reason: String,
+        usage: ProviderUsage,
     },
     /// No bytes came back at all. The per-attempt reasons are the record.
     TransportFailed { attempts: Vec<TransportAttempt> },
@@ -1223,6 +1262,22 @@ impl ExchangeOutcome {
             | ExchangeOutcome::ProviderRejected { raw, .. }
             | ExchangeOutcome::NormalizationFailed { raw, .. } => Some(raw),
             ExchangeOutcome::TransportFailed { .. } => None,
+        }
+    }
+
+    /// The provider's own counters for this turn, whatever the outcome.
+    ///
+    /// Separate from `normalized()`: a turn can be un-normalizable and still have
+    /// been billed, and the accounting fold needs the counters from both.
+    pub fn reported_usage(&self) -> Option<ProviderUsage> {
+        match self {
+            ExchangeOutcome::Completed { normalized, .. } => Some(normalized.usage),
+            ExchangeOutcome::NormalizationFailed { usage, .. } => Some(*usage),
+            // A rejection body carries no generation to bill, and a request that
+            // never arrived certainly does not. Unknown, and it stays unknown.
+            ExchangeOutcome::ProviderRejected { .. } | ExchangeOutcome::TransportFailed { .. } => {
+                None
+            }
         }
     }
 
@@ -1286,6 +1341,18 @@ impl ExchangeOutcome {
                 .collect::<Vec<_>>()
                 .into(),
         ));
+        // Emitted for every outcome, so the accounting fold is auditable from the
+        // file for every turn — including a turn whose body would not parse, whose
+        // counters exist nowhere else in the record. For `completed` this is the
+        // same value `normalized.usage` already shows: both come from the one
+        // accessor, so the two cannot drift into disagreeing.
+        pairs.push((
+            "reported_usage",
+            match self.reported_usage() {
+                Some(u) => u.to_json(),
+                None => serde_json::Value::Null,
+            },
+        ));
         json_obj(pairs)
     }
 }
@@ -1318,9 +1385,13 @@ pub fn exchange(
             attempts,
         },
         Err(e) => ExchangeOutcome::NormalizationFailed {
+            reason: format!("{e}"),
+            // Read before `raw` is moved. The counters sit beside `content`, so a
+            // malformed block does not make them unreadable — and the provider may
+            // have billed the generation anyway.
+            usage: salvage_usage(&raw),
             raw,
             attempts,
-            reason: format!("{e}"),
         },
     }
 }
@@ -1494,11 +1565,29 @@ impl HttpTransport {
         if base_url.is_empty() || api_key.is_empty() {
             bail!("live transport needs both a base URL and an API key");
         }
+        // HTTPS only. `x-api-key` rides in a header, so a plain-http endpoint
+        // puts the key on the wire in cleartext — and this is the one type in the
+        // crate that holds a real credential. Refused at construction rather than
+        // warned about, because the alternative is discovering it in a packet
+        // capture after the key has already been used.
+        if !base_url.starts_with("https://") {
+            bail!(
+                "live transport requires an https:// base URL; {base_url:?} would send \
+                 the API key in cleartext"
+            );
+        }
         // A URL carrying userinfo would put a credential into the endpoint,
         // and the endpoint is written into a committed transcript.
         let authority = base_url.split("://").nth(1).unwrap_or(base_url);
         if authority.split('/').next().is_some_and(|a| a.contains('@')) {
             bail!("base URL must not carry credentials in its authority");
+        }
+        // ureq 2.x hands the duration to the underlying socket, which wants either
+        // no timeout or a strictly positive one; zero is neither "forever" nor
+        // "immediately" but a pathological third thing. A run that meant "no limit"
+        // must say so by choosing a real bound.
+        if timeout_secs == 0 {
+            bail!("live transport timeout must be at least 1 second, got 0");
         }
         Ok(HttpTransport {
             base_url: base_url.trim_end_matches('/').to_owned(),
@@ -1545,10 +1634,22 @@ impl ModelTransport for HttpTransport {
             ),
             Err(e) => return Err(anyhow::anyhow!("transport failure: {e}")),
         };
+        // Bounded. The body is stored in `RawResponse` and serialized into the
+        // transcript, so an unbounded read lets a misrouted or hostile response
+        // decide how much memory this process uses and how large the evidence file
+        // becomes. A response over the cap fails as a named error rather than
+        // arriving silently truncated, which would be a transcript that lies about
+        // what came back.
         let mut body = Vec::new();
-        let mut reader = reader;
+        let mut reader = std::io::Read::take(reader, MAX_RESPONSE_BODY_BYTES + 1);
         std::io::Read::read_to_end(&mut reader, &mut body)
             .context("reading the provider response body")?;
+        if body.len() as u64 > MAX_RESPONSE_BODY_BYTES {
+            bail!(
+                "provider response body exceeded {MAX_RESPONSE_BODY_BYTES} bytes; \
+                 refusing to record a truncated body"
+            );
+        }
         Ok(RawResponse {
             status,
             body,

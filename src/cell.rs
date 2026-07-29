@@ -229,6 +229,15 @@ pub enum ProtocolViolation {
     ExtraCallsInDirectArm { count: usize },
     /// A direct arm's single call was not the answer channel.
     UnexpectedToolInDirectArm { name: String },
+    /// The model reached the answer channel with arguments that do not satisfy
+    /// the schema it was given.
+    ///
+    /// A separate variant rather than an `Err`, because the provider does not
+    /// guarantee that generated tool arguments match the supplied schema, so this
+    /// is a normal event on a live run — and it is the one failure path that used
+    /// to escape as an `Err`, aborting the runner before any JSONL was written. It
+    /// stays out of the wrong-answer column: there is no answer here to be wrong.
+    MalformedAnswerArguments { reason: String },
 }
 
 impl ProtocolViolation {
@@ -247,6 +256,9 @@ impl ProtocolViolation {
             ProtocolViolation::UnexpectedToolInDirectArm { name } => {
                 format!("a direct arm called {name:?}")
             }
+            ProtocolViolation::MalformedAnswerArguments { reason } => {
+                format!("the terminal answer's arguments did not parse: {reason}")
+            }
         }
     }
 
@@ -257,6 +269,7 @@ impl ProtocolViolation {
             ProtocolViolation::AnswerMixedWithOperations { .. } => "answer-mixed-with-operations",
             ProtocolViolation::ExtraCallsInDirectArm { .. } => "extra-calls-in-direct-arm",
             ProtocolViolation::UnexpectedToolInDirectArm { .. } => "unexpected-tool-in-direct-arm",
+            ProtocolViolation::MalformedAnswerArguments { .. } => "malformed-answer-arguments",
         }
     }
 }
@@ -347,7 +360,11 @@ impl ArmOutcome {
                 ("kind", "query-path-failed".into()),
                 ("verdict", verdict_name(*verdict).into()),
                 ("answer_bytes_matched", (*correct).into()),
-                ("fallback_required", true.into()),
+                // NOT `fallback_required`. This module's contract is that a failed
+                // verdict is never retried against RAW, so a record advertising
+                // that a fallback is required told every downstream reader the
+                // opposite of the rule. What is true is that it does not score.
+                ("scored_as_success", false.into()),
             ]),
             ArmOutcome::NoAnswer { reason } => obj(vec![
                 ("kind", "no-answer".into()),
@@ -541,8 +558,15 @@ pub fn run_direct_cell(
         },
         Some(normalized) => match classify_direct(&normalized.tool_calls) {
             Err(violation) => ArmOutcome::ProtocolViolation { violation },
-            Ok(call) => ArmOutcome::Answered {
-                correct: parse_direct_answer(&call.input)? == spec.expected,
+            Ok(call) => match parse_direct_answer(&call.input) {
+                Ok(answer) => ArmOutcome::Answered {
+                    correct: answer == spec.expected,
+                },
+                Err(e) => ArmOutcome::ProtocolViolation {
+                    violation: ProtocolViolation::MalformedAnswerArguments {
+                        reason: format!("{e:#}"),
+                    },
+                },
             },
         },
     };
@@ -645,7 +669,26 @@ pub fn run_forced_query_cell(
 
         match shape {
             ResponseShape::Answer(call) => {
-                let (handle, answer, cited) = parse_panel_answer(&call.input)?;
+                let (handle, answer, cited) = match parse_panel_answer(&call.input) {
+                    Ok(parsed) => parsed,
+                    // The turns and the panel transcript accumulated so far are
+                    // the evidence about an expensive arm; an `Err` here threw all
+                    // of it away along with the run's JSONL.
+                    Err(e) => {
+                        return Ok(finish(
+                            spec,
+                            turns,
+                            accounting,
+                            models_reported,
+                            session.transcript().to_vec(),
+                            ArmOutcome::ProtocolViolation {
+                                violation: ProtocolViolation::MalformedAnswerArguments {
+                                    reason: format!("{e:#}"),
+                                },
+                            },
+                        ))
+                    }
+                };
                 let cell = session.answer(&handle, &answer, &cited);
                 let correct = answer == spec.expected;
                 let outcome = match cell {
@@ -986,7 +1029,7 @@ fn finish(
     let mut accounting = accounting;
     accounting.provider_reported = turns
         .iter()
-        .filter_map(|t| t.exchange.normalized().map(|n| n.usage))
+        .filter_map(|t| t.exchange.reported_usage())
         .reduce(ProviderUsage::plus)
         .unwrap_or_default();
     CellRecord {

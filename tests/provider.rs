@@ -706,3 +706,139 @@ fn unknown_block_kinds_are_skipped_by_the_parse_and_kept_in_the_raw() -> Result<
     );
     Ok(())
 }
+
+// ---------------------------------------------------------------------------
+// A billed turn is never free (Codex P1)
+// ---------------------------------------------------------------------------
+
+/// A malformed content block does not make the counters unreadable.
+///
+/// This is the shape a provider change would actually produce: a 200 whose
+/// `usage` is perfectly good and whose `content` has a `tool_use` missing its
+/// `id`. Normalization fails — correctly — but the generation was very likely
+/// billed, and dropping the counters would make the broken cell look free. A cost
+/// table wrong in the flattering direction is the one nobody investigates.
+#[test]
+fn usage_survives_a_normalization_failure() -> Result<()> {
+    let s = sampling(None)?;
+    let sealed = SealedRequest::seal(envelope(panel_mapping(&s), s)?)?;
+    let body = serde_json::to_vec(&serde_json::json!({
+        "id": "msg_x",
+        "model": "test-model-1",
+        "stop_reason": "tool_use",
+        // A tool_use with no `id`: normalize_anthropic refuses it.
+        "content": [{"type": "tool_use", "name": "qodec_answer", "input": {}}],
+        "usage": {"input_tokens": 41, "output_tokens": 7, "cache_read_input_tokens": 3},
+    }))?;
+    let mut transport = ScriptedTransport::new(vec![Ok(RawResponse {
+        status: 200,
+        body,
+        request_id: None,
+    })]);
+    let outcome = exchange(&mut transport, &sealed, once());
+    let ExchangeOutcome::NormalizationFailed { usage, .. } = &outcome else {
+        return Err(anyhow!(
+            "a malformed content block must be a normalization failure, got {}",
+            outcome.kind()
+        ));
+    };
+    assert_eq!(
+        usage.input_tokens,
+        Some(41),
+        "the input counter was readable"
+    );
+    assert_eq!(usage.output_tokens, Some(7));
+    assert_eq!(usage.cached_input_tokens, Some(3));
+    assert_eq!(
+        outcome.reported_usage().and_then(|u| u.input_tokens),
+        Some(41),
+        "and it must be reachable through the uniform accessor the fold uses"
+    );
+
+    // It must also be IN THE RECORD, or the cell total rests on a number no
+    // reader of the JSONL can check.
+    let rendered = outcome.to_json();
+    assert_eq!(
+        rendered
+            .pointer("/reported_usage/input_tokens")
+            .and_then(|v| v.as_u64()),
+        Some(41)
+    );
+    Ok(())
+}
+
+/// A body that is not JSON at all yields unknown counters, not zero ones.
+#[test]
+fn unreadable_bytes_yield_unknown_usage_never_zero() -> Result<()> {
+    let s = sampling(None)?;
+    let sealed = SealedRequest::seal(envelope(panel_mapping(&s), s)?)?;
+    let mut transport = ScriptedTransport::new(vec![Ok(RawResponse {
+        status: 200,
+        body: b"<html>not json</html>".to_vec(),
+        request_id: None,
+    })]);
+    let outcome = exchange(&mut transport, &sealed, once());
+    let usage = outcome
+        .reported_usage()
+        .ok_or_else(|| anyhow!("a normalization failure still reports a usage struct"))?;
+    assert_eq!(
+        usage.input_tokens, None,
+        "unknown must stay unknown; a zero would claim the provider said something"
+    );
+    Ok(())
+}
+
+/// A rejection or a request that never arrived has no counters to report.
+#[test]
+fn a_rejected_or_undelivered_turn_reports_no_usage() -> Result<()> {
+    let s = sampling(None)?;
+    let sealed = SealedRequest::seal(envelope(panel_mapping(&s), s)?)?;
+    let mut rejected = ScriptedTransport::new(vec![Ok(RawResponse {
+        status: 429,
+        body: br#"{"error":{"message":"slow down"}}"#.to_vec(),
+        request_id: None,
+    })]);
+    assert!(exchange(&mut rejected, &sealed, once())
+        .reported_usage()
+        .is_none());
+
+    let mut dead = ScriptedTransport::new(vec![Err("reset".to_owned())]);
+    assert!(exchange(&mut dead, &sealed, once())
+        .reported_usage()
+        .is_none());
+    Ok(())
+}
+
+// ---------------------------------------------------------------------------
+// The live transport refuses to send a key unsafely (CodeRabbit)
+// ---------------------------------------------------------------------------
+
+/// `x-api-key` travels in a header, so a plain-http endpoint puts it in cleartext.
+#[test]
+fn the_live_transport_requires_https_and_a_real_timeout() -> Result<()> {
+    let key = "sk-would-be-leaked";
+    assert!(
+        qodec::provider::HttpTransport::new("http://api.example.invalid", key, "2023-06-01", 30)
+            .is_err(),
+        "a plain-http endpoint must be refused: the API key rides in a header"
+    );
+    assert!(
+        qodec::provider::HttpTransport::new("ftp://api.example.invalid", key, "2023-06-01", 30)
+            .is_err(),
+        "any non-https scheme must be refused"
+    );
+    // Zero is neither "no timeout" nor "immediately" on ureq 2.x — it is a
+    // pathological third thing, on the one path that carries a real credential.
+    assert!(
+        qodec::provider::HttpTransport::new("https://api.example.invalid", key, "2023-06-01", 0)
+            .is_err(),
+        "a zero timeout must be refused"
+    );
+    // Control: the valid combination still builds.
+    assert!(
+        qodec::provider::HttpTransport::new("https://api.example.invalid", key, "2023-06-01", 30)
+            .is_ok(),
+        "https with a real timeout must still be accepted"
+    );
+    Ok(())
+}

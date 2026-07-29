@@ -997,3 +997,115 @@ fn the_panel_path_refuses_the_direct_arms() -> Result<()> {
     assert!(run_forced_query_cell(&spec, &mut session, &mut transport).is_err());
     Ok(())
 }
+
+// ---------------------------------------------------------------------------
+// A malformed terminal answer is a record, not an abort
+// ---------------------------------------------------------------------------
+//
+// Found in review by Codex and, independently, by CodeRabbit. Every other failure
+// in this module routes through `finish` and leaves a `CellRecord`; the terminal
+// answer's argument parsing was the one path that escaped as `Err`, aborting the
+// whole run before any JSONL was written. The provider does not guarantee that
+// generated tool arguments satisfy the supplied schema, so this is an ordinary
+// live event, not a corner case.
+
+/// A direct arm whose answer envelope will not decode still produces a record.
+#[test]
+fn a_malformed_direct_answer_is_recorded_not_raised() -> Result<()> {
+    let spec = spec(Arm::Raw)?;
+    let mut transport = ProgrammedTransport::new(|_: &SealedRequest, _| {
+        reply(
+            MODEL,
+            vec![tool_use(
+                "call_answer",
+                "qodec_answer",
+                // Right shape, undecodable content: the envelope's `data` is not
+                // valid base64url.
+                serde_json::json!({"answer": {"encoding": "base64url-nopad", "data": "!!!!"}}),
+            )],
+        )
+    });
+    let record = run_direct_cell(&spec, RAW_BODY, &mut transport)?;
+    match &record.outcome {
+        ArmOutcome::ProtocolViolation {
+            violation: ProtocolViolation::MalformedAnswerArguments { reason },
+        } => assert!(!reason.is_empty(), "the violation must say what failed"),
+        other => {
+            return Err(anyhow!(
+                "a malformed answer must be a protocol violation, got {other:?}"
+            ))
+        }
+    }
+    assert!(
+        !record.outcome.correct(),
+        "there is no answer here to be correct"
+    );
+    // The turn survives, which is the whole point.
+    let [only_turn] = record.turns.as_slice() else {
+        return Err(anyhow!(
+            "expected exactly one turn, got {}",
+            record.turns.len()
+        ));
+    };
+    assert!(
+        only_turn.exchange.normalized().is_some(),
+        "the crossing completed; it was the answer's arguments that did not parse"
+    );
+    Ok(())
+}
+
+/// A forced arm's malformed answer keeps the turns AND the panel transcript.
+#[test]
+fn a_malformed_forced_answer_keeps_the_turns_and_transcript() -> Result<()> {
+    let spec = spec(Arm::ForcedQuery)?;
+    let mut session = session()?;
+    let mut transport = ProgrammedTransport::new(|sealed: &SealedRequest, n| {
+        if n == 0 {
+            reply(
+                MODEL,
+                vec![intersect_call(&["attempt_1", "attempt_2", "attempt_3"])],
+            )
+        } else {
+            // A real handle from the previous turn, but a citation that is not a
+            // record id — so parsing fails after the session did real work.
+            let result = last_tool_result(sealed)?;
+            let handle = result
+                .get("handle")
+                .and_then(|v| v.as_str())
+                .ok_or_else(|| anyhow!("no handle"))?;
+            reply(
+                MODEL,
+                vec![tool_use(
+                    "call_answer",
+                    "qodec_answer",
+                    serde_json::json!({
+                        "handle": handle,
+                        "answer": KeyBytes::new(b"alpha".to_vec()).to_envelope(),
+                        "cited_records": ["not-a-record-id"],
+                    }),
+                )],
+            )
+        }
+    });
+    let record = run_forced_query_cell(&spec, &mut session, &mut transport)?;
+    assert!(
+        matches!(
+            record.outcome,
+            ArmOutcome::ProtocolViolation {
+                violation: ProtocolViolation::MalformedAnswerArguments { .. }
+            }
+        ),
+        "got {:?}",
+        record.outcome
+    );
+    assert_eq!(record.turns.len(), 2, "both turns must survive");
+    assert!(
+        !record.panel_transcript.is_empty(),
+        "the transcript of the work the session really did must survive"
+    );
+    assert_eq!(
+        record.accounting.deterministic_local.operation_call_count, 1,
+        "the intersect the model really ran is still charged"
+    );
+    Ok(())
+}
