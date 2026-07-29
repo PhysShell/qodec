@@ -4,10 +4,10 @@
   section attempt_2: 2
   section attempt_3: 2
   section preamble: 0
-  tool: qodec_lookup(index, key) -> handle, preview, candidate_count, completion, support
-  tool: qodec_intersect(index, sections) -> handle, preview, candidate_count, completion, support
-  tool: qodec_materialize(handle, record_ids) -> bytes for ids in that result's support
-  tool: answer(handle, answer, cited_evidence) -> verdict
+  tool: qodec_lookup(index, key)
+  tool: qodec_intersect(index, sections)
+  tool: qodec_materialize(handle, record_ids)
+  answer: {handle, answer, cited}
 == [0] qodec_intersect ok ==
   candidate_count: 1
   preview: "alpha"

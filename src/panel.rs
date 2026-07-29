@@ -158,6 +158,308 @@ pub struct ToolResult {
     pub support: Vec<RecordId>,
 }
 
+// ---------------------------------------------------------------------------
+// The model-visible surface
+// ---------------------------------------------------------------------------
+
+/// A provider-neutral tool definition.
+///
+/// One object serves five roles at once: what the adapter hands the model, what
+/// the opening transcript event records, what token accounting charges for,
+/// what a future provider mapper translates, and what the dry-run gate checks.
+/// Generating the schema twice — once for the transcript and once for the API
+/// request — would measure an internal schema while the provider received an
+/// independently assembled *almost* identical one, and "almost" has a poor
+/// record against evidential contracts.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct PanelToolSchema {
+    pub name: &'static str,
+    pub description: &'static str,
+    pub input_schema: serde_json::Value,
+    pub output_schema: serde_json::Value,
+}
+
+impl PanelToolSchema {
+    /// The canonical JSON form, as recorded and as sent.
+    pub fn to_json(&self) -> serde_json::Value {
+        let mut obj = serde_json::Map::new();
+        obj.insert("name".into(), self.name.into());
+        obj.insert("description".into(), self.description.into());
+        obj.insert("input_schema".into(), self.input_schema.clone());
+        obj.insert("output_schema".into(), self.output_schema.clone());
+        serde_json::Value::Object(obj)
+    }
+}
+
+/// The shape the final answer must take.
+///
+/// Separate from the tools on purpose: the answer is the model's terminal
+/// output and its own `FinalAnswer` event, not an operation it may call. It
+/// still needs a pinned schema, or the tools end up precisely measured while
+/// the answer format stays "the model will work it out" — a perennial of
+/// interface engineering.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct PanelAnswerSchema {
+    pub description: &'static str,
+    pub schema: serde_json::Value,
+}
+
+impl PanelAnswerSchema {
+    pub fn to_json(&self) -> serde_json::Value {
+        let mut obj = serde_json::Map::new();
+        obj.insert("description".into(), self.description.into());
+        obj.insert("schema".into(), self.schema.clone());
+        serde_json::Value::Object(obj)
+    }
+}
+
+fn obj(pairs: Vec<(&str, serde_json::Value)>) -> serde_json::Value {
+    let mut m = serde_json::Map::new();
+    for (k, v) in pairs {
+        m.insert(k.to_owned(), v);
+    }
+    serde_json::Value::Object(m)
+}
+
+fn strings(items: &[&str]) -> serde_json::Value {
+    serde_json::Value::Array(items.iter().map(|s| serde_json::Value::from(*s)).collect())
+}
+
+/// The one byte-value shape, defined once and referenced everywhere.
+///
+/// Written down a second time per tool is how two encodings quietly appear.
+fn byte_envelope_defs() -> serde_json::Value {
+    obj(vec![(
+        "byteEnvelope",
+        obj(vec![
+            ("type", "object".into()),
+            ("required", strings(&["encoding", "data"])),
+            ("additionalProperties", false.into()),
+            (
+                "properties",
+                obj(vec![
+                    (
+                        "encoding",
+                        obj(vec![
+                            ("type", "string".into()),
+                            ("enum", strings(&["base64url-nopad"])),
+                        ]),
+                    ),
+                    (
+                        "data",
+                        obj(vec![
+                            ("type", "string".into()),
+                            ("description", "base64url, no padding".into()),
+                        ]),
+                    ),
+                    (
+                        "display_utf8",
+                        obj(vec![
+                            ("type", "string".into()),
+                            (
+                                "description",
+                                "advisory only; never authoritative for identity".into(),
+                            ),
+                        ]),
+                    ),
+                ]),
+            ),
+        ]),
+    )])
+}
+
+fn byte_ref() -> serde_json::Value {
+    obj(vec![("$ref", "#/$defs/byteEnvelope".into())])
+}
+
+fn record_id_schema() -> serde_json::Value {
+    obj(vec![
+        ("type", "object".into()),
+        ("required", strings(&["store", "section", "ordinal"])),
+        ("additionalProperties", false.into()),
+        (
+            "properties",
+            obj(vec![
+                ("store", obj(vec![("type", "string".into())])),
+                ("section", obj(vec![("type", "string".into())])),
+                (
+                    "ordinal",
+                    obj(vec![("type", "integer".into()), ("minimum", 0.into())]),
+                ),
+            ]),
+        ),
+    ])
+}
+
+fn array_of(item: serde_json::Value) -> serde_json::Value {
+    obj(vec![("type", "array".into()), ("items", item)])
+}
+
+/// The result envelope both query tools return.
+fn query_result_schema() -> serde_json::Value {
+    obj(vec![
+        ("type", "object".into()),
+        (
+            "required",
+            strings(&[
+                "handle",
+                "candidate_count",
+                "completion",
+                "preview",
+                "support",
+            ]),
+        ),
+        ("additionalProperties", false.into()),
+        (
+            "properties",
+            obj(vec![
+                ("handle", obj(vec![("type", "string".into())])),
+                (
+                    "candidate_count",
+                    obj(vec![("type", "integer".into()), ("minimum", 0.into())]),
+                ),
+                (
+                    "completion",
+                    obj(vec![
+                        ("type", "object".into()),
+                        ("required", strings(&["state"])),
+                        ("additionalProperties", false.into()),
+                        (
+                            "properties",
+                            obj(vec![
+                                (
+                                    "state",
+                                    obj(vec![
+                                        ("type", "string".into()),
+                                        ("enum", strings(&["exhausted", "limit-reached"])),
+                                    ]),
+                                ),
+                                (
+                                    "limit",
+                                    obj(vec![("type", "integer".into()), ("minimum", 0.into())]),
+                                ),
+                            ]),
+                        ),
+                    ]),
+                ),
+                ("preview", array_of(byte_ref())),
+                ("support", array_of(record_id_schema())),
+            ]),
+        ),
+    ])
+}
+
+/// `qodec_lookup`: one index, one key.
+pub fn lookup_schema() -> PanelToolSchema {
+    PanelToolSchema {
+        name: "qodec_lookup",
+        description: "Find every record whose index key equals the given bytes. \
+                      Returns a result handle, a bounded preview, the full \
+                      candidate count, the completion state, and the record ids \
+                      backing the result.",
+        input_schema: obj(vec![
+            ("type", "object".into()),
+            ("required", strings(&["index", "key"])),
+            ("additionalProperties", false.into()),
+            (
+                "properties",
+                obj(vec![
+                    ("index", obj(vec![("type", "string".into())])),
+                    ("key", byte_ref()),
+                ]),
+            ),
+            ("$defs", byte_envelope_defs()),
+        ]),
+        output_schema: query_result_schema(),
+    }
+}
+
+/// `qodec_intersect`: candidates present in every named section.
+pub fn intersect_schema() -> PanelToolSchema {
+    PanelToolSchema {
+        name: "qodec_intersect",
+        description: "Find every index key present in all of the named sections. \
+                      Returns the same result envelope as qodec_lookup.",
+        input_schema: obj(vec![
+            ("type", "object".into()),
+            ("required", strings(&["index", "sections"])),
+            ("additionalProperties", false.into()),
+            (
+                "properties",
+                obj(vec![
+                    ("index", obj(vec![("type", "string".into())])),
+                    (
+                        "sections",
+                        obj(vec![
+                            ("type", "array".into()),
+                            ("minItems", 1.into()),
+                            ("items", obj(vec![("type", "string".into())])),
+                        ]),
+                    ),
+                ]),
+            ),
+        ]),
+        output_schema: query_result_schema(),
+    }
+}
+
+/// `qodec_materialize`: exact bytes for ids inside one result's support.
+pub fn materialize_schema() -> PanelToolSchema {
+    PanelToolSchema {
+        name: "qodec_materialize",
+        description: "Return the exact stored bytes for record ids. Only ids in \
+                      the support of the given result handle are accepted; the \
+                      store cannot be enumerated by guessing ids.",
+        input_schema: obj(vec![
+            ("type", "object".into()),
+            ("required", strings(&["handle", "record_ids"])),
+            ("additionalProperties", false.into()),
+            (
+                "properties",
+                obj(vec![
+                    ("handle", obj(vec![("type", "string".into())])),
+                    ("record_ids", array_of(record_id_schema())),
+                ]),
+            ),
+        ]),
+        output_schema: obj(vec![
+            ("type", "object".into()),
+            ("required", strings(&["records"])),
+            ("additionalProperties", false.into()),
+            ("properties", obj(vec![("records", array_of(byte_ref()))])),
+            ("$defs", byte_envelope_defs()),
+        ]),
+    }
+}
+
+/// The three tools, in canonical order.
+pub fn tool_schemas() -> Vec<PanelToolSchema> {
+    vec![lookup_schema(), intersect_schema(), materialize_schema()]
+}
+
+/// The terminal answer format.
+pub fn answer_schema() -> PanelAnswerSchema {
+    PanelAnswerSchema {
+        description: "The final answer. Cite the result handle it came from and \
+                      the record ids that support it; both are checked against \
+                      the stored complete result.",
+        schema: obj(vec![
+            ("type", "object".into()),
+            ("required", strings(&["handle", "answer", "cited"])),
+            ("additionalProperties", false.into()),
+            (
+                "properties",
+                obj(vec![
+                    ("handle", obj(vec![("type", "string".into())])),
+                    ("answer", byte_ref()),
+                    ("cited", array_of(record_id_schema())),
+                ]),
+            ),
+            ("$defs", byte_envelope_defs()),
+        ]),
+    }
+}
+
 /// Which typed tool was called.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum PanelTool {
@@ -228,7 +530,8 @@ pub enum PanelEvent {
     /// What the model was told about the artifact, and the tool schemas.
     Metadata {
         metadata: PanelMetadata,
-        tool_schemas: Vec<String>,
+        tool_schemas: Vec<PanelToolSchema>,
+        answer_schema: PanelAnswerSchema,
     },
     ToolCall {
         sequence: u64,
@@ -294,10 +597,19 @@ impl PanelEvent {
             PanelEvent::Metadata {
                 metadata,
                 tool_schemas,
+                answer_schema,
             } => {
                 obj.insert("event".into(), "metadata".into());
                 obj.insert("metadata".into(), metadata.to_json());
-                obj.insert("tool_schemas".into(), tool_schemas.clone().into());
+                obj.insert(
+                    "tool_schemas".into(),
+                    tool_schemas
+                        .iter()
+                        .map(PanelToolSchema::to_json)
+                        .collect::<Vec<_>>()
+                        .into(),
+                );
+                obj.insert("answer_schema".into(), answer_schema.to_json());
             }
             PanelEvent::ToolCall {
                 sequence,
@@ -453,6 +765,12 @@ pub struct PanelSession {
     /// index shapes — without any of it being recovered from the records.
     plan: StorePlan,
     registry: HarnessResultRegistry,
+    /// Built once at construction. The opening event records *these* values and
+    /// the accessors hand back *these* values, so the surface the model is given
+    /// and the surface the transcript claims cannot be two different objects
+    /// that merely started out equal.
+    tool_schemas: Vec<PanelToolSchema>,
+    answer_schema: PanelAnswerSchema,
     schema: SchemaId,
     limits: ExecutionLimits,
     /// Per handle, the record ids that result is allowed to materialize.
@@ -484,6 +802,8 @@ impl PanelSession {
             store,
             plan: plan.clone(),
             registry: HarnessResultRegistry::new(),
+            tool_schemas: tool_schemas(),
+            answer_schema: answer_schema(),
             schema,
             limits,
             scope: BTreeMap::new(),
@@ -504,10 +824,10 @@ impl PanelSession {
             .iter()
             .any(|e| matches!(e, PanelEvent::Metadata { .. }))
         {
-            let tool_schemas = metadata.operations.clone();
             self.transcript.push(PanelEvent::Metadata {
                 metadata: metadata.clone(),
-                tool_schemas,
+                tool_schemas: self.tool_schemas.clone(),
+                answer_schema: self.answer_schema.clone(),
             });
         }
         Ok(metadata)
@@ -541,15 +861,11 @@ impl PanelSession {
             sections,
             record_count: u64::try_from(self.store.record_count()).unwrap_or(u64::MAX),
             indexes,
-            operations: vec![
-                "qodec_lookup(index, key) -> handle, preview, candidate_count, completion, support"
-                    .to_owned(),
-                "qodec_intersect(index, sections) -> handle, preview, candidate_count, completion, support"
-                    .to_owned(),
-                "qodec_materialize(handle, record_ids) -> bytes for ids in that result's support"
-                    .to_owned(),
-                "answer(handle, answer, cited_evidence) -> verdict".to_owned(),
-            ],
+            operations: self
+                .tool_schemas
+                .iter()
+                .map(|t| t.name.to_owned())
+                .collect(),
             max_candidates: self.limits.max_candidates,
             max_support_records: self.limits.max_support_records,
             max_preview_items: self.limits.max_preview_items,
@@ -728,6 +1044,17 @@ impl PanelSession {
         let n = self.sequence;
         self.sequence = self.sequence.saturating_add(1);
         n
+    }
+
+    /// The tool definitions handed to the model — the same values the opening
+    /// transcript event recorded, not a second rendering of them.
+    pub fn tool_schemas(&self) -> &[PanelToolSchema] {
+        &self.tool_schemas
+    }
+
+    /// The answer format handed to the model, likewise.
+    pub fn answer_schema(&self) -> &PanelAnswerSchema {
+        &self.answer_schema
     }
 
     /// Every event this session recorded, in order.

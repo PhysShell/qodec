@@ -56,24 +56,27 @@ jobs:
       # transcript schema, and asserts the artifact never crosses the boundary.
       - name: Panel dry-run transcript (model-free)
         run: nix develop --command python3 evals/panel-dry-run/check.py
+      # NOT under `result/`: earlier `nix build` steps leave that as a symlink
+      # into the read-only store, so writing there fails with EACCES rather than
+      # anything that reads like a real problem.
       - name: Stage panel transcripts
         if: always()
         run: |
-          mkdir -p result/panel-dry-run
+          mkdir -p panel-transcripts
           nix develop --command cargo run -q --example panel_dry_run -- \
             --case happy \
-            --jsonl-out result/panel-dry-run/happy.jsonl \
-            --text-out result/panel-dry-run/happy.txt || true
+            --jsonl-out panel-transcripts/happy.jsonl \
+            --text-out panel-transcripts/happy.txt || true
           nix develop --command cargo run -q --example panel_dry_run -- \
             --case refusal \
-            --jsonl-out result/panel-dry-run/refusal.jsonl \
-            --text-out result/panel-dry-run/refusal.txt || true
+            --jsonl-out panel-transcripts/refusal.jsonl \
+            --text-out panel-transcripts/refusal.txt || true
       - name: Upload panel transcripts
         if: always()
         uses: actions/upload-artifact@b4b15b8c7c6ac21ea08fcf65892d2ee8f75cf882 # v4.4.3
         with:
           name: panel-dry-run-transcripts
-          path: result/panel-dry-run/
+          path: panel-transcripts/
           if-no-files-found: warn
 
   build-and-smoke:

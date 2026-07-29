@@ -549,3 +549,40 @@ fn the_canonical_transcript_is_deterministic() -> Result<()> {
     );
     Ok(())
 }
+
+/// The surface the adapter hands the model is the surface the transcript
+/// recorded — the same values, not two objects that happen to agree.
+///
+/// Without this, a change to the adapter's schema that left the recorded event
+/// alone would pass every other check: the goldens still match, the gate still
+/// validates, and the dry-run measures one surface while a model receives
+/// another. That is the failure the whole transcript exists to make impossible.
+#[test]
+fn the_adapter_surface_is_the_recorded_surface() -> Result<()> {
+    let artifact = retry_artifact();
+    let mut sess = session(&artifact, &marked_plan()?)?;
+    sess.metadata()?;
+
+    let recorded = sess
+        .transcript()
+        .first()
+        .map(qodec::panel::PanelEvent::to_json)
+        .ok_or_else(|| anyhow::anyhow!("no metadata event"))?;
+
+    let handed: Vec<serde_json::Value> = sess
+        .tool_schemas()
+        .iter()
+        .map(qodec::panel::PanelToolSchema::to_json)
+        .collect();
+    assert_eq!(
+        recorded.get("tool_schemas"),
+        Some(&serde_json::Value::from(handed)),
+        "the recorded tool schemas must be the ones the adapter returns"
+    );
+    assert_eq!(
+        recorded.get("answer_schema"),
+        Some(&sess.answer_schema().to_json()),
+        "the recorded answer schema must be the one the adapter returns"
+    );
+    Ok(())
+}

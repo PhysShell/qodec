@@ -91,7 +91,7 @@ BYTE_ENVELOPE_KEYS = {"encoding", "data", "display_utf8"}
 # Exact key sets. A subset check would accept an added field, which is the shape
 # an exfiltration takes: nothing is removed, one thing is quietly added.
 EVENT_KEYS = {
-    "metadata": {"event", "metadata", "tool_schemas"},
+    "metadata": {"event", "metadata", "tool_schemas", "answer_schema"},
     "tool_call": {"event", "sequence", "tool", "arguments", "outcome"},
     "final_answer": {"event", "sequence", "handle", "answer", "cited", "verdict"},
 }
@@ -113,6 +113,21 @@ RECORD_ID_KEYS = {"store", "section", "ordinal"}
 # The only places a byte envelope may legitimately appear. Anywhere else, bytes
 # are being smuggled: metadata, tool schemas, refusal reasons, handles and
 # record ids have no business carrying an encoded payload.
+TOOL_SCHEMA_KEYS = {"name", "description", "input_schema", "output_schema"}
+EXPECTED_TOOL_NAMES = ["qodec_lookup", "qodec_intersect", "qodec_materialize"]
+
+# The exact input contract per tool, and which fields must be byte envelopes
+# rather than plain strings. Pinned semantically, not only through the golden:
+# golden drift says "something changed", which is true of a typo and of dropping
+# a required field, and the two deserve different alarms.
+TOOL_INPUT_REQUIRED = {
+    "qodec_lookup": ["index", "key"],
+    "qodec_intersect": ["index", "sections"],
+    "qodec_materialize": ["handle", "record_ids"],
+}
+BYTE_REF = {"$ref": "#/$defs/byteEnvelope"}
+TOOL_BYTE_FIELDS = {"qodec_lookup": ["key"]}
+
 ALLOWED_BYTE_PATHS = {
     "$.arguments.key",              # the caller's own lookup key
     "$.outcome.preview[]",          # candidates a query returned
@@ -148,8 +163,8 @@ def validate_schema(case: str, events: list[dict]) -> list[str]:
         bad += exact_keys(case, at, e, EVENT_KEYS[kind])
         if kind == "metadata":
             bad += exact_keys(case, f"{at}.metadata", e.get("metadata"), METADATA_KEYS)
-            if not isinstance(e.get("tool_schemas"), list):
-                bad.append(f"{case} {at}: tool_schemas must be a list")
+            bad += validate_tool_schemas(case, at, e.get("tool_schemas"))
+            bad += validate_answer_schema(case, at, e.get("answer_schema"))
         elif kind == "tool_call":
             tool = e.get("tool")
             if tool not in ARGUMENT_KEYS:
@@ -180,6 +195,89 @@ def validate_schema(case: str, events: list[dict]) -> list[str]:
     return bad
 
 
+def validate_json_schema(case: str, where: str, schema) -> list[str]:
+    """A JSON Schema object must be exact, not merely present.
+
+    `additionalProperties: false` is the field that carries the weight: a schema
+    that omits it accepts anything the model chooses to add, which is the same
+    permissiveness the transcript gate exists to refuse one layer up.
+    """
+    bad = []
+    if not isinstance(schema, dict):
+        return [f"{case} {where}: schema must be an object"]
+    if schema.get("type") != "object":
+        bad.append(f"{case} {where}: schema type must be \"object\"")
+    required = schema.get("required")
+    if not isinstance(required, list) or not required:
+        bad.append(f"{case} {where}: schema needs a non-empty 'required' list")
+    props = schema.get("properties")
+    if not isinstance(props, dict) or not props:
+        bad.append(f"{case} {where}: schema needs 'properties'")
+    if schema.get("additionalProperties") is not False:
+        bad.append(
+            f"{case} {where}: schema must set additionalProperties:false — "
+            f"an open schema accepts whatever the model adds"
+        )
+    for name in required or []:
+        if isinstance(props, dict) and name not in props:
+            bad.append(f"{case} {where}: required field {name!r} has no property")
+    return bad
+
+
+def validate_tool_schemas(case: str, at: str, schemas) -> list[str]:
+    """Exactly the three tools, in canonical order, each fully specified."""
+    if not isinstance(schemas, list):
+        return [f"{case} {at}: tool_schemas must be a list"]
+    bad = []
+    names = [s.get("name") if isinstance(s, dict) else None for s in schemas]
+    if names != EXPECTED_TOOL_NAMES:
+        bad.append(
+            f"{case} {at}: tool_schemas names {names} != {EXPECTED_TOOL_NAMES} "
+            f"(unknown tools, duplicates and reordering are all refused)"
+        )
+    for i, schema in enumerate(schemas):
+        where = f"{at}.tool_schemas[{i}]"
+        bad += exact_keys(case, where, schema, TOOL_SCHEMA_KEYS)
+        if not isinstance(schema, dict):
+            continue
+        if not (schema.get("description") or "").strip():
+            bad.append(f"{case} {where}: description must be non-empty")
+        for field in ("input_schema", "output_schema"):
+            bad += validate_json_schema(case, f"{where}.{field}", schema.get(field))
+        name = schema.get("name")
+        want = TOOL_INPUT_REQUIRED.get(name)
+        got = (schema.get("input_schema") or {}).get("required")
+        if want is not None and got != want:
+            bad.append(
+                f"{case} {where}: input required {got} != {want} — a dropped "
+                f"argument makes the tool optional-by-accident"
+            )
+        for field in TOOL_BYTE_FIELDS.get(name, []):
+            prop = ((schema.get("input_schema") or {}).get("properties") or {}).get(field)
+            if prop != BYTE_REF:
+                bad.append(
+                    f"{case} {where}: {field!r} must be {BYTE_REF} — keys are "
+                    f"arbitrary bytes, and a plain string cannot carry them"
+                )
+    return bad
+
+
+def validate_answer_schema(case: str, at: str, answer) -> list[str]:
+    """The terminal answer format is pinned too.
+
+    Without it the tools would be measured precisely while the answer format
+    stayed implicit, which is where interface contracts usually leak.
+    """
+    where = f"{at}.answer_schema"
+    bad = exact_keys(case, where, answer, {"description", "schema"})
+    if isinstance(answer, dict):
+        bad += validate_json_schema(case, f"{where}.schema", answer.get("schema"))
+        prop = ((answer.get("schema") or {}).get("properties") or {}).get("answer")
+        if prop != BYTE_REF:
+            bad.append(f"{case} {where}: 'answer' must be {BYTE_REF}, not a plain string")
+    return bad
+
+
 def walk(node, path: str):
     """Yield (path, object) for every dict, with `[]` collapsing list indices."""
     if isinstance(node, dict):
@@ -205,6 +303,11 @@ def audit_byte_envelopes(case: str, events: list[dict]) -> list[str]:
     for i, e in enumerate(events):
         for path, obj in walk(e, "$"):
             if obj.get("encoding") != "base64url-nopad":
+                continue
+            # A JSON Schema *describing* the envelope is not an envelope: its
+            # "encoding" sits under a properties/enum declaration, not as a
+            # value. Skipping by path keeps the audit about data.
+            if ".input_schema" in path or ".output_schema" in path or ".answer_schema" in path:
                 continue
             extra = set(obj) - BYTE_ENVELOPE_KEYS
             if extra:

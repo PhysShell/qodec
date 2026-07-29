@@ -123,8 +123,30 @@ fn render(jsonl: &str) -> Result<String> {
                     .and_then(serde_json::Value::as_array)
                 {
                     for s in schemas {
-                        out.push_str(&format!("  tool: {}\n", s.as_str().unwrap_or("?")));
+                        let name = s.get("name").and_then(|v| v.as_str()).unwrap_or("?");
+                        let required = s
+                            .pointer("/input_schema/required")
+                            .and_then(serde_json::Value::as_array)
+                            .map(|r| {
+                                r.iter()
+                                    .filter_map(|v| v.as_str())
+                                    .collect::<Vec<_>>()
+                                    .join(", ")
+                            })
+                            .unwrap_or_default();
+                        out.push_str(&format!("  tool: {name}({required})\n"));
                     }
+                }
+                if let Some(required) = event
+                    .pointer("/answer_schema/schema/required")
+                    .and_then(serde_json::Value::as_array)
+                {
+                    let fields = required
+                        .iter()
+                        .filter_map(|v| v.as_str())
+                        .collect::<Vec<_>>()
+                        .join(", ");
+                    out.push_str(&format!("  answer: {{{fields}}}\n"));
                 }
             }
             "tool_call" => {
