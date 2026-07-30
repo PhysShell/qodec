@@ -249,6 +249,26 @@ retry. The body was lost after the headers → the generation exists and is on t
 bill, so it is `RESPONSE_CAPTURE_FAILED` and retrying it is a decision somebody
 makes on purpose.
 
+There is a third answer, and the first two cannot express it. `BadStatusLine`
+and `LineTooLong` out of the opener mean the request was sent and the reply was
+not a parseable HTTP response at all. No headers ever parsed, so it is not
+`after-headers`; but the request *was* served, so calling it `before-response`
+would assert that nothing was generated and nothing will be billed — a claim
+this transport cannot support, and the claim that invites paying twice. That is
+`response-framing`: no status, no body, no response-derived fields, and
+`RESPONSE_CAPTURE_FAILED` on both the qualification and the probe path.
+
+The family matters more than any member of it. `IncompleteRead` was caught by
+name first, which left `LineTooLong` and the rest exactly where they were: every
+one of them derives from `http.client.HTTPException`, which is neither an
+`OSError` nor a `ValueError`, and urllib re-raises them rather than wrapping
+them in `URLError`. So the base class is what both body reads catch, because the
+class is what "the provider broke the framing" means.
+
+What gets written down is the exception's **type**, never `str(exc)`:
+`BadStatusLine`'s message *is* the bytes the peer chose to send, and this string
+goes into a turn record and then into a receipt on disk.
+
 `status is None` means one thing only: **no headers were ever received.** A body
 lost after the headers keeps its status, its `request_id` and how many bytes were
 seen — losing a `401` and filing it as a nameless capture failure would discard
@@ -260,6 +280,11 @@ the most useful fact in the exchange. The stage is a table, not an inference:
 | int    | `None`  | `after-headers` — the body was lost; billed     |
 | int    | `bytes` | `completed`                                     |
 | `None` | `bytes` | rejected: a body without a status is impossible |
+
+That table is the *inference* for a legacy three-tuple, so `response-framing`
+does not appear in it: nothing about `(status, body)` distinguishes a reply that
+never came from a reply that came back unreadable. Only `send_json` knows the
+difference, and only `send_json` produces that stage.
 
 Enforced on **every** `SendResult`, not only on the inferred ones. Validating
 just the legacy three-tuple left the explicit form unchecked, so
@@ -402,6 +427,7 @@ side. So the contract is exactly what a strict mapper requires:
 
 ```text
 message.role == "assistant"
+message.content is absent, null, or a string
 tool_calls is a non-empty array
 every tool_call.type == "function"
 every id is a non-empty string, and unique within the response
@@ -415,6 +441,23 @@ then echoed back **by reference** rather than rebuilt from the parsed view —
 rebuilding drops fields the parser does not model and re-encodes the arguments,
 so a provider that only accepts its own emission back would fail for a reason
 this canary invented.
+
+`content` is on that list because it was the one field replay sent back without
+anyone having looked at it. The parser read `role` and `tool_calls`; replay then
+reached past the parser into the original message for `content`, so `{"role":
+"assistant", "content": 123, "tool_calls": [...]}` satisfied the contract, went
+into the next request, and a run could finish `PASS` for a message a strict
+mapper deserializes into nothing. Any other type — number, bool, object, array —
+is `PROTOCOL_VIOLATION`, and the verdict lands before an operation runs, before
+a roundtrip is acknowledged, and before the message can be replayed.
+
+The parser therefore returns the value it checked, and replay uses *that*, not a
+second read of the original dict. With the guard in place the two are equal, so
+no test can tell them apart — which is exactly why it is written down here
+rather than defended by a mutation that could never die. The reason to read the
+checked value anyway is that the guard is what makes them equal: a consumer that
+reaches past its own validator stops being covered the moment the validator
+changes.
 
 ### Only a verified model identity may pass
 
@@ -535,11 +578,32 @@ python3 evals/provider-matrix/mutations.py
 `mutations.py` states each contract as its own negation — accept an immediate
 terminal answer, degrade validation to required keys, let a catalog row choose
 the origin or the key, follow a redirect, pass a run whose model was never
-named, discard a status when its body is lost, accept object arguments, rebuild
-the replayed tool calls — and requires the suite to turn red for every one. It
-verifies that each substitution actually applied before believing the result: an
-anchor that no longer matches runs a green suite and reports "not caught", which
-is the most convincing way to be wrong about a test.
+named, discard a status when its body is lost, accept object arguments, accept a
+numeric assistant `content`, narrow the framing catch back to one exception,
+write a malformed status line into a receipt, rebuild the replayed tool calls —
+and requires the suite to turn red for every one. It verifies that each
+substitution actually applied before believing the result: an anchor that no
+longer matches runs a green suite and reports "not caught", which is the most
+convincing way to be wrong about a test.
+
+A mutated **gate** is answered by that gate's own `--self-test`, not by the
+suite, so a contract a self-test does not exercise cannot be killed. Both
+positive controls were extended rather than left to depend on that: the
+discovery check runs a module that prints exactly one newline, and the
+clean-tree check builds itself a HOME configured to break it — commit signing
+on, a hook that exits 1, and `*.tmp` in `core.excludesFile`. The last of those
+is the dangerous facet, because without isolation the untracked-file case goes
+*quiet* rather than red, and a control that silently stops testing is worse than
+one that fails. Every setup command in that self-test goes through `must_git`:
+a preparation that did not happen used to surface as "a freshly committed tree
+was reported dirty", which is the gate diagnosing its own failure as a defect in
+the property it was checking.
+
+A handful of checks are listed in that file as **deliberately unmutated**, each
+with the reason no single mutation can reach it — two of them because a second
+guard holds the same fact, and two because the mutated behaviour is provably
+identical to the original. Writing a mutation that can never die is a worse
+outcome than admitting the gap.
 
 Every classification above except `NO_TERMINAL_ANSWER` is reached in one table
 in `test_every_classification_is_declared`, and that one has its own
