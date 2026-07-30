@@ -120,6 +120,13 @@ jobs:
       # looks exactly as convincing as before.
       - name: C1 panel surface has not drifted from the crate
         run: nix develop --command python3 evals/provider-matrix/check_surface.py
+      # Six review rounds found the same defect in different clothes: the canary
+      # accepting something the adapter will refuse. This asks the real
+      # `serde_json` what it admits and requires the Python gate to admit
+      # nothing more — one-directional, since refusing duplicate keys is a
+      # deliberate extra strictness.
+      - name: The JSON gate is no more liberal than the consumer
+        run: nix develop --command python3 evals/provider-matrix/check_json_admission.py
 
   build-and-smoke:
     runs-on: ubuntu-latest

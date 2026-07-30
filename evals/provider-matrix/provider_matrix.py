@@ -12,6 +12,7 @@ import argparse
 import codecs
 import hashlib
 import json
+import math
 import os
 import re
 import sys
@@ -81,6 +82,58 @@ class InvalidJsonEncoding(StrictJsonError):
     """Bytes that are not the encoding the consumer of this JSON accepts."""
 
 
+class UnadmittedJsonValue(StrictJsonError):
+    """Valid Python JSON that `serde_json` refuses to parse at all."""
+
+
+# `json.loads` speaks a dialect, not JSON. It admits `NaN`, `Infinity` and
+# `-Infinity` as bare constants, turns an overflowing literal like `1e400` into
+# `inf`, and accepts an unpaired `\ud800` escape as a lone surrogate in a `str`.
+# `serde_json::from_slice::<Value>` — which the adapter runs over the whole body
+# before it reads a single field — refuses all of them. Measured, not recalled;
+# see `json-admission-corpus.json` and the oracle that regenerates its verdicts.
+#
+# The gap is a false PASS waiting to happen: a completion carrying `"unused":
+# NaN` in a field the canary never reads still parses here, still yields a model
+# and tool calls, and is rejected outright by the consumer.
+#
+# Being *stricter* than the consumer is safe and deliberate — duplicate keys are
+# admitted by `serde_json` and refused here. Being more liberal is the defect,
+# so the parity check is one-directional: everything this gate admits, the
+# consumer must admit too.
+SURROGATE_RANGE = ("\ud800", "\udfff")
+
+
+def _refuse_non_finite(constant: str) -> Any:
+    raise UnadmittedJsonValue(f"{constant} is not a JSON value")
+
+
+def _admissible_float(text: str) -> float:
+    value = float(text)
+    if not math.isfinite(value):
+        raise UnadmittedJsonValue(f"{text} is out of range for a JSON number")
+    return value
+
+
+def _refuse_lone_surrogates(value: Any, where: str = "") -> None:
+    """A `str` holding U+D800..U+DFFF came from an unpaired escape.
+
+    Python's decoder combines a valid pair into one non-surrogate character, so
+    a surviving surrogate is exactly the case `serde_json` rejects — and the one
+    that cannot be represented in a Rust `String` at all.
+    """
+    if isinstance(value, str):
+        if any(SURROGATE_RANGE[0] <= ch <= SURROGATE_RANGE[1] for ch in value):
+            raise UnadmittedJsonValue(f"lone surrogate in {where or 'a string'}")
+    elif isinstance(value, dict):
+        for key, sub in value.items():
+            _refuse_lone_surrogates(key, f"key {key!r}" if key.isprintable() else "an object key")
+            _refuse_lone_surrogates(sub, f"{where}.{key}" if where else key)
+    elif isinstance(value, list):
+        for index, sub in enumerate(value):
+            _refuse_lone_surrogates(sub, f"{where}[{index}]")
+
+
 def strict_json_loads(raw: str | bytes, what: str) -> Any:
     """Parse anything that decides something, refusing duplicate object keys.
 
@@ -130,9 +183,21 @@ def strict_json_loads(raw: str | bytes, what: str) -> Any:
         except UnicodeDecodeError as exc:
             raise InvalidJsonEncoding(f"{what}: not valid UTF-8 ({exc.reason})") from None
     try:
-        return json.loads(raw, object_pairs_hook=reject_duplicate_keys)
+        parsed = json.loads(
+            raw,
+            object_pairs_hook=reject_duplicate_keys,
+            parse_constant=_refuse_non_finite,
+            parse_float=_admissible_float,
+        )
     except DuplicateJsonKey as exc:
         raise DuplicateJsonKey(f"{what}: {exc}") from None
+    except UnadmittedJsonValue as exc:
+        raise UnadmittedJsonValue(f"{what}: {exc}") from None
+    try:
+        _refuse_lone_surrogates(parsed)
+    except UnadmittedJsonValue as exc:
+        raise UnadmittedJsonValue(f"{what}: {exc}") from None
+    return parsed
 
 
 def read_json(path: Path) -> Any:
@@ -1355,7 +1420,7 @@ def decode_arguments(call: dict[str, Any]) -> tuple[dict[str, Any] | None, str |
         parsed = strict_json_loads(raw, f"{call['name']} arguments")
     except DuplicateJsonKey as exc:
         return None, f"arguments for {call['name']} name a field twice: {exc}"
-    except InvalidJsonEncoding as exc:
+    except StrictJsonError as exc:
         return None, f"arguments for {call['name']} are not acceptable JSON: {exc}"
     except json.JSONDecodeError as exc:
         return None, f"arguments for {call['name']} are not valid JSON: {exc}"

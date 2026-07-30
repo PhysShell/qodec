@@ -1730,3 +1730,105 @@ class JsonEncodingTests(unittest.TestCase):
         for raw in ('{"error":{"message":"тише"}}'.encode("utf-16"), b'{"error":\xff\xfe}'):
             receipt = pm.qualify_target(target(), surface(), 30.0, 6, scripted([(429, raw, "")]))
             self.assertEqual(receipt["classification"], "RATE_LIMITED", repr(raw[:8]))
+
+
+class JsonAdmissionParityTests(unittest.TestCase):
+    """`json.loads` is not a JSON parser; it is a parser for a superset.
+
+    It admits `NaN`, `Infinity`, `-Infinity`, turns `1e400` into `inf`, and
+    accepts an unpaired `\\ud800`. `serde_json::from_slice::<Value>` — which the
+    adapter runs over the *whole* body before reading a field — refuses all of
+    them. So `{"model": "m", "choices": [...], "unread": NaN}` yields a model
+    and tool calls here, and nothing at all there: a PASS for a target the
+    consumer cannot talk to.
+
+    The corpus carries a frozen `consumer_admits` per case, measured by running
+    real `serde_json`. `check_json_admission.py` re-measures it in CI so the
+    frozen value cannot rot; these tests use it so parity is still checked when
+    no Rust toolchain is present.
+    """
+
+    @classmethod
+    def setUpClass(cls):
+        path = Path(__file__).resolve().parent / "json-admission-corpus.json"
+        cls.cases = json.loads(path.read_text(encoding="utf-8"))["cases"]
+
+    def admits(self, raw: bytes) -> bool:
+        try:
+            pm.strict_json_loads(raw, "case")
+        except (pm.StrictJsonError, json.JSONDecodeError):
+            return False
+        return True
+
+    def test_the_gate_admits_nothing_the_consumer_refuses(self):
+        """One-directional, and that is the whole contract.
+
+        Stricter is a choice — duplicate keys are admitted by `serde_json` and
+        refused here because a repeated key is a tamper channel. More liberal is
+        a false PASS.
+        """
+        liberal = [c["name"] for c in self.cases
+                   if self.admits(bytes.fromhex(c["hex"])) and not c["consumer_admits"]]
+        self.assertEqual(liberal, [], f"the gate admits what the consumer refuses: {liberal}")
+
+    def test_the_only_deliberate_strictness_is_duplicate_keys(self):
+        stricter = [c["name"] for c in self.cases
+                    if c["consumer_admits"] and not self.admits(bytes.fromhex(c["hex"]))]
+        self.assertEqual(stricter, ["duplicate-keys"])
+
+    def test_the_corpus_covers_the_cases_that_matter(self):
+        """A vacuous parity proof is not one."""
+        names = {c["name"] for c in self.cases}
+        self.assertLessEqual({
+            "nan", "infinity", "negative-infinity", "nan-in-an-unread-field",
+            "float-overflow", "negative-float-overflow",
+            "lone-leading-surrogate", "lone-trailing-surrogate",
+            "lone-surrogate-in-a-key", "lone-surrogate-nested",
+            "valid-surrogate-pair", "u64-max", "u64-max-plus-one",
+            "i64-min", "i64-min-minus-one", "integer-far-past-u64",
+            "duplicate-keys", "utf8-bom", "utf16le-with-bom", "broken-utf8",
+        }, names)
+        self.assertTrue(any(c["consumer_admits"] for c in self.cases))
+        self.assertTrue(any(not c["consumer_admits"] for c in self.cases))
+
+    def test_a_completion_carrying_nan_in_an_unread_field_does_not_pass(self):
+        """The concrete false PASS. Nothing here reads `unread`."""
+        body = b'{"model":"openai/gpt-oss-120b","choices":[{"message":{"role":"assistant","tool_calls":[]}}],"unread":NaN}'
+        receipt = pm.qualify_target(target(), surface(), 30.0, 6, scripted([(200, body, "")]))
+        self.assertEqual(receipt["classification"], "INVALID_OUTPUT")
+        self.assertNotEqual(receipt["model_status"], "verified")
+
+    def test_a_lone_surrogate_in_a_tool_call_id_does_not_pass(self):
+        """A field the canary treats as an ordinary non-empty string.
+
+        Rust `String` cannot hold it, so `serde_json` refuses the body outright
+        — long before anything asks whether the id is non-empty.
+        """
+        body = ('{"model":"openai/gpt-oss-120b","choices":[{"message":{"role":"assistant",'
+                '"tool_calls":[{"id":"\\ud800","type":"function","function":'
+                '{"name":"qodec_intersect","arguments":%s}}]}}]}' % json.dumps(INTERSECT_ARGS)).encode()
+        receipt = pm.qualify_target(target(), surface(), 30.0, 6, scripted([(200, body, "")]))
+        self.assertEqual(receipt["classification"], "INVALID_OUTPUT")
+
+    def test_big_integers_are_admitted_by_both(self):
+        """Measured, not assumed: `serde_json` falls back to `f64` rather than refusing.
+
+        An earlier plan called for rejecting integers past `u64::MAX`. The
+        oracle says otherwise, so the gate does not invent a rule the consumer
+        does not have — being stricter is only free when it is deliberate.
+        """
+        for name in ("u64-max-plus-one", "i64-min-minus-one", "integer-far-past-u64"):
+            case = next(c for c in self.cases if c["name"] == name)
+            self.assertTrue(case["consumer_admits"], name)
+            self.assertTrue(self.admits(bytes.fromhex(case["hex"])), name)
+
+    def test_non_finite_numbers_in_tool_arguments_are_malformed(self):
+        receipt = pm.qualify_target(target(), surface(), 30.0, 6, scripted(
+            OPERATION_THEN((200, completion([call("qodec_answer", '{"handle":NaN}', "call_ans")]), ""))))
+        self.assertEqual(receipt["classification"], "MALFORMED_TOOL_ARGUMENTS")
+        self.assertIn("not acceptable JSON", receipt["detail"])
+
+    def test_the_http_error_body_may_still_carry_anything(self):
+        receipt = pm.qualify_target(target(), surface(), 30.0, 6,
+                                    scripted([(429, b'{"error":{"message":NaN}}', "")]))
+        self.assertEqual(receipt["classification"], "RATE_LIMITED")

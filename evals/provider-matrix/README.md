@@ -111,6 +111,48 @@ a local reason code, never becomes a tool call, and cannot earn a `PASS`.
 Refusing to read a sloppy error would turn the provider's untidiness into our
 transport failure.
 
+### The JSON dialect is the consumer's, measured rather than imitated
+
+`json.loads` is not a JSON parser; it is a parser for a superset. It admits
+`NaN`, `Infinity` and `-Infinity` as bare constants, turns `1e400` into `inf`,
+and accepts an unpaired `\ud800` escape as a lone surrogate. `serde_json` —
+which the adapter runs over the **whole body** before reading a single field —
+refuses all of them. So this parses here and yields a model and tool calls:
+
+```json
+{"model": "openai/gpt-oss-120b", "choices": [...], "unread": NaN}
+```
+
+...and the consumer rejects the entire response before it ever sees the model.
+Nothing in the canary reads `unread`. That is a `PASS` for a target the adapter
+cannot talk to — the sixth appearance of one defect: **a canary more liberal
+than its consumer**.
+
+By this point another hand-written approximation of `serde_json` would have been
+a ritual. So there is an oracle instead:
+
+```bash
+# ask the real parser, then require the gate to admit nothing more
+python3 evals/provider-matrix/check_json_admission.py
+```
+
+`examples/json_admission_oracle.rs` runs `serde_json::from_slice::<Value>` over
+`json-admission-corpus.json` — 34 cases carried as hex, so a case can be any
+byte sequence — and the checker compares its verdicts against the Python gate.
+Each case also carries a **frozen** `consumer_admits`, so the unit suite checks
+parity without a Rust toolchain while CI re-measures it and refuses a frozen
+value that has rotted.
+
+The rule is **one-directional**: everything the gate admits, the consumer must
+admit. The reverse is allowed and used exactly once — `serde_json` accepts
+duplicate object keys and this gate refuses them, because a repeated key is a
+tamper channel. Being stricter is a choice; being more liberal is a false PASS.
+
+One measurement corrected a plan: integers past `u64::MAX` were to be rejected,
+and the oracle says `serde_json` admits them, falling back to `f64`. The gate
+therefore does not reject them either. Inventing a rule the consumer does not
+have is only free when it is deliberate.
+
 ### The encoding is the consumer's, not a taste
 
 `json.loads` accepts *bytes* and sniffs UTF-8, UTF-16 and UTF-32, and tolerates
@@ -433,6 +475,9 @@ python3 -m unittest -v test_provider_matrix.py
 
 # the frozen surface still matches the crate that defines it
 python3 evals/provider-matrix/check_surface.py
+
+# the JSON gate admits nothing serde_json refuses
+python3 evals/provider-matrix/check_json_admission.py
 
 # and the tests would notice if the contracts were removed
 python3 evals/provider-matrix/mutations.py
