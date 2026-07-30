@@ -77,6 +77,18 @@ SUITE_TIMEOUT = 600
 #     response does. It stays because it makes the invariant structural rather
 #     than accidental, but `validate_send_result` is the gate, and `O3` is the
 #     mutation that proves it.
+#   * replay reading `parsed.content` rather than `message["content"]` — with
+#     `X1`'s guard in place the two values are equal on every message that
+#     reaches replay, so a mutation swapping them cannot die and no black-box
+#     test can separate them. The reason to read the checked value anyway is
+#     that the guard is what makes them equal: a consumer reaching past its own
+#     validator stops being covered the moment the validator changes. Stated
+#     here rather than shipped as a mutation that would always survive.
+#   * the `env` argument threaded into `dirt()` from the self-test — it matters
+#     against a developer's `core.excludesFile`, and CI runs on a machine that
+#     has none, so dropping it changes nothing observable *here*. `W1` covers
+#     the same fact from the side that is reachable: the hostile HOME the
+#     self-test builds for itself.
 MUTATIONS = [
     # -- A: the multi-turn roundtrip guard --
     ("A1 terminal answer accepted without a roundtrip",
@@ -195,11 +207,11 @@ MUTATIONS = [
 
     # -- G: the status survives a lost body --
     ("G1 an error status is discarded when its body is lost",
-     "                exc.code, None, str(read_exc), \"after-headers\",",
-     "                None, None, str(read_exc), \"after-headers\","),
+     "                exc.code, None, capture_detail(\"HTTP body capture failure\", read_exc),",
+     "                None, None, capture_detail(\"HTTP body capture failure\", read_exc),"),
     ("G2 a success status is discarded when its body is lost",
-     "        return SendResult(status, None, str(exc), \"after-headers\", bytes_seen(exc), request_id)",
-     "        return SendResult(None, None, str(exc), \"after-headers\", bytes_seen(exc), request_id)"),
+     "            status, None, capture_detail(\"HTTP body capture failure\", exc),",
+     "            None, None, capture_detail(\"HTTP body capture failure\", exc),"),
     ("G3 the receipt drops a status it was handed",
      "        if status is not None:\n            record[\"http_status\"] = status",
      "        if False:\n            record[\"http_status\"] = status"),
@@ -376,11 +388,11 @@ MUTATIONS = [
      "        if False:"),
 
     # -- U: provider-controlled failures end in a local classification --
-    ("U1 a truncated body escapes as IncompleteRead",
-     "    except (OSError, ValueError, http.client.IncompleteRead) as exc:",
+    ("U1 a lost response body escapes the read entirely",
+     "    except (OSError, ValueError, http.client.HTTPException) as exc:",
      "    except (OSError, ValueError) as exc:"),
-    ("U2 a truncated error body escapes as IncompleteRead",
-     "        except (OSError, ValueError, http.client.IncompleteRead) as read_exc:",
+    ("U2 a lost error body escapes the read entirely",
+     "        except (OSError, ValueError, http.client.HTTPException) as read_exc:",
      "        except (OSError, ValueError) as read_exc:"),
     ("U3 the partial length of a truncated body is lost",
      "    if isinstance(exc, http.client.IncompleteRead):\n        return len(exc.partial)",
@@ -405,6 +417,72 @@ MUTATIONS = [
      "    return sorted(module - direct), sorted(direct - module)",
      "    return [], []",
      "check_test_discovery.py"),
+
+    # -- X: everything replay sends back was checked first --
+    ("X1 the assistant content type guard removed",
+     "    if content is not None and not isinstance(content, str):",
+     "    if False:"),
+
+    # -- Y: a provider that breaks HTTP framing is a provider, not a defect here --
+    ("Y1 framing failures at open escape the transport",
+     "    except http.client.HTTPException as exc:\n        # `BadStatusLine`",
+     "    except NotImplementedError as exc:\n        # `BadStatusLine`"),
+    ("Y2 a framing failure reported as a retryable transport failure",
+     "            None, None, capture_detail(\"HTTP framing failure\", exc), \"response-framing\"",
+     "            None, None, capture_detail(\"HTTP framing failure\", exc), \"before-response\""),
+    ("Y3 a framing failure classified as unavailability",
+     "    \"response-framing\": \"RESPONSE_CAPTURE_FAILED\",",
+     "    \"response-framing\": \"UNAVAILABLE\","),
+    ("Y4 the response read narrows back to the one exception already fixed",
+     "    except (OSError, ValueError, http.client.HTTPException) as exc:",
+     "    except (OSError, ValueError, http.client.IncompleteRead) as exc:"),
+    ("Y5 the error-body read narrows back to the one exception already fixed",
+     "        except (OSError, ValueError, http.client.HTTPException) as read_exc:",
+     "        except (OSError, ValueError, http.client.IncompleteRead) as read_exc:"),
+    ("Y6 the malformed status line is written into the receipt",
+     "    if isinstance(exc, http.client.HTTPException):\n        return f\"{prefix}: {type(exc).__name__}\"",
+     "    if False:\n        return f\"{prefix}: {type(exc).__name__}\""),
+    ("Y7 the probe files a framing failure as an unreachable endpoint",
+     "        elif sent.stage in (\"after-headers\", \"response-framing\"):",
+     "        elif sent.stage == \"after-headers\":"),
+
+    # -- Z: a gate answers for any input, including none --
+    ("Z1 the discovery verdict indexes an empty list again",
+     "    return found, tail[-1] if tail else \"(no output)\"",
+     "    return found, tail[-1] if proc.stdout or proc.stderr else \"(no output)\"",
+     "check_test_discovery.py"),
+
+    # -- W: the clean-tree positive control is hermetic and checks its own setup --
+    # `W2` and `W3` are two-anchor on purpose: the ambient configuration and the
+    # local pin are a belt behind a brace, and removing one leaves the other
+    # holding the same fact. `W1` stands alone because `core.excludesFile` has
+    # no local pin — and that facet is the dangerous one, since a hidden
+    # untracked file leaves the self-test *green* while it silently stops
+    # testing anything.
+    ("W1 the self-test reads the machine's global git configuration",
+     "    env[\"GIT_CONFIG_GLOBAL\"] = str(home / \"absent-global-config\")",
+     "    env[\"GIT_CONFIG_GLOBAL\"] = str(home / \".gitconfig\")",
+     "check_clean_tree.py"),
+    ("W2 the self-test stops pinning commit signing off",
+     ["    env[\"GIT_CONFIG_GLOBAL\"] = str(home / \"absent-global-config\")",
+      "        must_git(\"config\", \"commit.gpgsign\", \"false\", cwd=root, env=env)\n"],
+     ["    env[\"GIT_CONFIG_GLOBAL\"] = str(home / \".gitconfig\")",
+      ""],
+     "check_clean_tree.py"),
+    ("W3 the self-test stops neutralising the ambient hooks path",
+     ["    env[\"GIT_CONFIG_GLOBAL\"] = str(home / \"absent-global-config\")",
+      "        must_git(\"config\", \"core.hooksPath\", str(empty_hooks), cwd=root, env=env)\n"],
+     ["    env[\"GIT_CONFIG_GLOBAL\"] = str(home / \".gitconfig\")",
+      ""],
+     "check_clean_tree.py"),
+    ("W4 a failed setup command stops being an error",
+     "    if proc.returncode != 0:\n        raise GitUnavailable(\n            f\"self-test setup:",
+     "    if False:\n        raise GitUnavailable(\n            f\"self-test setup:",
+     "check_clean_tree.py"),
+    ("W5 the setup failure stops naming the command that failed",
+     "            f\"self-test setup: `git {' '.join(args)}` exited {proc.returncode}: \"",
+     "            f\"self-test setup: a git command failed: \"",
+     "check_clean_tree.py"),
 
     # -- S: the JSON dialect is the consumer's, not Python's --
     ("S1 NaN and the infinities readmitted",

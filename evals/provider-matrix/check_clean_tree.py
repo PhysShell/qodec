@@ -25,6 +25,7 @@ Exit 0 when clean, 1 when dirty or when a self-test fails.
 
 from __future__ import annotations
 
+import os
 import subprocess
 import sys
 import tempfile
@@ -44,10 +45,15 @@ class GitUnavailable(RuntimeError):
     """
 
 
-def git(*args: str, cwd: Path) -> subprocess.CompletedProcess[str]:
+def git(*args: str, cwd: Path, env: dict[str, str] | None = None) -> subprocess.CompletedProcess[str]:
+    """Run git and return the result. A nonzero exit is a value, not an error.
+
+    `status` and `diff` use their exit codes to *mean* something, so the caller
+    reads them. Setup commands do not — see `must_git`.
+    """
     try:
         return subprocess.run(
-            ["git", *args], cwd=cwd, capture_output=True, text=True, timeout=TIMEOUT
+            ["git", *args], cwd=cwd, capture_output=True, text=True, timeout=TIMEOUT, env=env
         )
     except subprocess.TimeoutExpired as exc:
         raise GitUnavailable(
@@ -61,14 +67,33 @@ def git(*args: str, cwd: Path) -> subprocess.CompletedProcess[str]:
         raise GitUnavailable(f"could not run `git {' '.join(args)}` in {cwd}: {exc}") from exc
 
 
-def dirt(root: Path) -> list[str]:
+def must_git(*args: str, cwd: Path, env: dict[str, str] | None = None) -> subprocess.CompletedProcess[str]:
+    """A git command whose failure is a broken self-test, not a finding.
+
+    Every setup step used to be fired and forgotten. A seed commit that did not
+    happen — because the machine turned on `commit.gpgsign`, or a global hook
+    said no — left an unborn HEAD, and the very next assertion reported *"a
+    freshly committed tree was reported dirty"*. That is the gate diagnosing its
+    own failed preparation as a defect in the property it was checking, which is
+    the most misleading thing a positive control can do.
+    """
+    proc = git(*args, cwd=cwd, env=env)
+    if proc.returncode != 0:
+        raise GitUnavailable(
+            f"self-test setup: `git {' '.join(args)}` exited {proc.returncode}: "
+            f"{proc.stderr.strip()[:400]}"
+        )
+    return proc
+
+
+def dirt(root: Path, env: dict[str, str] | None = None) -> list[str]:
     """Every way the tree is not byte-clean, as lines. Empty means clean.
 
     `--untracked-files=all` so a directory of leftovers is listed file by file
     rather than as one forgettable entry, and `--ignored` deliberately *not*
     passed: build output is not dirt.
     """
-    status = git("status", "--porcelain", "--untracked-files=all", cwd=root)
+    status = git("status", "--porcelain", "--untracked-files=all", cwd=root, env=env)
     if status.returncode != 0:
         return [f"git status failed: {status.stderr.strip()}"]
     lines = [line for line in status.stdout.splitlines() if line.strip()]
@@ -76,12 +101,63 @@ def dirt(root: Path) -> list[str]:
     # `git status` covers staged, unstaged and untracked. `git diff HEAD` is
     # kept as a second opinion: if the two ever disagree, that disagreement is
     # itself worth failing on rather than resolving in favour of the quiet one.
-    diff = git("diff", "--exit-code", "HEAD", "--", cwd=root)
+    diff = git("diff", "--exit-code", "HEAD", "--", cwd=root, env=env)
     if diff.returncode not in (0, 1):
         lines.append(f"git diff failed: {diff.stderr.strip()}")
     elif diff.returncode == 1 and not lines:
         lines.append("git diff reports changes that git status did not")
     return lines
+
+
+def hostile_home(tmp: Path) -> Path:
+    """A HOME whose git configuration would wreck this self-test if it were read.
+
+    The positive control has to be hostile to itself. One that only ever runs
+    against a clean machine proves the machine: the day a developer turns on
+    commit signing, or installs a global hook, or excludes `*.tmp` from
+    `status`, this gate starts reporting a defect in the tree that is really a
+    defect in its own setup — and the excludes case is worse than the others,
+    because it stays *green* while the untracked-file case silently stops being
+    tested.
+
+    So all three are planted here on purpose, and the isolation below has to
+    beat them for the self-test to pass at all.
+    """
+    home = tmp / "hostile-home"
+    hooks = tmp / "hostile-hooks"
+    hooks.mkdir(parents=True)
+    hook = hooks / "pre-commit"
+    hook.write_text("#!/bin/sh\nexit 1\n", encoding="utf-8")
+    hook.chmod(0o755)
+    excludes = tmp / "hostile-excludes"
+    excludes.write_text("*.tmp\n", encoding="utf-8")
+    home.mkdir()
+    (home / ".gitconfig").write_text(
+        "[commit]\n\tgpgsign = true\n"
+        f"[core]\n\thooksPath = {hooks}\n\texcludesFile = {excludes}\n",
+        encoding="utf-8",
+    )
+    return home
+
+
+def isolated_env(home: Path) -> dict[str, str]:
+    """An environment for a git that must ignore whatever this machine believes.
+
+    Every `GIT_*` variable is dropped, not overridden: an inherited `GIT_DIR` or
+    `GIT_INDEX_FILE` would point the throwaway repository at somebody else's,
+    and enumerating the ones that matter is a list that rots.
+    """
+    env = {key: value for key, value in os.environ.items() if not key.startswith("GIT_")}
+    env["HOME"] = str(home)
+    env["XDG_CONFIG_HOME"] = str(home / "config")
+    # Both files deliberately do not exist. Git reads no global or system
+    # configuration at all, so `~/.gitconfig` — hostile or merely opinionated —
+    # cannot reach the commands below.
+    env["GIT_CONFIG_GLOBAL"] = str(home / "absent-global-config")
+    env["GIT_CONFIG_SYSTEM"] = str(home / "absent-system-config")
+    env["GIT_CONFIG_NOSYSTEM"] = "1"
+    env["GIT_TERMINAL_PROMPT"] = "0"
+    return env
 
 
 def repo_root(start: Path | None = None) -> Path:
@@ -100,20 +176,47 @@ def repo_root(start: Path | None = None) -> Path:
 
 
 def self_test() -> int:
-    """Make a tree dirty in each way and require the check to notice."""
+    """Make a tree dirty in each way and require the check to notice.
+
+    Run against a deliberately hostile HOME, so a green result means the check
+    works *and* is hermetic. Every setup command goes through `must_git`: a
+    broken preparation must be reported as a broken preparation and never as a
+    finding about the tree.
+    """
     failures = []
     with tempfile.TemporaryDirectory() as tmp:
+        home = hostile_home(Path(tmp))
+        env = isolated_env(home)
+        empty_hooks = Path(tmp) / "no-hooks"
+        empty_hooks.mkdir()
         root = Path(tmp) / "repo"
         root.mkdir()
-        git("init", "-q", cwd=root)
-        git("config", "user.email", "self-test@example", cwd=root)
-        git("config", "user.name", "self test", cwd=root)
+        must_git("init", "-q", cwd=root, env=env)
+        must_git("config", "user.email", "self-test@example", cwd=root, env=env)
+        must_git("config", "user.name", "self test", cwd=root, env=env)
+        # Belt behind the brace. `isolated_env` already keeps the ambient
+        # configuration out; these pin the two settings that would otherwise be
+        # inherited from a repository template or a future default.
+        must_git("config", "commit.gpgsign", "false", cwd=root, env=env)
+        must_git("config", "core.hooksPath", str(empty_hooks), cwd=root, env=env)
         (root / "tracked.txt").write_text("original\n", encoding="utf-8")
-        git("add", "tracked.txt", cwd=root)
-        git("commit", "-qm", "seed", cwd=root)
+        must_git("add", "tracked.txt", cwd=root, env=env)
+        must_git("commit", "-qm", "seed", cwd=root, env=env)
 
-        if dirt(root):
+        if dirt(root, env):
             failures.append("a freshly committed tree was reported dirty")
+
+        # The negative control for the setup guard itself: a command that cannot
+        # succeed must be reported as a failed setup, naming the command, rather
+        # than passing quietly and being blamed on the tree three lines later.
+        try:
+            must_git("cat-file", "-e", "0000000000000000000000000000000000000000",
+                     cwd=root, env=env)
+        except GitUnavailable as exc:
+            if "self-test setup" not in str(exc) or "cat-file" not in str(exc):
+                failures.append(f"a failed setup command was reported as {exc!r}")
+        else:
+            failures.append("a git command that cannot succeed was not reported as a setup failure")
 
         # Scope: called from deep inside the tree, it must still resolve to the
         # top. A check that silently narrows to its own directory would report a
@@ -126,20 +229,23 @@ def self_test() -> int:
 
         cases = [
             ("tracked modification", lambda: (root / "tracked.txt").write_text("changed\n", encoding="utf-8")),
+            # `.tmp` on purpose: the hostile HOME excludes exactly this pattern,
+            # so if the isolation ever stops working this case goes quiet rather
+            # than red — the failure mode a positive control exists to prevent.
             ("untracked file", lambda: (root / "stray.tmp").write_text("x", encoding="utf-8")),
             ("staged change", lambda: (
                 (root / "staged.txt").write_text("new\n", encoding="utf-8"),
-                git("add", "staged.txt", cwd=root),
+                must_git("add", "staged.txt", cwd=root, env=env),
             )),
         ]
         for name, make_dirty in cases:
             make_dirty()
-            if not dirt(root):
+            if not dirt(root, env):
                 failures.append(f"a {name} was not reported")
             # Reset to clean for the next case.
-            git("reset", "-q", "--hard", "HEAD", cwd=root)
-            git("clean", "-qfd", cwd=root)
-            if dirt(root):
+            must_git("reset", "-q", "--hard", "HEAD", cwd=root, env=env)
+            must_git("clean", "-qfd", cwd=root, env=env)
+            if dirt(root, env):
                 failures.append(f"the tree stayed dirty after resetting the {name}")
 
     if failures:
@@ -148,7 +254,8 @@ def self_test() -> int:
             print(f"  {line}")
         return 1
     print("OK the clean-tree check reports a tracked modification, an untracked "
-          "file and a staged change, and reports a clean tree as clean")
+          "file and a staged change, reports a clean tree as clean, and does so "
+          "against a HOME configured to break it")
     return 0
 
 

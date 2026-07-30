@@ -52,7 +52,13 @@ def ids_from(argv: list[str], cwd: Path | None = None) -> tuple[set[str], str]:
             # that says *which test ran*.
             qualified = match.group(2).split(" ")[0]
             found.add(qualified.split(".", 1)[1] if "." in qualified else qualified)
-    return found, (proc.stdout + proc.stderr).strip().splitlines()[-1] if proc.stdout or proc.stderr else ""
+    # Total for any output at all. The guard used to test the truthiness of the
+    # *raw* streams and then index into the *stripped* split, so a run that
+    # printed a single newline was truthy, split to `[]`, and `[-1]` raised —
+    # a traceback out of the gate instead of the report the gate exists to
+    # print. `run_gate`/`run_suite` in `mutations.py` already had this shape.
+    tail = (proc.stdout + proc.stderr).strip().splitlines()
+    return found, tail[-1] if tail else "(no output)"
 
 
 SYNTHETIC = 'import unittest\n\n\nclass Early(unittest.TestCase):\n    def test_one(self):\n        pass\n\n\nif __name__ == "__main__":\n    unittest.main()\n\n\nclass Late(unittest.TestCase):\n    def test_two(self):\n        pass\n'
@@ -81,8 +87,22 @@ def self_test() -> int:
             print(f"  direct: {sorted(direct)}")
             print(f"  module: {sorted(module)}")
             return 1
+
+        # The other half of the control: a run that says nothing must produce a
+        # verdict, not a traceback. `print()` emits one newline, which is
+        # truthy and strips to nothing — the exact input that used to index an
+        # empty list and take the gate down with it.
+        (work / "silent_case.py").write_text("print()\n", encoding="utf-8")
+        silent, verdict = ids_from(["silent_case.py"], work)
+        if silent or verdict != "(no output)":
+            print("FAIL a run that printed only whitespace was not reported as no output")
+            print(f"  ids: {sorted(silent)}")
+            print(f"  verdict: {verdict!r}")
+            return 1
+
         print("OK the check detects a mid-file entrypoint "
-              f"(the direct run misses {', '.join(only_module)})")
+              f"(the direct run misses {', '.join(only_module)}) "
+              "and reports a silent run rather than raising")
         return 0
 
 

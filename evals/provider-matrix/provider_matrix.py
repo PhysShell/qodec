@@ -712,9 +712,18 @@ class BodyTooLarge(ValueError):
 # provider request id were observed. Both impossibilities then went into a
 # receipt. `response_derived` marks the fields that cannot exist until the
 # provider has answered.
+#
+# `response-framing` is a fourth answer to "how far did this get", and it exists
+# because the other three cannot express it. `BadStatusLine` and `LineTooLong`
+# out of `_OPENER.open` mean the request was sent and *something* came back that
+# was not a parseable HTTP response. There are no valid headers, so it is not
+# `after-headers`; but the request was served, so calling it `before-response`
+# would claim that nothing was generated and nothing will be billed — a claim
+# this transport cannot support, and one that invites a retry that pays twice.
 SEND_STAGE_SHAPES = {
     "before-response": {"status": False, "body": False, "response_derived": False},
     "no-credential": {"status": False, "body": False, "response_derived": False},
+    "response-framing": {"status": False, "body": False, "response_derived": False},
     "after-headers": {"status": True, "body": False, "response_derived": True},
     "completed": {"status": True, "body": True, "response_derived": True},
 }
@@ -841,6 +850,20 @@ def bytes_seen(exc: BaseException) -> int | None:
     return observed if isinstance(observed, int) else None
 
 
+def capture_detail(prefix: str, exc: BaseException) -> str:
+    """A local, bounded description of a read that failed.
+
+    Never `str(exc)` for an `http.client.HTTPException`: `BadStatusLine`'s
+    message *is* the bytes the peer chose to send, and this string goes into a
+    turn record and then into a receipt on disk. The exception's **type** is a
+    fact about our own stack and says everything the reader needs; the malformed
+    wire is the provider's choice and has no business being kept.
+    """
+    if isinstance(exc, http.client.HTTPException):
+        return f"{prefix}: {type(exc).__name__}"
+    return str(exc)
+
+
 def read_bounded(stream: Any, limit: int) -> bytes:
     """Read at most `limit` bytes, and say so rather than truncating in silence."""
     raw = stream.read(limit + 1)
@@ -889,10 +912,10 @@ def send_json(url: str, body: bytes, key: str, timeout: float, limit: int = MAX_
         try:
             with exc:
                 raw = read_bounded(exc, limit)
-        except (OSError, ValueError, http.client.IncompleteRead) as read_exc:
+        except (OSError, ValueError, http.client.HTTPException) as read_exc:
             return SendResult(
-                exc.code, None, str(read_exc), "after-headers",
-                bytes_seen(read_exc), request_id,
+                exc.code, None, capture_detail("HTTP body capture failure", read_exc),
+                "after-headers", bytes_seen(read_exc), request_id,
             )
         return SendResult(exc.code, raw, "", "completed", len(raw), request_id)
     except TimeoutError:
@@ -901,6 +924,15 @@ def send_json(url: str, body: bytes, key: str, timeout: float, limit: int = MAX_
         reason = exc.reason
         detail = "timeout" if isinstance(reason, TimeoutError) else str(reason)
         return SendResult(None, None, detail, "before-response")
+    except http.client.HTTPException as exc:
+        # `BadStatusLine`, `LineTooLong` and the rest of the framing family
+        # derive from `HTTPException`, not from `OSError`, and urllib re-raises
+        # them rather than wrapping them in `URLError` — so they escaped every
+        # handler here and `guarded_receipt` filed provider-controlled wire
+        # corruption as `INTERNAL_ERROR`, a defect in this tool.
+        return SendResult(
+            None, None, capture_detail("HTTP framing failure", exc), "response-framing"
+        )
 
     # Read outside the try: these are attribute accesses on an object we already
     # hold, and they must not be inside the block whose failure means "the body
@@ -911,12 +943,19 @@ def send_json(url: str, body: bytes, key: str, timeout: float, limit: int = MAX_
     try:
         with response:
             raw = read_bounded(response, limit)
-    except (OSError, ValueError, http.client.IncompleteRead) as exc:
+    except (OSError, ValueError, http.client.HTTPException) as exc:
         # `IncompleteRead` — the provider closed before `Content-Length` was
         # satisfied — derives from `HTTPException`, so it is neither an
         # `OSError` nor a `ValueError` and escaped both handlers into
         # `INTERNAL_ERROR`, discarding a status and request id we already had.
-        return SendResult(status, None, str(exc), "after-headers", bytes_seen(exc), request_id)
+        # Catching only `IncompleteRead` fixed one member of that family and
+        # left `LineTooLong` and the others exactly where they were; the base
+        # class is the contract, because the class is what "the provider broke
+        # the framing" means.
+        return SendResult(
+            status, None, capture_detail("HTTP body capture failure", exc),
+            "after-headers", bytes_seen(exc), request_id,
+        )
     return SendResult(status, raw, "", "completed", len(raw), request_id)
 
 
@@ -1100,7 +1139,11 @@ def probe_target(
         # status the provider already sent.
         if sent.stage == "no-credential":
             kind = "AUTH_FAILURE"
-        elif sent.stage == "after-headers":
+        elif sent.stage in ("after-headers", "response-framing"):
+            # `response-framing` joins it rather than falling through to
+            # `TRANSPORT_FAILURE`: the request was served and the reply was
+            # unreadable, which is a capture failure without a status, not an
+            # endpoint that was never reached.
             kind = "RESPONSE_CAPTURE_FAILED"
         else:
             kind = "TIMEOUT" if sent.detail == "timeout" else "TRANSPORT_FAILURE"
@@ -1235,11 +1278,16 @@ MODEL_STATUS_VERDICT = {
 STAGE_CAUSE = {
     "no-credential": "AUTH_FAILED",
     "before-response": "UNAVAILABLE",
+    # No headers ever parsed, and yet not retryable: the request went out and
+    # the reply was unreadable, so nothing here can say the provider did not
+    # generate and will not charge. `UNAVAILABLE` would say exactly that.
+    "response-framing": "RESPONSE_CAPTURE_FAILED",
     "after-headers": "RESPONSE_CAPTURE_FAILED",
 }
 STAGE_OUTCOME = {
     "no-credential": "no-credential",
     "before-response": "transport-failure",
+    "response-framing": "response-capture-failure",
     "after-headers": "response-capture-failure",
 }
 
@@ -1482,77 +1530,140 @@ def provider_named_the_tools(body: bytes) -> bool:
     return "tool_choice" in haystack or "tool choice" in haystack or "tools" in haystack
 
 
-def parse_tool_calls(message: dict[str, Any]) -> tuple[list[dict[str, Any]], tuple[str, str] | None]:
-    """Read `assistant.tool_calls` under the OpenAI-chat contract, strictly.
+class ParsedAssistant(NamedTuple):
+    """Everything the loop is allowed to use from one assistant message.
+
+    Three fields rather than two because `content` used to be read straight off
+    the original dict at replay time, several hundred lines away from the parser
+    that claimed to have validated the message. Checking one object and
+    consuming another is how a contract becomes decorative: the check passed,
+    the consumer took a different value, and both were right about their own
+    input. Whatever replay sends back comes from here.
+    """
+
+    calls: list[dict[str, Any]]
+    content: str | None
+    problem: tuple[str, str] | None
+
+
+def parse_tool_calls(message: dict[str, Any]) -> ParsedAssistant:
+    """Read the whole assistant message under the OpenAI-chat contract, strictly.
 
     This vertical qualifies `api_style: openai-chat`, and the adapter that will
-    consume a PASS is `OpenAiChatCompletions`. A canary that accepted a looser
-    shape than the adapter would hand out a PASS for a response the adapter
-    rejects — the same defect as paraphrasing the schemas, moved to the response
-    side. So the contract is exactly what a strict mapper requires:
+    consume a PASS is a strict openai-chat mapper. A canary that accepted a
+    looser shape than the adapter would hand out a PASS for a response the
+    adapter rejects — the same defect as paraphrasing the schemas, moved to the
+    response side. So the contract is exactly what a strict mapper requires:
 
         message.role == "assistant"
+        message.content is absent, null, or a string
         tool_calls is a non-empty array
         every tool_call.type == "function"
         every id is a non-empty string, and unique within the response
         function.name is a non-empty string
         function.arguments is a JSON *string* (not an object)
 
-    Returns `(calls, problem)`, where `problem` is `(classification, detail)`.
+    `content` is checked here and returned here. It is the field replay echoes,
+    and it was the one field the old contract never looked at: `{"role":
+    "assistant", "content": 123, "tool_calls": [...]}` passed, was echoed into
+    the next request, and a run could finish `PASS` for a message a strict
+    mapper deserializes into nothing at all.
+
+    Returns `(calls, content, problem)`, where `problem` is
+    `(classification, detail)` and, when set, nothing else may be used.
     """
     role = message.get("role")
     if role != "assistant":
-        return [], ("PROTOCOL_VIOLATION", f"tool calls arrived under role {role!r}, not 'assistant'")
+        return ParsedAssistant(
+            [], None,
+            ("PROTOCOL_VIOLATION", f"tool calls arrived under role {role!r}, not 'assistant'"),
+        )
+    # Before anything else about the calls: a message whose own fields are the
+    # wrong type is malformed whatever it happens to be asking for, and this
+    # verdict has to land before an operation runs, before a roundtrip is
+    # acknowledged, and before the message can be replayed.
+    content = message.get("content")
+    if content is not None and not isinstance(content, str):
+        return ParsedAssistant(
+            [], None,
+            (
+                "PROTOCOL_VIOLATION",
+                f"assistant content was {type(content).__name__}; openai-chat admits a "
+                "string, null, or no content at all",
+            ),
+        )
     raw = message.get("tool_calls")
     if raw is None:
-        return [], ("NO_TERMINAL_ANSWER", "assistant message carried no tool_calls")
+        return ParsedAssistant(
+            [], content, ("NO_TERMINAL_ANSWER", "assistant message carried no tool_calls")
+        )
     if not isinstance(raw, list):
-        return [], ("PROTOCOL_VIOLATION", f"tool_calls was {type(raw).__name__}, not an array")
+        return ParsedAssistant(
+            [], content,
+            ("PROTOCOL_VIOLATION", f"tool_calls was {type(raw).__name__}, not an array"),
+        )
     if not raw:
-        return [], ("NO_TERMINAL_ANSWER", "assistant message carried an empty tool_calls array")
+        return ParsedAssistant(
+            [], content,
+            ("NO_TERMINAL_ANSWER", "assistant message carried an empty tool_calls array"),
+        )
 
     calls: list[dict[str, Any]] = []
     seen_ids: set[str] = set()
     for entry in raw:
         if not isinstance(entry, dict):
-            return [], ("PROTOCOL_VIOLATION", "a tool call was not an object")
+            return ParsedAssistant([], content, ("PROTOCOL_VIOLATION", "a tool call was not an object"))
         kind = entry.get("type")
         if kind != "function":
             # Not pedantry: a strict mapper switches on this field, and a call
             # arriving as anything else is a shape it will not deserialize.
-            return [], ("PROTOCOL_VIOLATION", f"tool call type was {kind!r}, not 'function'")
+            return ParsedAssistant(
+                [], content,
+                ("PROTOCOL_VIOLATION", f"tool call type was {kind!r}, not 'function'"),
+            )
         call_id = entry.get("id")
         if not isinstance(call_id, str) or not call_id:
-            return [], ("PROTOCOL_VIOLATION", "a tool call lacked a non-empty string id")
+            return ParsedAssistant(
+                [], content, ("PROTOCOL_VIOLATION", "a tool call lacked a non-empty string id")
+            )
         if call_id in seen_ids:
             # Results are returned keyed by id. Two calls sharing one id make the
             # linkage ambiguous, and the ambiguity is resolved by whichever
             # result happens to be written last.
-            return [], ("PROTOCOL_VIOLATION", f"tool call id {call_id!r} appeared more than once")
+            return ParsedAssistant(
+                [], content,
+                ("PROTOCOL_VIOLATION", f"tool call id {call_id!r} appeared more than once"),
+            )
         seen_ids.add(call_id)
         function = entry.get("function")
         if not isinstance(function, dict):
-            return [], ("PROTOCOL_VIOLATION", f"tool call {call_id} lacked a function object")
+            return ParsedAssistant(
+                [], content,
+                ("PROTOCOL_VIOLATION", f"tool call {call_id} lacked a function object"),
+            )
         name = function.get("name")
         if not isinstance(name, str) or not name:
-            return [], ("PROTOCOL_VIOLATION", f"tool call {call_id} lacked a function name")
+            return ParsedAssistant(
+                [], content,
+                ("PROTOCOL_VIOLATION", f"tool call {call_id} lacked a function name"),
+            )
         arguments = function.get("arguments")
         if isinstance(arguments, (dict, list)):
             # A coherent other dialect — Anthropic sends arguments as an object —
             # not a malformed OpenAI response. Named separately because the fix
             # is a different adapter, not a better prompt.
-            return [], (
+            return ParsedAssistant([], content, (
                 "DIALECT_MISMATCH",
                 f"{name} arguments arrived as a JSON {type(arguments).__name__}; "
                 "openai-chat requires a JSON string",
-            )
+            ))
         if not isinstance(arguments, str):
-            return [], (
+            return ParsedAssistant([], content, (
                 "PROTOCOL_VIOLATION",
                 f"{name} arguments were {type(arguments).__name__}, not a string",
-            )
+            ))
         calls.append({"id": call_id, "name": name, "raw_arguments": arguments})
-    return calls, None
+    return ParsedAssistant(calls, content, None)
 
 
 def decode_arguments(call: dict[str, Any]) -> tuple[dict[str, Any] | None, str | None]:
@@ -1824,7 +1935,8 @@ def qualify_target(
         if isinstance(payload.get("usage"), dict):
             record["reported_usage"] = payload["usage"]
 
-        calls, problem = parse_tool_calls(message)
+        parsed = parse_tool_calls(message)
+        calls, problem = parsed.calls, parsed.problem
         if problem:
             kind, why = problem
             record["outcome"] = "no-tool-call" if kind == "NO_TERMINAL_ANSWER" else "dialect-violation"
@@ -1944,9 +2056,15 @@ def qualify_target(
         # provider that only accepts its own emission back would fail here for a
         # reason this canary invented. Strictness above is what makes echoing
         # safe: the array reached this point only by satisfying the contract.
+        #
+        # `content` comes from `parsed`, not from `message`, and the difference
+        # is the whole point. Reading the original dict again here meant the
+        # validator and the consumer were two slightly different programs, and
+        # only one of them had the contract. `parsed.content` is the value that
+        # was checked; there is no second value to take instead.
         messages.append({
             "role": "assistant",
-            "content": message.get("content"),
+            "content": parsed.content,
             "tool_calls": message["tool_calls"],
         })
         for call, _args in decoded:

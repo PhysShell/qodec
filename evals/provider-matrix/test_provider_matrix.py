@@ -1467,8 +1467,22 @@ class ExplicitSendStageTests(unittest.TestCase):
 
     def test_every_stage_declares_its_shape(self):
         self.assertEqual(set(pm.SEND_STAGE_SHAPES), {
-            "before-response", "no-credential", "after-headers", "completed",
+            "before-response", "no-credential", "response-framing",
+            "after-headers", "completed",
         })
+
+    def test_every_failing_stage_has_a_cause_and_an_outcome(self):
+        """A stage nobody classified falls through to a default that is a guess.
+
+        `STAGE_CAUSE.get(stage, "UNAVAILABLE")` is the fallback, and
+        `UNAVAILABLE` asserts the request may never have been served — the one
+        thing a new failure stage is least likely to mean.
+        """
+        failing = set(pm.SEND_STAGE_SHAPES) - {"completed"}
+        self.assertEqual(failing - set(pm.STAGE_CAUSE), set())
+        self.assertEqual(failing - set(pm.STAGE_OUTCOME), set())
+        for cause in pm.STAGE_CAUSE.values():
+            self.assertIn(cause, pm.CLASSIFICATIONS)
 
     def test_a_consistent_result_survives_every_input_form(self):
         for value in (
@@ -2068,6 +2082,243 @@ class ProviderControlledFailureTests(unittest.TestCase):
         self.assertTrue(pm.provider_named_the_tools(body))
 
 
+def completion_with_content(content, calls, model="openai/gpt-oss-120b"):
+    """A completion whose assistant `content` is whatever the caller says.
+
+    `ABSENT` leaves the field out entirely, which is a third case: openai-chat
+    admits a message with no content at all, and "absent" is not the same input
+    as "null" even though both must end as `None`.
+    """
+    message = {"role": "assistant", "tool_calls": calls}
+    if content is not ABSENT:
+        message["content"] = content
+    return json.dumps({
+        "id": "chatcmpl-test",
+        "model": model,
+        "choices": [{"index": 0, "message": message}],
+    }).encode()
+
+
+ABSENT = object()
+
+
+class AssistantContentContractTests(unittest.TestCase):
+    """Everything replay sends back has to be something the parser checked.
+
+    `parse_tool_calls` called itself the strict openai-chat contract while
+    reading only `role` and `tool_calls`; replay then reached past it into the
+    original dict for `content`. So the check and the consumer were two
+    programs over the same bytes, and the comment claiming "strictness above is
+    what makes echoing safe" was true of every field except the one being
+    echoed.
+    """
+
+    def assistant_of(self, request_body):
+        """The replayed assistant message out of a request this canary sent."""
+        sent = json.loads(request_body)
+        return next(m for m in sent["messages"] if m.get("role") == "assistant")
+
+    def test_a_non_string_content_is_a_protocol_violation(self):
+        body = completion_with_content(123, [call("qodec_intersect", INTERSECT_ARGS, "call_op")])
+        receipt = pm.qualify_target(target(), surface(), 30.0, 6, scripted([(200, body, "")]))
+        self.assertEqual(receipt["classification"], "PROTOCOL_VIOLATION")
+        self.assertIn("assistant content was int", receipt["detail"])
+
+    def test_every_non_string_content_shape_is_refused(self):
+        for label, content in (
+            ("number", 123), ("float", 1.5), ("bool", True),
+            ("object", {"type": "text"}), ("array", [{"type": "text", "text": "x"}]),
+        ):
+            body = completion_with_content(content, [call("qodec_intersect", INTERSECT_ARGS, "c")])
+            receipt = pm.qualify_target(target(), surface(), 30.0, 6, scripted([(200, body, "")]))
+            self.assertEqual(receipt["classification"], "PROTOCOL_VIOLATION", label)
+
+    def test_nothing_runs_before_the_content_is_checked(self):
+        """No operation, no roundtrip, no replay — the verdict lands first."""
+        body = completion_with_content(123, [call("qodec_intersect", INTERSECT_ARGS, "call_op")])
+        send = scripted([(200, body, "")])
+        receipt = pm.qualify_target(target(), surface(), 30.0, 6, send)
+        self.assertEqual(receipt["classification"], "PROTOCOL_VIOLATION")
+        self.assertFalse(receipt["tool_result_roundtrip"])
+        self.assertEqual(len(send.seen), 1, "a second request means the message was replayed")
+        self.assertNotIn("tool_names", receipt["turns"][0])
+
+    def test_a_numeric_content_anywhere_in_the_run_prevents_pass(self):
+        """The full arm, with the defect on the second turn rather than the first."""
+        answer = completion_with_content(456, [call("qodec_answer", ANSWER_ARGS, "call_ans")])
+        receipt = pm.qualify_target(target(), surface(), 30.0, 6, scripted(
+            OPERATION_THEN((200, answer, ""))))
+        self.assertNotEqual(receipt["classification"], "PASS")
+        self.assertEqual(receipt["classification"], "PROTOCOL_VIOLATION")
+
+    def test_null_content_is_admitted(self):
+        receipt, _ = QualificationTests().run_qualify(OPERATION_THEN(ANSWER_REPLY))
+        self.assertEqual(receipt["classification"], "PASS")
+
+    def test_string_content_is_admitted_and_echoed_verbatim(self):
+        body = completion_with_content(
+            "let me look that up", [call("qodec_intersect", INTERSECT_ARGS, "call_op")])
+        send = scripted([(200, body, ""), ANSWER_REPLY])
+        receipt = pm.qualify_target(target(), surface(), 30.0, 6, send)
+        self.assertEqual(receipt["classification"], "PASS")
+        self.assertEqual(self.assistant_of(send.seen[1][1])["content"], "let me look that up")
+
+    def test_an_absent_content_is_replayed_as_null(self):
+        body = completion_with_content(ABSENT, [call("qodec_intersect", INTERSECT_ARGS, "call_op")])
+        send = scripted([(200, body, ""), ANSWER_REPLY])
+        receipt = pm.qualify_target(target(), surface(), 30.0, 6, send)
+        self.assertEqual(receipt["classification"], "PASS")
+        self.assertIsNone(self.assistant_of(send.seen[1][1])["content"])
+
+    def test_every_admitted_content_shape_survives_the_replay_unchanged(self):
+        """All three admitted shapes, from the wire to the next request.
+
+        Deliberately *not* claiming to prove that replay reads `parsed.content`
+        rather than `message["content"]`: once the guard is in place those two
+        values are equal on every message that reaches replay, so no black-box
+        test can tell them apart. The reason to read the checked one anyway is
+        that the guard is what makes them equal, and a consumer that reaches
+        past its own validator stops being covered the moment the validator
+        changes. `mutations.py` records this as deliberately unmutated with the
+        same reasoning, rather than shipping a mutation that cannot die.
+        """
+        for label, content, expected in (
+            ("absent", ABSENT, None), ("null", None, None), ("string", "thinking", "thinking"),
+        ):
+            body = completion_with_content(content, [call("qodec_intersect", INTERSECT_ARGS, "op")])
+            send = scripted([(200, body, ""), ANSWER_REPLY])
+            receipt = pm.qualify_target(target(), surface(), 30.0, 6, send)
+            self.assertEqual(receipt["classification"], "PASS", label)
+            replayed = self.assistant_of(send.seen[1][1])
+            self.assertIn("content", replayed, label)
+            self.assertEqual(replayed["content"], expected, label)
+
+    def test_the_parser_returns_the_content_it_checked(self):
+        parsed = pm.parse_tool_calls(
+            {"role": "assistant", "content": "hi", "tool_calls": [call("qodec_intersect", "{}")]})
+        self.assertIsNone(parsed.problem)
+        self.assertEqual(parsed.content, "hi")
+        absent = pm.parse_tool_calls(
+            {"role": "assistant", "tool_calls": [call("qodec_intersect", "{}")]})
+        self.assertIsNone(absent.content)
+
+
+class HttpFramingFailureTests(unittest.TestCase):
+    """A provider that breaks HTTP framing is a provider, not a bug in this tool.
+
+    `IncompleteRead` was fixed by name last round, which left every other
+    `http.client.HTTPException` exactly where it was: `BadStatusLine` and
+    `LineTooLong` are neither `OSError` nor `ValueError`, and urllib re-raises
+    them rather than wrapping them in `URLError`.
+    """
+
+    SENTINEL = "X-QODEC-HOSTILE-STATUS-LINE"
+
+    def sent_with_open_raising(self, exc):
+        with patch.object(pm._OPENER, "open", side_effect=exc):
+            return pm.send_json("https://api.example/v1", b"{}", "k", 1)
+
+    def test_a_malformed_status_line_is_a_framing_failure(self):
+        sent = self.sent_with_open_raising(http.client.BadStatusLine(self.SENTINEL))
+        self.assertEqual(sent.stage, "response-framing")
+        self.assertIsNone(sent.status)
+        self.assertIsNone(sent.body)
+        self.assertEqual(pm.validate_send_result(sent), sent)
+
+    def test_an_overlong_status_line_is_a_framing_failure(self):
+        sent = self.sent_with_open_raising(http.client.LineTooLong("status line"))
+        self.assertEqual(sent.stage, "response-framing")
+        self.assertEqual(sent.detail, "HTTP framing failure: LineTooLong")
+
+    def test_a_framing_failure_is_not_reported_as_unavailable(self):
+        """`before-response` claims the request may never have been served.
+
+        A malformed status line proves the opposite half: the request went out
+        and something answered. Nothing here can say the provider did not
+        generate, so calling it retryable invites paying for it twice.
+        """
+        self.assertEqual(pm.STAGE_CAUSE["response-framing"], "RESPONSE_CAPTURE_FAILED")
+        self.assertNotEqual(pm.STAGE_CAUSE["response-framing"], pm.STAGE_CAUSE["before-response"])
+        self.assertEqual(pm.STAGE_OUTCOME["response-framing"], "response-capture-failure")
+
+    def test_the_hostile_status_line_is_never_written_down(self):
+        with patch.object(pm._OPENER, "open", side_effect=http.client.BadStatusLine(self.SENTINEL)):
+            receipt = pm.qualify_target(target(), surface(), 30.0, 6, lambda url, body, timeout:
+                                        pm.send_json(url, body, "k", timeout))
+        self.assertEqual(receipt["classification"], "RESPONSE_CAPTURE_FAILED")
+        self.assertNotIn(self.SENTINEL, json.dumps(receipt))
+        self.assertIn("BadStatusLine", receipt["detail"])
+
+    def test_qualification_classifies_a_framing_failure_rather_than_crashing(self):
+        with patch.object(pm._OPENER, "open", side_effect=http.client.LineTooLong("header line")):
+            receipt = pm.qualify_target(target(), surface(), 30.0, 6, lambda url, body, timeout:
+                                        pm.send_json(url, body, "k", timeout))
+        self.assertNotEqual(receipt["classification"], "INTERNAL_ERROR")
+        self.assertEqual(receipt["classification"], "RESPONSE_CAPTURE_FAILED")
+        self.assertEqual(receipt["turns"][0]["outcome"], "response-capture-failure")
+
+    def test_the_probe_shares_the_verdict_because_it_shares_the_transport(self):
+        with patch.object(pm._OPENER, "open", side_effect=http.client.BadStatusLine(self.SENTINEL)):
+            result = pm.probe_target(probe_row({}), 1, lambda url, body, timeout:
+                                     pm.send_json(url, body, "k", timeout), registry())
+        self.assertEqual(result["classification"], "RESPONSE_CAPTURE_FAILED")
+        self.assertNotIn(self.SENTINEL, json.dumps(result))
+
+    def test_a_body_read_that_breaks_framing_keeps_the_status(self):
+        class Broken:
+            status = 200
+            headers = {"x-request-id": "req-framing"}
+
+            def read(self, size=-1):
+                raise http.client.LineTooLong("chunk size")
+
+            def __enter__(self):
+                return self
+
+            def __exit__(self, *exc):
+                return False
+
+        with patch.object(pm._OPENER, "open", side_effect=lambda *a, **k: Broken()):
+            sent = pm.send_json("https://api.example/v1", b"{}", "k", 1)
+        self.assertEqual((sent.stage, sent.status), ("after-headers", 200))
+        self.assertEqual(sent.request_id, "req-framing")
+        self.assertEqual(sent.detail, "HTTP body capture failure: LineTooLong")
+
+    def test_an_error_body_read_that_breaks_framing_keeps_its_status(self):
+        err = urllib.error.HTTPError("https://api.example/v1", 502, "bad", {}, io.BytesIO(b""))
+        err.read = lambda *a: (_ for _ in ()).throw(http.client.HTTPException("framing gave up"))
+        with patch.object(pm._OPENER, "open", side_effect=err):
+            sent = pm.send_json("https://api.example/v1", b"{}", "k", 1)
+        self.assertEqual((sent.stage, sent.status), ("after-headers", 502))
+        self.assertEqual(sent.detail, "HTTP body capture failure: HTTPException")
+
+    def test_a_truncated_read_still_reports_its_partial_length(self):
+        """Broadening the catch must not lose what `IncompleteRead` knows."""
+        class Truncated:
+            status = 200
+            headers: dict[str, str] = {}
+
+            def read(self, size=-1):
+                raise http.client.IncompleteRead(b"seven!!", 40)
+
+            def __enter__(self):
+                return self
+
+            def __exit__(self, *exc):
+                return False
+
+        with patch.object(pm._OPENER, "open", side_effect=lambda *a, **k: Truncated()):
+            sent = pm.send_json("https://api.example/v1", b"{}", "k", 1)
+        self.assertEqual(sent.body_bytes_observed, 7)
+
+    def test_a_bounded_read_still_reports_its_own_message(self):
+        """`capture_detail` replaces the message only for HTTP framing errors."""
+        self.assertEqual(
+            pm.capture_detail("HTTP body capture failure", pm.BodyTooLarge(9, 8)),
+            "response body exceeded 8 bytes (stopped after 9)",
+        )
+
+
 class SendResultCrossFieldTests(unittest.TestCase):
     """A receipt must not be able to hold an impossible transport state."""
 
@@ -2211,6 +2462,117 @@ class GatesCanFailTests(unittest.TestCase):
                     self.assertEqual(gate.main(), 1)
         self.assertIn("FAIL", out.getvalue())
         self.assertIn(f"exceeded {gate.TIMEOUT}s", out.getvalue())
+
+    def only_output(self, stdout: str, stderr: str = ""):
+        """A `subprocess.run` that produces exactly this output and exits 0."""
+        import subprocess
+
+        def fake(args, **kwargs):
+            return subprocess.CompletedProcess(args, 0, stdout, stderr)
+
+        return patch.object(subprocess, "run", side_effect=fake)
+
+    def test_whitespace_only_output_is_a_verdict_not_a_traceback(self):
+        """The guard tested the raw streams; the index ran on the stripped split.
+
+        A run that printed one newline was truthy, split to `[]`, and `[-1]`
+        raised — out of the gate whose entire job is to print a report.
+        """
+        gate = self.helper("check_test_discovery.py")
+        for stdout, stderr in (("\n", ""), ("", " \n\t"), ("", ""), ("   ", "\n\n")):
+            with self.only_output(stdout, stderr):
+                found, verdict = gate.ids_from(["-m", "unittest", "whatever"])
+            self.assertEqual(found, set(), repr((stdout, stderr)))
+            self.assertEqual(verdict, "(no output)", repr((stdout, stderr)))
+
+    def test_a_run_that_says_nothing_is_reported_as_finding_no_tests(self):
+        import contextlib
+        import io as _io
+
+        gate = self.helper("check_test_discovery.py")
+        out = _io.StringIO()
+        with self.only_output("\n"):
+            with patch.object(sys, "argv", ["check_test_discovery.py"]):
+                with contextlib.redirect_stdout(out):
+                    self.assertEqual(gate.main(), 1)
+        self.assertIn("FAIL one of the runs reported no tests at all", out.getvalue())
+        self.assertIn("(no output)", out.getvalue())
+
+    # -- the clean-tree self-test is hermetic, and says so when it is not --
+
+    def test_the_isolated_environment_admits_nothing_from_the_machine(self):
+        gate = self.helper("check_clean_tree.py")
+        hostile = {
+            "GIT_DIR": "/somebody/elses/.git",
+            "GIT_INDEX_FILE": "/tmp/theirs",
+            "GIT_AUTHOR_NAME": "not us",
+            "HOME": "/home/whoever",
+        }
+        with patch.dict("os.environ", hostile, clear=False):
+            env = gate.isolated_env(Path("/tmp/self-test-home"))
+        self.assertEqual(sorted(key for key in env if key.startswith("GIT_")),
+                         ["GIT_CONFIG_GLOBAL", "GIT_CONFIG_NOSYSTEM",
+                          "GIT_CONFIG_SYSTEM", "GIT_TERMINAL_PROMPT"])
+        self.assertNotIn("GIT_DIR", env)
+        self.assertNotIn("GIT_INDEX_FILE", env)
+        self.assertNotIn("GIT_AUTHOR_NAME", env)
+        self.assertEqual(env["HOME"], "/tmp/self-test-home")
+        self.assertEqual(env["GIT_CONFIG_NOSYSTEM"], "1")
+
+    def test_the_hostile_home_would_actually_break_a_commit(self):
+        """The positive control needs its own positive control.
+
+        A hostile HOME nobody verifies is a hostile HOME that might be empty,
+        and then the isolation it exists to prove is proving nothing.
+        """
+        gate = self.helper("check_clean_tree.py")
+        with tempfile.TemporaryDirectory() as tmp:
+            home = gate.hostile_home(Path(tmp))
+            config = (home / ".gitconfig").read_text(encoding="utf-8")
+        self.assertIn("gpgsign = true", config)
+        self.assertIn("hooksPath", config)
+        self.assertIn("excludesFile", config)
+
+    def failing_git(self, subcommand: str):
+        """Real git, except the one subcommand that must be seen to fail."""
+        import subprocess
+
+        original = subprocess.run
+
+        def fake(args, **kwargs):
+            if isinstance(args, list) and len(args) > 1 and args[1] == subcommand:
+                return subprocess.CompletedProcess(args, 128, "", f"fatal: {subcommand} refused\n")
+            return original(args, **kwargs)
+
+        return patch.object(subprocess, "run", side_effect=fake)
+
+    def assert_setup_failure_named(self, subcommand: str):
+        import contextlib
+        import io as _io
+
+        gate = self.helper("check_clean_tree.py")
+        out = _io.StringIO()
+        with self.failing_git(subcommand):
+            with contextlib.redirect_stdout(out):
+                self.assertEqual(gate.main(["--self-test"]), 1)
+        printed = out.getvalue()
+        self.assertIn("self-test setup", printed)
+        self.assertIn(f"`git {subcommand}", printed)
+        self.assertNotIn("freshly committed tree was reported dirty", printed)
+        return printed
+
+    def test_a_failed_seed_commit_is_reported_as_a_failed_setup(self):
+        """It used to surface as `a freshly committed tree was reported dirty`.
+
+        The gate diagnosing its own broken preparation as a defect in the
+        property it was checking — the most misleading thing a control can do.
+        """
+        self.assertIn("exited 128", self.assert_setup_failure_named("commit"))
+
+    def test_a_failed_init_or_clean_is_a_report_and_not_a_traceback(self):
+        for subcommand in ("init", "clean"):
+            with self.subTest(subcommand=subcommand):
+                self.assert_setup_failure_named(subcommand)
 
     def test_a_stalled_command_is_reported_as_a_command_line(self):
         gate = self.helper("check_test_discovery.py")
