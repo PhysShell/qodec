@@ -11,7 +11,9 @@ from pathlib import Path
 from unittest.mock import patch
 
 import mutations
+import process_boundary
 import provider_matrix as pm
+import receipt_policy
 
 
 def registry(providers=None) -> dict:
@@ -204,6 +206,12 @@ def OPERATION_THEN(reply):
 ANSWER_REPLY = (200, completion([call("qodec_answer", ANSWER_ARGS, "call_ans")]), "")
 
 
+def call_with_object_arguments(name, call_id="call_obj"):
+    """Arguments as a JSON object — a coherent other dialect, not a malformed one."""
+    return {"id": call_id, "type": "function",
+            "function": {"name": name, "arguments": {"index": "line"}}}
+
+
 def scripted(replies):
     """A stand-in `send`: one scripted reply per turn, and it records requests."""
     seen = []
@@ -275,7 +283,7 @@ class QualificationTests(unittest.TestCase):
         body = json.dumps({"error": {"message": "tool_choice is not supported", "param": "tool_choice"}}).encode()
         receipt, _ = self.run_qualify([(400, body, "")])
         self.assertEqual(receipt["classification"], "TOOL_CHOICE_UNSUPPORTED")
-        self.assertEqual(receipt["detail"], "tools-or-tool-choice-named-in-a-400")
+        self.assertEqual(receipt["detail"], "HTTP 400: tools-or-tool-choice-named-in-a-400")
 
     def test_a_later_rejection_is_about_the_tool_results(self):
         """Same status, different turn, different thing to fix."""
@@ -301,7 +309,11 @@ class QualificationTests(unittest.TestCase):
         self.assertEqual(receipt["classification"], "UNAVAILABLE")
         # A local reason code, not the transport's prose: an SSL failure's
         # message carries fields the peer chose, and this string is committed.
-        self.assertEqual(receipt["detail"], "transport-failure")
+        # From `TRANSPORT_REASONS`, which is the vocabulary the field is
+        # declared over — the old fallback answered in the turn-outcome
+        # vocabulary instead, so one field held members of either enum.
+        self.assertEqual(receipt["detail"], "connection-failed")
+        self.assertIn(receipt["turns"][0]["transport_reason"], pm.TRANSPORT_REASONS)
         self.assertNotIn("connection refused", json.dumps(receipt))
 
     def test_a_substituted_model_does_not_pass(self):
@@ -737,14 +749,21 @@ class TrustedRegistryTests(unittest.TestCase):
         edited = dict(target(), api_base="https://steal.example/v1")
         receipt = pm.qualify_target(edited, surface(), 30.0, 6, scripted([]))
         self.assertEqual(receipt["classification"], "ENDPOINT_REJECTED")
-        self.assertIn("steal.example", receipt["detail"])
+        # The reason, not the rejected text. `str(exc)` used to be copied into
+        # `detail`, so the receipt's content was whatever the plan happened to
+        # say — an open vocabulary in a durable field, which is the same defect
+        # as a copied provider string with a friendlier provenance story.
+        self.assertEqual(receipt["decision_reason"], "endpoint-rejected")
+        self.assertEqual(receipt["detail"], "endpoint rejected: authority-mismatch")
+        self.assertNotIn("steal.example", json.dumps(receipt))
         self.assertEqual(receipt["turns"], [])
 
     def test_a_hand_edited_plan_cannot_repoint_the_key(self):
         edited = dict(target(), key_env="ANTHROPIC_API_KEY")
         receipt = pm.qualify_target(edited, surface(), 30.0, 6, scripted([]))
         self.assertEqual(receipt["classification"], "ENDPOINT_REJECTED")
-        self.assertIn("key_env", receipt["detail"])
+        self.assertEqual(receipt["detail"], "endpoint rejected: authority-mismatch")
+        self.assertNotIn("ANTHROPIC_API_KEY", json.dumps(receipt))
 
     def test_the_committed_registry_is_loadable_and_bound_to_this_target(self):
         """The tests above use a stand-in; this one pins the real file."""
@@ -1284,8 +1303,8 @@ class SecretContainmentTests(unittest.TestCase):
             target(), surface(), 30.0, 6,
             scripted([(400, json.dumps({"error": {"message": "tool_choice unsupported"}}).encode(), "")]),
         )
-        self.assertEqual(receipt["detail"], "tools-or-tool-choice-named-in-a-400")
-        self.assertIn(receipt["detail"], pm.QUALIFY_REASONS)
+        self.assertEqual(receipt["detail"], "HTTP 400: tools-or-tool-choice-named-in-a-400")
+        self.assertIn(receipt["turns"][0]["detail"], pm.QUALIFY_REASONS)
         turn = receipt["turns"][0]
         # What is kept: status, digest, byte count. Not the provider's words.
         self.assertEqual(turn["http_status"], 400)
@@ -1646,7 +1665,7 @@ class DurableProjectionTests(unittest.TestCase):
             for name, observed in (("encoded secret", self.ENCODED), ("just over", limit + 2)):
                 with self.subTest(path=label, count=name):
                     artifact = pm.guarded_receipt(
-                        "x", {"target_id": "t", "provider": "p", "model": "m"},
+                        pm.QUALIFY_SCHEMA, {"target_id": "t", "provider": "p", "model": "m"},
                         lambda: run([(500, None, "lost", "after-headers", observed, None)]))
                     self.assert_absent(artifact, f"the {label} artifact")
                     self.assertEqual(artifact["classification"], "INTERNAL_ERROR")
@@ -1837,8 +1856,27 @@ class MatrixIsolationTests(unittest.TestCase):
 
         receipt = pm.guarded_receipt(pm.PROBE_SCHEMA, {"target_id": "p--m", "provider": "p", "model": "m"}, explode)
         self.assertEqual(receipt["classification"], "INTERNAL_ERROR")
-        self.assertEqual(receipt["detail"], "provider-matrix raised ValueError")
+        self.assertEqual(receipt["detail"], "provider-matrix raised an internal exception")
         self.assertNotIn("SECRET", json.dumps(receipt))
+
+    def test_an_internal_crash_uses_the_same_exception_projection_as_transport(self):
+        """One projection for exception classes, not one per call site.
+
+        `guarded_receipt` used to write `type(exc).__name__` into `detail`
+        verbatim while the transport path digested it. Two policies for one
+        kind of value is how the next class name reaches a durable artifact
+        unbounded.
+        """
+        def explode():
+            raise ValueError("Invalid header value b'Bearer sk-SECRET'")
+
+        receipt = pm.guarded_receipt(pm.PROBE_SCHEMA, {"target_id": "p--m", "provider": "p", "model": "m"}, explode)
+        self.assertEqual(receipt["internal_failure_kind"], "internal-error")
+        self.assertTrue(receipt["internal_failure_class_present"])
+        self.assertEqual(receipt["internal_failure_class_sha256"],
+                         pm.evidence_digest("failure-class", "ValueError"))
+        self.assertFalse(receipt["internal_failure_class_oversize"])
+        self.assertNotIn("ValueError", json.dumps(receipt))
 
     def test_three_targets_three_receipts_independent_classifications(self):
         """A non-object 2xx used to raise `AttributeError` and end the run."""
@@ -3092,10 +3130,10 @@ class GatesCanFailTests(unittest.TestCase):
         type of its own.
         """
         gate = self.helper("check_test_discovery.py")
-        with self.assertRaises(gate.UnreadableTestOutput):
+        with self.assertRaises(process_boundary.UndecodableOutput):
             gate.decode_test_output(b"\xff", b"")
         with self.only_output(b"ok\xff\xfe", b""):
-            with self.assertRaises(gate.UnreadableTestOutput):
+            with self.assertRaises(process_boundary.UndecodableOutput):
                 gate.ids_from(["-m", "unittest", "whatever"])
 
     def test_undecodable_output_is_reported_as_a_fail(self):
@@ -3243,6 +3281,533 @@ class GatesCanFailTests(unittest.TestCase):
         """The same edit in two files is two mutations, not a duplicate."""
         across = [("A", "x", "y"), ("B", "x", "y", "other.py")]
         self.assertEqual(mutations.spec_problems(across), [])
+
+
+class DurableFieldInventoryTests(unittest.TestCase):
+    """Every leaf of every receipt this vertical can produce, against one table.
+
+    Five rounds found five copied provider values, one per round, each in a
+    field the previous round had not looked at. The repairs were correct and the
+    method was not: checking the sites a reviewer visited leaves exactly as many
+    holes as there are sites nobody visited.
+
+    So the receipts are *generated* here — one per classification, driven
+    through the real `probe_target` and `qualify_target` — and every leaf of
+    every one of them is matched against `receipt_policy.POLICIES`. An unnamed
+    field is a finding. That is what makes this an inventory rather than a
+    fifth spot check.
+    """
+
+    LIMIT = 4096
+
+    def registry_entry(self):
+        """The committed registry, because that is what `qualify_target` loads.
+
+        Checking a receipt against a stand-in registry would prove the receipt
+        agrees with the test's idea of the truth rather than with the file the
+        credential is actually bound to.
+        """
+        return pm.load_registry()["providers"]["groq"]
+
+    def probe_entry(self):
+        return receipt_policy.pm.normalize_registry(registry())["providers"]["p"]
+
+    def declared_tools(self):
+        return {op["name"] for op in surface()["operations"]}
+
+    def qualification_receipts(self):
+        """One run per reachable classification, named by what it exercises."""
+        bad_json = (200, b"[]", "")
+        wrong_role = (200, completion_with_role("user", [call("qodec_answer", ANSWER_ARGS)]), "")
+        undeclared = (200, completion([call("qodec_nope", "{}", "call_x")]), "")
+        unparseable = (200, completion([call("qodec_intersect", "{not json", "call_y")]), "")
+        schema_bad = (200, completion([call("qodec_intersect", json.dumps({"index": 5}), "call_z")]), "")
+        two_answers = (200, completion([
+            call("qodec_answer", ANSWER_ARGS, "call_a1"),
+            call("qodec_answer", ANSWER_ARGS, "call_a2"),
+        ]), "")
+        answer_and_op = (200, completion([
+            call("qodec_answer", ANSWER_ARGS, "call_a"),
+            call("qodec_intersect", INTERSECT_ARGS, "call_o"),
+        ]), "")
+        wrong_answer = (200, completion([call("qodec_answer", WRONG_ANSWER_ARGS, "call_w")]), "")
+        substituted = (200, completion(
+            [call("qodec_answer", ANSWER_ARGS, "call_s")], model="somebody-elses-model"), "")
+        no_model = (200, json.dumps({"choices": [{"message": {
+            "role": "assistant", "content": None,
+            "tool_calls": [call("qodec_answer", ANSWER_ARGS, "call_n")]}}]}).encode(), "")
+        operations = (200, completion(
+            [call("qodec_intersect", INTERSECT_ARGS, "call_op")], usage={"prompt_tokens": 11}), "")
+
+        scenarios = {
+            "endpoint-rejected": ([], dict(target(), api_base="https://steal.example/v1")),
+            "credential-missing": ([(None, None, "no key", "no-credential")], None),
+            "transport-failure": ([(None, None, "down", "before-response")], None),
+            "capture-failure": ([(500, None, "lost", "after-headers", 12, "req-1")], None),
+            "framing-failure": ([(None, None, "framing", "response-framing")], None),
+            "provider-rejected": ([(400, b"{}", "")], None),
+            "tool-choice-unsupported": (
+                [(400, json.dumps({"error": {"message": "tool_choice unsupported"}}).encode(), "")], None),
+            "rate-limited": ([(429, b"{}", "")], None),
+            "auth-rejected": ([(401, b"{}", "")], None),
+            "model-missing": ([(404, b"{}", "")], None),
+            "redirect": ([(302, b"{}", "")], None),
+            "server-error": ([(500, b"{}", "")], None),
+            # A 400 in answer to a request that carried `role: tool` messages is
+            # about the result shape, not about the tools.
+            "tool-result-rejected": (
+                [(200, completion([call("qodec_intersect", INTERSECT_ARGS, "call_op")]), ""),
+                 (400, b"{}", "")], None),
+            "dialect-mismatch": (
+                [(200, completion([call_with_object_arguments("qodec_intersect")]), "")], None),
+            "invalid-output": ([bad_json], None),
+            "dialect-violation": ([wrong_role], None),
+            "no-tool-call": ([(200, completion([]), "")], None),
+            "undeclared-tool": ([undeclared], None),
+            "unparseable-arguments": ([unparseable], None),
+            "schema-violation": ([schema_bad], None),
+            "two-answers": (OPERATION_THEN(two_answers), None),
+            "answer-with-operation": (OPERATION_THEN(answer_and_op), None),
+            "answer-before-roundtrip": ([ANSWER_REPLY], None),
+            "canary-mismatch": (OPERATION_THEN(wrong_answer), None),
+            "identity-substituted": (OPERATION_THEN(substituted), None),
+            "identity-unestablished": (OPERATION_THEN(no_model), None),
+            "no-terminal-answer": ([operations, operations], None),
+            "pass": (OPERATION_THEN(ANSWER_REPLY), None),
+        }
+        for name, (replies, edited) in scenarios.items():
+            yield name, pm.qualify_target(
+                edited or target(), surface(), 30.0, 2 if name == "no-terminal-answer" else 6,
+                scripted(replies), response_limit=self.LIMIT)
+
+    def probe_receipts(self):
+        ok = json.dumps({"model": "m", "choices": [{"message": {"content": "QODEC_PROBE_OK"}}],
+                         "usage": {"prompt_tokens": 9}}).encode()
+        drifted = json.dumps({"model": "other", "choices": [{"message": {"content": "QODEC_PROBE_OK"}}]}).encode()
+        silent = json.dumps({"choices": [{"message": {"content": "QODEC_PROBE_OK"}}]}).encode()
+        wrong = json.dumps({"model": "m", "choices": [{"message": {"content": "no"}}]}).encode()
+        scenarios = {
+            "pass": ([(200, ok, "", "completed")], None),
+            "substituted": ([(200, drifted, "", "completed")], None),
+            "identity-missing": ([(200, silent, "", "completed")], None),
+            "token-mismatch": ([(200, wrong, "", "completed")], None),
+            "unmappable": ([(200, b"[]", "", "completed")], None),
+            "http-failure": ([(418, b"{}", "", "completed")], None),
+            "provider-5xx": ([(503, b"{}", "", "completed")], None),
+            "auth-failure": ([(401, b"{}", "", "completed")], None),
+            "model-not-found": ([(404, b"{}", "", "completed")], None),
+            "rate-limited": ([(429, b"{}", "", "completed")], None),
+            "redirect": ([(302, b"{}", "", "completed")], None),
+            "timeout": ([pm.SendResult(None, None, "timeout", "before-response", None, None,
+                                       "timeout", "timeout-error", "TimeoutError")], None),
+            "credential-missing": ([pm.SendResult(None, None, "no key", "no-credential", None, None,
+                                                  "credential-missing", None, None)], None),
+            "capture-failure": ([(500, None, "lost", "after-headers", 12, "req-2")], None),
+            "transport-failure": ([(None, None, "down", "before-response")], None),
+            "endpoint-rejected": ([], probe_row({"api_base": "https://elsewhere/v1"})),
+        }
+        for name, (replies, edited) in scenarios.items():
+            yield name, pm.probe_target(
+                edited or probe_row({}), 1, scripted(replies), registry(),
+                response_limit=self.LIMIT)
+
+    def audit(self, receipt, target_row, entry, schema=None, max_turns=6):
+        context = receipt_policy.context_for(
+            schema or pm.QUALIFY_SCHEMA, target_row, entry, response_limit=self.LIMIT,
+            max_turns=max_turns, declared_tools=self.declared_tools(),
+        )
+        return receipt_policy.audit(receipt, context)
+
+    def test_the_policy_table_is_internally_consistent(self):
+        self.assertEqual(receipt_policy.policy_problems(receipt_policy.POLICIES), [])
+
+    def test_every_leaf_of_every_qualification_receipt_has_exactly_one_policy(self):
+        for name, receipt in self.qualification_receipts():
+            with self.subTest(scenario=name):
+                self.assertEqual(self.audit(receipt, target(), self.registry_entry()), [])
+
+    def test_every_leaf_of_every_probe_receipt_has_exactly_one_policy(self):
+        for name, receipt in self.probe_receipts():
+            with self.subTest(scenario=name):
+                self.assertEqual(
+                    self.audit(receipt, probe_row({}), self.probe_entry(), pm.PROBE_SCHEMA), [])
+
+    def test_a_guarded_crash_receipt_is_inventoried_too(self):
+        """The path that exists because the others can fail is not exempt."""
+        def explode():
+            raise ValueError("Bearer sk-SECRET")
+
+        for schema in (pm.PROBE_SCHEMA, pm.QUALIFY_SCHEMA):
+            with self.subTest(schema=schema):
+                receipt = pm.guarded_receipt(schema, target(), explode)
+                self.assertEqual(self.audit(receipt, target(), self.registry_entry(), schema), [])
+
+    def test_the_scenarios_reach_every_classification_the_module_declares(self):
+        """An inventory over three receipts would prove almost nothing.
+
+        Any classification the scenarios never produce is a shape of receipt
+        this table has never been checked against, so the coverage is asserted
+        rather than assumed.
+        """
+        reached = {receipt["classification"] for _, receipt in self.qualification_receipts()}
+        reached |= {receipt["classification"] for _, receipt in self.probe_receipts()}
+        # `INTERNAL_ERROR` comes from `guarded_receipt`, checked above.
+        declared = (set(pm.CLASSIFICATIONS) | set(pm.PROBE_CLASSIFICATIONS)) - {"INTERNAL_ERROR"}
+        self.assertEqual(declared - reached, set())
+
+    # -- the positive controls, on receipts this module really produced --
+
+    def specimen(self):
+        receipt = pm.qualify_target(target(), surface(), 30.0, 6,
+                                    scripted(OPERATION_THEN(ANSWER_REPLY)), response_limit=self.LIMIT)
+        self.assertEqual(receipt["classification"], "PASS")
+        return receipt
+
+    def assert_refused(self, receipt, phrase):
+        findings = self.audit(receipt, target(), self.registry_entry())
+        self.assertTrue(any(phrase in f for f in findings),
+                        f"expected a finding containing {phrase!r}, got {findings}")
+
+    def test_an_unnamed_leaf_stops_the_gate(self):
+        receipt = self.specimen()
+        receipt["provider_said"] = "anything at all"
+        self.assert_refused(receipt, "no policy names")
+
+    def test_an_unbounded_integer_stops_the_gate(self):
+        receipt = self.specimen()
+        receipt["turns"][0]["body_bytes_observed"] = int.from_bytes(b"sk-secret", "big")
+        self.assert_refused(receipt, "outside 0..")
+
+    def test_a_digest_field_holding_something_else_stops_the_gate(self):
+        receipt = self.specimen()
+        receipt["turns"][0]["tool_calls"][0]["call_id_sha256"] = "call_op"
+        self.assert_refused(receipt, "not a sha256 digest")
+
+    def test_provider_prose_in_a_detail_stops_the_gate(self):
+        receipt = self.specimen()
+        receipt["detail"] = "the upstream said: sk-live-9f2c and then hung up"
+        self.assert_refused(receipt, "is not one this module wrote")
+
+    def test_a_doubly_owned_field_stops_the_gate(self):
+        doubled = receipt_policy.POLICIES + [
+            receipt_policy.DurableFieldPolicy("detail", receipt_policy.Flag())]
+        problems = receipt_policy.policy_problems(doubled)
+        self.assertTrue(any("exactly one may" in p for p in problems), problems)
+        with self.assertRaisesRegex(KeyError, "2 policies name"):
+            receipt_policy.exactly_one_policy_for("detail", doubled)
+
+    def test_a_digest_policy_without_a_declared_domain_stops_the_gate(self):
+        """A digest nobody can recompute is a field nobody can audit."""
+        problems = receipt_policy.policy_problems(
+            [receipt_policy.DurableFieldPolicy("x", receipt_policy.Digest("invented"))])
+        self.assertTrue(any("not declared in EVIDENCE_DOMAINS" in p for p in problems), problems)
+
+    def test_the_policy_modules_own_self_test_passes(self):
+        self.assertEqual(receipt_policy.self_test(), 0)
+
+    def test_a_reference_is_prose_and_a_bare_secret_is_not(self):
+        """The one rule that lets a detail line mention foreign material at all."""
+        prose = receipt_policy.Prose(4096)
+        context = {"local_words": set()}
+        named = pm.opaque_ref("tool-name", "qodec_intersect")
+        self.assertEqual(prose.problems(f"{named} arguments were dict, not a string", context), [])
+        self.assertTrue(prose.problems("qodec_intersect_v2_beta arguments were bad", context))
+        self.assertTrue(prose.problems("<made-up sha256:0000000000000000 4B> is fine", context))
+
+    def test_a_line_whose_words_are_local_but_whose_bytes_are_not(self):
+        """The alphabet check, which the vocabulary check cannot stand in for.
+
+        Every word below is one this module wrote. What is not this module's is
+        the punctuation between them — an em dash, a NUL, a control byte — and a
+        detail line assembled somewhere else is far more likely to differ in its
+        bytes than in its nouns.
+        """
+        prose = receipt_policy.Prose(4096)
+        context = {"local_words": set()}
+        for hostile in ("the response named no model \u2014 unestablished",
+                        "the response named no model\x00 unestablished",
+                        "the response named no model\x1b[31m unestablished"):
+            with self.subTest(line=repr(hostile)):
+                found = prose.problems(hostile, context)
+                self.assertTrue(any("outside the local alphabet" in f for f in found), found)
+
+    def test_a_receipt_that_disagrees_with_the_plan_stops_the_gate(self):
+        """`Local` means "equal to a fact from outside the artifact".
+
+        Audited against a context read out of the receipt itself, every `Local`
+        policy degrades to "this value equals itself" and the whole table becomes
+        a shape check. So the fields are moved *away* from their local facts
+        here, one at a time, and each must be refused.
+        """
+        for field, forged in (("requested_model", "somebody-elses-model"),
+                              ("provider", "not-groq"),
+                              ("target_id", "groq--something-else"),
+                              ("schema", pm.PROBE_SCHEMA)):
+            with self.subTest(field=field):
+                receipt = self.specimen()
+                receipt[field] = forged
+                self.assert_refused(receipt, "is not the local")
+
+    def test_a_transport_target_pointing_elsewhere_stops_the_gate(self):
+        receipt = self.specimen()
+        receipt["transport_target"]["endpoint"] = "https://steal.example/v1"
+        self.assert_refused(receipt, "is not the local api_base")
+
+    def test_the_recorded_endpoint_is_the_registrys_spelling_not_the_plans(self):
+        """`verify_against_registry` compares with `rstrip("/")`.
+
+        So a plan row may legitimately differ from the registry and still be
+        accepted — and the receipt must then say what the registry says. A field
+        filled from the row after the check that compared them makes the plan
+        the source of a durable value one line past the gate that settled it.
+        """
+        entry = self.registry_entry()
+        row = dict(target(), api_base=entry["api_base"] + "/")
+        receipt = pm.qualify_target(row, surface(), 30.0, 6,
+                                    scripted(OPERATION_THEN(ANSWER_REPLY)), response_limit=self.LIMIT)
+        self.assertEqual(receipt["classification"], "PASS")
+        self.assertEqual(receipt["transport_target"]["endpoint"], entry["api_base"])
+        self.assertEqual(self.audit(receipt, row, entry), [])
+
+
+class DecisionOwnershipTests(unittest.TestCase):
+    """`classification` has exactly one writer, and an AST gate says so.
+
+    Eighteen `receipt.update(classification=...)` calls is eighteen chances for
+    one of them to pair a verdict with a stale detail, and three rounds running
+    that is what a reviewer found. Counting them is not the fix; making the
+    count one is.
+    """
+
+    OWNED_FIELDS = ("classification", "decision_reason")
+    WRITER = "apply_decision"
+
+    def module(self):
+        import ast
+        source = (Path(__file__).resolve().parent / "provider_matrix.py").read_text(encoding="utf-8")
+        return ast.parse(source)
+
+    def enclosing_functions(self, tree):
+        import ast
+        owner = {}
+        for node in ast.walk(tree):
+            if isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef)):
+                for child in ast.walk(node):
+                    owner.setdefault(child, node.name)
+        return owner
+
+    def write_sites(self):
+        """Every place the source could put a value into an owned field."""
+        import ast
+        tree = self.module()
+        owner = self.enclosing_functions(tree)
+        sites = []
+        for node in ast.walk(tree):
+            # `receipt["classification"] = ...`
+            if isinstance(node, (ast.Assign, ast.AugAssign)):
+                targets = node.targets if isinstance(node, ast.Assign) else [node.target]
+                for goal in targets:
+                    if (isinstance(goal, ast.Subscript)
+                            and isinstance(goal.slice, ast.Constant)
+                            and goal.slice.value in self.OWNED_FIELDS):
+                        sites.append((goal.slice.value, owner.get(node, "<module>"), node.lineno))
+            # `receipt.update(classification=...)`
+            if isinstance(node, ast.Call):
+                for keyword in node.keywords:
+                    if keyword.arg in self.OWNED_FIELDS:
+                        sites.append((keyword.arg, owner.get(node, "<module>"), node.lineno))
+            # `{"classification": ...}` in a literal
+            if isinstance(node, ast.Dict):
+                for key, value in zip(node.keys, node.values):
+                    if (isinstance(key, ast.Constant) and key.value in self.OWNED_FIELDS):
+                        seed = (isinstance(value, ast.Name)
+                                and value.id in ("PENDING_CLASSIFICATION",)) or (
+                                    isinstance(value, ast.Constant) and value.value is None)
+                        if not seed:
+                            sites.append((key.value, owner.get(node, "<module>"), node.lineno))
+        return sites
+
+    def test_only_one_function_writes_a_verdict(self):
+        offenders = [site for site in self.write_sites() if site[1] != self.WRITER]
+        self.assertEqual(offenders, [], f"{len(offenders)} write sites outside {self.WRITER}()")
+
+    def test_the_gate_would_notice_a_second_writer(self):
+        """A gate that has never seen a violation is a gate nobody has tested."""
+        import ast
+        tree = ast.parse('def elsewhere(r):\n    r["classification"] = "PASS"\n')
+        owner = self.enclosing_functions(tree)
+        found = [n for n in ast.walk(tree)
+                 if isinstance(n, ast.Assign)
+                 and isinstance(n.targets[0], ast.Subscript)
+                 and n.targets[0].slice.value in self.OWNED_FIELDS]
+        self.assertEqual([owner[node] for node in found], ["elsewhere"])
+
+    def test_the_seed_is_never_the_verdict_of_a_returned_receipt(self):
+        """`PENDING_CLASSIFICATION` is a placeholder, and the suite says so."""
+        inventory = DurableFieldInventoryTests()
+        for name, receipt in inventory.qualification_receipts():
+            with self.subTest(scenario=name):
+                self.assertNotEqual(receipt["decision_reason"], None)
+                self.assertIn(receipt["decision_reason"], pm.DECISION_REASONS)
+
+    def test_a_verdict_from_the_other_schemas_vocabulary_is_refused(self):
+        """A probe cannot be handed a qualification verdict, or the reverse."""
+        with self.assertRaisesRegex(ValueError, "is not a classification of"):
+            pm.apply_decision({"schema": pm.PROBE_SCHEMA},
+                              pm.Decision("TOOL_CHOICE_UNSUPPORTED", "transport-failed", "x"))
+        with self.assertRaisesRegex(ValueError, "is not a classification of"):
+            pm.apply_decision({"schema": pm.QUALIFY_SCHEMA},
+                              pm.Decision("PROVIDER_5XX", "transport-failed", "x"))
+        with self.assertRaisesRegex(ValueError, "no classification vocabulary"):
+            pm.apply_decision({"schema": "invented"}, pm.Decision("PASS", "transport-failed", "x"))
+
+    def test_an_unenumerated_reason_is_refused(self):
+        # The empty string among them on purpose: "not in the tuple" is the
+        # check, and a vocabulary widened by one convenient member is the
+        # commonest way that check stops being one.
+        for reason in ("felt-right", "", None, "PASS"):
+            with self.subTest(reason=reason), self.assertRaisesRegex(ValueError, "unknown decision reason"):
+                pm.apply_decision({"schema": pm.PROBE_SCHEMA}, pm.Decision("PASS", reason, "x"))
+
+    # -- the reducers, tested as functions rather than through the loop --
+
+    def test_the_transport_reducer_reads_the_reason_not_the_prose(self):
+        """The probe used to switch on `sent.detail`, which a sender fills in."""
+        facts = pm.TransportFacts(pm.PROBE_SCHEMA, "before-response", "timeout", None, None, "K")
+        self.assertEqual(pm.reduce_transport(facts).classification, "TIMEOUT")
+        other = pm.TransportFacts(pm.PROBE_SCHEMA, "before-response", "connection-failed", None, None, "K")
+        self.assertEqual(pm.reduce_transport(other).classification, "TRANSPORT_FAILURE")
+
+    def test_both_stage_tables_are_total_over_the_send_stages(self):
+        """A stage with no entry falls through to a default nobody chose."""
+        failing = set(pm.SEND_STAGE_SHAPES) - {"completed"}
+        for stage in sorted(failing):
+            with self.subTest(stage=stage):
+                for schema in (pm.PROBE_SCHEMA, pm.QUALIFY_SCHEMA):
+                    facts = pm.TransportFacts(schema, stage, "connection-failed", None, None, "K")
+                    decision = pm.reduce_transport(facts)
+                    self.assertIn(decision.classification, pm.SCHEMA_CLASSIFICATIONS[schema])
+                self.assertIn(stage, pm.STAGE_OUTCOME)
+
+    def test_identity_outranks_the_canary_and_the_protocol(self):
+        drifted = pm.AnswerFacts("drifted", ("wrong bytes",), ("abcdef0123456789",))
+        self.assertEqual(pm.reduce_qualification(drifted).classification, "PROVIDER_SUBSTITUTED")
+        missing = pm.AnswerFacts("missing", (), ())
+        self.assertEqual(pm.reduce_qualification(missing).classification, "MODEL_IDENTITY_MISSING")
+        # And with a wrong answer as well: an unestablished identity is not
+        # downgraded by a second failure arriving beside it. Both fail, and the
+        # one a reader must act on first is "we do not know what produced this".
+        both = pm.AnswerFacts("missing", ("wrong bytes",), ())
+        self.assertEqual(pm.reduce_qualification(both).classification, "MODEL_IDENTITY_MISSING")
+        drifted_and_wrong = pm.AnswerFacts("drifted", ("wrong bytes",), ("abcdef0123456789",))
+        self.assertEqual(pm.reduce_qualification(drifted_and_wrong).classification,
+                         "PROVIDER_SUBSTITUTED")
+        wrong = pm.AnswerFacts("verified", ("wrong bytes",), ())
+        self.assertEqual(pm.reduce_qualification(wrong).classification, "CANARY_ANSWER_MISMATCH")
+        good = pm.AnswerFacts("verified", (), ())
+        self.assertEqual(pm.reduce_qualification(good).classification, "PASS")
+
+    def test_the_probe_reducer_refuses_a_state_it_does_not_know(self):
+        with self.assertRaisesRegex(ValueError, "unknown probe output state"):
+            pm.reduce_probe(pm.ProbeFacts("verified", "probably-fine"))
+
+    def test_every_durable_number_that_comes_from_a_clock_or_a_flag_is_bounded(self):
+        with patch.object(pm.time, "time", side_effect=[0.0]):
+            self.assertEqual(pm.latency_ms_since(1e18), 0)
+        with patch.object(pm.time, "time", side_effect=[1e18]):
+            self.assertEqual(pm.latency_ms_since(0.0), pm.LATENCY_MAX_MS)
+        for bad in (0, -1, pm.TIMEOUT_MAX_SECS + 1, float("inf"), float("nan"), True, "30"):
+            with self.subTest(timeout=bad), self.assertRaises(ValueError):
+                pm.bounded_timeout(bad)
+        for bad in (0, -1, pm.MAX_TURNS_BOUND + 1, True, 3.0):
+            with self.subTest(turns=bad), self.assertRaises(ValueError):
+                pm.bounded_turns(bad)
+
+
+class ProcessBoundaryOwnershipTests(unittest.TestCase):
+    """One module starts processes, and an AST gate enforces it.
+
+    Two gates learned the same lesson a round apart, because `subprocess.run`
+    was called in two places and only one of them was reviewed. The second was
+    found by a reviewer wearing the same clothes as the first. That is a boundary
+    with no owner, and an owner is what this checks.
+    """
+
+    # The test suite is exempt, stated rather than silently skipped: it runs the
+    # CLI end to end and patches `subprocess.run` to prove the gates report
+    # rather than raise. It writes no receipts and ships to nobody.
+    EXEMPT = {"process_boundary.py", "test_provider_matrix.py"}
+
+    def modules(self):
+        here = Path(__file__).resolve().parent
+        return sorted(path for path in here.glob("*.py") if path.name not in self.EXEMPT)
+
+    def subprocess_uses(self, path):
+        import ast
+        tree = ast.parse(path.read_text(encoding="utf-8"))
+        uses = []
+        for node in ast.walk(tree):
+            if isinstance(node, ast.Import):
+                uses.extend(f"import {a.name}" for a in node.names if a.name.startswith("subprocess"))
+            if isinstance(node, ast.ImportFrom) and (node.module or "").startswith("subprocess"):
+                uses.append(f"from {node.module} import ...")
+            if (isinstance(node, ast.Attribute) and isinstance(node.value, ast.Name)
+                    and node.value.id == "subprocess"):
+                uses.append(f"subprocess.{node.attr} at line {node.lineno}")
+        return uses
+
+    def test_no_module_but_the_boundary_starts_a_process(self):
+        offenders = {}
+        for path in self.modules():
+            if path.name == "mutations.py":
+                # The harness copies the tree and runs oracles in it, which is
+                # starting processes for a living. It is checked separately
+                # below: what matters there is that every oracle is enumerated.
+                continue
+            uses = self.subprocess_uses(path)
+            if uses:
+                offenders[path.name] = uses
+        self.assertEqual(offenders, {})
+
+    def test_the_gate_would_notice_a_new_caller(self):
+        with tempfile.TemporaryDirectory() as td:
+            offender = Path(td) / "sneaky.py"
+            offender.write_text("import subprocess\nsubprocess.run(['ls'])\n", encoding="utf-8")
+            self.assertTrue(self.subprocess_uses(offender))
+
+    def test_the_boundary_returns_bytes_and_decodes_by_declared_policy(self):
+        self.assertEqual(process_boundary.decode_output(b"ok"), "ok")
+        with self.assertRaises(process_boundary.UndecodableOutput):
+            process_boundary.decode_output(b"\xff")
+        # A path is arbitrary bytes by design, so it round-trips instead.
+        self.assertEqual(process_boundary.decode_path(b"a\xffb").encode(
+            "utf-8", "surrogateescape"), b"a\xffb")
+        # And what is printed carries nothing raw: a surrogate written straight
+        # to a terminal raises `UnicodeEncodeError` out of `print`, which is the
+        # gate dying while reporting rather than reporting.
+        rendered = process_boundary.printable(process_boundary.decode_path(b"a\xffb"))
+        self.assertEqual(rendered, "a\\udcffb")
+        self.assertEqual(rendered.encode("ascii"), b"a\\udcffb")
+        self.assertEqual(process_boundary.printable("plain"), "plain")
+
+    def test_a_failure_never_repeats_the_bytes_that_caused_it(self):
+        """`UnicodeDecodeError`'s message contains them; this one carries none."""
+        try:
+            process_boundary.decode_output(b"secret-\xff")
+        except process_boundary.UndecodableOutput as exc:
+            self.assertEqual(str(exc), "")
+        else:  # pragma: no cover
+            self.fail("undecodable output was accepted")
+
+    def test_every_mutation_target_names_its_oracles(self):
+        """A file the harness can mutate but cannot ask about is unqualifiable."""
+        named = {spec[3] if len(spec) > 3 else mutations.DEFAULT_TARGET
+                 for spec in mutations.MUTATIONS}
+        self.assertEqual(named - set(mutations.MUTATION_TARGETS), set())
+        for name, oracles in mutations.MUTATION_TARGETS.items():
+            with self.subTest(target=name):
+                self.assertTrue(oracles, f"{name} has no oracle")
+                self.assertTrue((Path(__file__).resolve().parent / name).exists())
 
 
 if __name__ == "__main__":

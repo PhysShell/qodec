@@ -18,11 +18,17 @@ Exit 0 when they agree, 1 when they do not, with the disagreement printed.
 from __future__ import annotations
 
 import json
-import subprocess
 import sys
 from pathlib import Path
 
 HERE = Path(__file__).resolve().parent
+sys.path.insert(0, str(HERE))
+from process_boundary import (  # noqa: E402
+    ProcessFailure,
+    decode_path,
+    printable,
+    run_bytes,
+)
 ROOT = HERE.parent.parent
 EMITTER_TIMEOUT = 600
 FROZEN = HERE / "c1-panel-surface.json"
@@ -48,28 +54,23 @@ def main() -> int:
         print(f"FAIL missing {FROZEN.name}; generate it with the emitter")
         return 1
 
+    # `run_bytes` owns the timeout, the `OSError` and the decision not to
+    # decode. Both were handled here by hand, correctly, in a way that had
+    # already been got wrong twice elsewhere — which is the argument for the
+    # boundary having one owner rather than three careful copies.
     try:
-        proc = subprocess.run(
+        proc = run_bytes(
             ["cargo", "run", "-q", "--example", "emit_panel_surface"],
-            cwd=ROOT,
-            capture_output=True,
-            timeout=EMITTER_TIMEOUT,
+            cwd=ROOT, timeout=EMITTER_TIMEOUT,
         )
-    except subprocess.TimeoutExpired:
-        print(f"FAIL the emitter exceeded {EMITTER_TIMEOUT}s; a stalled build must fail, not hang")
-        return 1
-    except OSError as exc:
-        # The `returncode` branch below only covers a cargo that exists and
-        # fails. A cargo that is not installed raised `FileNotFoundError`
-        # straight through, which is the traceback this file's docstring argues
-        # against two paragraphs earlier.
+    except ProcessFailure as exc:
         print(f"FAIL could not run the emitter: {exc}")
         return 1
     if proc.returncode != 0:
         # Reported rather than raised: an emitter that will not run is a result,
         # and a traceback from CalledProcessError buries the reason.
         print(f"FAIL emitter exited {proc.returncode}")
-        print(proc.stderr.decode("utf-8", "replace")[-2000:])
+        print(printable(decode_path(proc.stderr))[-2000:])
         return 1
 
     fresh = proc.stdout

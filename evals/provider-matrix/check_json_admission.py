@@ -34,7 +34,6 @@ verdicts still match reality, 1 otherwise, with every disagreement printed.
 from __future__ import annotations
 
 import json
-import subprocess
 import sys
 from pathlib import Path
 
@@ -45,6 +44,12 @@ CORPUS = HERE / "json-admission-corpus.json"
 
 sys.path.insert(0, str(HERE))
 import provider_matrix as pm  # noqa: E402
+from process_boundary import (  # noqa: E402
+    ProcessFailure,
+    decode_path,
+    printable,
+    run_bytes,
+)
 
 
 def python_admits(raw: bytes) -> tuple[bool, str]:
@@ -65,22 +70,23 @@ def main() -> int:
         print("FAIL the corpus is empty; a vacuous parity proof is not one")
         return 1
 
+    # Through the one boundary that starts processes. This gate had its own
+    # `subprocess.run` with its own `TimeoutExpired`/`OSError` handlers, which
+    # is how two other gates each grew a decoding defect a round apart: the same
+    # code written three times is the same bug waiting three times.
     try:
-        proc = subprocess.run(
+        proc = run_bytes(
             ["cargo", "run", "-q", "--example", "json_admission_oracle", "--", str(CORPUS)],
-            cwd=ROOT,
-            capture_output=True,
-            timeout=ORACLE_TIMEOUT,
+            cwd=ROOT, timeout=ORACLE_TIMEOUT,
         )
-    except subprocess.TimeoutExpired:
-        print(f"FAIL the oracle exceeded {ORACLE_TIMEOUT}s; a stalled build must fail, not hang")
-        return 1
-    except OSError as exc:
+    except ProcessFailure as exc:
         print(f"FAIL could not run the oracle: {exc}")
         return 1
     if proc.returncode != 0:
         print(f"FAIL oracle exited {proc.returncode}")
-        print(proc.stderr.decode("utf-8", "replace")[-2000:])
+        # A build log is arbitrary bytes, so it is decoded the way arbitrary
+        # bytes are and rendered safe before it is printed.
+        print(printable(decode_path(proc.stderr))[-2000:])
         return 1
 
     verdicts = json.loads(proc.stdout)["verdicts"]

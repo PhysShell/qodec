@@ -21,6 +21,7 @@ import time
 import urllib.error
 import urllib.parse
 import urllib.request
+from dataclasses import dataclass
 from pathlib import Path
 from typing import Any, NamedTuple
 
@@ -121,30 +122,69 @@ def evidence_digest(domain: str, value: Any) -> str:
     return hashlib.sha256(EVIDENCE_DOMAINS[domain] + evidence_bytes(value)).hexdigest()
 
 
-def opaque(prefix: str, domain: str, value: Any) -> dict[str, Any]:
+# One local ceiling per kind of provider-chosen string. Not a default anywhere:
+# `opaque_text` and `opaque_ref` both take `max_bytes` as a keyword with no
+# default, so a new call site cannot forget to name one and quietly reopen the
+# channel. The lengths are generous — these are identifiers, not documents.
+EVIDENCE_MAX_BYTES = {
+    "request-id": 256,
+    "tool-call-id": 256,
+    "tool-name": 128,
+    "model-name": 256,
+    "handle": 256,
+    "answer-bytes": 4096,
+    "citation": 1024,
+    "message-role": 128,
+    "tool-call-type": 128,
+    "failure-class": 256,
+}
+
+
+def opaque_text(prefix: str, domain: str, value: Any, *, max_bytes: int) -> dict[str, Any]:
     """Evidence *about* a provider-chosen value. Never the value.
 
-    Three fields, because all three are things support actually needs and none
-    of them is the string itself: whether there was one at all, which one it was
-    (comparably, across turns and across runs), and how long it was.
+    Four fields, because all four are things support actually needs and none of
+    them is the string itself: whether there was one, which one it was
+    (comparably, across turns and runs), how long it was, and whether that
+    length is the real one.
+
+    `max_bytes` has no default on purpose. `body_bytes_observed` was bounded and
+    `request_id_bytes` was not, and the difference was that nobody had to say
+    anything to leave the second one open — a length is a number the provider
+    chooses, and an unbounded number is a channel whatever field it sits in.
+    Past the bound the length is clamped and marked rather than recorded, so the
+    integer that reaches the artifact is always one this module is willing to
+    stand behind. The digest still crosses: it is fixed-width, so it carries no
+    length however long its input was.
     """
     if value is None:
         return {f"{prefix}_present": False}
+    size = len(evidence_bytes(value))
     return {
         f"{prefix}_present": True,
         f"{prefix}_sha256": evidence_digest(domain, value),
-        f"{prefix}_bytes": len(evidence_bytes(value)),
+        f"{prefix}_bytes": min(size, max_bytes),
+        f"{prefix}_oversize": size > max_bytes,
     }
 
 
-def opaque_ref(domain: str, value: Any) -> str:
+def opaque(prefix: str, domain: str, value: Any) -> dict[str, Any]:
+    """`opaque_text` with the bound this domain declares."""
+    return opaque_text(prefix, domain, value, max_bytes=EVIDENCE_MAX_BYTES[domain])
+
+
+def opaque_ref(domain: str, value: Any, *, max_bytes: int | None = None) -> str:
     """Name a provider-chosen value inside a local message without repeating it.
 
     Messages end up in `detail`, and `detail` ends up on disk. A message that
     interpolates what the provider sent is the same leak as a field that copies
-    it, with better camouflage.
+    it, with better camouflage. The length in the reference is bounded for the
+    same reason the field's is.
     """
-    return f"<{domain} sha256:{evidence_digest(domain, value)[:16]} {len(evidence_bytes(value))}B>"
+    ceiling = EVIDENCE_MAX_BYTES[domain] if max_bytes is None else max_bytes
+    size = len(evidence_bytes(value))
+    shown = f"{min(size, ceiling)}{'+' if size > ceiling else ''}B"
+    return f"<{domain} sha256:{evidence_digest(domain, value)[:16]} {shown}>"
 
 
 JSON_TYPE_NAMES = (
@@ -616,6 +656,13 @@ def source_rows(raw: Any) -> list[dict[str, Any]]:
 
 COMPLETIONS_PATH = "/chat/completions"
 MAX_RESPONSE_BYTES = 4 * 1024 * 1024
+# The largest request this tool will compose. It builds every byte of it — the
+# frozen surface, the canned results, its own messages — so the number is local
+# in the strongest sense available. It is bounded anyway, because "we built it"
+# is a claim about provenance and `request_bytes` is a durable integer: a
+# multi-turn loop that grew one without limit would put an unbounded number in
+# a receipt with an impeccable pedigree.
+MAX_REQUEST_BYTES = 4 * 1024 * 1024
 
 REGISTRY_SCHEMA = "qodec-provider-registry-v1"
 REGISTRY_PATH = Path(__file__).resolve().parent / "trusted-providers.json"
@@ -627,8 +674,35 @@ KEY_ENV_PATTERN = re.compile(r"[A-Z][A-Z0-9_]*\Z")
 REQUEST_ID_HEADERS = ("x-request-id", "x-groq-request-id", "openai-request-id", "request-id")
 
 
+# Why an endpoint was refused, in this module's own words. The message beside
+# the reason is for a human reading a terminal; it interpolates the plan's own
+# text and stays ephemeral. The *reason* is what reaches a receipt, because a
+# durable field whose vocabulary is open is a durable field nobody can audit.
+ENDPOINT_REJECTION_REASONS = (
+    "unknown-provider",
+    "authority-mismatch",
+    "scheme-not-https",
+    "no-host",
+    "userinfo-present",
+    "query-present",
+    "fragment-present",
+)
+
+
 class EndpointRejected(ValueError):
-    """The catalog named an endpoint this transport will not send a key to."""
+    """The catalog named an endpoint this transport will not send a key to.
+
+    Carries a reason from a closed vocabulary alongside its message. `str(exc)`
+    used to go straight into `detail`, which made the durable field's content
+    whatever the next `raise` site felt like writing — the same open channel as
+    a copied provider string, differing only in who fills it.
+    """
+
+    def __init__(self, reason: str, message: str) -> None:
+        if reason not in ENDPOINT_REJECTION_REASONS:
+            raise ValueError(f"unknown endpoint rejection reason {reason!r}")
+        super().__init__(message)
+        self.reason = reason
 
 
 # ---------------------------------------------------------------------------
@@ -846,6 +920,7 @@ def trusted_entry(registry: dict[str, Any], provider: str) -> dict[str, Any]:
     if entry is None:
         known = ", ".join(sorted(registry["providers"]))
         raise EndpointRejected(
+            "unknown-provider",
             f"provider {provider!r} is not in the trusted registry (known: {known}); "
             "add it in a reviewed commit rather than through a catalog row"
         )
@@ -873,11 +948,13 @@ def bind_to_registry(row: dict[str, Any], provider: str, model: str, registry: d
         claimed = row[field]
         if not isinstance(claimed, str):
             raise EndpointRejected(
+                "authority-mismatch",
                 f"{provider}/{model}: catalog {field} is a {type(claimed).__name__}, not a string; "
                 "a value that cannot be compared to the registry cannot be accepted"
             )
         if claimed.strip().rstrip("/") != entry[field].rstrip("/"):
             raise EndpointRejected(
+                "authority-mismatch",
                 f"{provider}/{model}: catalog claims {field}={claimed.strip()!r}, "
                 f"trusted registry says {entry[field]!r}"
             )
@@ -895,6 +972,7 @@ def verify_against_registry(target: dict[str, Any], registry: dict[str, Any]) ->
     for field in ("api_base", "key_env", "api_style"):
         if str(target.get(field, "")).rstrip("/") != entry[field].rstrip("/"):
             raise EndpointRejected(
+                "authority-mismatch",
                 f"{target['target_id']}: {field}={target.get(field)!r} does not match the "
                 f"trusted registry ({entry[field]!r})"
             )
@@ -909,15 +987,16 @@ def completions_url(api_base: str) -> str:
     """
     parts = urllib.parse.urlsplit(api_base)
     if parts.scheme != "https":
-        raise EndpointRejected(f"api_base must be https, got {parts.scheme or '(none)'!r}")
+        raise EndpointRejected(
+            "scheme-not-https", f"api_base must be https, got {parts.scheme or '(none)'!r}")
     if not parts.hostname:
-        raise EndpointRejected("api_base must name a host")
+        raise EndpointRejected("no-host", "api_base must name a host")
     if parts.username or parts.password:
-        raise EndpointRejected("api_base must not carry userinfo")
+        raise EndpointRejected("userinfo-present", "api_base must not carry userinfo")
     if parts.query:
-        raise EndpointRejected("api_base must not carry a query string")
+        raise EndpointRejected("query-present", "api_base must not carry a query string")
     if parts.fragment:
-        raise EndpointRejected("api_base must not carry a fragment")
+        raise EndpointRejected("fragment-present", "api_base must not carry a fragment")
     path = parts.path.rstrip("/")
     if not path.endswith(COMPLETIONS_PATH):
         path += COMPLETIONS_PATH
@@ -1005,10 +1084,35 @@ TRANSPORT_FAILURE_KINDS = (
     "request-construction-error",
 )
 
+# Every kind of failure this module is willing to name, transport and internal
+# alike. `project_exception` refuses anything outside it, so a new catch site
+# cannot invent a classification on its way to a receipt.
+INTERNAL_FAILURE_KINDS = ("internal-error",)
+
+FAILURE_KINDS = TRANSPORT_FAILURE_KINDS + INTERNAL_FAILURE_KINDS
+
 
 # A class name is short. The bound is here so that closing the numeric channel
 # on the right does not open a textual one on the left for symmetry.
 FAILURE_CLASS_MAX_BYTES = 256
+
+
+def project_exception(prefix: str, kind: str, exc: BaseException) -> dict[str, Any]:
+    """The durable form of a caught exception, for **every** path that catches one.
+
+    `SendResult` got this treatment first and `guarded_receipt` did not, so a
+    dynamically named class — `type("BearerSecretValue", (Exception,), {})` —
+    still reached a receipt verbatim through the second path. Two projections
+    for one fact is how a class of defect keeps one instance alive. There is one
+    now, and the durable-field inventory requires every exception-class field to
+    carry the same domain.
+    """
+    if kind not in FAILURE_KINDS:
+        raise ValueError(f"unknown failure kind {kind!r}")
+    return {
+        f"{prefix}_kind": kind,
+        **opaque(f"{prefix}_class", "failure-class", type(exc).__name__),
+    }
 
 
 def failure_evidence(kind: str, exc: BaseException | None) -> dict[str, str | None]:
@@ -1150,6 +1254,10 @@ def validate_send_result(result: SendResult, response_limit: int = MAX_RESPONSE_
             )
         if not isinstance(result.request_id, str):
             raise ValueError(f"request_id must be a string, got {type(result.request_id).__name__}")
+        # A length is a number the provider picks. `body_bytes_observed` was
+        # bounded and this was not, which is the same channel one field over.
+        if len(result.request_id.encode("utf-8", "surrogatepass")) > EVIDENCE_MAX_BYTES["request-id"]:
+            raise ValueError("request_id is longer than the local bound")
     return result
 
 
@@ -1366,7 +1474,7 @@ def normalize_target(row: dict[str, Any], registry: dict[str, Any]) -> dict[str,
     try:
         completions_url(api_base)
     except EndpointRejected as exc:
-        raise EndpointRejected(f"{provider}/{model}: {exc}") from exc
+        raise EndpointRejected(exc.reason, f"{provider}/{model}: {exc}") from exc
     key_env = entry["key_env"]
     target = {
         "target_id": f"{provider}--{model}",
@@ -1471,6 +1579,360 @@ def classify_http(status: int) -> str:
     return "HTTP_FAILURE"
 
 
+# ---------------------------------------------------------------------------
+# Decisions
+# ---------------------------------------------------------------------------
+#
+# `classification` decides whether a target may be spent money on, so the set of
+# places allowed to write it is a security property of this file. It used to be
+# eighteen `receipt.update(classification=...)` calls spread over four hundred
+# lines, each pairing a verdict with a detail string composed on the spot. Every
+# review round found one of them out of step with the others — a stale free-text
+# detail here, `sent.detail` consulted instead of `sent.reason` there — and each
+# was repaired where it was found.
+#
+# The repairs were right and the method was not: a contract checked at the sites
+# a reviewer happened to visit is a contract with as many exceptions as there are
+# sites nobody visited. So a verdict is now a value:
+#
+#     facts (all local, all typed)  ->  reduce_*  ->  Decision  ->  apply_decision
+#
+# `apply_decision` is the only writer of `classification`, `decision_reason` and
+# `detail`, an AST gate in the test suite enforces that rather than trusting it,
+# and both vocabularies are closed per schema. A verdict this module has not
+# enumerated cannot be recorded, and a reason it has not enumerated cannot
+# either.
+
+# The seed a receipt carries before anything has been decided. It is never the
+# value of a returned receipt — every exit runs through `apply_decision` — and
+# the suite asserts that rather than leaving it as a hope.
+PENDING_CLASSIFICATION = "UNAVAILABLE"
+
+# Availability probing and qualification answer different questions and have
+# always had different verdict vocabularies: a probe says `AUTH_FAILURE` where a
+# qualification says `AUTH_FAILED`, `MODEL_NOT_FOUND` where the other says
+# `MODEL_MISSING`. The qualification set was written down five rounds ago; the
+# probe's was not, so a typo there would have produced a receipt with a
+# classification no consumer knows and nothing would have objected.
+PROBE_CLASSIFICATIONS = (
+    "ENDPOINT_REJECTED",
+    "AUTH_FAILURE",
+    "RESPONSE_CAPTURE_FAILED",
+    "TIMEOUT",
+    "TRANSPORT_FAILURE",
+    "REDIRECT_NOT_FOLLOWED",
+    "MODEL_NOT_FOUND",
+    "RATE_LIMITED",
+    "PROVIDER_5XX",
+    "HTTP_FAILURE",
+    "INVALID_OUTPUT",
+    "PROVIDER_SUBSTITUTED",
+    "MODEL_IDENTITY_MISSING",
+    "INTERNAL_ERROR",
+    "PASS",
+)
+
+# Why the verdict is what it is, in this module's own words, closed. A
+# classification says what to do about a target; a reason says which rule fired,
+# and two rules that reach the same classification are two different findings.
+DECISION_REASONS = (
+    "endpoint-rejected",
+    "transport-failed",
+    "provider-rejected-request",
+    "probe-token-matched",
+    "probe-token-mismatched",
+    "probe-unmappable-completion",
+    "unmappable-completion",
+    "assistant-message-rejected",
+    "undeclared-tools-called",
+    "tool-arguments-unparseable",
+    "tool-arguments-schema-violation",
+    "multiple-terminal-answers",
+    "terminal-answer-with-operations",
+    "terminal-answer-before-roundtrip",
+    "no-terminal-answer-within-budget",
+    "protocol-and-identity-verified",
+    "canary-answer-mismatched",
+    "identity-substituted",
+    "identity-unestablished",
+    "internal-exception",
+)
+
+# Keyed by schema, because the two receipt kinds answer different questions and
+# have always had different verdict words. The qualification entry is added
+# where that vocabulary is declared, a few hundred lines below.
+SCHEMA_CLASSIFICATIONS: dict[str, tuple[str, ...]] = {
+    PROBE_SCHEMA: PROBE_CLASSIFICATIONS,
+}
+
+
+@dataclass(frozen=True)
+class Decision:
+    """A verdict, the rule that produced it, and the line a reader sees.
+
+    The three travel together because they are one fact. Held apart they drift:
+    a detail written at one exit outlived the classification beside it for three
+    rounds, and read as a transport failure on a receipt classified `PASS`.
+    """
+
+    classification: str
+    reason: str
+    detail: str
+
+
+def admissible_classifications(schema: str) -> tuple[str, ...]:
+    known = SCHEMA_CLASSIFICATIONS.get(schema)
+    if known is None:
+        raise ValueError(f"no classification vocabulary for schema {schema!r}")
+    return known
+
+
+def apply_decision(receipt: dict[str, Any], decision: Decision, **extra: Any) -> dict[str, Any]:
+    """Record a decision. **The only writer of `classification` in this module.**
+
+    Both vocabularies are checked against the receipt's own schema, so a probe
+    cannot be handed a qualification verdict and a new exit cannot invent one.
+    `extra` carries the fields that belong to the same moment — `turn_count`,
+    `latency_ms` — because a verdict written without the count of turns it took
+    is a receipt that has to be read in two places to be believed.
+    """
+    if decision.classification not in admissible_classifications(receipt.get("schema", "")):
+        raise ValueError(
+            f"{decision.classification!r} is not a classification of "
+            f"{receipt.get('schema')!r}"
+        )
+    if decision.reason not in DECISION_REASONS:
+        raise ValueError(f"unknown decision reason {decision.reason!r}")
+    receipt.update(extra)
+    receipt["classification"] = decision.classification
+    receipt["decision_reason"] = decision.reason
+    receipt["detail"] = decision.detail
+    return receipt
+
+
+# --- rendered detail lines ------------------------------------------------
+#
+# Every one of these composes from local parts only. Provider-chosen material
+# reaches them exclusively through `opaque_ref`, which yields a digest, a length
+# and a domain — never the value.
+
+def endpoint_rejected_detail(reason: str) -> str:
+    return f"endpoint rejected: {reason}"
+
+
+def transport_detail(
+    status: int | None, reason: str, failure_kind: str | None, key_env: str | None
+) -> str:
+    """One renderer for both paths, because it was one line written twice.
+
+    The probe built `HTTP {status}: {reason}` by overwriting `detail` after the
+    fact; qualification built the same string forward. Two spellings of one
+    sentence is how a fix to one of them stops being a fix.
+    """
+    line = reason
+    if failure_kind is not None:
+        line = f"{line} ({failure_kind})"
+    if key_env is not None:
+        line = f"{line}: {key_env}"
+    return f"HTTP {status}: {line}" if status is not None else line
+
+
+# --- reducers -------------------------------------------------------------
+
+
+@dataclass(frozen=True)
+class TransportFacts:
+    """What a failed exchange established. Every field local, every field typed."""
+
+    schema: str
+    stage: str
+    reason: str
+    failure_kind: str | None
+    status: int | None
+    key_env: str
+
+
+# The probe's stage table, beside the qualification's `STAGE_CAUSE`. Written out
+# rather than shared because the two vocabularies genuinely differ; what is
+# shared is that both are total over `SEND_STAGE_SHAPES` and the suite checks it.
+PROBE_STAGE_CAUSE = {
+    "no-credential": "AUTH_FAILURE",
+    "response-framing": "RESPONSE_CAPTURE_FAILED",
+    "after-headers": "RESPONSE_CAPTURE_FAILED",
+}
+
+
+def reduce_transport(facts: TransportFacts) -> Decision:
+    """A failed exchange, graded from its stage and its reason — never its prose.
+
+    The probe used to read `sent.detail == "timeout"` here. `detail` is free
+    text an injected sender fills in, so a verdict switched on it is a verdict
+    the producer chooses; `reason` is a closed local vocabulary and was already
+    beside it. That the qualification path had been moved off `detail` a round
+    earlier and this one had not is the whole reason this function exists once.
+    """
+    if facts.schema == PROBE_SCHEMA:
+        kind = PROBE_STAGE_CAUSE.get(facts.stage)
+        if kind is None:
+            kind = "TIMEOUT" if facts.reason == "timeout" else "TRANSPORT_FAILURE"
+    else:
+        kind = STAGE_CAUSE.get(facts.stage, "UNAVAILABLE")
+    key_env = facts.key_env if facts.reason == "credential-missing" else None
+    return Decision(
+        kind,
+        "transport-failed",
+        transport_detail(facts.status, facts.reason, facts.failure_kind, key_env),
+    )
+
+
+@dataclass(frozen=True)
+class ProbeFacts:
+    """The probe's grading inputs. Note what is absent: `detail`.
+
+    A reducer that can read a free-text field will eventually branch on one.
+    """
+
+    model_status: str
+    output_state: str  # matched | mismatched | unmappable
+
+
+PROBE_OUTPUT_STATES = ("matched", "mismatched", "unmappable")
+
+
+def reduce_probe(facts: ProbeFacts) -> Decision:
+    """Grade a completed 2xx probe. Identity outranks content, as it must.
+
+    A response whose text is right but whose `model` names another model tells
+    us about that other model. The old chain reached the same answer; it reached
+    it through four `elif`s interleaved with the writes they guarded, which is
+    why the order was checkable only by reading them all.
+    """
+    if facts.output_state not in PROBE_OUTPUT_STATES:
+        raise ValueError(f"unknown probe output state {facts.output_state!r}")
+    if facts.output_state == "unmappable":
+        return Decision(
+            "INVALID_OUTPUT", "probe-unmappable-completion",
+            "the 2xx body could not be mapped to a completion",
+        )
+    if facts.model_status == "drifted":
+        return Decision(
+            "PROVIDER_SUBSTITUTED", "identity-substituted",
+            "the response named a model other than the one requested",
+        )
+    if facts.model_status == "missing":
+        return Decision(
+            "MODEL_IDENTITY_MISSING", "identity-unestablished",
+            "the response named no model; identity unestablished",
+        )
+    if facts.output_state == "mismatched":
+        return Decision(
+            "INVALID_OUTPUT", "probe-token-mismatched",
+            "the completion did not carry the probe token",
+        )
+    return Decision("PASS", "probe-token-matched", "the completion carried the probe token")
+
+
+def reduce_probe_http(status: int) -> Decision:
+    """A non-2xx probe response: one classifier, one rendered line."""
+    return Decision(
+        classify_http(status), "provider-rejected-request", f"HTTP {status}: request-rejected",
+    )
+
+
+@dataclass(frozen=True)
+class AnswerFacts:
+    """What a terminal answer established, once the protocol had held."""
+
+    model_status: str
+    canary_errors: tuple[str, ...]
+    substituted_digests: tuple[str, ...]
+
+
+def reduce_qualification(facts: AnswerFacts) -> Decision:
+    """Grade a run that reached a terminal answer.
+
+    Identity outranks both a protocol pass and a right answer, and `missing` is
+    not a milder `drifted`: a run nobody can attribute to the requested model
+    says nothing about it whichever way the canary went.
+    """
+    if facts.model_status == "drifted":
+        return Decision(
+            MODEL_STATUS_VERDICT["drifted"], "identity-substituted",
+            f"the provider reported {len(facts.substituted_digests)} other model(s): "
+            + ", ".join(facts.substituted_digests),
+        )
+    if facts.model_status != "verified":
+        return Decision(
+            MODEL_STATUS_VERDICT.get(facts.model_status, "MODEL_IDENTITY_MISSING"),
+            "identity-unestablished",
+            "no successful response named a model; the protocol held but the "
+            "identity of what produced it is unestablished",
+        )
+    if facts.canary_errors:
+        return Decision(
+            "CANARY_ANSWER_MISMATCH", "canary-answer-mismatched",
+            "; ".join(facts.canary_errors),
+        )
+    return Decision("PASS", "protocol-and-identity-verified", "the protocol held and the identity was verified")
+
+
+# The exception classes this module is willing to name in a durable field. They
+# are all local — the strict JSON reader's own, and the builtins a malformed
+# payload raises — but "local" is asserted here rather than assumed from the
+# fact that a class name looks like an identifier, which is an argument this
+# vertical has already had to withdraw twice.
+COMPLETION_PARSE_KINDS = (
+    "DuplicateJsonKey",
+    "InvalidJsonEncoding",
+    "UnadmittedJsonValue",
+    "StrictJsonError",
+    "JSONDecodeError",
+    "KeyError",
+    "IndexError",
+    "TypeError",
+    "AttributeError",
+    "other",
+)
+
+
+def completion_parse_kind(exc: BaseException) -> str:
+    name = type(exc).__name__
+    return name if name in COMPLETION_PARSE_KINDS else "other"
+
+
+# The latency a receipt is willing to state. `round((time.time() - started) *
+# 1000)` is a local measurement and was still the one unbounded integer left in
+# a probe receipt: a clock stepped backwards makes it negative, and nothing
+# downstream had a rule to notice. A day is far past any timeout this tool
+# accepts, so the clamp only ever fires on a broken clock — which is exactly
+# when a receipt should say something bounded rather than something interesting.
+LATENCY_MAX_MS = 24 * 60 * 60 * 1000
+
+# The largest timeout and turn budget a receipt will record. Both arrive from
+# the command line, which is local and reviewed, and both are still bounded:
+# every durable integer is bounded or it is not durable evidence.
+TIMEOUT_MAX_SECS = 3600.0
+MAX_TURNS_BOUND = 1024
+
+
+def latency_ms_since(started: float) -> int:
+    return min(max(round((time.time() - started) * 1000), 0), LATENCY_MAX_MS)
+
+
+def bounded_timeout(timeout: float) -> float:
+    if not isinstance(timeout, (int, float)) or isinstance(timeout, bool):
+        raise ValueError(f"timeout must be a number, got {type(timeout).__name__}")
+    if not math.isfinite(timeout) or not 0 < timeout <= TIMEOUT_MAX_SECS:
+        raise ValueError(f"timeout must be in (0, {TIMEOUT_MAX_SECS}]")
+    return float(timeout)
+
+
+def bounded_turns(max_turns: int) -> int:
+    if type(max_turns) is not int or not 0 < max_turns <= MAX_TURNS_BOUND:
+        raise ValueError(f"max_turns must be an int in 1..{MAX_TURNS_BOUND}")
+    return max_turns
+
+
 def probe_target(
     target: dict[str, Any],
     timeout: float,
@@ -1495,59 +1957,63 @@ def probe_target(
     }
     try:
         verify_against_registry(target, registry)
-        url = completions_url(target["api_base"])
+        # From the registry, not from the row. The row agreeing with the
+        # registry is what `verify_against_registry` just established; taking
+        # the value from the row afterwards makes the plan the source of a
+        # durable field anyway, one line past the check that was supposed to
+        # settle it.
+        url = completions_url(trusted_entry(registry, target["provider"])["api_base"])
     except EndpointRejected as exc:
-        result.update(classification="ENDPOINT_REJECTED", detail=str(exc))
-        return result
+        # The message is for whoever is watching the run; the receipt gets the
+        # reason, which is a closed vocabulary. `str(exc)` interpolates the
+        # plan's own text, and a durable field with an open vocabulary is a
+        # durable field no policy can enumerate.
+        return apply_decision(
+            result,
+            Decision("ENDPOINT_REJECTED", "endpoint-rejected", endpoint_rejected_detail(exc.reason)),
+        )
     result["endpoint"] = url
 
     send = send if send is not None else key_bound_sender(target["key_env"], response_limit)
     sent = as_send_result(send(url, request_body, timeout), response_limit)
-    latency = round((time.time() - started) * 1000)
+    latency = latency_ms_since(started)
     # The header is provider-controlled and the provider has seen the bearer
     # token, so `x-request-id` is a channel for handing it back. The raw value
     # stays in `sent`, in memory; the artifact gets evidence about it.
     result.update(opaque("request_id", "request-id", sent.request_id))
     if sent.stage != "completed":
         # A body-read failure is not unavailability: the provider answered, the
-        # generation exists, and it will appear on the bill. Retrying it is a
-        # decision, not a formality, so it gets its own name — and keeps the
-        # status the provider already sent.
-        if sent.stage == "no-credential":
-            kind = "AUTH_FAILURE"
-        elif sent.stage in ("after-headers", "response-framing"):
-            # `response-framing` joins it rather than falling through to
-            # `TRANSPORT_FAILURE`: the request was served and the reply was
-            # unreadable, which is a capture failure without a status, not an
-            # endpoint that was never reached.
-            kind = "RESPONSE_CAPTURE_FAILED"
-        else:
-            kind = "TIMEOUT" if sent.detail == "timeout" else "TRANSPORT_FAILURE"
+        # generation exists, and it will appear on the bill. Which stage maps to
+        # which verdict is `PROBE_STAGE_CAUSE`'s to say, not this function's —
+        # the chain of `elif`s that used to live here read `sent.detail`, which
+        # is free text an injected sender fills in.
         failure = project_transport_failure(sent, response_limit)
         result.update(failure)
-        reason = failure["transport_reason"]
-        if sent.failure_kind is not None:
-            reason = f"{reason} ({sent.failure_kind})"
-        if sent.reason == "credential-missing":
-            reason = f"{reason}: {target['key_env']}"
-        result.update(classification=kind, detail=reason, latency_ms=latency)
         if sent.status is not None:
             result["http_status"] = sent.status
-            result["detail"] = f"HTTP {sent.status}: {reason}"
         if sent.body_bytes_observed is not None:
             result["body_bytes_observed"] = sent.body_bytes_observed
-        return result
+        return apply_decision(
+            result,
+            reduce_transport(TransportFacts(
+                schema=PROBE_SCHEMA,
+                stage=sent.stage,
+                reason=failure["transport_reason"],
+                failure_kind=sent.failure_kind,
+                status=sent.status,
+                key_env=target["key_env"],
+            )),
+            latency_ms=latency,
+        )
 
     status, raw = sent.status, sent.body or b""
     if not 200 <= status < 300:
         result.update(
-            classification=classify_http(status),
             http_status=status,
             response_sha256=evidence_digest("response-body", raw),
             response_bytes=len(raw),
-            latency_ms=latency,
         )
-        return result
+        return apply_decision(result, reduce_probe_http(status), latency_ms=latency)
 
     result.update(
         http_status=status,
@@ -1567,9 +2033,10 @@ def probe_target(
         reported_model = payload.get("model")
         choices = payload.get("choices", [])
         content = choices[0]["message"]["content"] if choices else None
-    except (StrictJsonError, json.JSONDecodeError, KeyError, TypeError, IndexError, AttributeError):
-        result["classification"] = "INVALID_OUTPUT"
-        return result
+    except (StrictJsonError, json.JSONDecodeError, KeyError, TypeError, IndexError, AttributeError) as exc:
+        result["completion_parse_kind"] = completion_parse_kind(exc)
+        return apply_decision(
+            result, reduce_probe(ProbeFacts(model_status="missing", output_state="unmappable")))
     result.update(model_evidence(target["model"], reported_model))
     # Three-valued, like the qualification side. The old `if reported_model and
     # ...` let a response that named no model fall through to PASS whenever the
@@ -1577,19 +2044,16 @@ def probe_target(
     # established could satisfy the "PASS on both probes" gate.
     status_of_model = model_status_of(target["model"], reported_model)
     result["model_status"] = status_of_model
-    if status_of_model == "drifted":
-        result["classification"] = "PROVIDER_SUBSTITUTED"
-    elif status_of_model == "missing":
-        result["classification"] = "MODEL_IDENTITY_MISSING"
-        result["detail"] = "the response named no model; identity unestablished"
-    elif content != "QODEC_PROBE_OK":
-        result["classification"] = "INVALID_OUTPUT"
-    else:
-        result["classification"] = "PASS"
     if isinstance(payload.get("usage"), dict):
         result["provider_usage"] = normalize_provider_usage(
             payload["usage"], usage_bounds(len(request_body), PROBE_MAX_TOKENS))
-    return result
+    # The token comparison is the only place the provider's text is read, and
+    # what leaves it is one of three local words. The grading itself is
+    # `reduce_probe`'s, which never sees the completion at all.
+    return apply_decision(result, reduce_probe(ProbeFacts(
+        model_status=status_of_model,
+        output_state="matched" if content == "QODEC_PROBE_OK" else "mismatched",
+    )))
 
 
 # ---------------------------------------------------------------------------
@@ -1650,6 +2114,13 @@ CLASSIFICATIONS = (
     "PASS",
 )
 
+# Late-bound because the qualification vocabulary is declared here, several
+# hundred lines below the machinery that enforces it. A dict entry rather than a
+# second constant, so there is exactly one table to consult and no way to add a
+# schema to one half of the pair.
+SCHEMA_CLASSIFICATIONS[QUALIFY_SCHEMA] = CLASSIFICATIONS
+
+
 # Only a verified identity may pass. `drifted` and `missing` are different
 # failures — one names the wrong model, the other names none — and both make the
 # run say nothing about the target that was asked for.
@@ -1670,6 +2141,16 @@ STAGE_CAUSE = {
     "response-framing": "RESPONSE_CAPTURE_FAILED",
     "after-headers": "RESPONSE_CAPTURE_FAILED",
 }
+# The reason a stage implies, for a sender that supplied none. Same vocabulary
+# as `TRANSPORT_REASONS`, because `transport_reason` is declared over it and a
+# fallback that answers in another language is not a fallback.
+STAGE_REASON = {
+    "no-credential": "credential-missing",
+    "before-response": "connection-failed",
+    "response-framing": "http-framing-failure",
+    "after-headers": "body-capture-failure",
+}
+
 STAGE_OUTCOME = {
     "no-credential": "no-credential",
     "before-response": "transport-failure",
@@ -1696,9 +2177,7 @@ def project_transport_failure(sent: SendResult, response_limit: int) -> dict[str
     fields: dict[str, Any] = {"transport_reason": transport_reason(sent)}
     if sent.failure_kind is not None:
         fields["failure_kind"] = sent.failure_kind
-    fields["failure_class_present"] = sent.failure_class is not None
-    if sent.failure_class is not None:
-        fields["failure_class_sha256"] = evidence_digest("failure-class", sent.failure_class)
+    fields.update(opaque("failure_class", "failure-class", sent.failure_class))
     return fields
 
 
@@ -1716,9 +2195,14 @@ def transport_reason(sent: SendResult) -> str:
     """
     if sent.reason is not None:
         return sent.reason
-    # An injected `send` that supplied no reason gets the stage's own name,
-    # which is local too. Its `detail` is never consulted.
-    return STAGE_OUTCOME.get(sent.stage, "transport-failure")
+    # An injected `send` that supplied no reason gets the reason its stage
+    # implies — from `TRANSPORT_REASONS`, the vocabulary this field is declared
+    # over. It used to fall back to `STAGE_OUTCOME`, whose words are the *turn
+    # outcome* vocabulary, so one durable field could hold a member of either of
+    # two enums depending on which sender produced it. Two vocabularies in one
+    # field is a field with no vocabulary; the inventory found it the first time
+    # it ran.
+    return STAGE_REASON.get(sent.stage, "connection-failed")
 
 QUALIFY_INSTRUCTIONS = (
     "You are answering one question about a document you cannot see. The document is not in "
@@ -2274,7 +2758,6 @@ def qualify_target(
     provider is a qualification whose failure paths are never exercised.
     """
     registry = normalize_registry(registry) if registry is not None else load_registry()
-    base = target["api_base"]
     receipt: dict[str, Any] = {
         "schema": QUALIFY_SCHEMA,
         "target_id": target["target_id"],
@@ -2284,11 +2767,16 @@ def qualify_target(
         "reported_models": [],
         "model_status": "missing",
         "transport_target": {
-            "api_style": target["api_style"],
-            "endpoint": base,
+            # Both come from the trusted registry once verification has run,
+            # never from the plan row. A hand-edited `api_base` used to be
+            # copied in here before anything checked it, so a receipt that
+            # correctly classified `ENDPOINT_REJECTED` still carried the
+            # rejected host as a durable field.
+            "api_style": None,
+            "endpoint": None,
             "path": COMPLETIONS_PATH,
             "content_type": "application/json",
-            "timeout_secs": timeout,
+            "timeout_secs": bounded_timeout(timeout),
             "redirects_allowed": 0,
             # The same number the transport was given and the same number
             # every observed count is checked against. One source of truth,
@@ -2298,18 +2786,28 @@ def qualify_target(
         "turns": [],
         "turn_count": 0,
         "tool_result_roundtrip": False,
-        "classification": "UNAVAILABLE",
+        # A placeholder, never a verdict. Every exit below runs through
+        # `apply_decision`, and the suite asserts that no returned receipt still
+        # carries the seed rather than trusting the reading.
+        "classification": PENDING_CLASSIFICATION,
+        "decision_reason": None,
         "detail": "",
     }
+    max_turns = bounded_turns(max_turns)
 
     try:
         # Identity of the destination before anything else: a valid https URL is
         # not evidence that the host behind it is the provider the target names.
         verify_against_registry(target, registry)
-        url = completions_url(base)
+        entry = trusted_entry(registry, target["provider"])
+        url = completions_url(entry["api_base"])
     except EndpointRejected as exc:
-        receipt.update(classification="ENDPOINT_REJECTED", detail=str(exc))
-        return receipt
+        return apply_decision(
+            receipt,
+            Decision("ENDPOINT_REJECTED", "endpoint-rejected", endpoint_rejected_detail(exc.reason)),
+        )
+    receipt["transport_target"]["api_style"] = entry["api_style"]
+    receipt["transport_target"]["endpoint"] = entry["api_base"]
 
     # The two facts the terminal answer is only meaningful after. `awaiting`
     # says results were handed back and the next completion is the provider's
@@ -2324,6 +2822,11 @@ def qualify_target(
     messages = opening_messages()
     for turn in range(max_turns):
         body = canonical_bytes(canonical_request(surface, target["model"], messages))
+        if len(body) > MAX_REQUEST_BYTES:
+            # A defect in this tool, not in the provider, so it is raised and
+            # `guarded_receipt` files it as `INTERNAL_ERROR` — the one
+            # classification reserved for us.
+            raise ValueError("the composed request exceeded the local request bound")
         record: dict[str, Any] = {
             "ordinal": turn,
             "request_sha256": sha256_bytes(body),
@@ -2348,7 +2851,6 @@ def qualify_target(
         if sent.body_bytes_observed is not None:
             record["body_bytes_observed"] = sent.body_bytes_observed
         if sent.stage != "completed":
-            kind = STAGE_CAUSE.get(sent.stage, "UNAVAILABLE")
             failure = project_transport_failure(sent, response_limit)
             reason = failure["transport_reason"]
             record["outcome"] = STAGE_OUTCOME.get(sent.stage, "transport-failure")
@@ -2358,24 +2860,31 @@ def qualify_target(
                 # the target, never from the transport's message.
                 record["key_env"] = target["key_env"]
             receipt["turns"].append(record)
-            # The status is the most useful thing left when the body is
-            # gone; burying it in a turn record and reporting a bare cause
-            # would throw away what the provider already told us. The
-            # reason beside it is a local enum, not the transport's words.
-            detail = f"HTTP {status}: {reason}" if status is not None else reason
-            if sent.failure_kind is not None:
-                detail = f"{detail} ({sent.failure_kind})"
-            if reason == "credential-missing":
-                detail = f"{detail}: {target['key_env']}"
-            receipt.update(classification=kind, detail=detail, turn_count=turn + 1)
-            return receipt
+            # The status is the most useful thing left when the body is gone,
+            # and the same reducer that grades the probe's transport failures
+            # grades this one — one table, one rendered line, two callers.
+            return apply_decision(
+                receipt,
+                reduce_transport(TransportFacts(
+                    schema=QUALIFY_SCHEMA,
+                    stage=sent.stage,
+                    reason=reason,
+                    failure_kind=sent.failure_kind,
+                    status=status,
+                    key_env=target["key_env"],
+                )),
+                turn_count=turn + 1,
+            )
         if not 200 <= status < 300:
             kind, message = classify_qualify_http(status, raw or b"", awaiting_roundtrip)
             record["outcome"] = "provider-rejected"
             record["detail"] = message
             receipt["turns"].append(record)
-            receipt.update(classification=kind, detail=message, turn_count=turn + 1)
-            return receipt
+            return apply_decision(
+                receipt,
+                Decision(kind, "provider-rejected-request", f"HTTP {status}: {message}"),
+                turn_count=turn + 1,
+            )
 
         try:
             # Strict: everything the rest of this loop reads comes from here —
@@ -2388,12 +2897,21 @@ def qualify_target(
             if not isinstance(message, dict):
                 raise TypeError("choices[0].message was not an object")
         except (StrictJsonError, json.JSONDecodeError, KeyError, IndexError, TypeError, AttributeError) as exc:
-            why = f"unmappable 2xx completion: {type(exc).__name__}"
+            # The class name goes through a closed local table rather than
+            # straight into the line. Every member of it is this module's own or
+            # a builtin, but "it is a Python class name" is the provenance
+            # argument this vertical has already withdrawn twice.
+            kind = completion_parse_kind(exc)
+            why = f"unmappable 2xx completion: {kind}"
             record["outcome"] = "unreadable-response"
+            record["completion_parse_kind"] = kind
             record["detail"] = why
             receipt["turns"].append(record)
-            receipt.update(classification="INVALID_OUTPUT", detail=why, turn_count=turn + 1)
-            return receipt
+            return apply_decision(
+                receipt,
+                Decision("INVALID_OUTPUT", "unmappable-completion", why),
+                turn_count=turn + 1,
+            )
 
         # A successful, readable completion in answer to a request that carried
         # `role: tool` messages is the provider accepting the result shape. That
@@ -2434,8 +2952,11 @@ def qualify_target(
             record["outcome"] = "no-tool-call" if kind == "NO_TERMINAL_ANSWER" else "dialect-violation"
             record["detail"] = why
             receipt["turns"].append(record)
-            receipt.update(classification=kind, detail=why, turn_count=turn + 1)
-            return receipt
+            return apply_decision(
+                receipt,
+                Decision(kind, "assistant-message-rejected", why),
+                turn_count=turn + 1,
+            )
         # Names and call ids are both provider-chosen. A name that matches one
         # we declared is a value we already had, so it crosses as itself; any
         # other name is the provider's text and crosses as a digest. Call ids
@@ -2463,8 +2984,11 @@ def qualify_target(
             record["outcome"] = "protocol-violation"
             record["detail"] = why
             receipt["turns"].append(record)
-            receipt.update(classification="PROTOCOL_VIOLATION", detail=why, turn_count=turn + 1)
-            return receipt
+            return apply_decision(
+                receipt,
+                Decision("PROTOCOL_VIOLATION", "undeclared-tools-called", why),
+                turn_count=turn + 1,
+            )
 
         decoded = []
         for call in calls:
@@ -2473,10 +2997,11 @@ def qualify_target(
                 record["outcome"] = "malformed-arguments"
                 record["detail"] = why
                 receipt["turns"].append(record)
-                receipt.update(
-                    classification="MALFORMED_TOOL_ARGUMENTS", detail=why, turn_count=turn + 1
+                return apply_decision(
+                    receipt,
+                    Decision("MALFORMED_TOOL_ARGUMENTS", "tool-arguments-unparseable", why),
+                    turn_count=turn + 1,
                 )
-                return receipt
             errors = validate_arguments(surface, call["name"], args)
             if errors:
                 # `jsonschema_mini` interpolates the offending instance —
@@ -2494,10 +3019,11 @@ def qualify_target(
                 record["detail"] = why
                 record.update(evidence)
                 receipt["turns"].append(record)
-                receipt.update(
-                    classification="MALFORMED_TOOL_ARGUMENTS", detail=why, turn_count=turn + 1
+                return apply_decision(
+                    receipt,
+                    Decision("MALFORMED_TOOL_ARGUMENTS", "tool-arguments-schema-violation", why),
+                    turn_count=turn + 1,
                 )
-                return receipt
             decoded.append((call, args))
         record["arguments_valid"] = True
 
@@ -2508,15 +3034,21 @@ def qualify_target(
             record["outcome"] = "protocol-violation"
             record["detail"] = why
             receipt["turns"].append(record)
-            receipt.update(classification="PROTOCOL_VIOLATION", detail=why, turn_count=turn + 1)
-            return receipt
+            return apply_decision(
+                receipt,
+                Decision("PROTOCOL_VIOLATION", "multiple-terminal-answers", why),
+                turn_count=turn + 1,
+            )
         if answers and operations:
             why = f"a terminal answer alongside {len(operations)} operation(s)"
             record["outcome"] = "protocol-violation"
             record["detail"] = why
             receipt["turns"].append(record)
-            receipt.update(classification="PROTOCOL_VIOLATION", detail=why, turn_count=turn + 1)
-            return receipt
+            return apply_decision(
+                receipt,
+                Decision("PROTOCOL_VIOLATION", "terminal-answer-with-operations", why),
+                turn_count=turn + 1,
+            )
 
         if answers:
             if not roundtrip_seen:
@@ -2528,8 +3060,11 @@ def qualify_target(
                 record["outcome"] = "protocol-violation"
                 record["detail"] = why
                 receipt["turns"].append(record)
-                receipt.update(classification="PROTOCOL_VIOLATION", detail=why, turn_count=turn + 1)
-                return receipt
+                return apply_decision(
+                    receipt,
+                    Decision("PROTOCOL_VIOLATION", "terminal-answer-before-roundtrip", why),
+                    turn_count=turn + 1,
+                )
 
             answer_args = next(a for c, a in decoded if c["name"] == ANSWER_TOOL)
             answer_errors = canary_answer_errors(answer_args, observed)
@@ -2539,38 +3074,31 @@ def qualify_target(
             if answer_errors:
                 record["canary_answer_errors"] = answer_errors
             receipt["turns"].append(record)
-            receipt.update(classification="PASS", turn_count=turn + 1)
-            if answer_errors:
-                receipt["classification"] = "CANARY_ANSWER_MISMATCH"
-                receipt["detail"] = "; ".join(answer_errors)
-            # Identity outranks both a protocol pass and a wrong answer. A run
-            # that satisfied every structural rule tells us nothing about the
-            # target unless we know which model produced it — and "the provider
-            # named none" is not a milder version of that than "it named another
-            # one". Both fail; only `verified` may pass.
-            identity = receipt["model_status"]
-            if identity == "drifted":
-                # Which model was substituted is the finding, and it survives
-                # as a digest rather than as the name: a provider that returns
-                # the bearer token in `model` would otherwise have written it
-                # into the detail line of a committed receipt.
-                substituted = [
-                    entry for entry in receipt["reported_models"]
-                    if entry.get("reported_model") is None and entry.get("reported_model_present")
-                ]
-                receipt["classification"] = MODEL_STATUS_VERDICT["drifted"]
-                receipt["detail"] = (
-                    f"requested {target['model']}, provider reported "
-                    f"{len(substituted)} other model(s): "
-                    + ", ".join(entry["reported_model_sha256"][:16] for entry in substituted)
-                )
-            elif identity != "verified":
-                receipt["classification"] = MODEL_STATUS_VERDICT.get(identity, "MODEL_IDENTITY_MISSING")
-                receipt["detail"] = (
-                    f"requested {target['model']}, and no successful response named a model; "
-                    "the protocol held but the identity of what produced it is unestablished"
-                )
-            return receipt
+            # Three verdicts used to be written here in sequence, each
+            # overwriting the last: `PASS`, then maybe the canary's, then maybe
+            # identity's. Reading it required holding the whole chain in mind to
+            # know which one survived. One reducer decides, with the precedence
+            # written down where it can be tested on its own: identity outranks
+            # both a protocol pass and a wrong answer, and "the provider named
+            # none" is not a milder finding than "it named another one".
+            #
+            # Which model was substituted survives as a digest rather than a
+            # name: a provider that returns the bearer token in `model` would
+            # otherwise write it into the detail line of a committed receipt.
+            substituted = tuple(
+                entry["reported_model_sha256"][:16]
+                for entry in receipt["reported_models"]
+                if entry.get("reported_model") is None and entry.get("reported_model_present")
+            )
+            return apply_decision(
+                receipt,
+                reduce_qualification(AnswerFacts(
+                    model_status=receipt["model_status"],
+                    canary_errors=tuple(answer_errors),
+                    substituted_digests=substituted,
+                )),
+                turn_count=turn + 1,
+            )
 
         record["outcome"] = "operations"
         receipt["turns"].append(record)
@@ -2604,12 +3132,14 @@ def qualify_target(
                 "content": json.dumps(result, sort_keys=True),
             })
 
-    receipt.update(
-        classification="NO_TERMINAL_ANSWER",
-        detail=f"no terminal answer within {max_turns} turns",
+    return apply_decision(
+        receipt,
+        Decision(
+            "NO_TERMINAL_ANSWER", "no-terminal-answer-within-budget",
+            f"no terminal answer within {max_turns} turns",
+        ),
         turn_count=max_turns,
     )
-    return receipt
 
 
 def add_registry_flag(parser_: argparse.ArgumentParser) -> None:
@@ -2634,14 +3164,27 @@ def guarded_receipt(schema: str, target: dict[str, Any], run: Any) -> dict[str, 
     try:
         return run()
     except Exception as exc:  # noqa: BLE001 — deliberate: see the docstring
-        return {
+        # The class name is the provider's choice as surely as `usage` was:
+        # `type("BearerSecretValue", (Exception,), {})` is a class an injected
+        # sender can raise. It goes through the same projection as every other
+        # caught exception rather than into prose.
+        receipt = {
             "schema": schema,
             "target_id": target.get("target_id"),
             "provider": target.get("provider"),
             "requested_model": target.get("model"),
-            "classification": "INTERNAL_ERROR",
-            "detail": f"provider-matrix raised {type(exc).__name__}",
+            "classification": PENDING_CLASSIFICATION,
+            "decision_reason": None,
+            "detail": "",
+            **project_exception("internal_failure", "internal-error", exc),
         }
+        return apply_decision(
+            receipt,
+            Decision(
+                "INTERNAL_ERROR", "internal-exception",
+                "provider-matrix raised an internal exception",
+            ),
+        )
 
 
 def parser() -> argparse.ArgumentParser:

@@ -92,9 +92,11 @@ SUITE_TIMEOUT = 600
 #     any positive control and not a property of this one. What *is*
 #     reachable is whether each arm still exercises its contract, and
 #     `DG4` covers the decoding arm by making its synthetic case emit
-#     decodable bytes. The unit suite covers the deletion, and the suite is
-#     not what qualifies a mutated gate — which is the disclosed
-#     `run_gate` limit, stated rather than papered over.
+#     decodable bytes. The suite covers the deletion — and as of this round
+#     the suite *is* one of the oracles a mutated gate is asked, so the
+#     `run_gate` limit this paragraph used to disclose no longer holds.
+#     See `MUTATION_TARGETS`: a target names its oracles, and any of them
+#     may object.
 #   * the `env` argument threaded into `dirt()` from the self-test — it matters
 #     against a developer's `core.excludesFile`, and CI runs on a machine that
 #     has none, so dropping it changes nothing observable *here*. `W1` covers
@@ -154,9 +156,14 @@ MUTATIONS = [
     ("C5 response body unbounded",
      "    raw = stream.read(limit + 1)",
      "    raw = stream.read()"),
+    # Two stage tables now carry these words — the qualification's and the
+    # probe's — so each anchor names its table. That the same mutation has to be
+    # written twice is the point of having two vocabularies written down.
     ("C6 a lost body after headers called unavailability",
-     "    \"after-headers\": \"RESPONSE_CAPTURE_FAILED\",",
-     "    \"after-headers\": \"UNAVAILABLE\","),
+     "STAGE_CAUSE = {\n    \"no-credential\": \"AUTH_FAILED\",\n"
+     "    \"before-response\": \"UNAVAILABLE\",",
+     "STAGE_CAUSE = {\n    \"no-credential\": \"AUTH_FAILED\",\n"
+     "    \"before-response\": \"RESPONSE_CAPTURE_FAILED\","),
     ("C10 a registry file is loaded without vetting its origins",
      "        completions_url(entry[\"api_base\"])",
      "        pass"),
@@ -168,9 +175,11 @@ MUTATIONS = [
     ("D2 per-turn model evidence dropped",
      "        record.update(model_evidence(target[\"model\"], reported))",
      "        pass"),
-    ("D3 drift detail names the requested model back at us",
-     "                    + \", \".join(entry[\"reported_model_sha256\"][:16] for entry in substituted)",
-     "                    + target['model']"),
+    ("D3 drift detail names the substituted model instead of digesting it",
+     "                for entry in receipt[\"reported_models\"]\n"
+     "                if entry.get(\"reported_model\") is None and entry.get(\"reported_model_present\")",
+     "                for entry in receipt[\"reported_models\"]\n"
+     "                if entry.get(\"reported_model_sha256\") is None"),
 
     # -- E: the trusted provider registry --
     ("E1 a catalog row's api_base and key_env regain authority",
@@ -180,8 +189,10 @@ MUTATIONS = [
      "        if not isinstance(claimed, str):",
      "        if False:"),
     ("E6 a caller-supplied registry skips normalization",
-     "    registry = normalize_registry(registry) if registry is not None else load_registry()\n    base = target[\"api_base\"]",
-     "    registry = registry if registry is not None else load_registry()\n    base = target[\"api_base\"]"),
+     "    registry = normalize_registry(registry) if registry is not None else load_registry()\n"
+     "    receipt: dict[str, Any] = {",
+     "    registry = registry if registry is not None else load_registry()\n"
+     "    receipt: dict[str, Any] = {"),
     ("E7 duplicate provider keys resolved by document order",
      "        if key in seen:",
      "        if False:"),
@@ -202,19 +213,31 @@ MUTATIONS = [
      "    entry = registry[\"providers\"].get(provider) or "
      "{\"api_base\": \"https://steal.example/v1\", \"api_style\": \"openai-chat\", \"key_env\": \"GROQ_API_KEY\"}"),
     ("E3 the plan is not re-checked against the registry before send",
-     "        verify_against_registry(target, registry)\n        url = completions_url(base)",
-     "        url = completions_url(base)"),
+     "        verify_against_registry(target, registry)\n"
+     "        entry = trusted_entry(registry, target[\"provider\"])",
+     "        entry = trusted_entry(registry, target[\"provider\"])"),
     ("E4 the probe skips the registry check",
-     "        verify_against_registry(target, registry)\n        url = completions_url(target[\"api_base\"])",
-     "        url = completions_url(target[\"api_base\"])"),
+     "        verify_against_registry(target, registry)\n"
+     "        # From the registry, not from the row.",
+     "        # From the registry, not from the row."),
+
+    # A durable field must carry the registry's spelling, not the plan's. Taking
+    # it from the row one line after the check that compared them makes the plan
+    # the source of the field anyway — which is how a rejected host reached
+    # `transport_target.endpoint` on a receipt that correctly refused it.
+    # `verify_against_registry` compares with `rstrip("/")`, so the two can
+    # legitimately differ and the receipt must still say the registry's.
+    ("E12 the recorded endpoint is taken from the plan row rather than the registry",
+     "    receipt[\"transport_target\"][\"endpoint\"] = entry[\"api_base\"]",
+     "    receipt[\"transport_target\"][\"endpoint\"] = target[\"api_base\"]"),
 
     # -- F: only a verified model identity may pass --
     ("F1 a run whose model was never named still passes qualification",
-     "            elif identity != \"verified\":",
-     "            elif False:"),
+     "    if facts.model_status != \"verified\":",
+     "    if False:"),
     ("F2 a probe whose model was never named still passes",
-     "    elif status_of_model == \"missing\":",
-     "    elif False:"),
+     "    if facts.model_status == \"missing\":",
+     "    if False:"),
 
     # -- G: the status survives a lost body --
     ("G1 an error status is discarded when its body is lost",
@@ -290,20 +313,27 @@ MUTATIONS = [
      "    if not credential_is_header_safe(key):",
      "    if False:"),
     ("L3 the crash receipt repeats the exception message",
-     "            \"detail\": f\"provider-matrix raised {type(exc).__name__}\",",
-     "            \"detail\": str(exc),"),
+     "                \"provider-matrix raised an internal exception\",",
+     "                str(exc),"),
+    # The same projection for both catch sites, or the second one is a channel
+    # with a pedigree: `type(\"BearerSecretValue\", (Exception,), {})` is a class
+    # an injected sender can raise, and it reached a receipt verbatim for four
+    # rounds because only the transport path had been repaired.
+    ("L4 the crash receipt keeps the exception class beside its own projection",
+     "            **project_exception(\"internal_failure\", \"internal-error\", exc),",
+     "            \"internal_failure_class\": type(exc).__name__,"),
 
     # -- M: one target's failure is one target's receipt --
     # Both guards for one fact, removed together: the explicit shape check and
     # the `AttributeError` that would otherwise catch `[].get`.
     ("M1 nothing stops a non-object probe payload from raising",
      ["        if not isinstance(payload, dict):\n            raise TypeError(f\"completion was a {type(payload).__name__}, not an object\")\n        reported_model = payload.get(\"model\")",
-      "    except (StrictJsonError, json.JSONDecodeError, KeyError, TypeError, IndexError, AttributeError):"],
+      "    except (StrictJsonError, json.JSONDecodeError, KeyError, TypeError, IndexError, AttributeError) as exc:"],
      ["        reported_model = payload.get(\"model\")",
-      "    except (StrictJsonError, json.JSONDecodeError, KeyError, TypeError, IndexError):"]),
+      "    except (StrictJsonError, json.JSONDecodeError, KeyError, TypeError, IndexError) as exc:"]),
     ("M3 an unmappable 2xx filed as a refusal",
-     "            receipt.update(classification=\"INVALID_OUTPUT\", detail=why, turn_count=turn + 1)",
-     "            receipt.update(classification=\"PROVIDER_REJECTED\", detail=why, turn_count=turn + 1)"),
+     "                Decision(\"INVALID_OUTPUT\", \"unmappable-completion\", why),",
+     "                Decision(\"PROVIDER_REJECTED\", \"unmappable-completion\", why),"),
     ("M4 a crashing target ends the matrix",
      "    except Exception as exc:  # noqa: BLE001 — deliberate: see the docstring",
      "    except ZeroDivisionError as exc:"),
@@ -347,8 +377,8 @@ MUTATIONS = [
      "        parsed = strict_json_loads(raw, \"arguments\")",
      "        parsed = json.loads(raw)"),
     ("P4 a strictly-refused completion no longer classified",
-     "    except (StrictJsonError, json.JSONDecodeError, KeyError, TypeError, IndexError, AttributeError):",
-     "    except (json.JSONDecodeError, KeyError, TypeError, IndexError, AttributeError):"),
+     "    except (StrictJsonError, json.JSONDecodeError, KeyError, TypeError, IndexError, AttributeError) as exc:",
+     "    except (json.JSONDecodeError, KeyError, TypeError, IndexError, AttributeError) as exc:"),
 
     # -- R: the encoding the consumer accepts, and no other --
     ("R1 bytes handed to json.loads to sniff",
@@ -417,11 +447,11 @@ MUTATIONS = [
 
     # -- V: the gates themselves must be able to fail --
     ("V1 the clean-tree check stops asserting on output",
-     "    lines = [line for line in status.stdout.splitlines() if line.strip()]",
+     "    lines = status_records(status.stdout)",
      "    lines = []",
      "check_clean_tree.py"),
     ("V2 the clean-tree check looks at one directory again",
-     "    return Path(top.stdout.strip())",
+     "    return Path(decode_path(top.stdout.strip()))",
      "    return here",
      "check_clean_tree.py"),
     ("V3 the discovery check stops comparing the two runs",
@@ -542,8 +572,8 @@ MUTATIONS = [
      "            \"max_response_bytes\": response_limit,",
      "            \"max_response_bytes\": MAX_RESPONSE_BYTES,"),
     ("TB7 the failure class is copied instead of hashed",
-     "        fields[\"failure_class_sha256\"] = evidence_digest(\"failure-class\", sent.failure_class)",
-     "        fields[\"failure_class_sha256\"] = sent.failure_class"),
+     "    fields.update(opaque(\"failure_class\", \"failure-class\", sent.failure_class))",
+     "    fields[\"failure_class\"] = sent.failure_class"),
     ("TB8 an unknown failure kind accepted",
      "    if result.failure_kind is not None and result.failure_kind not in TRANSPORT_FAILURE_KINDS:",
      "    if False:"),
@@ -559,16 +589,19 @@ MUTATIONS = [
      "        evidence_digest(\"failure-class\", type(exc).__name__) if exc is not None else None)}"),
 
     # -- DG: a subprocess may not choose whether a gate returns a verdict --
-    ("DG1 the child's output is decoded by the library again",
-     "        cwd=cwd or HERE, capture_output=True, text=False, timeout=TIMEOUT,",
-     "        cwd=cwd or HERE, capture_output=True, text=True, timeout=TIMEOUT,",
+    # The gate now declares a decoding *policy* instead of owning a decode, so
+    # the mutations move with it: one that swaps the policy, one that swaps the
+    # verdict, and the boundary's own are in the PB series below.
+    ("DG1 the gate declares the wrong decoding policy for a test run",
+     "    return decode_output(stdout + stderr)",
+     "    return decode_path(stdout + stderr)",
      "check_test_discovery.py"),
     ("DG2 undecodable output is silently replaced",
-     "        return (stdout + stderr).decode(\"utf-8\", \"strict\")",
-     "        return (stdout + stderr).decode(\"utf-8\", \"replace\")",
+     "from process_boundary import (\n    ProcessFailure,\n    UndecodableOutput,\n    decode_output,",
+     "from process_boundary import (\n    ProcessFailure,\n    UndecodableOutput,\n    decode_path as decode_output,",
      "check_test_discovery.py"),
     ("DG3 unreadable output stops becoming a verdict",
-     "    if isinstance(exc, UnreadableTestOutput):\n"
+     "    if isinstance(exc, UndecodableOutput):\n"
      "        return \"FAIL a test run produced output that was not valid UTF-8\"",
      "    if False:\n"
      "        return \"FAIL a test run produced output that was not valid UTF-8\"",
@@ -591,8 +624,10 @@ MUTATIONS = [
      "            None, None, capture_detail(\"HTTP framing failure\", exc), \"response-framing\"",
      "            None, None, capture_detail(\"HTTP framing failure\", exc), \"before-response\""),
     ("Y3 a framing failure classified as unavailability",
-     "    \"response-framing\": \"RESPONSE_CAPTURE_FAILED\",",
-     "    \"response-framing\": \"UNAVAILABLE\","),
+     "    \"response-framing\": \"RESPONSE_CAPTURE_FAILED\",\n"
+     "    \"after-headers\": \"RESPONSE_CAPTURE_FAILED\",\n}\n# The reason a stage implies",
+     "    \"response-framing\": \"UNAVAILABLE\",\n"
+     "    \"after-headers\": \"RESPONSE_CAPTURE_FAILED\",\n}\n# The reason a stage implies"),
     ("Y4 the response read narrows back to the one exception already fixed",
      "    except (OSError, ValueError, http.client.HTTPException) as exc:",
      "    except (OSError, ValueError, http.client.IncompleteRead) as exc:"),
@@ -603,8 +638,10 @@ MUTATIONS = [
      "    if isinstance(exc, http.client.HTTPException):\n        return f\"{prefix}: {type(exc).__name__}\"",
      "    if False:\n        return f\"{prefix}: {type(exc).__name__}\""),
     ("Y7 the probe files a framing failure as an unreachable endpoint",
-     "        elif sent.stage in (\"after-headers\", \"response-framing\"):",
-     "        elif sent.stage == \"after-headers\":"),
+     "PROBE_STAGE_CAUSE = {\n    \"no-credential\": \"AUTH_FAILURE\",\n"
+     "    \"response-framing\": \"RESPONSE_CAPTURE_FAILED\",",
+     "PROBE_STAGE_CAUSE = {\n    \"no-credential\": \"AUTH_FAILURE\",\n"
+     "    \"response-framing\": \"TRANSPORT_FAILURE\","),
 
     # -- Z: a gate answers for any input, including none --
     ("Z1 the discovery verdict indexes an empty list again",
@@ -636,11 +673,14 @@ MUTATIONS = [
       ""],
      "check_clean_tree.py"),
     ("W4 a failed setup command stops being an error",
-     "    if proc.returncode != 0:\n        raise GitUnavailable(\n            f\"self-test setup:",
-     "    if False:\n        raise GitUnavailable(\n            f\"self-test setup:",
+     "        raise GitUnavailable(\n"
+     "            f\"self-test setup: `{described(['git', *args])}` exited \"",
+     "        del proc\n"
+     "        _unused = (\n"
+     "            f\"self-test setup: `{described(['git', *args])}` exited \"",
      "check_clean_tree.py"),
     ("W5 the setup failure stops naming the command that failed",
-     "            f\"self-test setup: `git {' '.join(args)}` exited {proc.returncode}: \"",
+     "            f\"self-test setup: `{described(['git', *args])}` exited \"",
      "            f\"self-test setup: a git command failed: \"",
      "check_clean_tree.py"),
 
@@ -703,6 +743,176 @@ MUTATIONS = [
      "            \"tool_calls\": message[\"tool_calls\"],",
      "            \"tool_calls\": [{\"id\": c[\"id\"], \"type\": \"function\", \"function\": "
      "{\"name\": c[\"name\"], \"arguments\": c[\"raw_arguments\"]}} for c, _ in decoded],"),
+
+    # -- DF: the durable-field inventory ------------------------------------
+    #
+    # The inventory is the round's central claim, so it gets the round's
+    # central positive controls. Each of these makes the table stop enumerating
+    # something, and each must make the gate stop being green.
+
+    ("DF1 audit skips a leaf no policy names",
+     "        except KeyError as exc:\n"
+     "            findings.append(str(exc).strip(\"'\"))\n"
+     "            continue",
+     "        except KeyError as exc:\n"
+     "            del exc\n"
+     "            continue",
+     "receipt_policy.py"),
+
+    ("DF2 a bounded integer accepts a bool",
+     "        if type(value) is not int:\n"
+     "            return [f\"{type(value).__name__} is not an integer\"]",
+     "        if not isinstance(value, int):\n"
+     "            return [f\"{type(value).__name__} is not an integer\"]",
+     "receipt_policy.py"),
+
+    ("DF3 a bounded integer loses its ceiling",
+     "        if not self.low <= value <= top:\n"
+     "            return [f\"integer outside {self.low}..{top}\"]",
+     "        if value < self.low:\n"
+     "            return [f\"integer outside {self.low}..{top}\"]",
+     "receipt_policy.py"),
+
+    ("DF4 a digest field accepts any string",
+     "        if not isinstance(value, str) or not re.fullmatch(r\"[0-9a-f]{64}\", value):\n"
+     "            return [\"not a sha256 digest\"]",
+     "        if not isinstance(value, str):\n"
+     "            return [\"not a sha256 digest\"]",
+     "receipt_policy.py"),
+
+    ("DF5 prose stops checking its vocabulary",
+     "            elif token not in allowed:\n"
+     "                found.append(f\"the word {token!r} is not one this module wrote\")",
+     "            elif False:\n"
+     "                found.append(f\"the word {token!r} is not one this module wrote\")",
+     "receipt_policy.py"),
+
+    ("DF6 prose stops checking its alphabet",
+     "        if not PROSE_ALPHABET.match(residue):",
+     "        if False and not PROSE_ALPHABET.match(residue):",
+     "receipt_policy.py"),
+
+    ("DF7 two owners of one field stop being reported",
+     "    for path, count in sorted(seen.items()):\n        if count > 1:",
+     "    for path, count in sorted(seen.items()):\n        if count > 2:",
+     "receipt_policy.py"),
+
+    ("DF8 a digest policy may name an undeclared domain",
+     "        if self.domain not in pm.EVIDENCE_DOMAINS:\n"
+     "            return [f\"domain {self.domain!r} is not declared in EVIDENCE_DOMAINS\"]",
+     "        if False:\n"
+     "            return [f\"domain {self.domain!r} is not declared in EVIDENCE_DOMAINS\"]",
+     "receipt_policy.py"),
+
+    # The context is what "local" is checked against. Read out of the artifact
+    # under audit, every `Local` policy degrades to "this value equals itself".
+    ("DF9 the local facts are read out of the artifact being audited",
+     "        \"requested_model\": target[\"model\"],",
+     "        \"requested_model\": receipt.get(\"requested_model\"),",
+     "receipt_policy.py"),
+
+    ("DF10 a local field accepts a value that is not the local one",
+     "        return [] if value == expected else [f\"{value!r} is not the local {self.source}\"]",
+     "        return []",
+     "receipt_policy.py"),
+
+    # -- VD: one owner for every verdict ------------------------------------
+
+    ("VD1 apply_decision stops checking the schema's vocabulary",
+     "    if decision.classification not in admissible_classifications(receipt.get(\"schema\", \"\")):",
+     "    if False:"),
+
+    ("VD2 apply_decision stops checking the reason vocabulary",
+     "    if decision.reason not in DECISION_REASONS:\n"
+     "        raise ValueError(f\"unknown decision reason {decision.reason!r}\")",
+     "    if decision.reason not in DECISION_REASONS + (\"\",):\n"
+     "        raise ValueError(f\"unknown decision reason {decision.reason!r}\")"),
+
+    ("VD3 a missing credential is filed as a transport failure",
+     "PROBE_STAGE_CAUSE = {\n    \"no-credential\": \"AUTH_FAILURE\",",
+     "PROBE_STAGE_CAUSE = {\n    \"no-credential\": \"TRANSPORT_FAILURE\","),
+
+    ("VD4 the probe reducer puts content above identity",
+     "    if facts.model_status == \"drifted\":\n"
+     "        return Decision(\n"
+     "            \"PROVIDER_SUBSTITUTED\", \"identity-substituted\",\n"
+     "            \"the response named a model other than the one requested\",\n"
+     "        )",
+     "    if facts.output_state == \"matched\" and facts.model_status == \"drifted\":\n"
+     "        return Decision(\"PASS\", \"probe-token-matched\", \"the completion carried the probe token\")"),
+
+    ("VD5 a canary mismatch outranks an unestablished identity",
+     "    if facts.model_status != \"verified\":\n"
+     "        return Decision(\n"
+     "            MODEL_STATUS_VERDICT.get(facts.model_status, \"MODEL_IDENTITY_MISSING\"),",
+     "    if facts.model_status != \"verified\" and not facts.canary_errors:\n"
+     "        return Decision(\n"
+     "            MODEL_STATUS_VERDICT.get(facts.model_status, \"MODEL_IDENTITY_MISSING\"),"),
+
+    ("VD6 the transport reason falls back to the turn-outcome vocabulary",
+     "    return STAGE_REASON.get(sent.stage, \"connection-failed\")",
+     "    return STAGE_OUTCOME.get(sent.stage, \"transport-failure\")"),
+
+    ("VD7 the recorded timeout is whatever was passed in",
+     "    if not math.isfinite(timeout) or not 0 < timeout <= TIMEOUT_MAX_SECS:\n"
+     "        raise ValueError(f\"timeout must be in (0, {TIMEOUT_MAX_SECS}]\")",
+     "    if False:\n"
+     "        raise ValueError(f\"timeout must be in (0, {TIMEOUT_MAX_SECS}]\")"),
+
+    ("VD8 the recorded latency loses its clamp",
+     "    return min(max(round((time.time() - started) * 1000), 0), LATENCY_MAX_MS)",
+     "    return round((time.time() - started) * 1000)"),
+
+    # -- PB: one owner for every subprocess ---------------------------------
+    #
+    # Every one of these is a defect that shipped in a gate at some point, or
+    # would have if the second gate had been reviewed at the same time as the
+    # first. They now live in one file, so one mutation reaches every caller —
+    # which is the argument for the file.
+
+    ("PB1 the boundary lets the standard library decode",
+     "            list(argv), cwd=cwd, env=env, timeout=timeout,\n"
+     "            capture_output=True, text=False,",
+     "            list(argv), cwd=cwd, env=env, timeout=timeout,\n"
+     "            capture_output=True, text=True,",
+     "process_boundary.py"),
+
+    ("PB2 output that is not UTF-8 is silently repaired",
+     "    try:\n"
+     "        return data.decode(\"utf-8\", \"strict\")\n"
+     "    except UnicodeDecodeError:\n"
+     "        raise UndecodableOutput from None",
+     "    return data.decode(\"utf-8\", \"replace\")",
+     "process_boundary.py"),
+
+    ("PB3 a failure message repeats the child's stderr",
+     "        return f\"{len(self.stderr)} bytes of stderr\"",
+     "        return self.stderr.decode(\"utf-8\", \"replace\")[:400]",
+     "process_boundary.py"),
+
+    ("PB4 a command line is reported as a repr of a list",
+     "    if isinstance(argv, (list, tuple)):\n"
+     "        return \" \".join(str(part) for part in argv)\n"
+     "    return str(argv)",
+     "    return repr(argv)",
+     "process_boundary.py"),
+
+    ("PB5 a stalled child is no longer caught",
+     "    except subprocess.TimeoutExpired:\n"
+     "        raise ProcessTimeout(f\"`{described(argv)}` exceeded {timeout}s\") from None",
+     "    except KeyboardInterrupt:\n"
+     "        raise ProcessTimeout(f\"`{described(argv)}` exceeded {timeout}s\") from None",
+     "process_boundary.py"),
+
+    ("PB6 a path that is not UTF-8 takes the gate down",
+     "    return os.fsdecode(data)",
+     "    return data.decode(\"utf-8\", \"strict\")",
+     "process_boundary.py"),
+
+    ("PB7 output is printed with nothing rendered safe",
+     "    return text.encode(\"utf-8\", \"backslashreplace\").decode(\"ascii\", \"backslashreplace\")",
+     "    return text",
+     "process_boundary.py"),
 ]
 
 
@@ -732,19 +942,39 @@ def spec_problems(specs: list) -> list[str]:
     return problems
 
 
-# How to ask each mutated file "are you still working". For the module under
-# test that is the suite; for a gate it is the gate's own positive control,
-# because a gate is proven by its ability to fail, not by the suite passing.
-GATE_SELF_TESTS = {
-    "check_clean_tree.py": ["check_clean_tree.py", "--self-test"],
-    "check_test_discovery.py": ["check_test_discovery.py", "--self-test"],
+# What may be asked whether a mutated file still works.
+#
+# The old shape was a dichotomy: a gate was qualified by its own `--self-test`
+# and *only* by it, everything else by the suite and only by it. That was
+# written down as a known limit, and a known limit that stays written down for
+# five rounds is a design decision. It cost real coverage: a mutation to a gate
+# that the suite would have caught was reported as killed by a self-test that
+# never looked, and a mutation to `process_boundary.py` — which two gates and
+# the suite all depend on — had exactly one oracle by accident of filename.
+#
+# So a target names its oracles, plural, and is killed when **any** of them
+# turns red. The harness reports which one did, because "it died" and "it died
+# where I expected" are different facts and only the second is evidence.
+SUITE = ("suite", ["-m", "unittest", "test_provider_matrix.py"])
+DISCOVERY_GATE = ("discovery-gate", ["check_test_discovery.py", "--self-test"])
+CLEAN_TREE_GATE = ("clean-tree-gate", ["check_clean_tree.py", "--self-test"])
+POLICY_GATE = ("policy-gate", ["receipt_policy.py", "--self-test"])
+
+MUTATION_TARGETS: dict[str, tuple[tuple[str, list[str]], ...]] = {
+    "provider_matrix.py": (SUITE, POLICY_GATE),
+    "test_provider_matrix.py": (SUITE,),
+    "mutations.py": (SUITE,),
+    "receipt_policy.py": (POLICY_GATE, SUITE),
+    # Both gates and the suite depend on it, so all three may object. Before
+    # this table it had one oracle, chosen by nothing but which `if` its
+    # filename fell into.
+    "process_boundary.py": (DISCOVERY_GATE, CLEAN_TREE_GATE, SUITE),
+    "check_clean_tree.py": (CLEAN_TREE_GATE, SUITE),
+    "check_test_discovery.py": (DISCOVERY_GATE, SUITE),
 }
 
 
-def run_gate(workdir: Path, filename: str) -> tuple[bool, str]:
-    argv = GATE_SELF_TESTS.get(filename)
-    if argv is None:
-        return run_suite(workdir)
+def run_oracle(workdir: Path, argv: list[str]) -> tuple[bool, str]:
     env = dict(os.environ, PYTHONPATH=str(CORPUS_TOOLS), PYTHONDONTWRITEBYTECODE="1")
     try:
         proc = subprocess.run(
@@ -752,24 +982,27 @@ def run_gate(workdir: Path, filename: str) -> tuple[bool, str]:
             env=env, timeout=SUITE_TIMEOUT,
         )
     except subprocess.TimeoutExpired:
-        return False, f"timed out after {SUITE_TIMEOUT}s"
-    tail = (proc.stdout + proc.stderr).strip().splitlines()
-    return proc.returncode == 0, tail[-1] if tail else "(no output)"
-
-
-def run_suite(workdir: Path) -> tuple[bool, str]:
-    env = dict(os.environ, PYTHONPATH=str(CORPUS_TOOLS), PYTHONDONTWRITEBYTECODE="1")
-    try:
-        proc = subprocess.run(
-            [sys.executable, "-m", "unittest", "test_provider_matrix.py"],
-            cwd=workdir, capture_output=True, text=True, env=env, timeout=SUITE_TIMEOUT,
-        )
-    except subprocess.TimeoutExpired:
-        # A mutation that makes the suite loop is not green, and a harness that
+        # A mutation that makes an oracle loop is not green, and a harness that
         # blocks on it reports nothing at all. Not-green is the honest reading.
         return False, f"timed out after {SUITE_TIMEOUT}s"
     tail = (proc.stdout + proc.stderr).strip().splitlines()
     return proc.returncode == 0, tail[-1] if tail else "(no output)"
+
+
+def run_gate(workdir: Path, filename: str) -> tuple[bool, str]:
+    """Ask every oracle this target names, stopping at the first red one."""
+    oracles = MUTATION_TARGETS.get(filename)
+    if oracles is None:
+        return True, f"no oracle is declared for {filename}"
+    for label, argv in oracles:
+        ok, verdict = run_oracle(workdir, argv)
+        if not ok:
+            return False, f"{label}: {verdict}"
+    return True, "every oracle stayed green"
+
+
+def run_suite(workdir: Path) -> tuple[bool, str]:
+    return run_oracle(workdir, list(SUITE[1]))
 
 
 def main() -> int:
@@ -779,6 +1012,12 @@ def main() -> int:
         print("FAIL the mutation list is not honest about its own size:")
         for line in problems:
             print(f"  {line}")
+        return 2
+    unnamed = {spec[3] if len(spec) > 3 else DEFAULT_TARGET for spec in MUTATIONS} - set(MUTATION_TARGETS)
+    if unnamed:
+        print("FAIL a mutation targets a file with no declared oracle:")
+        for name in sorted(unnamed):
+            print(f"  {name}")
         return 2
     failures: list[str] = []
     with tempfile.TemporaryDirectory() as tmp:

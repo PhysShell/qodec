@@ -26,10 +26,18 @@ Exit 0 when clean, 1 when dirty or when a self-test fails.
 from __future__ import annotations
 
 import os
-import subprocess
 import sys
 import tempfile
 from pathlib import Path
+
+from process_boundary import (
+    CompletedBytes,
+    ProcessFailure,
+    decode_path,
+    described,
+    printable,
+    run_bytes,
+)
 
 TIMEOUT = 120
 
@@ -45,29 +53,26 @@ class GitUnavailable(RuntimeError):
     """
 
 
-def git(*args: str, cwd: Path, env: dict[str, str] | None = None) -> subprocess.CompletedProcess[str]:
-    """Run git and return the result. A nonzero exit is a value, not an error.
+def git(*args: str, cwd: Path, env: dict[str, str] | None = None) -> CompletedBytes:
+    """Run git and return its bytes. A nonzero exit is a value, not an error.
 
     `status` and `diff` use their exit codes to *mean* something, so the caller
     reads them. Setup commands do not — see `must_git`.
+
+    Bytes, because git's output is not text in the sense a locale means: a
+    repository may contain a filename that is any byte sequence at all, and
+    `text=True` would raise `UnicodeDecodeError` from inside `subprocess.run`,
+    where neither the timeout nor the `OSError` handler reaches it. That is the
+    defect this gate's sibling had, found a round apart, which is why the
+    boundary now lives in one module for both.
     """
     try:
-        return subprocess.run(
-            ["git", *args], cwd=cwd, capture_output=True, text=True, timeout=TIMEOUT, env=env
-        )
-    except subprocess.TimeoutExpired as exc:
-        raise GitUnavailable(
-            f"`git {' '.join(args)}` in {cwd} exceeded {TIMEOUT}s; a stalled "
-            "git leaves the state of the tree unknown, which is not clean"
-        ) from exc
-    except OSError as exc:
-        # `timeout=` was already passed here; what was missing was anyone to
-        # catch what it throws. The same was true of a missing git, so both
-        # arrive as one reported outcome rather than two tracebacks.
-        raise GitUnavailable(f"could not run `git {' '.join(args)}` in {cwd}: {exc}") from exc
+        return run_bytes(["git", *args], cwd=cwd, env=env, timeout=TIMEOUT)
+    except ProcessFailure as exc:
+        raise GitUnavailable(str(exc)) from None
 
 
-def must_git(*args: str, cwd: Path, env: dict[str, str] | None = None) -> subprocess.CompletedProcess[str]:
+def must_git(*args: str, cwd: Path, env: dict[str, str] | None = None) -> CompletedBytes:
     """A git command whose failure is a broken self-test, not a finding.
 
     Every setup step used to be fired and forgotten. A seed commit that did not
@@ -79,11 +84,49 @@ def must_git(*args: str, cwd: Path, env: dict[str, str] | None = None) -> subpro
     """
     proc = git(*args, cwd=cwd, env=env)
     if proc.returncode != 0:
+        # The size of stderr, never its contents. Keeping the first four hundred
+        # bytes was the wrong half of the fix: they are the child's choice
+        # however few of them survive, and this string is printed.
         raise GitUnavailable(
-            f"self-test setup: `git {' '.join(args)}` exited {proc.returncode}: "
-            f"{proc.stderr.strip()[:400]}"
+            f"self-test setup: `{described(['git', *args])}` exited "
+            f"{proc.returncode} ({proc.stderr_size()})"
         )
     return proc
+
+
+def status_records(raw: bytes) -> list[str]:
+    """`--porcelain=v1 -z` records, rendered without letting any byte through.
+
+    `-z` because the line-oriented form quotes and escapes paths *for a
+    terminal*, and a repository may contain a filename that is any byte
+    sequence: newlines included, which would turn one entry into two. NUL is
+    the only separator git guarantees will not appear in a path.
+
+    Rename and copy records carry a second path, so the source is consumed with
+    its record rather than counted as an entry of its own.
+
+    What comes back is `printable`: the two-character status is git's own closed
+    vocabulary, and the path is escaped, so nothing raw reaches a terminal.
+    """
+    fields = raw.split(b"\0")
+    if fields and fields[-1] == b"":
+        fields.pop()
+    records: list[str] = []
+    index = 0
+    while index < len(fields):
+        entry = fields[index]
+        index += 1
+        if not entry:
+            continue
+        code, _, path = entry.partition(b" ")
+        if code[:1] in (b"R", b"C") and index < len(fields):
+            source = fields[index]
+            index += 1
+            records.append(printable(
+                f"{decode_path(code)} {decode_path(source)} -> {decode_path(path)}"))
+            continue
+        records.append(printable(f"{decode_path(code)} {decode_path(path)}"))
+    return records
 
 
 def dirt(root: Path, env: dict[str, str] | None = None) -> list[str]:
@@ -93,17 +136,19 @@ def dirt(root: Path, env: dict[str, str] | None = None) -> list[str]:
     rather than as one forgettable entry, and `--ignored` deliberately *not*
     passed: build output is not dirt.
     """
-    status = git("status", "--porcelain", "--untracked-files=all", cwd=root, env=env)
+    status = git("status", "--porcelain=v1", "-z", "--untracked-files=all", cwd=root, env=env)
     if status.returncode != 0:
-        return [f"git status failed: {status.stderr.strip()}"]
-    lines = [line for line in status.stdout.splitlines() if line.strip()]
+        # The size of stderr, not its contents: git wrote it, and this line is
+        # printed and may be pasted into an issue.
+        return [f"git status exited {status.returncode} ({status.stderr_size()})"]
+    lines = status_records(status.stdout)
 
     # `git status` covers staged, unstaged and untracked. `git diff HEAD` is
     # kept as a second opinion: if the two ever disagree, that disagreement is
     # itself worth failing on rather than resolving in favour of the quiet one.
     diff = git("diff", "--exit-code", "HEAD", "--", cwd=root, env=env)
     if diff.returncode not in (0, 1):
-        lines.append(f"git diff failed: {diff.stderr.strip()}")
+        lines.append(f"git diff exited {diff.returncode} ({diff.stderr_size()})")
     elif diff.returncode == 1 and not lines:
         lines.append("git diff reports changes that git status did not")
     return lines
@@ -172,7 +217,9 @@ def repo_root(start: Path | None = None) -> Path:
     top = git("rev-parse", "--show-toplevel", cwd=here)
     if top.returncode != 0:
         raise GitUnavailable(f"{here} is not inside a git checkout")
-    return Path(top.stdout.strip())
+    # `os.fsdecode`, not a locale-driven decode: a checkout may live under a
+    # path the locale cannot read, and the answer is a path we then open.
+    return Path(decode_path(top.stdout.strip()))
 
 
 def self_test() -> int:

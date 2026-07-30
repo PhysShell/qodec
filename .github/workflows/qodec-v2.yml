@@ -55,6 +55,14 @@ jobs:
       # transport.
       - name: Provider qualification canary (model-free)
         run: python3 -m unittest discover -s evals/provider-matrix -p 'test_*.py' -t evals/provider-matrix
+      # The durable-field inventory, as its own step. It is exercised inside the
+      # suite above against receipts the canary really produces; this runs its
+      # own positive controls — a receipt with an unnamed leaf, an unbounded
+      # integer, a foreign word in a detail line, two policies claiming one
+      # field — and requires every one of them to be refused. A table that has
+      # never refused anything is a table nobody has tested.
+      - name: The durable-field policy can refuse a receipt
+        run: python3 evals/provider-matrix/receipt_policy.py --self-test
       # `unittest.main()` once sat above fourteen test classes, so the direct
       # invocation ran fewer than half of them and printed OK. CI uses
       # `-m unittest`, which imports first and is unaffected — so the hole was

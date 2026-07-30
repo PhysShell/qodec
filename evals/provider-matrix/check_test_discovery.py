@@ -25,10 +25,17 @@ Exit 0 when both runs report the same test ids, 1 otherwise.
 from __future__ import annotations
 
 import re
-import subprocess
 import sys
 import tempfile
 from pathlib import Path
+
+from process_boundary import (
+    ProcessFailure,
+    UndecodableOutput,
+    decode_output,
+    described,
+    run_bytes,
+)
 
 HERE = Path(__file__).resolve().parent
 MODULE = "test_provider_matrix"
@@ -38,36 +45,17 @@ TIMEOUT = 600
 TEST_LINE = re.compile(r"^(\S+) \(([^)]+)\)")
 
 
-class UnreadableTestOutput(RuntimeError):
-    """A child wrote bytes this gate cannot read as text.
-
-    Its own type is the whole message. `UnicodeDecodeError`'s text quotes the
-    offending bytes, which came from outside, and printing it would put them in
-    the report — the same reasoning that keeps a provider's error prose out of a
-    receipt, applied to a subprocess.
-    """
-
-
+# The decoding policy for this gate's children, declared rather than defaulted:
+# a Python test run's output contract is UTF-8, so bytes outside it are a broken
+# contract and become a typed failure.
 def decode_test_output(stdout: bytes, stderr: bytes) -> str:
-    """Decode a child's output, or say that it could not be decoded.
-
-    `subprocess.run(..., text=True)` decodes inside the standard library using
-    the host locale, and raises `UnicodeDecodeError` — a `ValueError`, not an
-    `OSError` — from inside the call. So the decision "is this output readable"
-    was being made by a library, in a place no handler covered, and the answer
-    left as a traceback out of a gate whose only job is to print a verdict.
-    Reading bytes and decoding here makes the failure this gate's own.
-    """
-    try:
-        return (stdout + stderr).decode("utf-8", "strict")
-    except UnicodeDecodeError:
-        raise UnreadableTestOutput from None
+    """Decode a child's output under this gate's declared policy."""
+    return decode_output(stdout + stderr)
 
 
 def ids_from(argv: list[str], cwd: Path | None = None) -> tuple[set[str], str]:
-    proc = subprocess.run(
-        [sys.executable, *argv, "-v"],
-        cwd=cwd or HERE, capture_output=True, text=False, timeout=TIMEOUT,
+    proc = run_bytes(
+        [sys.executable, *argv, "-v"], cwd=cwd or HERE, timeout=TIMEOUT,
     )
     combined = decode_test_output(proc.stdout, proc.stderr)
     found = set()
@@ -100,13 +88,6 @@ def disagreements(direct: set[str], module: set[str]) -> tuple[list[str], list[s
     return sorted(module - direct), sorted(direct - module)
 
 
-def described(cmd: object) -> str:
-    """A command line as a line, not as a repr of a list of strings."""
-    if isinstance(cmd, (list, tuple)):
-        return " ".join(str(part) for part in cmd)
-    return str(cmd)
-
-
 def verdict_for(exc: BaseException) -> str:
     """The line this gate prints for a failure it can suffer.
 
@@ -115,12 +96,11 @@ def verdict_for(exc: BaseException) -> str:
     reach cannot be killed by any mutation. As a function it is reachable, and
     the control checks it.
 
-    `UnreadableTestOutput` prints no detail on purpose: the only detail
-    available is the bytes that caused it.
+    `UndecodableOutput` prints no detail on purpose: the only detail available
+    is the bytes that caused it. The others carry a command line and a class
+    name, both of which this module chose.
     """
-    if isinstance(exc, subprocess.TimeoutExpired):
-        return f"FAIL a test run exceeded {TIMEOUT}s: {described(exc.cmd)}"
-    if isinstance(exc, UnreadableTestOutput):
+    if isinstance(exc, UndecodableOutput):
         return "FAIL a test run produced output that was not valid UTF-8"
     return f"FAIL could not run the suite: {exc}"
 
@@ -164,7 +144,7 @@ def self_test() -> int:
         (work / "unreadable_case.py").write_text(UNREADABLE, encoding="utf-8")
         try:
             ids_from(["unreadable_case.py"], work)
-        except UnreadableTestOutput:
+        except UndecodableOutput:
             pass
         else:
             print("FAIL output that is not valid UTF-8 was not reported as unreadable")
@@ -173,7 +153,7 @@ def self_test() -> int:
         # And the failure has to become a verdict, not merely a distinct
         # exception. This is the branch `main` takes, checked here because the
         # control is what qualifies a mutated gate.
-        spoken = verdict_for(UnreadableTestOutput())
+        spoken = verdict_for(UndecodableOutput())
         if "not valid UTF-8" not in spoken:
             print(f"FAIL unreadable output is not reported as a verdict: {spoken!r}")
             return 1
@@ -195,7 +175,7 @@ def main() -> int:
             return self_test()
         direct, direct_verdict = ids_from([f"{MODULE}.py"])
         module, module_verdict = ids_from(["-m", "unittest", MODULE])
-    except (subprocess.TimeoutExpired, UnreadableTestOutput, OSError) as exc:
+    except ProcessFailure as exc:
         print(verdict_for(exc))
         return 1
 
