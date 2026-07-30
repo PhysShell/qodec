@@ -280,8 +280,8 @@ MUTATIONS = [
      "                if decoded.decode(\"utf-8\") != shown:",
      "                if False:"),
     ("I6 unknown envelope fields tolerated",
-     "        f\"{label}: unknown field {key!r} in byte value envelope\"\n        for key in value\n        if key not in ENVELOPE_FIELDS",
-     "        f\"{label}: unknown field {key!r} in byte value envelope\"\n        for key in value\n        if False"),
+     "        for key in value\n        if key not in ENVELOPE_FIELDS",
+     "        for key in value\n        if False"),
     ("I7 a wrong envelope encoding tolerated",
      "    if value.get(\"encoding\") != ENVELOPE_ENCODING:",
      "    if False:"),
@@ -313,8 +313,9 @@ MUTATIONS = [
      "    if not credential_is_header_safe(key):",
      "    if False:"),
     ("L3 the crash receipt repeats the exception message",
-     "                \"provider-matrix raised an internal exception\",",
-     "                str(exc),"),
+     "            Decision(\"INTERNAL_ERROR\", \"internal-exception\", LocalDetail(\"internal-exception\")),",
+     "            Decision(\"INTERNAL_ERROR\", \"internal-exception\",\n"
+     "                     LocalDetail(\"arguments-invalid-json\", (opaque_ref(\"tool-name\", str(exc)),))),"),
     # The same projection for both catch sites, or the second one is a channel
     # with a pedigree: `type(\"BearerSecretValue\", (Exception,), {})` is a class
     # an injected sender can raise, and it reached a receipt verbatim for four
@@ -496,8 +497,8 @@ MUTATIONS = [
      "    if isinstance(reported, str) and reported == requested:",
      "    if isinstance(reported, str):"),
     ("DP12 the undeclared tool names spelled out in the detail",
-     "                + \", \".join(opaque_ref(\"tool-name\", name) for name in unknown)",
-     "                + \", \".join(unknown)"),
+     "                len(unknown), tuple(opaque_ref(\"tool-name\", name) for name in unknown)))",
+     "                len(unknown), tuple(opaque_ref(\"json-value\", n) for n in sorted(unknown))))"),
     ("DP13 the schema validator's text written to the receipt",
      "                record.update(evidence)",
      "                record[\"argument_errors\"] = errors"),
@@ -514,15 +515,18 @@ MUTATIONS = [
      "    return hashlib.sha256(EVIDENCE_DOMAINS[domain] + evidence_bytes(value)).hexdigest()",
      "    return hashlib.sha256(evidence_bytes(value)).hexdigest()"),
 
+    # The discriminator itself is now a typed value, so the mutation is one
+    # level in: a role the provider chose reported as if it were one of ours.
     ("DP18 the raw assistant role written into the detail",
-     "             f\"tool calls arrived under role {discriminator('message-role', role, MESSAGE_ROLES)}, \"",
-     "             f\"tool calls arrived under role {role!r}, \""),
-    ("DP19 the raw tool call type written into the detail",
-     "                 f\"tool call type was {discriminator('tool-call-type', kind, TOOL_CALL_TYPES)}, \"",
-     "                 f\"tool call type was {kind!r}, \""),
+     "        return Discriminator(domain, known=value)",
+     "        return Discriminator(domain, known=value)  # noqa\n    if isinstance(value, str):\n"
+     "        return Discriminator(domain, known=known[0]) if value else Discriminator(domain, known=known[0])"),
+    ("DP19 an unknown discriminator reported as a known one",
+     "    if isinstance(value, str) and value in known:\n        return Discriminator(domain, known=value)",
+     "    if isinstance(value, str):\n        return Discriminator(domain, known=known[0])"),
     ("DP20 a non-string discriminator hashed instead of typed",
-     "    return f\"<{domain} {json_type_name(value)}>\"",
-     "    return opaque_ref(domain, value)"),
+     "    return Discriminator(domain, json_type=json_type_name(value))",
+     "    return Discriminator(domain, ref=opaque_ref(domain, value))"),
     ("DP21 usage counters lose their upper bound",
      "        if type(count) is int and 0 <= count <= bounds[name]:",
      "        if type(count) is int and 0 <= count:"),
@@ -835,11 +839,10 @@ MUTATIONS = [
     ("VD4 the probe reducer puts content above identity",
      "    if facts.model_status == \"drifted\":\n"
      "        return Decision(\n"
-     "            \"PROVIDER_SUBSTITUTED\", \"identity-substituted\",\n"
-     "            \"the response named a model other than the one requested\",\n"
-     "        )",
+     "            \"PROVIDER_SUBSTITUTED\", \"identity-substituted\", LocalDetail(\"probe-substituted\"))",
      "    if facts.output_state == \"matched\" and facts.model_status == \"drifted\":\n"
-     "        return Decision(\"PASS\", \"probe-token-matched\", \"the completion carried the probe token\")"),
+     "        return Decision(\n"
+     "            \"PASS\", \"probe-token-matched\", LocalDetail(\"probe-token-matched\"))"),
 
     ("VD5 a canary mismatch outranks an unestablished identity",
      "    if facts.model_status != \"verified\":\n"
@@ -913,6 +916,95 @@ MUTATIONS = [
      "    return text.encode(\"utf-8\", \"backslashreplace\").decode(\"ascii\", \"backslashreplace\")",
      "    return text",
      "process_boundary.py"),
+
+    # -- TP: a detail is constructed, not composed ---------------------------
+    #
+    # The lexical check that came before this could not tell a line this module
+    # rendered from a line that merely looks like one. These are that gap, one
+    # mutation each: remove the template, widen a slot, let a raw string in.
+
+    ("TP1 the rendered line loses the template it came from",
+     "    receipt[\"detail_template\"] = decision.detail.template",
+     "    receipt[\"detail_template\"] = None"),
+
+    ("TP2 a turn's line loses the template it came from",
+     "    record[\"detail_template\"] = why.template",
+     "    record[\"detail_template\"] = \"no-terminal-answer\""),
+
+    ("TP3 a detail may be built from an unregistered template",
+     "        spec = DETAIL_TEMPLATES.get(self.template)\n"
+     "        if spec is None:\n"
+     "            raise ValueError(f\"unregistered detail template {self.template!r}\")",
+     "        spec = DETAIL_TEMPLATES.get(self.template, (\"{0}\", (\"count\",)))\n"
+     "        if False:\n"
+     "            raise ValueError(f\"unregistered detail template {self.template!r}\")"),
+
+    ("TP4 a slot stops checking what it was handed",
+     "            problem = slot_problem(slot, value)\n"
+     "            if problem is not None:",
+     "            problem = slot_problem(slot, value)\n"
+     "            if False:"),
+
+    ("TP5 a reference slot accepts a plain string",
+     "        return None if isinstance(value, OpaqueRef) else \"is not an opaque reference\"",
+     "        return None"),
+
+    ("TP6 a count slot loses its bound",
+     "        return (None if type(value) is int and 0 <= value <= DETAIL_MAX_COUNT\n"
+     "                else \"is not a bounded count\")",
+     "        return None if isinstance(value, int) else \"is not a bounded count\""),
+
+    ("TP7 an enum slot accepts a member of any vocabulary",
+     "        return None if value in vocabulary(slot[5:]) else f\"is not a member of {slot[5:]}\"",
+     "        return None if isinstance(value, str) else f\"is not a member of {slot[5:]}\""),
+
+    ("TP8 the trusted local value becomes any local value",
+     "        return (None if isinstance(value, LocalValue) and value.source == \"key_env\"\n"
+     "                else \"is not the trusted key_env\")",
+     "        return None if isinstance(value, str) else \"is not the trusted key_env\""),
+
+    ("TP9 a digest may be shortened from anything",
+     "        if not re.fullmatch(r\"[0-9a-f]{64}\", digest):\n"
+     "            raise ValueError(\"a digest reference is built from a sha256 digest\")",
+     "        if False:\n"
+     "            raise ValueError(\"a digest reference is built from a sha256 digest\")"),
+
+    ("TP10 the rejected envelope character is spelled out again",
+     "            raise NoncanonicalEncoding(\n"
+     "                \"character-not-in-the-alphabet\", opaque_ref(\"json-value\", ch))",
+     "            raise NoncanonicalEncoding(\n"
+     "                \"character-not-in-the-alphabet\", opaque_ref(\"json-value\", ch, max_bytes=0))"),
+
+    ("TP11 the envelope's unknown field is spelled out again",
+     "        LocalDetail(\"envelope-unknown-field\", (label, opaque_ref(\"json-value\", key)))",
+     "        LocalDetail(\"envelope-unknown-field\", (label, opaque_ref(\"json-value\", key[:0])))"),
+
+    ("TP12 the provenance pass stops rebuilding the line",
+     "        if not isinstance(text, str) or not re.fullmatch(template_pattern(template, context), text):",
+     "        if False:",
+     "receipt_policy.py"),
+
+    ("TP13 the provenance pass admits a line with no template",
+     "        if template is None:\n"
+     "            if text:",
+     "        if template is None:\n"
+     "            if False:",
+     "receipt_policy.py"),
+
+    ("TP14 a slot pattern widens to anything",
+     "    if slot == \"count\":\n        return r\"\\d{1,7}\"",
+     "    if slot == \"count\":\n        return r\".*\"",
+     "receipt_policy.py"),
+
+    ("TP15 the trusted key_env in a line is no longer checked against the registry",
+     "        return re.escape(context[\"key_env\"])",
+     "        return r\"[A-Z_]+\"",
+     "receipt_policy.py"),
+
+    ("TP16 the canary's lines stop being rebuilt from their templates",
+     "            elif not re.fullmatch(template_pattern(name, context), line):",
+     "            elif False:",
+     "receipt_policy.py"),
 ]
 
 

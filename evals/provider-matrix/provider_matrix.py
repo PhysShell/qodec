@@ -137,6 +137,10 @@ EVIDENCE_MAX_BYTES = {
     "message-role": 128,
     "tool-call-type": 128,
     "failure-class": 256,
+    # An envelope field name, a claimed encoding, a base64 spelling, a single
+    # rejected character, a walked path. All provider-chosen, all named in a
+    # message rather than repeated in one.
+    "json-value": 4096,
 }
 
 
@@ -173,7 +177,112 @@ def opaque(prefix: str, domain: str, value: Any) -> dict[str, Any]:
     return opaque_text(prefix, domain, value, max_bytes=EVIDENCE_MAX_BYTES[domain])
 
 
-def opaque_ref(domain: str, value: Any, *, max_bytes: int | None = None) -> str:
+# ---------------------------------------------------------------------------
+# Typed values a message may be built from
+# ---------------------------------------------------------------------------
+#
+# A detail line used to be an f-string, and the check that it was safe was a
+# lexical one: no foreign word, no byte outside a local alphabet. That proves a
+# line *could* have been written here. It does not prove it *was* — `"timeout"`,
+# `"the completion carried the probe token"` and sixteen hex characters are all
+# things a provider can send verbatim, and all three satisfy a lexical check.
+#
+# This vertical has already withdrawn that argument twice: `str.isidentifier()`
+# for a failure class, then sixty-four hex characters for a digest. Syntax is
+# not provenance, and buying the lesson a third time would be a choice.
+#
+# So a message is not assembled from text at all. It is a registered template
+# plus typed arguments, and the only way a provider-chosen value can appear in
+# one is as an `OpaqueRef` — which carries a digest, a bounded length and a
+# domain, and no way to spell anything else.
+
+
+@dataclass(frozen=True)
+class OpaqueRef:
+    """A reference to a provider-chosen value. The only foreign thing in a line.
+
+    Constructed by `opaque_ref` and nowhere else; an AST gate refuses a string
+    literal shaped like one, because a hand-written `f"<handle sha256:{x} 4B>"`
+    would be a channel wearing the wrapper that exists to close it.
+    """
+
+    domain: str
+    digest16: str
+    shown_bytes: int
+    oversize: bool
+
+    def render(self) -> str:
+        return (f"<{self.domain} sha256:{self.digest16} "
+                f"{self.shown_bytes}{'+' if self.oversize else ''}B>")
+
+
+@dataclass(frozen=True)
+class DigestRef:
+    """A truncated digest of something already digested. One constructor."""
+
+    digest16: str
+
+    @classmethod
+    def of(cls, digest: str) -> "DigestRef":
+        """The only place a digest is shortened. `[:16]` elsewhere is refused."""
+        if not re.fullmatch(r"[0-9a-f]{64}", digest):
+            raise ValueError("a digest reference is built from a sha256 digest")
+        return cls(digest[:16])
+
+    def render(self) -> str:
+        return self.digest16
+
+
+@dataclass(frozen=True)
+class TypeName:
+    """A JSON or Python type name — a local word about a foreign thing."""
+
+    name: str
+
+    def __post_init__(self) -> None:
+        if self.name not in LOCAL_TYPE_NAMES:
+            raise ValueError(f"{self.name!r} is not a type name this module names")
+
+    @classmethod
+    def of(cls, value: Any) -> "TypeName":
+        name = type(value).__name__
+        return cls(name if name in LOCAL_TYPE_NAMES else "unknown")
+
+    def render(self) -> str:
+        return self.name
+
+
+@dataclass(frozen=True)
+class LocalValue:
+    """A value that came from a trusted local source, carrying which one.
+
+    `key_env` is the only member so far. The source travels with the value so
+    the durable-field inventory can check it against the registry rather than
+    against the receipt it is auditing.
+    """
+
+    source: str
+    value: str
+
+    def __post_init__(self) -> None:
+        if self.source not in LOCAL_VALUE_SOURCES:
+            raise ValueError(f"{self.source!r} is not a declared local source")
+
+    def render(self) -> str:
+        return self.value
+
+
+LOCAL_VALUE_SOURCES = ("key_env",)
+
+# Every type name this module is willing to write into a message. Closed,
+# because `type(x).__name__` is a provenance argument only for objects this
+# module built, and the ones it names here are the strict reader's own output.
+LOCAL_TYPE_NAMES = (
+    "dict", "list", "str", "int", "float", "bool", "NoneType", "bytes", "unknown",
+)
+
+
+def opaque_ref(domain: str, value: Any, *, max_bytes: int | None = None) -> OpaqueRef:
     """Name a provider-chosen value inside a local message without repeating it.
 
     Messages end up in `detail`, and `detail` ends up on disk. A message that
@@ -183,8 +292,7 @@ def opaque_ref(domain: str, value: Any, *, max_bytes: int | None = None) -> str:
     """
     ceiling = EVIDENCE_MAX_BYTES[domain] if max_bytes is None else max_bytes
     size = len(evidence_bytes(value))
-    shown = f"{min(size, ceiling)}{'+' if size > ceiling else ''}B"
-    return f"<{domain} sha256:{evidence_digest(domain, value)[:16]} {shown}>"
+    return OpaqueRef(domain, evidence_digest(domain, value)[:16], min(size, ceiling), size > ceiling)
 
 
 JSON_TYPE_NAMES = (
@@ -209,7 +317,24 @@ MESSAGE_ROLES = ("assistant", "system", "user", "tool")
 TOOL_CALL_TYPES = ("function",)
 
 
-def discriminator(domain: str, value: Any, known: tuple[str, ...]) -> str:
+@dataclass(frozen=True)
+class Discriminator:
+    """A provider-controlled discriminator, named safely. One constructor."""
+
+    domain: str
+    known: str | None = None
+    ref: OpaqueRef | None = None
+    json_type: str | None = None
+
+    def render(self) -> str:
+        if self.known is not None:
+            return repr(self.known)
+        if self.ref is not None:
+            return self.ref.render()
+        return f"<{self.domain} {self.json_type}>"
+
+
+def discriminator(domain: str, value: Any, known: tuple[str, ...]) -> Discriminator:
     """Name a provider-controlled discriminator in a message, safely.
 
     `f"role {role!r}"` reads like a harmless diagnostic and is a copy: `role`
@@ -220,10 +345,10 @@ def discriminator(domain: str, value: Any, known: tuple[str, ...]) -> str:
     the contract is that unrecognised objects and lists do not cross at all.
     """
     if isinstance(value, str) and value in known:
-        return repr(value)
+        return Discriminator(domain, known=value)
     if isinstance(value, str):
-        return opaque_ref(domain, value)
-    return f"<{domain} {json_type_name(value)}>"
+        return Discriminator(domain, ref=opaque_ref(domain, value))
+    return Discriminator(domain, json_type=json_type_name(value))
 
 
 # The counters, and nothing else. Anything outside this tuple is discarded
@@ -727,8 +852,57 @@ ENVELOPE_FIELDS = ("encoding", "data", "display_utf8")
 ENVELOPE_ENCODING = "base64url-nopad"
 
 
+# Why a spelling is not the canonical one, in this module's own words. The
+# offending character used to be interpolated into the message, and that message
+# reached `detail` through the canary's grading — a provider-chosen byte in a
+# committed receipt, wearing a sentence.
+NONCANONICAL_REASONS = (
+    "character-not-in-the-alphabet",
+    "dangling-character",
+    "non-zero-trailing-bits",
+)
+
+# Where an envelope was found. `answer` and `canned` are this module's own
+# words; a path walked out of provider-supplied arguments is not, so it crosses
+# as a reference.
+ENVELOPE_LABELS = ("answer", "canned")
+
+
+@dataclass(frozen=True)
+class EnvelopeLabel:
+    """Which envelope a complaint is about — a local word or a reference."""
+
+    known: str | None = None
+    ref: OpaqueRef | None = None
+
+    def __post_init__(self) -> None:
+        if (self.known is None) == (self.ref is None):
+            raise ValueError("an envelope label is either a local word or a reference")
+        if self.known is not None and self.known not in ENVELOPE_LABELS:
+            raise ValueError(f"{self.known!r} is not a declared envelope label")
+
+    def render(self) -> str:
+        return self.known if self.known is not None else self.ref.render()
+
+
 class NoncanonicalEncoding(ValueError):
-    """`data` is not the one canonical spelling of the bytes it denotes."""
+    """`data` is not the one canonical spelling of the bytes it denotes.
+
+    Carries a reason from a closed vocabulary and, when the cause is a single
+    character the provider chose, a reference to it — never the character.
+    """
+
+    def __init__(self, reason: str, ref: OpaqueRef | None = None) -> None:
+        if reason not in NONCANONICAL_REASONS:
+            raise ValueError(f"unknown noncanonical reason {reason!r}")
+        super().__init__(reason)
+        self.reason = reason
+        self.ref = ref
+
+    def detail(self, label: "EnvelopeLabel") -> "LocalDetail":
+        if self.ref is not None:
+            return LocalDetail("envelope-noncanonical-character", (label, self.ref))
+        return LocalDetail("envelope-noncanonical", (label, self.reason))
 
 
 def b64url_nopad_decode(text: str) -> bytes:
@@ -744,20 +918,19 @@ def b64url_nopad_decode(text: str) -> bytes:
     for ch in text:
         value = B64URL_VALUE.get(ch)
         if value is None:
+            # The character is the provider's, so it crosses as a reference.
+            # Interpolated, it reached `detail` through the canary's grading.
             raise NoncanonicalEncoding(
-                f"base64url-nopad rejects {ch!r}; padding and '+/' are not accepted"
-            )
+                "character-not-in-the-alphabet", opaque_ref("json-value", ch))
         acc = (acc << 6) | value
         bits += 6
         if bits >= 8:
             bits -= 8
             out.append((acc >> bits) & 0xFF)
     if bits >= 6:
-        raise NoncanonicalEncoding("base64url-nopad input has a dangling character")
+        raise NoncanonicalEncoding("dangling-character")
     if bits > 0 and (acc & ((1 << bits) - 1)) != 0:
-        raise NoncanonicalEncoding(
-            "base64url-nopad input has non-zero trailing bits; encoding is not canonical"
-        )
+        raise NoncanonicalEncoding("non-zero-trailing-bits")
     return bytes(out)
 
 
@@ -776,7 +949,7 @@ def b64url_nopad_encode(raw: bytes) -> str:
     return "".join(out)
 
 
-def envelope_errors(value: Any, label: str) -> tuple[list[str], bytes | None]:
+def envelope_errors(value: Any, label: EnvelopeLabel) -> tuple[list[LocalDetail], bytes | None]:
     """Validate one byte envelope with the strictness the crate applies.
 
     Schema keywords can reject an obviously wrong shape, but they cannot express
@@ -785,42 +958,47 @@ def envelope_errors(value: Any, label: str) -> tuple[list[str], bytes | None]:
     the caller does not decode a second time with a different rule.
     """
     if not isinstance(value, dict):
-        return [f"{label}: byte value envelope must be an object"], None
+        return [LocalDetail("envelope-not-object", (label,))], None
 
+    # Field names, the claimed encoding and `data` itself are all provider-chosen
+    # and were all interpolated here. These messages reach `detail` through the
+    # canary's grading, so each of the three now crosses as a reference.
     errors = [
-        f"{label}: unknown field {key!r} in byte value envelope"
+        LocalDetail("envelope-unknown-field", (label, opaque_ref("json-value", key)))
         for key in value
         if key not in ENVELOPE_FIELDS
     ]
     if value.get("encoding") != ENVELOPE_ENCODING:
-        errors.append(f"{label}: encoding must be {ENVELOPE_ENCODING!r}, got {value.get('encoding')!r}")
+        errors.append(LocalDetail("envelope-encoding", (
+            label, discriminator("json-value", value.get("encoding"), (ENVELOPE_ENCODING,)))))
 
     data = value.get("data")
     if not isinstance(data, str):
-        errors.append(f"{label}: envelope needs a string `data`")
+        errors.append(LocalDetail("envelope-data-not-string", (label,)))
         return errors, None
 
     try:
         decoded = b64url_nopad_decode(data)
     except NoncanonicalEncoding as exc:
-        errors.append(f"{label}: {exc}")
+        errors.append(exc.detail(label))
         return errors, None
 
     # Belt and braces over the bit checks above: if any spelling other than the
     # canonical one survived, the round trip is where it shows.
     if b64url_nopad_encode(decoded) != data:
-        errors.append(f"{label}: {data!r} is not the canonical spelling of the bytes it decodes to")
+        errors.append(LocalDetail("envelope-not-canonical-spelling", (
+            label, opaque_ref("json-value", data))))
 
     if "display_utf8" in value:
         shown = value["display_utf8"]
         if not isinstance(shown, str):
-            errors.append(f"{label}: `display_utf8` must be a string")
+            errors.append(LocalDetail("envelope-display-not-string", (label,)))
         else:
             try:
                 if decoded.decode("utf-8") != shown:
-                    errors.append(f"{label}: `display_utf8` disagrees with the decoded bytes")
+                    errors.append(LocalDetail("envelope-display-disagrees", (label,)))
             except UnicodeDecodeError:
-                errors.append(f"{label}: `display_utf8` present but the bytes are not UTF-8")
+                errors.append(LocalDetail("envelope-display-not-utf8", (label,)))
     return errors, decoded
 
 
@@ -1250,7 +1428,8 @@ def validate_send_result(result: SendResult, response_limit: int = MAX_RESPONSE_
         if not shape["response_derived"]:
             raise ValueError(
                 f"send stage {result.stage!r} means no headers arrived, so it cannot "
-                f"also carry the request id {opaque_ref('request-id', result.request_id)}"
+                f"also carry the request id "
+                f"{opaque_ref('request-id', result.request_id).render()}"
             )
         if not isinstance(result.request_id, str):
             raise ValueError(f"request_id must be a string, got {type(result.request_id).__name__}")
@@ -1677,7 +1856,10 @@ class Decision:
 
     classification: str
     reason: str
-    detail: str
+    # A `LocalDetail`, not a string. `apply_decision` is the only caller of
+    # `render()`, so no exit can hand a receipt a line it composed itself — the
+    # hole a purely lexical check on the finished string could not close.
+    detail: "LocalDetail"
 
 
 def admissible_classifications(schema: str) -> tuple[str, ...]:
@@ -1706,35 +1888,250 @@ def apply_decision(receipt: dict[str, Any], decision: Decision, **extra: Any) ->
     receipt.update(extra)
     receipt["classification"] = decision.classification
     receipt["decision_reason"] = decision.reason
-    receipt["detail"] = decision.detail
+    # The template travels with the line. It is what makes the durable-field
+    # inventory able to *rebuild* the string from the vocabulary each slot
+    # declares, rather than inspect the finished text and guess at its origin.
+    receipt["detail_template"] = decision.detail.template
+    receipt["detail"] = decision.detail.render()
     return receipt
 
 
 # --- rendered detail lines ------------------------------------------------
 #
-# Every one of these composes from local parts only. Provider-chosen material
-# reaches them exclusively through `opaque_ref`, which yields a digest, a length
-# and a domain — never the value.
+# A registered template plus typed arguments, and nothing else. `detail` used to
+# be an f-string built at each exit and checked lexically afterwards, which
+# proves a line could have been written here — not that it was. A provider can
+# send `"timeout"`, or `"the completion carried the probe token"`, or sixteen
+# hex characters, and all three pass any check made of words and bytes.
+#
+# So the check is made of construction instead. A `LocalDetail` names a template
+# from the closed table below and carries arguments that are *typed*: a member
+# of a named local vocabulary, a bounded count, an HTTP status, a type name, a
+# trusted local value, or an `OpaqueRef`/`DigestRef`. Validation happens in
+# `__post_init__`, so an inadmissible line cannot be constructed at all — and
+# the receipt records which template it came from, so the durable-field
+# inventory can rebuild the pattern and check the string against it.
 
-def endpoint_rejected_detail(reason: str) -> str:
-    return f"endpoint rejected: {reason}"
+# The largest number a rendered line may state, for the same reason every
+# durable integer is bounded: an unbounded number is an unbounded channel, and
+# a sentence is where nobody looks for one.
+DETAIL_MAX_COUNT = 9_999_999
+
+# The vocabularies a slot may draw on, by name. Resolved when a value is
+# checked rather than when the table is built, because they are declared all
+# over this file and an import-order constraint is not a design.
+DETAIL_VOCABULARIES = (
+    "ENDPOINT_REJECTION_REASONS",
+    "TRANSPORT_REASONS",
+    "TRANSPORT_FAILURE_KINDS",
+    "QUALIFY_REASONS",
+    "COMPLETION_PARSE_KINDS",
+    "NONCANONICAL_REASONS",
+    "ENVELOPE_LABELS",
+)
+
+
+def vocabulary(name: str) -> tuple[str, ...]:
+    if name not in DETAIL_VOCABULARIES:
+        raise ValueError(f"{name!r} is not a vocabulary a detail slot may name")
+    return globals()[name]
+
+
+def slot_problem(slot: str, value: Any) -> str | None:
+    """What is wrong with one argument, given the slot it is filling."""
+    if slot == "ref":
+        return None if isinstance(value, OpaqueRef) else "is not an opaque reference"
+    if slot == "refs":
+        return (None if isinstance(value, tuple) and all(isinstance(v, OpaqueRef) for v in value)
+                else "is not a tuple of opaque references")
+    if slot == "digests":
+        return (None if isinstance(value, tuple) and all(isinstance(v, DigestRef) for v in value)
+                else "is not a tuple of digest references")
+    if slot == "type":
+        return None if isinstance(value, TypeName) else "is not a type name"
+    if slot == "discriminator":
+        return None if isinstance(value, Discriminator) else "is not a discriminator"
+    if slot == "label":
+        return None if isinstance(value, EnvelopeLabel) else "is not an envelope label"
+    if slot == "key-env":
+        return (None if isinstance(value, LocalValue) and value.source == "key_env"
+                else "is not the trusted key_env")
+    if slot == "detail":
+        return None if isinstance(value, LocalDetail) else "is not a local detail"
+    if slot == "details":
+        return (None if isinstance(value, tuple) and all(isinstance(v, LocalDetail) for v in value)
+                else "is not a tuple of local details")
+    if slot == "kinds":
+        known = tuple(kind for _, kind in ARGUMENT_ERROR_KINDS) + ("other",)
+        return (None if isinstance(value, tuple) and all(v in known for v in value)
+                else "is not a tuple of argument error kinds")
+    if slot == "count":
+        return (None if type(value) is int and 0 <= value <= DETAIL_MAX_COUNT
+                else "is not a bounded count")
+    if slot == "status":
+        return None if is_http_status(value) else "is not an HTTP status"
+    if slot.startswith("enum:"):
+        return None if value in vocabulary(slot[5:]) else f"is not a member of {slot[5:]}"
+    raise ValueError(f"unknown detail slot kind {slot!r}")
+
+
+def render_slot(slot: str, value: Any) -> str:
+    if slot in ("ref", "type", "discriminator", "label", "key-env", "detail"):
+        return value.render()
+    if slot in ("refs", "digests"):
+        return ", ".join(item.render() for item in value)
+    if slot == "details":
+        return "; ".join(item.render() for item in value)
+    if slot == "kinds":
+        return ", ".join(value)
+    return str(value)
+
+
+# name -> (text, slot kinds). The closed world of things a receipt may say.
+# Adding a line means adding a row here; there is no other way to reach `detail`.
+DETAIL_TEMPLATES: dict[str, tuple[str, tuple[str, ...]]] = {
+    # -- transport and endpoint --
+    "endpoint-rejected": ("endpoint rejected: {0}", ("enum:ENDPOINT_REJECTION_REASONS",)),
+    "transport": ("{0}", ("enum:TRANSPORT_REASONS",)),
+    "transport-kind": ("{0} ({1})", ("enum:TRANSPORT_REASONS", "enum:TRANSPORT_FAILURE_KINDS")),
+    "transport-key": ("{0}: {1}", ("enum:TRANSPORT_REASONS", "key-env")),
+    "transport-kind-key": ("{0} ({1}): {2}",
+                           ("enum:TRANSPORT_REASONS", "enum:TRANSPORT_FAILURE_KINDS", "key-env")),
+    # One wrapper rather than eight combinations: the status is a fact about the
+    # exchange and the line inside it is a fact about the failure.
+    "http": ("HTTP {0}: {1}", ("status", "detail")),
+    "provider-rejected": ("{0}", ("enum:QUALIFY_REASONS",)),
+
+    # -- probe grading --
+    "probe-unmappable": ("the 2xx body could not be mapped to a completion", ()),
+    "probe-substituted": ("the response named a model other than the one requested", ()),
+    "probe-identity-missing": ("the response named no model; identity unestablished", ()),
+    "probe-token-mismatch": ("the completion did not carry the probe token", ()),
+    "probe-token-matched": ("the completion carried the probe token", ()),
+
+    # -- qualification outcome --
+    "unmappable-completion": ("unmappable 2xx completion: {0}", ("enum:COMPLETION_PARSE_KINDS",)),
+    "identity-substituted": ("the provider reported {0} other model(s): {1}", ("count", "digests")),
+    "identity-unestablished": (
+        "no successful response named a model; the protocol held but the identity "
+        "of what produced it is unestablished", ()),
+    "canary-mismatch": ("{0}", ("details",)),
+    "qualified": ("the protocol held and the identity was verified", ()),
+    "no-terminal-answer": ("no terminal answer within {0} turns", ("count",)),
+    "internal-exception": ("provider-matrix raised an internal exception", ()),
+
+    # -- the assistant message contract --
+    "role-not-assistant": ("tool calls arrived under role {0}, not 'assistant'", ("discriminator",)),
+    "assistant-content-type": (
+        "assistant content was {0}; openai-chat admits a string, null, or no content at all",
+        ("type",)),
+    "no-tool-calls": ("assistant message carried no tool_calls", ()),
+    "tool-calls-not-array": ("tool_calls was {0}, not an array", ("type",)),
+    "empty-tool-calls": ("assistant message carried an empty tool_calls array", ()),
+    "call-not-object": ("a tool call was not an object", ()),
+    "call-type-not-function": ("tool call type was {0}, not 'function'", ("discriminator",)),
+    "call-id-missing": ("a tool call lacked a non-empty string id", ()),
+    "duplicate-call-id": ("a tool call id appeared more than once: {0}", ("ref",)),
+    "call-without-function": ("tool call {0} lacked a function object", ("ref",)),
+    "call-without-name": ("tool call {0} lacked a function name", ("ref",)),
+    "arguments-object-dialect": (
+        "{0} arguments arrived as a JSON {1}; openai-chat requires a JSON string", ("ref", "type")),
+    "arguments-not-string": ("{0} arguments were {1}, not a string", ("ref", "type")),
+
+    # -- the arguments themselves --
+    "arguments-duplicate-key": ("arguments for {0} name a field twice", ("ref",)),
+    "arguments-unacceptable-json": (
+        "arguments for {0} are not acceptable JSON: {1}", ("ref", "enum:COMPLETION_PARSE_KINDS")),
+    "arguments-invalid-json": ("arguments for {0} are not valid JSON", ("ref",)),
+    "arguments-not-object": ("arguments for {0} decoded to {1}, not an object", ("ref", "type")),
+    "arguments-schema-violation": (
+        "{0} arguments violate the declared schema: {1} error(s), {2}", ("ref", "count", "kinds")),
+
+    # -- the loop's own protocol rules --
+    "undeclared-tools": ("called {0} tool(s) that were never declared: {1}", ("count", "refs")),
+    "multiple-answers": ("{0} terminal answers in one response", ("count",)),
+    "answer-with-operations": ("a terminal answer alongside {0} operation(s)", ("count",)),
+    "answer-before-roundtrip": ("terminal answer before any operation/tool-result roundtrip", ()),
+
+    # -- the canary's grading --
+    "answer-bytes-unseen": ("answer bytes {0} were not in any result this run returned", ("ref",)),
+    "handle-with-no-handles": (
+        "cited handle {0} but no operation in this run returned a handle", ("ref",)),
+    "handle-never-returned": (
+        "cited handle {0} was never returned by any operation in this run", ("ref",)),
+    "citation-unsupported": ("citation {0} is not in the support this run returned", ("ref",)),
+
+    # -- the byte envelope --
+    "envelope-not-object": ("{0}: byte value envelope must be an object", ("label",)),
+    "envelope-unknown-field": ("{0}: unknown field {1} in byte value envelope", ("label", "ref")),
+    "envelope-encoding": ("{0}: encoding must be 'base64url-nopad', got {1}",
+                          ("label", "discriminator")),
+    "envelope-data-not-string": ("{0}: envelope needs a string `data`", ("label",)),
+    "envelope-noncanonical": ("{0}: {1}", ("label", "enum:NONCANONICAL_REASONS")),
+    "envelope-noncanonical-character": (
+        "{0}: base64url-nopad rejects {1}; padding and '+/' are not accepted", ("label", "ref")),
+    "envelope-not-canonical-spelling": (
+        "{0}: {1} is not the canonical spelling of the bytes it decodes to", ("label", "ref")),
+    "envelope-display-not-string": ("{0}: `display_utf8` must be a string", ("label",)),
+    "envelope-display-disagrees": ("{0}: `display_utf8` disagrees with the decoded bytes", ("label",)),
+    "envelope-display-not-utf8": (
+        "{0}: `display_utf8` present but the bytes are not UTF-8", ("label",)),
+}
+
+
+@dataclass(frozen=True)
+class LocalDetail:
+    """A line this module composed, as the template and the values it composed it from.
+
+    Validated on construction rather than on inspection: a line that cannot be
+    built is better than a line that has to be recognised afterwards, and
+    recognising-afterwards is exactly what the lexical check could only do.
+    """
+
+    template: str
+    args: tuple[Any, ...] = ()
+
+    def __post_init__(self) -> None:
+        spec = DETAIL_TEMPLATES.get(self.template)
+        if spec is None:
+            raise ValueError(f"unregistered detail template {self.template!r}")
+        _text, slots = spec
+        if len(self.args) != len(slots):
+            raise ValueError(
+                f"{self.template} takes {len(slots)} argument(s), got {len(self.args)}")
+        for value, slot in zip(self.args, slots):
+            problem = slot_problem(slot, value)
+            if problem is not None:
+                raise ValueError(f"{self.template}: the {slot} argument {problem}")
+
+    def render(self) -> str:
+        text, slots = DETAIL_TEMPLATES[self.template]
+        return text.format(*(render_slot(slot, value)
+                             for slot, value in zip(slots, self.args)))
+
+
+def endpoint_rejected_detail(reason: str) -> LocalDetail:
+    return LocalDetail("endpoint-rejected", (reason,))
 
 
 def transport_detail(
-    status: int | None, reason: str, failure_kind: str | None, key_env: str | None
-) -> str:
+    status: int | None, reason: str, failure_kind: str | None, key_env: LocalValue | None
+) -> LocalDetail:
     """One renderer for both paths, because it was one line written twice.
 
     The probe built `HTTP {status}: {reason}` by overwriting `detail` after the
     fact; qualification built the same string forward. Two spellings of one
     sentence is how a fix to one of them stops being a fix.
     """
-    line = reason
-    if failure_kind is not None:
-        line = f"{line} ({failure_kind})"
-    if key_env is not None:
-        line = f"{line}: {key_env}"
-    return f"HTTP {status}: {line}" if status is not None else line
+    if failure_kind is not None and key_env is not None:
+        line = LocalDetail("transport-kind-key", (reason, failure_kind, key_env))
+    elif failure_kind is not None:
+        line = LocalDetail("transport-kind", (reason, failure_kind))
+    elif key_env is not None:
+        line = LocalDetail("transport-key", (reason, key_env))
+    else:
+        line = LocalDetail("transport", (reason,))
+    return line if status is None else LocalDetail("http", (status, line))
 
 
 # --- reducers -------------------------------------------------------------
@@ -1777,7 +2174,8 @@ def reduce_transport(facts: TransportFacts) -> Decision:
             kind = "TIMEOUT" if facts.reason == "timeout" else "TRANSPORT_FAILURE"
     else:
         kind = STAGE_CAUSE.get(facts.stage, "UNAVAILABLE")
-    key_env = facts.key_env if facts.reason == "credential-missing" else None
+    key_env = (LocalValue("key_env", facts.key_env)
+               if facts.reason == "credential-missing" else None)
     return Decision(
         kind,
         "transport-failed",
@@ -1811,31 +2209,25 @@ def reduce_probe(facts: ProbeFacts) -> Decision:
         raise ValueError(f"unknown probe output state {facts.output_state!r}")
     if facts.output_state == "unmappable":
         return Decision(
-            "INVALID_OUTPUT", "probe-unmappable-completion",
-            "the 2xx body could not be mapped to a completion",
-        )
+            "INVALID_OUTPUT", "probe-unmappable-completion", LocalDetail("probe-unmappable"))
     if facts.model_status == "drifted":
         return Decision(
-            "PROVIDER_SUBSTITUTED", "identity-substituted",
-            "the response named a model other than the one requested",
-        )
+            "PROVIDER_SUBSTITUTED", "identity-substituted", LocalDetail("probe-substituted"))
     if facts.model_status == "missing":
         return Decision(
             "MODEL_IDENTITY_MISSING", "identity-unestablished",
-            "the response named no model; identity unestablished",
-        )
+            LocalDetail("probe-identity-missing"))
     if facts.output_state == "mismatched":
         return Decision(
-            "INVALID_OUTPUT", "probe-token-mismatched",
-            "the completion did not carry the probe token",
-        )
-    return Decision("PASS", "probe-token-matched", "the completion carried the probe token")
+            "INVALID_OUTPUT", "probe-token-mismatched", LocalDetail("probe-token-mismatch"))
+    return Decision("PASS", "probe-token-matched", LocalDetail("probe-token-matched"))
 
 
 def reduce_probe_http(status: int) -> Decision:
     """A non-2xx probe response: one classifier, one rendered line."""
     return Decision(
-        classify_http(status), "provider-rejected-request", f"HTTP {status}: request-rejected",
+        classify_http(status), "provider-rejected-request",
+        LocalDetail("http", (status, LocalDetail("provider-rejected", ("request-rejected",)))),
     )
 
 
@@ -1844,8 +2236,8 @@ class AnswerFacts:
     """What a terminal answer established, once the protocol had held."""
 
     model_status: str
-    canary_errors: tuple[str, ...]
-    substituted_digests: tuple[str, ...]
+    canary_errors: tuple["LocalDetail", ...]
+    substituted_digests: tuple["DigestRef", ...]
 
 
 def reduce_qualification(facts: AnswerFacts) -> Decision:
@@ -1858,22 +2250,20 @@ def reduce_qualification(facts: AnswerFacts) -> Decision:
     if facts.model_status == "drifted":
         return Decision(
             MODEL_STATUS_VERDICT["drifted"], "identity-substituted",
-            f"the provider reported {len(facts.substituted_digests)} other model(s): "
-            + ", ".join(facts.substituted_digests),
+            LocalDetail("identity-substituted",
+                        (len(facts.substituted_digests), facts.substituted_digests)),
         )
     if facts.model_status != "verified":
         return Decision(
             MODEL_STATUS_VERDICT.get(facts.model_status, "MODEL_IDENTITY_MISSING"),
-            "identity-unestablished",
-            "no successful response named a model; the protocol held but the "
-            "identity of what produced it is unestablished",
+            "identity-unestablished", LocalDetail("identity-unestablished"),
         )
     if facts.canary_errors:
         return Decision(
             "CANARY_ANSWER_MISMATCH", "canary-answer-mismatched",
-            "; ".join(facts.canary_errors),
+            LocalDetail("canary-mismatch", (facts.canary_errors,)),
         )
-    return Decision("PASS", "protocol-and-identity-verified", "the protocol held and the identity was verified")
+    return Decision("PASS", "protocol-and-identity-verified", LocalDetail("qualified"))
 
 
 # The exception classes this module is willing to name in a durable field. They
@@ -2472,7 +2862,7 @@ class ParsedAssistant(NamedTuple):
 
     calls: list[dict[str, Any]]
     content: str | None
-    problem: tuple[str, str] | None
+    problem: tuple[str, "LocalDetail"] | None
 
 
 def parse_tool_calls(message: dict[str, Any]) -> ParsedAssistant:
@@ -2505,9 +2895,8 @@ def parse_tool_calls(message: dict[str, Any]) -> ParsedAssistant:
     if role != "assistant":
         return ParsedAssistant(
             [], None,
-            ("PROTOCOL_VIOLATION",
-             f"tool calls arrived under role {discriminator('message-role', role, MESSAGE_ROLES)}, "
-             "not 'assistant'"),
+            ("PROTOCOL_VIOLATION", LocalDetail("role-not-assistant", (
+                discriminator("message-role", role, MESSAGE_ROLES),))),
         )
     # Before anything else about the calls: a message whose own fields are the
     # wrong type is malformed whatever it happens to be asking for, and this
@@ -2517,47 +2906,43 @@ def parse_tool_calls(message: dict[str, Any]) -> ParsedAssistant:
     if content is not None and not isinstance(content, str):
         return ParsedAssistant(
             [], None,
-            (
-                "PROTOCOL_VIOLATION",
-                f"assistant content was {type(content).__name__}; openai-chat admits a "
-                "string, null, or no content at all",
-            ),
+            ("PROTOCOL_VIOLATION",
+             LocalDetail("assistant-content-type", (TypeName.of(content),))),
         )
     raw = message.get("tool_calls")
     if raw is None:
         return ParsedAssistant(
-            [], content, ("NO_TERMINAL_ANSWER", "assistant message carried no tool_calls")
+            [], content, ("NO_TERMINAL_ANSWER", LocalDetail("no-tool-calls"))
         )
     if not isinstance(raw, list):
         return ParsedAssistant(
             [], content,
-            ("PROTOCOL_VIOLATION", f"tool_calls was {type(raw).__name__}, not an array"),
+            ("PROTOCOL_VIOLATION", LocalDetail("tool-calls-not-array", (TypeName.of(raw),))),
         )
     if not raw:
         return ParsedAssistant(
-            [], content,
-            ("NO_TERMINAL_ANSWER", "assistant message carried an empty tool_calls array"),
+            [], content, ("NO_TERMINAL_ANSWER", LocalDetail("empty-tool-calls")),
         )
 
     calls: list[dict[str, Any]] = []
     seen_ids: set[str] = set()
     for entry in raw:
         if not isinstance(entry, dict):
-            return ParsedAssistant([], content, ("PROTOCOL_VIOLATION", "a tool call was not an object"))
+            return ParsedAssistant(
+                [], content, ("PROTOCOL_VIOLATION", LocalDetail("call-not-object")))
         kind = entry.get("type")
         if kind != "function":
             # Not pedantry: a strict mapper switches on this field, and a call
             # arriving as anything else is a shape it will not deserialize.
             return ParsedAssistant(
                 [], content,
-                ("PROTOCOL_VIOLATION",
-                 f"tool call type was {discriminator('tool-call-type', kind, TOOL_CALL_TYPES)}, "
-                 "not 'function'"),
+                ("PROTOCOL_VIOLATION", LocalDetail("call-type-not-function", (
+                    discriminator("tool-call-type", kind, TOOL_CALL_TYPES),))),
             )
         call_id = entry.get("id")
         if not isinstance(call_id, str) or not call_id:
             return ParsedAssistant(
-                [], content, ("PROTOCOL_VIOLATION", "a tool call lacked a non-empty string id")
+                [], content, ("PROTOCOL_VIOLATION", LocalDetail("call-id-missing"))
             )
         if call_id in seen_ids:
             # Results are returned keyed by id. Two calls sharing one id make the
@@ -2565,23 +2950,23 @@ def parse_tool_calls(message: dict[str, Any]) -> ParsedAssistant:
             # result happens to be written last.
             return ParsedAssistant(
                 [], content,
-                ("PROTOCOL_VIOLATION",
-                 f"a tool call id appeared more than once: {opaque_ref('tool-call-id', call_id)}"),
+                ("PROTOCOL_VIOLATION", LocalDetail("duplicate-call-id", (
+                    opaque_ref("tool-call-id", call_id),))),
             )
         seen_ids.add(call_id)
         function = entry.get("function")
         if not isinstance(function, dict):
             return ParsedAssistant(
                 [], content,
-                ("PROTOCOL_VIOLATION",
-                 f"tool call {opaque_ref('tool-call-id', call_id)} lacked a function object"),
+                ("PROTOCOL_VIOLATION", LocalDetail("call-without-function", (
+                    opaque_ref("tool-call-id", call_id),))),
             )
         name = function.get("name")
         if not isinstance(name, str) or not name:
             return ParsedAssistant(
                 [], content,
-                ("PROTOCOL_VIOLATION",
-                 f"tool call {opaque_ref('tool-call-id', call_id)} lacked a function name"),
+                ("PROTOCOL_VIOLATION", LocalDetail("call-without-name", (
+                    opaque_ref("tool-call-id", call_id),))),
             )
         arguments = function.get("arguments")
         if isinstance(arguments, (dict, list)):
@@ -2590,20 +2975,20 @@ def parse_tool_calls(message: dict[str, Any]) -> ParsedAssistant:
             # is a different adapter, not a better prompt.
             return ParsedAssistant([], content, (
                 "DIALECT_MISMATCH",
-                f"{opaque_ref('tool-name', name)} arguments arrived as a JSON "
-                f"{type(arguments).__name__}; openai-chat requires a JSON string",
+                LocalDetail("arguments-object-dialect", (
+                    opaque_ref("tool-name", name), TypeName.of(arguments))),
             ))
         if not isinstance(arguments, str):
             return ParsedAssistant([], content, (
                 "PROTOCOL_VIOLATION",
-                f"{opaque_ref('tool-name', name)} arguments were "
-                f"{type(arguments).__name__}, not a string",
+                LocalDetail("arguments-not-string", (
+                    opaque_ref("tool-name", name), TypeName.of(arguments))),
             ))
         calls.append({"id": call_id, "name": name, "raw_arguments": arguments})
     return ParsedAssistant(calls, content, None)
 
 
-def decode_arguments(call: dict[str, Any]) -> tuple[dict[str, Any] | None, str | None]:
+def decode_arguments(call: dict[str, Any]) -> tuple[dict[str, Any] | None, "LocalDetail | None"]:
     """Decode the JSON string `parse_tool_calls` already insisted on.
 
     Strict about duplicate keys: these arguments *are* the tool call being
@@ -2623,13 +3008,14 @@ def decode_arguments(call: dict[str, Any]) -> tuple[dict[str, Any] | None, str |
     try:
         parsed = strict_json_loads(raw, "arguments")
     except DuplicateJsonKey:
-        return None, f"arguments for {named} name a field twice"
+        return None, LocalDetail("arguments-duplicate-key", (named,))
     except StrictJsonError as exc:
-        return None, f"arguments for {named} are not acceptable JSON: {type(exc).__name__}"
+        return None, LocalDetail(
+            "arguments-unacceptable-json", (named, completion_parse_kind(exc)))
     except json.JSONDecodeError:
-        return None, f"arguments for {named} are not valid JSON"
+        return None, LocalDetail("arguments-invalid-json", (named,))
     if not isinstance(parsed, dict):
-        return None, f"arguments for {named} decoded to {type(parsed).__name__}, not an object"
+        return None, LocalDetail("arguments-not-object", (named, TypeName.of(parsed)))
     return parsed, None
 
 
@@ -2660,8 +3046,15 @@ def validate_arguments(surface: dict[str, Any], name: str, args: dict[str, Any])
     # Schema keywords cannot express trailing-bit canonicality or agreement
     # between `data` and `display_utf8`, so every envelope also goes through the
     # oracle that matches the crate.
+    #
+    # These messages are counted, classified and digested by `error_evidence`
+    # and never reach a receipt as text, so they are rendered here. The path a
+    # label names is walked out of provider-supplied arguments, so it crosses as
+    # a reference even on this path.
     for label, envelope in walk_envelopes(args):
-        errors.extend(envelope_errors(envelope, label)[0])
+        errors.extend(problem.render() for problem in
+                      envelope_errors(envelope, EnvelopeLabel(
+                          ref=opaque_ref("json-value", label)))[0])
     return errors
 
 
@@ -2690,12 +3083,12 @@ class Observed:
         for row in result.get("support", []):
             self.support.add(json.dumps(row, sort_keys=True))
         for envelope in list(result.get("preview", [])) + list(result.get("records", [])):
-            errors, decoded = envelope_errors(envelope, "canned")
+            errors, decoded = envelope_errors(envelope, EnvelopeLabel(known="canned"))
             if not errors and decoded is not None:
                 self.bytes.add(decoded)
 
 
-def canary_answer_errors(args: dict[str, Any], observed: Observed) -> list[str]:
+def canary_answer_errors(args: dict[str, Any], observed: Observed) -> list[LocalDetail]:
     """Did the target answer the question, or merely satisfy the schema?
 
     Kept apart from the protocol causes on purpose. A model that speaks the
@@ -2706,40 +3099,47 @@ def canary_answer_errors(args: dict[str, Any], observed: Observed) -> list[str]:
 
     Every comparison below is against `observed`, never against a constant.
     """
-    errors: list[str] = []
+    errors: list[LocalDetail] = []
 
     # Every value named below came out of the provider's `arguments`, so none of
-    # them is spelled out: these strings reach `detail` and `detail` reaches a
+    # them is spelled out: these lines reach `detail` and `detail` reaches a
     # committed receipt. A digest is enough to compare two runs, or to compare a
     # cited handle against one the operator can hash themselves.
-    envelope_problems, decoded = envelope_errors(args.get("answer"), "answer")
+    envelope_problems, decoded = envelope_errors(
+        args.get("answer"), EnvelopeLabel(known="answer"))
     errors.extend(envelope_problems)
     if decoded is not None and decoded not in observed.bytes:
-        errors.append(
-            f"answer bytes {opaque_ref('answer-bytes', decoded)} were not in "
-            "any result this run returned"
-        )
+        errors.append(LocalDetail("answer-bytes-unseen", (opaque_ref("answer-bytes", decoded),)))
 
     handle = args.get("handle")
     named = opaque_ref("handle", handle)
     if not observed.handles:
-        errors.append(f"cited handle {named} but no operation in this run returned a handle")
+        errors.append(LocalDetail("handle-with-no-handles", (named,)))
     elif handle not in observed.handles:
-        errors.append(f"cited handle {named} was never returned by any operation in this run")
+        errors.append(LocalDetail("handle-never-returned", (named,)))
 
     cited = args.get("cited")
     for citation in cited if isinstance(cited, list) else []:
         spelled = json.dumps(citation, sort_keys=True)
         if spelled not in observed.support:
-            errors.append(
-                f"citation {opaque_ref('citation', spelled)} is not in the "
-                "support this run returned"
-            )
+            errors.append(LocalDetail("citation-unsupported", (opaque_ref("citation", spelled),)))
     return errors
 
 
 def canned_result_for(name: str) -> dict[str, Any]:
     return CANNED_RECORDS if name == "qodec_materialize" else CANNED_RESULT
+
+
+def record_detail(record: dict[str, Any], why: LocalDetail) -> None:
+    """A turn's own line, and the template it came from.
+
+    Written through one function for the same reason `apply_decision` exists:
+    `record["detail"] = why` at nine sites is nine places for a raw string to
+    creep back in, and the durable-field inventory needs the template beside the
+    text to rebuild it.
+    """
+    record["detail_template"] = why.template
+    record["detail"] = why.render()
 
 
 def qualify_target(
@@ -2791,6 +3191,7 @@ def qualify_target(
         # carries the seed rather than trusting the reading.
         "classification": PENDING_CLASSIFICATION,
         "decision_reason": None,
+        "detail_template": None,
         "detail": "",
     }
     max_turns = bounded_turns(max_turns)
@@ -2878,11 +3279,12 @@ def qualify_target(
         if not 200 <= status < 300:
             kind, message = classify_qualify_http(status, raw or b"", awaiting_roundtrip)
             record["outcome"] = "provider-rejected"
-            record["detail"] = message
+            record_detail(record, LocalDetail("provider-rejected", (message,)))
             receipt["turns"].append(record)
             return apply_decision(
                 receipt,
-                Decision(kind, "provider-rejected-request", f"HTTP {status}: {message}"),
+                Decision(kind, "provider-rejected-request", LocalDetail(
+                    "http", (status, LocalDetail("provider-rejected", (message,))))),
                 turn_count=turn + 1,
             )
 
@@ -2902,10 +3304,10 @@ def qualify_target(
             # a builtin, but "it is a Python class name" is the provenance
             # argument this vertical has already withdrawn twice.
             kind = completion_parse_kind(exc)
-            why = f"unmappable 2xx completion: {kind}"
+            why = LocalDetail("unmappable-completion", (kind,))
             record["outcome"] = "unreadable-response"
             record["completion_parse_kind"] = kind
-            record["detail"] = why
+            record_detail(record, why)
             receipt["turns"].append(record)
             return apply_decision(
                 receipt,
@@ -2950,7 +3352,7 @@ def qualify_target(
         if problem:
             kind, why = problem
             record["outcome"] = "no-tool-call" if kind == "NO_TERMINAL_ANSWER" else "dialect-violation"
-            record["detail"] = why
+            record_detail(record, why)
             receipt["turns"].append(record)
             return apply_decision(
                 receipt,
@@ -2977,12 +3379,10 @@ def qualify_target(
 
         unknown = [c["name"] for c in calls if c["name"] not in known]
         if unknown:
-            why = (
-                f"called {len(unknown)} tool(s) that were never declared: "
-                + ", ".join(opaque_ref("tool-name", name) for name in unknown)
-            )
+            why = LocalDetail("undeclared-tools", (
+                len(unknown), tuple(opaque_ref("tool-name", name) for name in unknown)))
             record["outcome"] = "protocol-violation"
-            record["detail"] = why
+            record_detail(record, why)
             receipt["turns"].append(record)
             return apply_decision(
                 receipt,
@@ -2995,7 +3395,7 @@ def qualify_target(
             args, why = decode_arguments(call)
             if why:
                 record["outcome"] = "malformed-arguments"
-                record["detail"] = why
+                record_detail(record, why)
                 receipt["turns"].append(record)
                 return apply_decision(
                     receipt,
@@ -3010,13 +3410,13 @@ def qualify_target(
                 # What a reader acts on survives: how many rules failed, which
                 # rules, and a digest that makes two runs comparable.
                 evidence = error_evidence("argument_errors", errors)
-                why = (
-                    f"{opaque_ref('tool-name', call['name'])} arguments violate the "
-                    f"declared schema: {evidence['argument_errors_count']} error(s), "
-                    f"{', '.join(evidence['argument_errors_kinds'])}"
-                )
+                why = LocalDetail("arguments-schema-violation", (
+                    opaque_ref("tool-name", call["name"]),
+                    evidence["argument_errors_count"],
+                    tuple(evidence["argument_errors_kinds"]),
+                ))
                 record["outcome"] = "malformed-arguments"
-                record["detail"] = why
+                record_detail(record, why)
                 record.update(evidence)
                 receipt["turns"].append(record)
                 return apply_decision(
@@ -3030,9 +3430,9 @@ def qualify_target(
         answers = [c for c, _ in decoded if c["name"] == ANSWER_TOOL]
         operations = [(c, a) for c, a in decoded if c["name"] != ANSWER_TOOL]
         if len(answers) > 1:
-            why = f"{len(answers)} terminal answers in one response"
+            why = LocalDetail("multiple-answers", (len(answers),))
             record["outcome"] = "protocol-violation"
-            record["detail"] = why
+            record_detail(record, why)
             receipt["turns"].append(record)
             return apply_decision(
                 receipt,
@@ -3040,9 +3440,9 @@ def qualify_target(
                 turn_count=turn + 1,
             )
         if answers and operations:
-            why = f"a terminal answer alongside {len(operations)} operation(s)"
+            why = LocalDetail("answer-with-operations", (len(operations),))
             record["outcome"] = "protocol-violation"
-            record["detail"] = why
+            record_detail(record, why)
             receipt["turns"].append(record)
             return apply_decision(
                 receipt,
@@ -3056,9 +3456,9 @@ def qualify_target(
                 # A target that answers immediately has demonstrated that it can
                 # emit one forced tool call — which the RAW arm also does — and
                 # nothing about the loop the forced-query arm is made of.
-                why = "terminal answer before any operation/tool-result roundtrip"
+                why = LocalDetail("answer-before-roundtrip")
                 record["outcome"] = "protocol-violation"
-                record["detail"] = why
+                record_detail(record, why)
                 receipt["turns"].append(record)
                 return apply_decision(
                     receipt,
@@ -3072,7 +3472,8 @@ def qualify_target(
             record["terminal_answer_valid"] = True
             record["canary_answer_matches"] = not answer_errors
             if answer_errors:
-                record["canary_answer_errors"] = answer_errors
+                record["canary_answer_errors"] = [why.render() for why in answer_errors]
+                record["canary_answer_error_templates"] = [why.template for why in answer_errors]
             receipt["turns"].append(record)
             # Three verdicts used to be written here in sequence, each
             # overwriting the last: `PASS`, then maybe the canary's, then maybe
@@ -3086,7 +3487,7 @@ def qualify_target(
             # name: a provider that returns the bearer token in `model` would
             # otherwise write it into the detail line of a committed receipt.
             substituted = tuple(
-                entry["reported_model_sha256"][:16]
+                DigestRef.of(entry["reported_model_sha256"])
                 for entry in receipt["reported_models"]
                 if entry.get("reported_model") is None and entry.get("reported_model_present")
             )
@@ -3136,7 +3537,7 @@ def qualify_target(
         receipt,
         Decision(
             "NO_TERMINAL_ANSWER", "no-terminal-answer-within-budget",
-            f"no terminal answer within {max_turns} turns",
+            LocalDetail("no-terminal-answer", (max_turns,)),
         ),
         turn_count=max_turns,
     )
@@ -3175,15 +3576,13 @@ def guarded_receipt(schema: str, target: dict[str, Any], run: Any) -> dict[str, 
             "requested_model": target.get("model"),
             "classification": PENDING_CLASSIFICATION,
             "decision_reason": None,
+            "detail_template": None,
             "detail": "",
             **project_exception("internal_failure", "internal-error", exc),
         }
         return apply_decision(
             receipt,
-            Decision(
-                "INTERNAL_ERROR", "internal-exception",
-                "provider-matrix raised an internal exception",
-            ),
+            Decision("INTERNAL_ERROR", "internal-exception", LocalDetail("internal-exception")),
         )
 
 

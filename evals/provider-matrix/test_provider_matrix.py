@@ -1103,10 +1103,14 @@ class ByteEnvelopeOracleTests(unittest.TestCase):
         return base
 
     def errors(self, **fields):
-        return pm.envelope_errors(self.envelope(**fields), "answer")[0]
+        # Rendered here, because the oracle now returns typed lines. The text
+        # is the same text; what changed is that it can only be built from a
+        # registered template and typed arguments.
+        return [why.render() for why in
+                pm.envelope_errors(self.envelope(**fields), pm.EnvelopeLabel(known="answer"))[0]]
 
     def test_the_canonical_envelope_is_accepted(self):
-        errors, decoded = pm.envelope_errors(self.envelope(), "answer")
+        errors, decoded = pm.envelope_errors(self.envelope(), pm.EnvelopeLabel(known="answer"))
         self.assertEqual(errors, [])
         self.assertEqual(decoded, b"alpha")
 
@@ -1121,12 +1125,12 @@ class ByteEnvelopeOracleTests(unittest.TestCase):
 
     def test_an_invalid_length_is_rejected(self):
         # One leftover character cannot encode any whole byte.
-        self.assertTrue(any("dangling" in e for e in self.errors(data="YWxwaGEx3")))
+        self.assertTrue(any("dangling-character" in e for e in self.errors(data="YWxwaGEx3")))
 
     def test_non_zero_trailing_bits_are_rejected(self):
         # "YWxwaGF" and "YWxwaGE" differ only in bits that decode to nothing.
         self.assertEqual(pm.b64url_nopad_decode("YWxwaGE"), b"alpha")
-        self.assertTrue(any("trailing bits" in e for e in self.errors(data="YWxwaGF")))
+        self.assertTrue(any("non-zero-trailing-bits" in e for e in self.errors(data="YWxwaGF")))
 
     def test_a_disagreeing_display_utf8_is_rejected(self):
         self.assertTrue(any("disagrees" in e for e in self.errors(display_utf8="beta")))
@@ -1614,13 +1618,19 @@ class DurableProjectionTests(unittest.TestCase):
 
     def test_a_discriminator_that_is_one_of_ours_is_named_outright(self):
         """A matched enum member is a value we already had, so it is not hidden."""
-        self.assertEqual(pm.discriminator("message-role", "user", pm.MESSAGE_ROLES), "'user'")
         self.assertEqual(
-            pm.discriminator("message-role", "bot", pm.MESSAGE_ROLES),
-            pm.opaque_ref("message-role", "bot"))
+            pm.discriminator("message-role", "user", pm.MESSAGE_ROLES).render(), "'user'")
         self.assertEqual(
-            pm.discriminator("tool-call-type", {"a": 1}, pm.TOOL_CALL_TYPES),
+            pm.discriminator("message-role", "bot", pm.MESSAGE_ROLES).render(),
+            pm.opaque_ref("message-role", "bot").render())
+        self.assertEqual(
+            pm.discriminator("tool-call-type", {"a": 1}, pm.TOOL_CALL_TYPES).render(),
             "<tool-call-type object>")
+        # And the rendered form is the *only* way out: the discriminator is a
+        # typed value, so a template slot cannot be filled with a string that
+        # merely looks like one.
+        self.assertIsInstance(
+            pm.discriminator("message-role", "bot", pm.MESSAGE_ROLES), pm.Discriminator)
 
     def test_a_non_string_model_crosses_as_a_type_and_not_as_a_hash(self):
         """Unrecognised structures do not cross — not even as a digest of one."""
@@ -1790,7 +1800,7 @@ class DurableProjectionTests(unittest.TestCase):
              "cited": []},
             pm.Observed(),
         )
-        joined = " ".join(errors)
+        joined = " ".join(why.render() for why in errors)
         self.assertNotIn(invented, joined)
         self.assertIn(pm.evidence_digest("handle", invented)[:16], joined)
 
@@ -3509,7 +3519,7 @@ class DurableFieldInventoryTests(unittest.TestCase):
         """The one rule that lets a detail line mention foreign material at all."""
         prose = receipt_policy.Prose(4096)
         context = {"local_words": set()}
-        named = pm.opaque_ref("tool-name", "qodec_intersect")
+        named = pm.opaque_ref("tool-name", "qodec_intersect").render()
         self.assertEqual(prose.problems(f"{named} arguments were dict, not a string", context), [])
         self.assertTrue(prose.problems("qodec_intersect_v2_beta arguments were bad", context))
         self.assertTrue(prose.problems("<made-up sha256:0000000000000000 4B> is fine", context))
@@ -3690,20 +3700,22 @@ class DecisionOwnershipTests(unittest.TestCase):
                 self.assertIn(stage, pm.STAGE_OUTCOME)
 
     def test_identity_outranks_the_canary_and_the_protocol(self):
-        drifted = pm.AnswerFacts("drifted", ("wrong bytes",), ("abcdef0123456789",))
+        wrong = (pm.LocalDetail("handle-never-returned", (pm.opaque_ref("handle", "h"),)),)
+        digests = (pm.DigestRef.of("ab" * 32),)
+        drifted = pm.AnswerFacts("drifted", wrong, digests)
         self.assertEqual(pm.reduce_qualification(drifted).classification, "PROVIDER_SUBSTITUTED")
         missing = pm.AnswerFacts("missing", (), ())
         self.assertEqual(pm.reduce_qualification(missing).classification, "MODEL_IDENTITY_MISSING")
         # And with a wrong answer as well: an unestablished identity is not
         # downgraded by a second failure arriving beside it. Both fail, and the
         # one a reader must act on first is "we do not know what produced this".
-        both = pm.AnswerFacts("missing", ("wrong bytes",), ())
+        both = pm.AnswerFacts("missing", wrong, ())
         self.assertEqual(pm.reduce_qualification(both).classification, "MODEL_IDENTITY_MISSING")
-        drifted_and_wrong = pm.AnswerFacts("drifted", ("wrong bytes",), ("abcdef0123456789",))
+        drifted_and_wrong = pm.AnswerFacts("drifted", wrong, digests)
         self.assertEqual(pm.reduce_qualification(drifted_and_wrong).classification,
                          "PROVIDER_SUBSTITUTED")
-        wrong = pm.AnswerFacts("verified", ("wrong bytes",), ())
-        self.assertEqual(pm.reduce_qualification(wrong).classification, "CANARY_ANSWER_MISMATCH")
+        mismatched = pm.AnswerFacts("verified", wrong, ())
+        self.assertEqual(pm.reduce_qualification(mismatched).classification, "CANARY_ANSWER_MISMATCH")
         good = pm.AnswerFacts("verified", (), ())
         self.assertEqual(pm.reduce_qualification(good).classification, "PASS")
 
@@ -3808,6 +3820,328 @@ class ProcessBoundaryOwnershipTests(unittest.TestCase):
             with self.subTest(target=name):
                 self.assertTrue(oracles, f"{name} has no oracle")
                 self.assertTrue((Path(__file__).resolve().parent / name).exists())
+
+
+class DetailProvenanceTests(unittest.TestCase):
+    """A detail line is constructed, not composed — and the gate says so.
+
+    The first version of the durable-field inventory checked a finished string
+    against a local vocabulary and a local alphabet. That answers "could this
+    module have written this line", which is not the question. `"timeout"`, `"the
+    completion carried the probe token"` and sixteen hex characters are all
+    things a provider can send verbatim and all pass a lexical check.
+
+    This vertical has withdrawn that argument twice — `isidentifier()` for a
+    failure class, then sixty-four hex characters for a digest. These are the
+    gates that stop it needing a third withdrawal: a line can only exist as a
+    registered template plus typed arguments, and the receipt records which
+    template, so the inventory rebuilds the pattern instead of inspecting prose.
+    """
+
+    def tree(self, name="provider_matrix.py"):
+        import ast
+        return ast.parse((Path(__file__).resolve().parent / name).read_text(encoding="utf-8"))
+
+    def owners(self, tree):
+        import ast
+        owner = {}
+        for node in ast.walk(tree):
+            if isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef)):
+                for child in ast.walk(node):
+                    owner.setdefault(child, node.name)
+        return owner
+
+    def calls_to(self, tree, name):
+        import ast
+        for node in ast.walk(tree):
+            if isinstance(node, ast.Call) and isinstance(node.func, ast.Name) and node.func.id == name:
+                yield node
+
+    def test_no_decision_carries_a_string_it_composed_itself(self):
+        """The gate for the whole idea: `detail` is never text at this layer."""
+        import ast
+        tree = self.tree()
+        offenders = []
+        for node in self.calls_to(tree, "Decision"):
+            supplied = list(node.args[2:3]) + [k.value for k in node.keywords if k.arg == "detail"]
+            for value in supplied:
+                if isinstance(value, (ast.Constant, ast.JoinedStr, ast.BinOp)):
+                    offenders.append(node.lineno)
+        self.assertEqual(offenders, [])
+
+    def test_every_local_detail_names_a_registered_template(self):
+        import ast
+        offenders = []
+        for node in self.calls_to(self.tree(), "LocalDetail"):
+            first = node.args[0] if node.args else None
+            if not isinstance(first, ast.Constant) or not isinstance(first.value, str):
+                offenders.append(("not a literal", node.lineno))
+            elif first.value not in pm.DETAIL_TEMPLATES:
+                offenders.append((first.value, node.lineno))
+        self.assertEqual(offenders, [])
+
+    def test_every_registered_template_is_actually_built_somewhere(self):
+        """A table that outgrows its callers rots into a list of excuses."""
+        import ast
+        built = {node.args[0].value for node in self.calls_to(self.tree(), "LocalDetail")
+                 if node.args and isinstance(node.args[0], ast.Constant)}
+        self.assertEqual(set(pm.DETAIL_TEMPLATES) - built, set())
+
+    def test_only_one_constructor_shortens_a_digest(self):
+        """`entry["reported_model_sha256"][:16]` at a second site is a second rule."""
+        import ast
+        tree = self.tree()
+        owner = self.owners(tree)
+        offenders = []
+        for node in ast.walk(tree):
+            if (isinstance(node, ast.Subscript) and isinstance(node.slice, ast.Slice)
+                    and isinstance(node.slice.upper, ast.Constant)
+                    and node.slice.upper.value == 16):
+                if owner.get(node) not in ("of", "opaque_ref"):
+                    offenders.append((owner.get(node, "<module>"), node.lineno))
+        self.assertEqual(offenders, [])
+
+    def docstrings(self, tree):
+        """Prose that *describes* the grammar is not the grammar."""
+        import ast
+        found = set()
+        for node in ast.walk(tree):
+            if isinstance(node, (ast.Module, ast.FunctionDef, ast.AsyncFunctionDef, ast.ClassDef)):
+                first = node.body[0] if node.body else None
+                if (isinstance(first, ast.Expr) and isinstance(first.value, ast.Constant)
+                        and isinstance(first.value.value, str)):
+                    found.add(id(first.value))
+        return found
+
+    def test_only_one_place_spells_a_reference(self):
+        """A hand-written `f"<handle sha256:{x} 4B>"` wears the wrapper that closes it."""
+        import ast
+        tree = self.tree()
+        owner = self.owners(tree)
+        prose = self.docstrings(tree)
+        offenders = []
+        for node in ast.walk(tree):
+            if isinstance(node, ast.Constant) and isinstance(node.value, str) and "sha256:" in node.value:
+                if id(node) in prose or owner.get(node) == "render":
+                    continue
+                # `CANNED_HANDLE` is a handle *this module* invents for the
+                # canary, not a reference to anything the provider sent.
+                if node.value == "sha256:":
+                    continue
+                offenders.append((owner.get(node, "<module>"), node.lineno))
+        self.assertEqual(offenders, [])
+
+    def test_only_two_functions_write_a_line_into_an_artifact(self):
+        import ast
+        tree = self.tree()
+        owner = self.owners(tree)
+        offenders = []
+        for node in ast.walk(tree):
+            if isinstance(node, ast.Assign):
+                for goal in node.targets:
+                    if (isinstance(goal, ast.Subscript) and isinstance(goal.slice, ast.Constant)
+                            and goal.slice.value in ("detail", "detail_template")
+                            and owner.get(node) not in ("apply_decision", "record_detail")):
+                        offenders.append((owner.get(node, "<module>"), node.lineno))
+        self.assertEqual(offenders, [])
+
+    def test_the_gates_would_notice_their_own_violations(self):
+        """Six gates that have never refused anything are six decorations."""
+        import ast
+        specimens = {
+            "literal detail": 'Decision("PASS", "probe-token-matched", "looks local to me")',
+            "f-string detail": 'Decision("PASS", "probe-token-matched", f"{x} looks local")',
+            "unregistered template": 'LocalDetail("invented-line", ())',
+            "hand-shortened digest": 'x = entry["reported_model_sha256"][:16]',
+            "hand-spelled reference": 'y = f"<handle sha256:{d} 4B>"',
+        }
+        for name, source in specimens.items():
+            with self.subTest(specimen=name):
+                tree = ast.parse(source)
+                found = any(
+                    (isinstance(n, ast.Call) and isinstance(n.func, ast.Name)
+                     and n.func.id in ("Decision", "LocalDetail"))
+                    or (isinstance(n, ast.Subscript) and isinstance(n.slice, ast.Slice))
+                    or (isinstance(n, ast.Constant) and isinstance(n.value, str)
+                        and "sha256:" in n.value)
+                    for n in ast.walk(tree))
+                self.assertTrue(found, name)
+
+    # -- the construction rules themselves --
+
+    def test_a_line_cannot_be_built_from_the_wrong_kind_of_value(self):
+        """Validation is in `__post_init__`: an inadmissible line never exists."""
+        cases = {
+            "a raw string where a reference belongs": ("duplicate-call-id", ("call_op",)),
+            "a raw string where a count belongs": ("multiple-answers", ("two",)),
+            "a number past the prose bound": ("multiple-answers", (10_000_000,)),
+            "a status that is not one": ("http", (700, pm.LocalDetail("qualified"))),
+            "a reason from another vocabulary": ("transport", ("internal-error",)),
+            "a digest tuple of strings": ("identity-substituted", (1, ("ab" * 8,))),
+            "the wrong number of arguments": ("multiple-answers", ()),
+        }
+        for name, (template, args) in cases.items():
+            with self.subTest(case=name), self.assertRaises(ValueError):
+                pm.LocalDetail(template, args)
+
+    def test_an_unregistered_template_cannot_be_built(self):
+        with self.assertRaisesRegex(ValueError, "unregistered detail template"):
+            pm.LocalDetail("something-reasonable-sounding")
+
+    def test_a_reference_is_the_only_way_a_provider_value_enters_a_line(self):
+        secret = "sk-live-not-a-real-key"
+        line = pm.LocalDetail("duplicate-call-id", (pm.opaque_ref("tool-call-id", secret),))
+        rendered = line.render()
+        self.assertNotIn(secret, rendered)
+        self.assertIn(pm.evidence_digest("tool-call-id", secret)[:16], rendered)
+
+    def test_a_local_value_carries_which_local_source_it_came_from(self):
+        with self.assertRaisesRegex(ValueError, "not a declared local source"):
+            pm.LocalValue("whatever", "x")
+        with self.assertRaises(ValueError):
+            pm.LocalDetail("transport-key", ("credential-missing", "GROQ_API_KEY"))
+        ok = pm.LocalDetail("transport-key", ("credential-missing", pm.LocalValue("key_env", "K")))
+        self.assertEqual(ok.render(), "credential-missing: K")
+
+    def test_a_digest_reference_is_built_from_a_digest(self):
+        with self.assertRaises(ValueError):
+            pm.DigestRef.of("not a digest")
+        with self.assertRaises(ValueError):
+            pm.DigestRef.of("ab" * 8)
+        self.assertEqual(pm.DigestRef.of("ab" * 32).render(), "ab" * 8)
+
+    # -- the provenance pass, on receipts this module really produced --
+
+    def inventory(self):
+        return DurableFieldInventoryTests()
+
+    def test_a_line_made_of_local_words_but_never_rendered_is_refused(self):
+        """The exact case the lexical check cannot see.
+
+        Every word below is one this module wrote, in an order it never writes.
+        `Prose` is content; the template pattern is not.
+        """
+        probe = self.inventory()
+        receipt = probe.specimen()
+        receipt["detail"] = "the protocol held and the identity was verified, not an object"
+        findings = probe.audit(receipt, target(), probe.registry_entry())
+        self.assertTrue(any("does not match what template" in f for f in findings), findings)
+
+    def test_a_copied_provider_string_that_is_a_local_enum_member_is_still_refused(self):
+        """`"timeout"` is a word this module writes — in one template only."""
+        probe = self.inventory()
+        receipt = probe.specimen()
+        receipt["detail"] = "timeout"
+        findings = probe.audit(receipt, target(), probe.registry_entry())
+        self.assertTrue(any("does not match what template" in f for f in findings), findings)
+
+    def test_sixteen_hex_characters_are_not_admitted_wherever_they_appear(self):
+        """`BARE_DIGEST` erases them for `Prose`; the template pattern does not."""
+        probe = self.inventory()
+        receipt = probe.specimen()
+        receipt["detail"] = "0123456789abcdef"
+        findings = probe.audit(receipt, target(), probe.registry_entry())
+        self.assertTrue(any("does not match what template" in f for f in findings), findings)
+
+    def test_a_detail_with_no_template_is_refused(self):
+        probe = self.inventory()
+        receipt = probe.specimen()
+        receipt["detail_template"] = None
+        findings = probe.audit(receipt, target(), probe.registry_entry())
+        self.assertTrue(any("no template to rebuild it from" in f for f in findings), findings)
+
+    def test_a_key_env_from_another_plan_is_refused(self):
+        """The trusted local value in a line comes from the registry, not the text."""
+        probe = self.inventory()
+        receipt = pm.qualify_target(target(), surface(), 30.0, 6, scripted([
+            pm.SendResult(None, None, "no key", "no-credential", None, None,
+                          "credential-missing", None, None)]), response_limit=probe.LIMIT)
+        self.assertEqual(receipt["classification"], "AUTH_FAILED")
+        self.assertEqual(probe.audit(receipt, target(), probe.registry_entry()), [])
+        receipt["detail"] = receipt["detail"].replace("GROQ_API_KEY", "ANTHROPIC_API_KEY")
+        findings = probe.audit(receipt, target(), probe.registry_entry())
+        self.assertTrue(any("does not match what template" in f for f in findings), findings)
+
+    def test_every_canary_line_is_rebuilt_from_its_own_template(self):
+        receipt = pm.qualify_target(
+            target(), surface(), 30.0, 6,
+            scripted(OPERATION_THEN(
+                (200, completion([call("qodec_answer", WRONG_ANSWER_ARGS, "call_w")]), ""))),
+            response_limit=DurableFieldInventoryTests.LIMIT)
+        self.assertEqual(receipt["classification"], "CANARY_ANSWER_MISMATCH")
+        turn = receipt["turns"][-1]
+        self.assertEqual(len(turn["canary_answer_errors"]), len(turn["canary_answer_error_templates"]))
+        probe = self.inventory()
+        self.assertEqual(probe.audit(receipt, target(), probe.registry_entry()), [])
+        turn["canary_answer_errors"][0] = "cited handle sk-live-secret was never returned"
+        findings = probe.audit(receipt, target(), probe.registry_entry())
+        self.assertTrue(any("is not what" in f for f in findings), findings)
+
+    def test_a_count_slot_admits_a_count_and_nothing_else(self):
+        """A slot pattern widened to `.*` is a template that proves nothing."""
+        probe = self.inventory()
+        receipt = pm.qualify_target(
+            target(), surface(), 30.0, 2,
+            scripted([(200, completion([call("qodec_intersect", INTERSECT_ARGS, "call_a")]), ""),
+                      (200, completion([call("qodec_intersect", INTERSECT_ARGS, "call_b")]), "")]),
+            response_limit=probe.LIMIT)
+        self.assertEqual(receipt["classification"], "NO_TERMINAL_ANSWER")
+        self.assertEqual(receipt["detail"], "no terminal answer within 2 turns")
+        self.assertEqual(probe.audit(receipt, target(), probe.registry_entry(), max_turns=2), [])
+        for forged in ("no terminal answer within sk-live-secret turns",
+                       "no terminal answer within 12345678 turns",
+                       "no terminal answer within  turns"):
+            with self.subTest(detail=forged):
+                receipt["detail"] = forged
+                findings = probe.audit(receipt, target(), probe.registry_entry(), max_turns=2)
+                self.assertTrue(any("does not match what template" in f for f in findings), findings)
+
+    def test_a_reference_in_a_line_identifies_the_value_it_stands_for(self):
+        """A reference that digests something else is evidence about nothing.
+
+        Both halves matter: the reference must not repeat the value, and it must
+        be *of* the value. A wrapper around the empty string satisfies the first
+        and quietly fails the second, so the digest is checked outright.
+        """
+        receipt = pm.qualify_target(
+            target(), surface(), 30.0, 6,
+            scripted([(200, completion([call("qodec_undeclared", "{}", "call_u")]), "")]))
+        self.assertEqual(receipt["classification"], "PROTOCOL_VIOLATION")
+        named = pm.opaque_ref("tool-name", "qodec_undeclared")
+        self.assertEqual(
+            receipt["detail"], f"called 1 tool(s) that were never declared: {named.render()}")
+        self.assertNotIn("qodec_undeclared", json.dumps(receipt))
+
+    def test_an_envelope_reference_identifies_the_field_it_complains_about(self):
+        label = pm.EnvelopeLabel(known="answer")
+        problems, _ = pm.envelope_errors(
+            {"encoding": "base64url-nopad", "data": "YWxwaGE", "surprise": 1}, label)
+        rendered = " ".join(why.render() for why in problems)
+        self.assertIn(pm.opaque_ref("json-value", "surprise").render(), rendered)
+        self.assertNotIn("surprise", rendered.replace("surprises", ""))
+
+        # And the character a strict decoder rejected, for the same reason.
+        rejected, _ = pm.envelope_errors(
+            {"encoding": "base64url-nopad", "data": "YWxwaGE="}, label)
+        self.assertIn(pm.opaque_ref("json-value", "=").render(),
+                      " ".join(why.render() for why in rejected))
+
+    def test_a_rejected_envelope_character_is_named_and_never_spelled(self):
+        """It used to be interpolated, and it reached `detail` through the canary."""
+        padded = json.dumps({
+            "handle": pm.CANNED_HANDLE,
+            "answer": {"encoding": "base64url-nopad", "data": "YWxwaGE="},
+            "cited": [{"store": pm.CANNED_HANDLE, "section": "attempt_1", "ordinal": 0}],
+        })
+        receipt = pm.qualify_target(
+            target(), surface(), 30.0, 6,
+            scripted(OPERATION_THEN((200, completion([call("qodec_answer", padded, "call_p")]), ""))),
+            response_limit=DurableFieldInventoryTests.LIMIT)
+        # The padding character is refused by the schema first; either way the
+        # receipt must not contain it as a character in a sentence.
+        self.assertNotEqual(receipt["classification"], "PASS")
+        probe = self.inventory()
+        self.assertEqual(probe.audit(receipt, target(), probe.registry_entry()), [])
 
 
 if __name__ == "__main__":

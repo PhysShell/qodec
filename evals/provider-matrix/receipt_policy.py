@@ -25,15 +25,22 @@ declared, made into types:
     Prose      — a line composed from this module's own words, in which foreign
                  material appears only as an `opaque_ref`
 
-`Prose` is the one that needs its warrant stated. Its vocabulary is derived from
-the string literals of `provider_matrix.py` itself rather than hand-listed: the
-question a detail line has to answer is "could this module have written this?",
-and the module's literals are the complete answer to it. A credential, a model
-name, an error message from a gateway — none of them appear in the source, so
-none of them can appear in a detail line without a reference wrapper. The cost
-is that adding a word to a message does not stop the gate; the benefit is that
-the vocabulary cannot rot, and rotting vocabularies are how this kind of check
-becomes decoration.
+`Prose` needs its warrant stated carefully, because the first version of it
+overstated one. Its vocabulary is derived from the string literals of
+`provider_matrix.py`, which answers *could this module have written this line?*
+— and that is a strictly weaker question than *did it?*. A provider can send
+`"timeout"`, or `"the completion carried the probe token"`, or sixteen hex
+characters, and every one of those satisfies a check made of words and bytes.
+This vertical has withdrawn that argument twice already, for `isidentifier()`
+and then for sixty-four hex characters. Syntax is not provenance.
+
+So `Prose` is kept as a lexical defence in depth and is **not** the provenance
+proof. The proof is the second inventory below: every `detail` travels with the
+`detail_template` it was rendered from, and `detail_provenance_problems`
+rebuilds the line's pattern from that template's declared slots — each slot's
+own vocabulary, the reference grammar, the bounded counts, the trusted local
+values from the *context* rather than from the artifact — and requires the
+string to match it. A line that was not constructed from those parts cannot.
 
     python3 evals/provider-matrix/receipt_policy.py --self-test
 
@@ -302,13 +309,28 @@ class Flag(Kind):
 
 @dataclass(frozen=True)
 class Prose(Kind):
-    """A line this module composed, in which foreign material is a reference.
+    """A lexical defence in depth over a rendered line. **Not the provenance proof.**
 
     Three checks, in order. The references are removed first, and each must be
     spelled the way `opaque_ref` spells it — a well-formed reference is not
     material, it is a statement *about* material. What is left must lie in the
     local alphabet, and every word in it must be a word this module's source
     contains. A bearer token satisfies none of the three.
+
+    What it cannot do, and what the first version of this module wrongly claimed
+    it did: distinguish a line this module rendered from one that merely reads
+    like it. `"timeout"` is a member of a local vocabulary, `"the completion
+    carried the probe token"` is a sentence from the source, and sixteen hex
+    characters are erased by `BARE_DIGEST` — a provider can send all three
+    verbatim. Right shape is not proven origin, which is the same substitution
+    this vertical withdrew for `isidentifier()` and then for sixty-four hex
+    characters.
+
+    Origin is proven by `detail_provenance_problems`, which rebuilds the line
+    from the template the receipt says produced it. This check runs beside it
+    and catches a different class of thing: material in a field the template
+    pass does not cover, and a template whose own text has drifted somewhere
+    foreign.
     """
 
     max_bytes: int
@@ -416,6 +438,10 @@ def build_policies() -> list[DurableFieldPolicy]:
         DurableFieldPolicy("decision_reason", Enum("DECISION_REASONS", pm.DECISION_REASONS), nullable=True),
         DurableFieldPolicy("detail", Prose(DETAIL_MAX_BYTES)),
         DurableFieldPolicy(
+            "detail_template", Enum("DETAIL_TEMPLATES", tuple(pm.DETAIL_TEMPLATES)), nullable=True,
+            why="the template the line was rendered from; the provenance pass rebuilds it",
+        ),
+        DurableFieldPolicy(
             "internal_failure_kind", Enum("INTERNAL_FAILURE_KINDS", pm.INTERNAL_FAILURE_KINDS)),
         *opaque_policies("internal_failure_class", "failure-class"),
         # The identity fields sit at the top level of both receipt kinds and
@@ -465,6 +491,8 @@ def build_policies() -> list[DurableFieldPolicy]:
         DurableFieldPolicy("turns[].outcome", Enum("turn outcomes", TURN_OUTCOMES)),
         DurableFieldPolicy("turns[].detail", Prose(DETAIL_MAX_BYTES)),
         DurableFieldPolicy(
+            "turns[].detail_template", Enum("DETAIL_TEMPLATES", tuple(pm.DETAIL_TEMPLATES))),
+        DurableFieldPolicy(
             "turns[].completion_parse_kind", Enum("COMPLETION_PARSE_KINDS", pm.COMPLETION_PARSE_KINDS)),
         DurableFieldPolicy("turns[].model_status", Enum("model statuses", tuple(pm.MODEL_STATUS_SEVERITY))),
         DurableFieldPolicy("turns[].tool_result_roundtrip", Flag()),
@@ -472,6 +500,9 @@ def build_policies() -> list[DurableFieldPolicy]:
         DurableFieldPolicy("turns[].terminal_answer_valid", Flag()),
         DurableFieldPolicy("turns[].canary_answer_matches", Flag()),
         DurableFieldPolicy("turns[].canary_answer_errors[]", Prose(DETAIL_MAX_BYTES)),
+        DurableFieldPolicy(
+            "turns[].canary_answer_error_templates[]",
+            Enum("DETAIL_TEMPLATES", tuple(pm.DETAIL_TEMPLATES))),
         DurableFieldPolicy("turns[].argument_errors_count", BoundedInt(0, "error_ceiling")),
         DurableFieldPolicy(
             "turns[].argument_errors_kinds[]",
@@ -511,6 +542,134 @@ TURN_OUTCOMES = (
 
 
 POLICIES = build_policies()
+
+
+# ---------------------------------------------------------------------------
+# The second inventory: a detail must be rebuildable from its template
+# ---------------------------------------------------------------------------
+
+REFERENCE_PATTERN = r"<[a-z0-9-]+ sha256:[0-9a-f]{16} \d{1,10}\+?B>"
+DIGEST_PATTERN = r"[0-9a-f]{16}"
+
+
+def joined(pattern: str, separator: str) -> str:
+    return f"(?:{pattern})(?:{re.escape(separator)}(?:{pattern}))*"
+
+
+def alternation(values) -> str:
+    return "|".join(re.escape(str(value)) for value in sorted(values, key=len, reverse=True))
+
+
+def slot_pattern(slot: str, context: dict[str, Any], depth: int = 0) -> str:
+    """The regex one slot's declared kind admits — and nothing wider.
+
+    Every branch is built from something outside the artifact: a vocabulary
+    declared in `provider_matrix`, the reference grammar, or a local fact the
+    caller supplied. Nothing here is read from the receipt being audited, which
+    is the whole difference between this and a lexical check.
+    """
+    if slot == "ref":
+        return REFERENCE_PATTERN
+    if slot == "refs":
+        return joined(REFERENCE_PATTERN, ", ")
+    if slot == "digests":
+        return joined(DIGEST_PATTERN, ", ")
+    if slot == "type":
+        return alternation(pm.LOCAL_TYPE_NAMES)
+    if slot == "discriminator":
+        known = alternation(f"'{word}'" for word in
+                            set(pm.MESSAGE_ROLES) | set(pm.TOOL_CALL_TYPES) | {pm.ENVELOPE_ENCODING})
+        return f"(?:{known}|{REFERENCE_PATTERN}|<[a-z0-9-]+ [a-z]+>)"
+    if slot == "label":
+        return f"(?:{alternation(pm.ENVELOPE_LABELS)}|{REFERENCE_PATTERN})"
+    if slot == "key-env":
+        # From the registry by way of the caller. A receipt naming any other
+        # environment variable is a receipt that did not come from this plan.
+        return re.escape(context["key_env"])
+    if slot == "count":
+        return r"\d{1,7}"
+    if slot == "status":
+        return r"\d{3}"
+    if slot == "kinds":
+        return joined(alternation(tuple(k for _, k in pm.ARGUMENT_ERROR_KINDS) + ("other",)), ", ")
+    if slot.startswith("enum:"):
+        return alternation(pm.vocabulary(slot[5:]))
+    if slot in ("detail", "details"):
+        # One level of nesting is all the table has, and a nested slot admits
+        # only the templates that do not themselves nest — so the pattern stays
+        # finite and the closure stays visible.
+        if depth:
+            raise ValueError("detail templates nest one level deep")
+        inner = "|".join(
+            f"(?:{template_pattern(name, context, depth + 1)})"
+            for name in sorted(DETAIL_TEMPLATES_WITHOUT_NESTING))
+        return inner if slot == "detail" else joined(inner, "; ")
+    raise ValueError(f"unknown detail slot kind {slot!r}")
+
+
+DETAIL_TEMPLATES_WITHOUT_NESTING = tuple(
+    name for name, (_text, slots) in pm.DETAIL_TEMPLATES.items()
+    if not any(slot in ("detail", "details") for slot in slots)
+)
+
+
+def template_pattern(name: str, context: dict[str, Any], depth: int = 0) -> str:
+    text, slots = pm.DETAIL_TEMPLATES[name]
+    # The literal parts are escaped and the slots are not; splitting on the
+    # placeholders rather than formatting into them is what keeps a template's
+    # own punctuation from being read as regex.
+    parts = re.split(r"\{(\d+)\}", text)
+    out = []
+    for index, piece in enumerate(parts):
+        if index % 2 == 0:
+            out.append(re.escape(piece))
+        else:
+            out.append(f"(?:{slot_pattern(slots[int(piece)], context, depth)})")
+    return "".join(out)
+
+
+def detail_provenance_problems(receipt: dict[str, Any], context: dict[str, Any]) -> list[str]:
+    """Every rendered line, against the pattern its own template declares.
+
+    This is the provenance proof. `Prose` asks whether a string is made of local
+    words; this asks whether it could have come out of `LocalDetail.render()`
+    for the template the receipt says it came from, with arguments of the
+    declared kinds and local facts taken from outside the artifact.
+    """
+    problems: list[str] = []
+    for where, node in detail_bearing_nodes(receipt):
+        template = node.get("detail_template")
+        text = node.get("detail")
+        if template is None:
+            if text:
+                problems.append(f"{where}: a detail with no template to rebuild it from")
+            continue
+        if template not in pm.DETAIL_TEMPLATES:
+            problems.append(f"{where}: {template!r} is not a registered detail template")
+            continue
+        if not isinstance(text, str) or not re.fullmatch(template_pattern(template, context), text):
+            problems.append(
+                f"{where}: the detail does not match what template {template!r} renders")
+    for where, node in detail_bearing_nodes(receipt):
+        templates = node.get("canary_answer_error_templates")
+        lines = node.get("canary_answer_errors")
+        if templates is None and lines is None:
+            continue
+        if templates is None or lines is None or len(templates) != len(lines):
+            problems.append(f"{where}: canary answer lines and their templates do not correspond")
+            continue
+        for index, (name, line) in enumerate(zip(templates, lines)):
+            if name not in pm.DETAIL_TEMPLATES:
+                problems.append(f"{where}: canary line {index} names an unregistered template")
+            elif not re.fullmatch(template_pattern(name, context), line):
+                problems.append(f"{where}: canary line {index} is not what {name!r} renders")
+    return problems
+
+
+def detail_bearing_nodes(receipt: dict[str, Any]):
+    yield "receipt", receipt
+    for index, turn in enumerate(receipt.get("turns", []) or []):
+        yield f"turns[{index}]", turn
 
 
 def policy_problems(policies: list[DurableFieldPolicy]) -> list[str]:
@@ -563,6 +722,9 @@ def audit(
             findings.append(str(exc).strip("'"))
             continue
         findings.extend(policy.validate(value, context))
+    # And the provenance pass, which is a claim about how a value was *built*
+    # and therefore cannot be made leaf by leaf.
+    findings.extend(detail_provenance_problems(receipt, context))
     return findings
 
 
@@ -641,6 +803,7 @@ def sound_specimen() -> dict[str, Any]:
         "requested_model": "m",
         "classification": "PASS",
         "decision_reason": "probe-token-matched",
+        "detail_template": "probe-token-matched",
         "detail": "the completion carried the probe token",
         "http_status": 200,
         "body_bytes_observed": 12,
@@ -657,6 +820,16 @@ def defective_specimens() -> list[tuple[str, dict[str, Any], str]]:
 
     prose = sound_specimen()
     prose["detail"] = "the provider said: sk-live-4f9c2a"
+
+    # The specimen the lexical check cannot refuse and the provenance pass can:
+    # every word is one this module wrote, in a line it never renders.
+    forged = sound_specimen()
+    forged["detail"] = "the completion carried the probe token, not an object"
+
+    # And a line whose template says it should look like something else. A
+    # provider value copied into `detail` keeps whatever template was in flight.
+    mismatched = sound_specimen()
+    mismatched["detail_template"] = "no-terminal-answer"
 
     typed = sound_specimen()
     typed["http_status"] = True
@@ -682,6 +855,8 @@ def defective_specimens() -> list[tuple[str, dict[str, Any], str]]:
         ("a boolean wearing a status", typed, "not an integer"),
         ("an invented decision reason", reason, "not a member of DECISION_REASONS"),
         ("a value that is not the local one", elsewhere, "is not the local provider"),
+        ("local words in a line this module never renders", forged, "does not match what template"),
+        ("a line that disagrees with its own template", mismatched, "does not match what template"),
     ]
 
 
