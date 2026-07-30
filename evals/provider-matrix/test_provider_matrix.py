@@ -1653,3 +1653,80 @@ class SendResultTypeTests(unittest.TestCase):
         self.assertEqual(pm.validate_send_result(sent), sent)
         self.assertIs(type(sent.status), int)
         self.assertIs(type(sent.body), bytes)
+
+
+class JsonEncodingTests(unittest.TestCase):
+    """`json.loads` sniffs encodings. The consumer of a PASS does not.
+
+    Passing bytes straight to `json.loads` accepts UTF-16, UTF-32 and a UTF-8
+    BOM. `serde_json::from_slice` — what the adapter will use — accepts none of
+    them, so sniffing here would qualify a body the mapper refuses: the same
+    liberality as before, moved from structure to encoding. And
+    `UnicodeDecodeError` was in no except tuple, so a broken 2xx surfaced as
+    `INTERNAL_ERROR` — blaming the matrix for what the provider sent.
+    """
+
+    BODY = '{"model":"openai/gpt-oss-120b","choices":[{"message":{"role":"assistant","tool_calls":[]}}]}'
+
+    def qualify(self, raw: bytes):
+        return pm.qualify_target(target(), surface(), 30.0, 6, scripted([(200, raw, "")]))
+
+    def test_the_policy_is_the_consumers_measured_behaviour(self):
+        """Pinned so a change here has to be a decision, not a drift.
+
+        Measured against `serde_json::from_slice`, which the crate uses for
+        every provider body: utf-8 Ok, utf-8+BOM Err, utf-16 Err, broken Err.
+        """
+        self.assertEqual(pm.strict_json_loads(b'{"a":1}', "x"), {"a": 1})
+        for raw in (b"\xef\xbb\xbf" + b'{"a":1}',
+                    '{"a":1}'.encode("utf-16"),
+                    '{"a":1}'.encode("utf-32"),
+                    b'{"a":"\xff\xfe"}'):
+            with self.assertRaises(pm.InvalidJsonEncoding, msg=repr(raw[:8])):
+                pm.strict_json_loads(raw, "x")
+
+    def test_a_utf8_completion_still_passes_through(self):
+        receipt = self.qualify(self.BODY.encode("utf-8"))
+        self.assertEqual(receipt["classification"], "NO_TERMINAL_ANSWER")
+        self.assertEqual(receipt["model_status"], "verified")
+
+    def test_a_broken_utf8_completion_is_invalid_output_not_internal_error(self):
+        """The provider sent it. That is not a defect in the matrix."""
+        receipt = self.qualify(b'{"model":"m","choices":"\xff\xfe"}')
+        self.assertEqual(receipt["classification"], "INVALID_OUTPUT")
+        self.assertNotEqual(receipt["classification"], "INTERNAL_ERROR")
+
+    def test_utf16_and_utf32_completions_are_invalid_output(self):
+        for encoding in ("utf-16", "utf-32", "utf-16-le", "utf-16-be"):
+            receipt = self.qualify(self.BODY.encode(encoding))
+            self.assertEqual(receipt["classification"], "INVALID_OUTPUT", encoding)
+
+    def test_a_bom_prefixed_completion_is_invalid_output(self):
+        receipt = self.qualify(b"\xef\xbb\xbf" + self.BODY.encode("utf-8"))
+        self.assertEqual(receipt["classification"], "INVALID_OUTPUT")
+
+    def test_the_probe_applies_the_same_rule(self):
+        good = b'{"model":"m","choices":[{"message":{"content":"QODEC_PROBE_OK"}}]}'
+        self.assertEqual(
+            pm.probe_target(probe_row({}), 1, scripted([(200, good, "", "completed")]), registry())["classification"],
+            "PASS")
+        for raw in (b"\xef\xbb\xbf" + good, good.decode().encode("utf-16"), b'{"model":"\xff\xfe"}'):
+            result = pm.probe_target(probe_row({}), 1, scripted([(200, raw, "", "completed")]), registry())
+            self.assertEqual(result["classification"], "INVALID_OUTPUT", repr(raw[:8]))
+
+    def test_badly_encoded_tool_arguments_are_malformed_not_a_crash(self):
+        """`function.arguments` reaches the loader as a `str`, already decoded.
+
+        The strings a JSON parser produces are always valid Unicode, so the
+        encoding branch cannot fire here — but a lone surrogate can still be
+        spelled with `\\ud800`, and that must not escape as an encoding crash.
+        """
+        receipt = pm.qualify_target(target(), surface(), 30.0, 6, scripted(
+            OPERATION_THEN((200, completion([call("qodec_answer", '"\\ud800"', "call_ans")]), ""))))
+        self.assertEqual(receipt["classification"], "MALFORMED_TOOL_ARGUMENTS")
+
+    def test_the_http_error_body_is_still_read_whatever_its_encoding(self):
+        """It picks a reason code and can never earn a PASS."""
+        for raw in ('{"error":{"message":"тише"}}'.encode("utf-16"), b'{"error":\xff\xfe}'):
+            receipt = pm.qualify_target(target(), surface(), 30.0, 6, scripted([(429, raw, "")]))
+            self.assertEqual(receipt["classification"], "RATE_LIMITED", repr(raw[:8]))

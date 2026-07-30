@@ -9,6 +9,7 @@ without fallback or model substitution.
 from __future__ import annotations
 
 import argparse
+import codecs
 import hashlib
 import json
 import os
@@ -68,8 +69,16 @@ def reject_duplicate_keys(pairs: list[tuple[str, Any]]) -> dict[str, Any]:
     return dict(pairs)
 
 
-class DuplicateJsonKey(ValueError):
+class StrictJsonError(ValueError):
+    """A document that decides something did not arrive in an acceptable form."""
+
+
+class DuplicateJsonKey(StrictJsonError):
     """One JSON object named the same field twice."""
+
+
+class InvalidJsonEncoding(StrictJsonError):
+    """Bytes that are not the encoding the consumer of this JSON accepts."""
 
 
 def strict_json_loads(raw: str | bytes, what: str) -> Any:
@@ -94,7 +103,32 @@ def strict_json_loads(raw: str | bytes, what: str) -> Any:
     pick a local reason code, it never becomes a tool call, and it cannot earn
     a PASS — refusing to read a sloppy error would turn the provider's
     untidiness into our transport failure.
+
+    Encoding is decided here too, and decided by the consumer rather than by
+    taste. `json.loads` accepts *bytes* and sniffs UTF-8, UTF-16 and UTF-32, and
+    tolerates a UTF-8 BOM. The adapter that will consume a PASS reads bodies
+    with `serde_json::from_slice`, which was measured against all four:
+
+        utf-8         Ok
+        utf-8 + BOM   Err(expected value at line 1 column 1)
+        utf-16le      Err(expected value at line 1 column 1)
+        broken utf-8  Err(invalid unicode code point)
+
+    So the rule is UTF-8 with no BOM, and nothing else — RFC 8259 requires UTF-8
+    for JSON exchanged between systems, and a receiver *may* ignore a BOM but is
+    not obliged to. Sniffing here would qualify a body the mapper refuses, which
+    is the same liberality as before, moved from structure to encoding.
     """
+    if isinstance(raw, (bytes, bytearray, memoryview)):
+        raw = bytes(raw)
+        # Checked before decoding: a BOM is valid UTF-8 (`﻿`), so decoding
+        # first would hide it and `json.loads` would then skip it silently.
+        if raw.startswith(codecs.BOM_UTF8):
+            raise InvalidJsonEncoding(f"{what}: a UTF-8 BOM is not accepted")
+        try:
+            raw = raw.decode("utf-8")
+        except UnicodeDecodeError as exc:
+            raise InvalidJsonEncoding(f"{what}: not valid UTF-8 ({exc.reason})") from None
     try:
         return json.loads(raw, object_pairs_hook=reject_duplicate_keys)
     except DuplicateJsonKey as exc:
@@ -908,7 +942,7 @@ def probe_target(
         reported_model = payload.get("model")
         choices = payload.get("choices", [])
         content = choices[0]["message"]["content"] if choices else None
-    except (DuplicateJsonKey, json.JSONDecodeError, KeyError, TypeError, IndexError, AttributeError):
+    except (StrictJsonError, json.JSONDecodeError, KeyError, TypeError, IndexError, AttributeError):
         result["classification"] = "INVALID_OUTPUT"
         return result
     result["reported_model"] = reported_model
@@ -1321,6 +1355,8 @@ def decode_arguments(call: dict[str, Any]) -> tuple[dict[str, Any] | None, str |
         parsed = strict_json_loads(raw, f"{call['name']} arguments")
     except DuplicateJsonKey as exc:
         return None, f"arguments for {call['name']} name a field twice: {exc}"
+    except InvalidJsonEncoding as exc:
+        return None, f"arguments for {call['name']} are not acceptable JSON: {exc}"
     except json.JSONDecodeError as exc:
         return None, f"arguments for {call['name']} are not valid JSON: {exc}"
     if not isinstance(parsed, dict):
@@ -1538,7 +1574,7 @@ def qualify_target(
             message = payload["choices"][0]["message"]
             if not isinstance(message, dict):
                 raise TypeError("choices[0].message was not an object")
-        except (DuplicateJsonKey, json.JSONDecodeError, KeyError, IndexError, TypeError, AttributeError) as exc:
+        except (StrictJsonError, json.JSONDecodeError, KeyError, IndexError, TypeError, AttributeError) as exc:
             why = f"unmappable 2xx completion: {type(exc).__name__}"
             record["outcome"] = "unreadable-response"
             record["detail"] = why

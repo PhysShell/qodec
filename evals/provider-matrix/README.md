@@ -111,6 +111,29 @@ a local reason code, never becomes a tool call, and cannot earn a `PASS`.
 Refusing to read a sloppy error would turn the provider's untidiness into our
 transport failure.
 
+### The encoding is the consumer's, not a taste
+
+`json.loads` accepts *bytes* and sniffs UTF-8, UTF-16 and UTF-32, and tolerates
+a UTF-8 BOM. The adapter that will consume a `PASS` reads bodies with
+`serde_json::from_slice`, which was measured against all four:
+
+| body | `serde_json::from_slice` |
+| --- | --- |
+| UTF-8 | `Ok` |
+| UTF-8 + BOM | `Err(expected value at line 1 column 1)` |
+| UTF-16LE | `Err(expected value at line 1 column 1)` |
+| broken UTF-8 | `Err(invalid unicode code point)` |
+
+So the rule is **UTF-8, no BOM, nothing else** — RFC 8259 requires UTF-8 for
+JSON exchanged between systems, and a receiver *may* ignore a BOM but is not
+obliged to. Sniffing here would qualify a body the mapper refuses: the same
+liberality as the padded byte envelope, moved from structure to encoding.
+
+A body that breaks the rule is `INVALID_OUTPUT` — the provider sent it, and that
+is not a defect in this tool. Before this, `UnicodeDecodeError` was in no except
+tuple, so a broken 2xx surfaced as `INTERNAL_ERROR` and blamed the matrix for
+what arrived on the wire.
+
 This check cannot be repeated on a value that is already a `dict`. By then
 Python has discarded the losing value, so an earlier claim that a
 caller-supplied registry was validated "including duplicate JSON keys" was not

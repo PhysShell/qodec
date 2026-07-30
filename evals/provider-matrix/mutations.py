@@ -271,9 +271,9 @@ MUTATIONS = [
     # the `AttributeError` that would otherwise catch `[].get`.
     ("M1 nothing stops a non-object probe payload from raising",
      ["        if not isinstance(payload, dict):\n            raise TypeError(f\"completion was a {type(payload).__name__}, not an object\")\n        reported_model = payload.get(\"model\")",
-      "    except (DuplicateJsonKey, json.JSONDecodeError, KeyError, TypeError, IndexError, AttributeError):"],
+      "    except (StrictJsonError, json.JSONDecodeError, KeyError, TypeError, IndexError, AttributeError):"],
      ["        reported_model = payload.get(\"model\")",
-      "    except (DuplicateJsonKey, json.JSONDecodeError, KeyError, TypeError, IndexError):"]),
+      "    except (StrictJsonError, json.JSONDecodeError, KeyError, TypeError, IndexError):"]),
     ("M3 an unmappable 2xx filed as a refusal",
      "            receipt.update(classification=\"INVALID_OUTPUT\", detail=why, turn_count=turn + 1)",
      "            receipt.update(classification=\"PROVIDER_REJECTED\", detail=why, turn_count=turn + 1)"),
@@ -316,9 +316,23 @@ MUTATIONS = [
     ("P3 tool-call arguments parsed leniently",
      "        parsed = strict_json_loads(raw, f\"{call['name']} arguments\")",
      "        parsed = json.loads(raw)"),
-    ("P4 a duplicate-key completion no longer classified",
-     "    except (DuplicateJsonKey, json.JSONDecodeError, KeyError, TypeError, IndexError, AttributeError):",
+    ("P4 a strictly-refused completion no longer classified",
+     "    except (StrictJsonError, json.JSONDecodeError, KeyError, TypeError, IndexError, AttributeError):",
      "    except (json.JSONDecodeError, KeyError, TypeError, IndexError, AttributeError):"),
+
+    # -- R: the encoding the consumer accepts, and no other --
+    ("R1 bytes handed to json.loads to sniff",
+     "    if isinstance(raw, (bytes, bytearray, memoryview)):\n        raw = bytes(raw)",
+     "    if False:\n        raw = bytes(raw)"),
+    ("R2 a UTF-8 BOM tolerated",
+     "        if raw.startswith(codecs.BOM_UTF8):",
+     "        if False:"),
+    ("R3 a decode failure escapes instead of classifying",
+     "        except UnicodeDecodeError as exc:\n            raise InvalidJsonEncoding(f\"{what}: not valid UTF-8 ({exc.reason})\") from None",
+     "        except UnicodeDecodeError:\n            raise"),
+    ("R4 sniffing restored by decoding with the wrong strictness",
+     "            raw = raw.decode(\"utf-8\")",
+     "            raw = raw.decode(\"utf-8\", \"replace\")"),
 
     # -- Q: the stage table enforces types, not merely presence --
     ("Q1 a non-integer status accepted",
