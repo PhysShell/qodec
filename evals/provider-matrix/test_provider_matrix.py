@@ -1316,6 +1316,20 @@ def occurrences(value, needle, path="$"):
     return found
 
 
+def completion_with_role(role, calls, model="openai/gpt-oss-120b"):
+    """A completion whose assistant `role` is whatever the caller says."""
+    return json.dumps({
+        "id": "chatcmpl-test", "model": model,
+        "choices": [{"index": 0, "message": {
+            "role": role, "content": None, "tool_calls": calls}}],
+    }).encode()
+
+
+def call_with_type(kind, name="qodec_intersect", arguments=INTERSECT_ARGS, call_id="call_0"):
+    return {"id": call_id, "type": kind,
+            "function": {"name": name, "arguments": arguments}}
+
+
 class DurableProjectionTests(unittest.TestCase):
     """Nothing the provider chose is copied into durable evidence.
 
@@ -1330,13 +1344,28 @@ class DurableProjectionTests(unittest.TestCase):
 
     SENTINEL = "sk-QODEC-SENTINEL-b3f9c1d7e2a4-DO-NOT-LEAK"
 
+    @property
+    def ENCODED(self):
+        """The same secret as a non-negative integer.
+
+        A sweep that looks only for text is a sweep a provider can walk
+        past by encoding: `int.from_bytes(secret.encode(), "big")` is a
+        perfectly well-typed token count.
+        """
+        return int.from_bytes(self.SENTINEL.encode(), "big")
+
     def assert_absent(self, artifact, label):
         """The recursive assertion, not a list of fields to remember."""
-        where = occurrences(artifact, self.SENTINEL)
-        self.assertEqual(where, [], f"the credential reached {label} at {where}")
-        self.assertNotIn(self.SENTINEL, json.dumps(artifact, default=repr), label)
+        blob = json.dumps(artifact, default=repr)
+        for shape, needle in (("text", self.SENTINEL), ("integer", str(self.ENCODED))):
+            where = occurrences(artifact, needle)
+            self.assertEqual(
+                where, [], f"the credential reached {label} as {shape} at {where}")
+            self.assertNotIn(needle, blob, f"{label} ({shape})")
 
     # -- usage --
+
+    BOUNDS = {"prompt_tokens": 10_000, "completion_tokens": 1024, "total_tokens": 11_024}
 
     def test_only_known_non_negative_integer_counters_survive(self):
         self.assertEqual(
@@ -1349,7 +1378,7 @@ class DurableProjectionTests(unittest.TestCase):
                 # an unknown name is still a field the provider invented.
                 "queue_position": 3,
                 "reasoning_tokens": 7,
-            }),
+            }, self.BOUNDS),
             {"prompt_tokens": 12, "completion_tokens": 0, "total_tokens": 12},
         )
 
@@ -1363,11 +1392,11 @@ class DurableProjectionTests(unittest.TestCase):
             ("null", {"prompt_tokens": None}),
             ("object", {"prompt_tokens": {"value": 12}}),
         ):
-            self.assertEqual(pm.normalize_provider_usage(usage), {}, label)
+            self.assertEqual(pm.normalize_provider_usage(usage, self.BOUNDS), {}, label)
 
     def test_a_usage_that_is_not_an_object_yields_nothing(self):
         for value in ("12", 12, None, [1, 2], True):
-            self.assertEqual(pm.normalize_provider_usage(value), {})
+            self.assertEqual(pm.normalize_provider_usage(value, self.BOUNDS), {})
 
     def test_usage_never_reaches_a_verdict(self):
         """Descriptive telemetry. A poisoned `usage` changes nothing but itself."""
@@ -1465,6 +1494,26 @@ class DurableProjectionTests(unittest.TestCase):
                 "call_ans")]), "")),
             "assistant content reflection": [(200, completion_with_content(
                 self.SENTINEL, [call("qodec_intersect", INTERSECT_ARGS, "op")]), "")],
+            # The discriminators. A sweep that covered content, ids, names,
+            # models and usage but not these was a field list wearing a
+            # recursive walk's clothes.
+            "role reflection": [(200, completion_with_role(
+                self.SENTINEL, [call("qodec_intersect", INTERSECT_ARGS, "op")]), "")],
+            "role reflection as an object": [(200, completion_with_role(
+                {"echo": self.SENTINEL}, [call("qodec_intersect", INTERSECT_ARGS, "op")]), "")],
+            "tool call type reflection": [(200, completion(
+                [call_with_type(self.SENTINEL)]), "")],
+            "tool call type reflection as an array": [(200, completion(
+                [call_with_type([self.SENTINEL])]), "")],
+            # A secret does not have to arrive as a string. This one is a
+            # well-typed non-negative integer, and a sweep for the sentinel text
+            # would walk straight past it.
+            "usage as a number": [(200, json.dumps({
+                "model": "openai/gpt-oss-120b",
+                "usage": {"prompt_tokens": int.from_bytes(self.SENTINEL.encode(), "big")},
+                "choices": [{"message": {"role": "assistant", "content": None,
+                                         "tool_calls": [call("qodec_intersect", INTERSECT_ARGS, "op")]}}],
+            }).encode(), "")],
         }
         for label, replies in scenarios.items():
             with self.subTest(scenario=label):
@@ -1486,6 +1535,89 @@ class DurableProjectionTests(unittest.TestCase):
             with self.subTest(scenario=label):
                 result = pm.probe_target(probe_row({}), 1, scripted(replies), registry())
                 self.assert_absent(result, label)
+
+    def test_a_counter_above_its_local_bound_is_dropped(self):
+        """"Bounded numeric scalar" with no upper bound is an open channel.
+
+        The bound comes from the request this module sent — bytes for the
+        prompt, `max_tokens` for the completion — so nothing in the response
+        decides how large a number the response may write down.
+        """
+        bounds = pm.usage_bounds(request_bytes=500, max_tokens=16)
+        self.assertEqual(
+            pm.normalize_provider_usage({
+                "prompt_tokens": self.ENCODED,
+                "completion_tokens": 17,
+                "total_tokens": 512,
+            }, bounds),
+            {"total_tokens": 512},
+        )
+        # One past the ceiling is one too many, for each of the three.
+        self.assertEqual(pm.normalize_provider_usage(
+            {"prompt_tokens": 501, "completion_tokens": 17, "total_tokens": 517}, bounds),
+            {})
+        self.assertEqual(pm.normalize_provider_usage(
+            {"prompt_tokens": 500, "completion_tokens": 16, "total_tokens": 516}, bounds),
+            {"prompt_tokens": 500, "completion_tokens": 16, "total_tokens": 516})
+
+    def test_a_numerically_encoded_secret_never_reaches_a_receipt(self):
+        body = json.dumps({
+            "model": "openai/gpt-oss-120b",
+            "usage": {"prompt_tokens": self.ENCODED, "completion_tokens": self.ENCODED},
+            "choices": [{"message": {"role": "assistant", "content": None,
+                                     "tool_calls": [call("qodec_intersect", INTERSECT_ARGS, "op")]}}],
+        }).encode()
+        receipt = pm.qualify_target(target(), surface(), 30.0, 6,
+                                    scripted([(200, body, ""), ANSWER_REPLY]))
+        self.assertEqual(receipt["classification"], "PASS")
+        self.assertEqual(receipt["turns"][0]["reported_usage"], {})
+        self.assert_absent(receipt, "a receipt whose usage was a number")
+
+    def test_a_reflected_discriminator_is_still_a_protocol_violation(self):
+        """Containment must not be bought by losing the verdict."""
+        cases = {
+            "role as text": completion_with_role(
+                self.SENTINEL, [call("qodec_intersect", INTERSECT_ARGS, "op")]),
+            "role as an object": completion_with_role(
+                {"echo": self.SENTINEL}, [call("qodec_intersect", INTERSECT_ARGS, "op")]),
+            "type as text": completion([call_with_type(self.SENTINEL)]),
+            "type as an array": completion([call_with_type([self.SENTINEL])]),
+        }
+        for label, body in cases.items():
+            with self.subTest(case=label):
+                receipt = self.poisoned_receipt([(200, body, "")])
+                self.assertEqual(receipt["classification"], "PROTOCOL_VIOLATION", label)
+                self.assert_absent(receipt, label)
+
+    def test_a_discriminator_that_is_one_of_ours_is_named_outright(self):
+        """A matched enum member is a value we already had, so it is not hidden."""
+        self.assertEqual(pm.discriminator("message-role", "user", pm.MESSAGE_ROLES), "'user'")
+        self.assertEqual(
+            pm.discriminator("message-role", "bot", pm.MESSAGE_ROLES),
+            pm.opaque_ref("message-role", "bot"))
+        self.assertEqual(
+            pm.discriminator("tool-call-type", {"a": 1}, pm.TOOL_CALL_TYPES),
+            "<tool-call-type object>")
+
+    def test_a_non_string_model_crosses_as_a_type_and_not_as_a_hash(self):
+        """Unrecognised structures do not cross — not even as a digest of one."""
+        evidence = pm.model_evidence("m", {"echo": self.SENTINEL})
+        self.assertEqual(evidence, {
+            "reported_model": None,
+            "reported_model_present": True,
+            "reported_model_type": "object",
+        })
+        self.assertEqual(pm.model_evidence("m", None),
+                         {"reported_model": None, "reported_model_present": False})
+
+    def test_the_response_digest_is_domain_separated_and_measured(self):
+        body = completion([call("qodec_intersect", INTERSECT_ARGS, "op")])
+        receipt = pm.qualify_target(target(), surface(), 30.0, 6,
+                                    scripted([(200, body, ""), ANSWER_REPLY]))
+        turn = receipt["turns"][0]
+        self.assertEqual(turn["response_sha256"], pm.evidence_digest("response-body", body))
+        self.assertEqual(turn["response_bytes"], len(body))
+        self.assertNotEqual(turn["response_sha256"], hashlib.sha256(body).hexdigest())
 
     def test_a_reflected_model_still_fails_the_identity_check(self):
         """Projection must not buy containment by losing the finding."""
@@ -1532,10 +1664,23 @@ class DurableProjectionTests(unittest.TestCase):
             ok = pm.SendResult(None, None, "x", "before-response", reason=reason)
             self.assertEqual(pm.validate_send_result(ok), ok)
 
-    def test_a_failure_type_must_be_a_class_name(self):
-        with self.assertRaisesRegex(ValueError, "failure_type"):
+    def test_a_failure_kind_is_an_enum_not_an_identifier(self):
+        """`"BearerSecretValue"` is a valid Python identifier.
+
+        The earlier field admitted any of them and called that provenance.
+        Syntax is not origin: `SendResult` is constructible by an injected
+        sender, so the vocabulary has to be closed rather than well-formed.
+        """
+        with self.assertRaisesRegex(ValueError, "unknown transport failure kind"):
             pm.validate_send_result(pm.SendResult(
-                None, None, "x", "before-response", failure_type=f"Bearer {self.SENTINEL}"))
+                None, None, "x", "before-response", failure_kind="BearerSecretValue"))
+        with self.assertRaisesRegex(ValueError, "sha256 hex digest"):
+            pm.validate_send_result(pm.SendResult(
+                None, None, "x", "before-response",
+                failure_class_sha256=f"Bearer {self.SENTINEL}"))
+        for kind in pm.TRANSPORT_FAILURE_KINDS:
+            ok = pm.SendResult(None, None, "x", "before-response", failure_kind=kind)
+            self.assertEqual(pm.validate_send_result(ok), ok)
 
     def test_call_ids_cross_as_ordinals_and_digests(self):
         receipt = self.poisoned_receipt([(200, completion(
@@ -2548,7 +2693,11 @@ class HttpFramingFailureTests(unittest.TestCase):
                                         pm.send_json(url, body, "k", timeout))
         self.assertEqual(receipt["classification"], "RESPONSE_CAPTURE_FAILED")
         self.assertNotIn(self.SENTINEL, json.dumps(receipt))
-        self.assertIn("BadStatusLine", receipt["detail"])
+        # The kind is named; the concrete class crosses as a digest anyone can
+        # recompute for a class they suspect.
+        self.assertIn("http-framing-error", receipt["detail"])
+        self.assertEqual(receipt["turns"][0]["transport_failure_class_sha256"],
+                         pm.evidence_digest("failure-class", "BadStatusLine"))
 
     def test_qualification_classifies_a_framing_failure_rather_than_crashing(self):
         with patch.object(pm._OPENER, "open", side_effect=http.client.LineTooLong("header line")):

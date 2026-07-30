@@ -95,6 +95,10 @@ EVIDENCE_DOMAINS = {
     "citation": b"qodec-provider-citation-v1\0",
     "argument-errors": b"qodec-provider-argument-errors-v1\0",
     "json-value": b"qodec-provider-json-value-v1\0",
+    "message-role": b"qodec-provider-message-role-v1\0",
+    "tool-call-type": b"qodec-provider-tool-call-type-v1\0",
+    "response-body": b"qodec-provider-response-body-v1\0",
+    "failure-class": b"qodec-provider-failure-class-v1\0",
 }
 
 
@@ -143,12 +147,74 @@ def opaque_ref(domain: str, value: Any) -> str:
     return f"<{domain} sha256:{evidence_digest(domain, value)[:16]} {len(evidence_bytes(value))}B>"
 
 
+JSON_TYPE_NAMES = (
+    (bool, "boolean"), (int, "number"), (float, "number"), (str, "string"),
+    (list, "array"), (dict, "object"),
+)
+
+
+def json_type_name(value: Any) -> str:
+    """The JSON type of a provider value — a local word about a foreign thing."""
+    if value is None:
+        return "null"
+    for kind, name in JSON_TYPE_NAMES:
+        if isinstance(value, kind):
+            return name
+    return "unknown"
+
+
+# The discriminators this dialect switches on. A value that is one of these is a
+# value we already had; anything else is the provider's.
+MESSAGE_ROLES = ("assistant", "system", "user", "tool")
+TOOL_CALL_TYPES = ("function",)
+
+
+def discriminator(domain: str, value: Any, known: tuple[str, ...]) -> str:
+    """Name a provider-controlled discriminator in a message, safely.
+
+    `f"role {role!r}"` reads like a harmless diagnostic and is a copy: `role`
+    and `tool_call.type` are strings the provider fills in, so either can be the
+    bearer token, and `detail` goes to disk. A discriminator that matched one of
+    ours is worth naming outright — it is a value we already had. Anything else
+    crosses as a reference, and a non-string crosses as its JSON type, because
+    the contract is that unrecognised objects and lists do not cross at all.
+    """
+    if isinstance(value, str) and value in known:
+        return repr(value)
+    if isinstance(value, str):
+        return opaque_ref(domain, value)
+    return f"<{domain} {json_type_name(value)}>"
+
+
 # The counters, and nothing else. Anything outside this tuple is discarded
 # rather than recorded, however plausible it looks.
+# The generation ceilings this module asks for. Named here because the usage
+# bounds are derived from them, and a bound that drifts from the request it
+# describes is not a bound.
+PROBE_MAX_TOKENS = 16
+QUALIFY_MAX_TOKENS = 1024
+
 USAGE_COUNTERS = ("prompt_tokens", "completion_tokens", "total_tokens")
 
 
-def normalize_provider_usage(value: Any) -> dict[str, int]:
+def usage_bounds(request_bytes: int, max_tokens: int) -> dict[str, int]:
+    """The largest each counter could honestly be, computed from our own request.
+
+    Every bound here comes from something this module decided. `prompt_tokens`
+    cannot exceed the number of bytes we sent, because no tokenizer emits more
+    than one token per byte; `completion_tokens` cannot exceed the `max_tokens`
+    we asked for; `total_tokens` cannot exceed their sum. Conservative on
+    purpose — the point is not to audit the provider's arithmetic, it is that an
+    unbounded integer field is an unbounded channel.
+    """
+    return {
+        "prompt_tokens": request_bytes,
+        "completion_tokens": max_tokens,
+        "total_tokens": request_bytes + max_tokens,
+    }
+
+
+def normalize_provider_usage(value: Any, bounds: dict[str, int]) -> dict[str, int]:
     """The provider's token counters, and nothing else it decided to send.
 
     An allowlist, not a filter. `usage` is a JSON object the provider fills in,
@@ -161,6 +227,14 @@ def normalize_provider_usage(value: Any) -> dict[str, int]:
     count is refused for the same reason a status of 700 is: it is not a
     measurement, and keeping it would be recording a claim.
 
+    And the range is bounded at both ends, which the first version was not.
+    "Bounded numeric scalar" with no upper bound is an arbitrary-precision
+    integer wearing a type check: `int.from_bytes(secret.encode(), "big")` in
+    `prompt_tokens` is a perfectly well-typed non-negative integer, and a sweep
+    for a *string* sentinel would never see it. The bounds come from `bounds`,
+    which is computed from the request this module sent — never from anything
+    in the response.
+
     Usage is descriptive telemetry. It never reaches a verdict, in either path.
     """
     if not isinstance(value, dict):
@@ -168,7 +242,7 @@ def normalize_provider_usage(value: Any) -> dict[str, int]:
     counts: dict[str, int] = {}
     for name in USAGE_COUNTERS:
         count = value.get(name)
-        if type(count) is int and count >= 0:
+        if type(count) is int and 0 <= count <= bounds[name]:
             counts[name] = count
     return counts
 
@@ -183,7 +257,19 @@ def model_evidence(requested: str, reported: Any) -> dict[str, Any]:
     """
     if isinstance(reported, str) and reported == requested:
         return {"reported_model": requested, "reported_model_present": True}
-    return {"reported_model": None, **opaque("reported_model", "model-name", reported)}
+    if isinstance(reported, str):
+        return {"reported_model": None, **opaque("reported_model", "model-name", reported)}
+    if reported is None:
+        return {"reported_model": None, "reported_model_present": False}
+    # An object or a list in `model` is not an identifier to hash — the
+    # contract says unrecognised structures do not cross, and hashing one
+    # would have been the boundary quietly making an exception for itself.
+    # Its JSON type is a local word and is all that crosses.
+    return {
+        "reported_model": None,
+        "reported_model_present": True,
+        "reported_model_type": json_type_name(reported),
+    }
 
 
 # The vocabulary `jsonschema_mini` and the envelope oracle emit. Matching on it
@@ -877,14 +963,15 @@ class SendResult(NamedTuple):
     stage: str = "before-response"  # before-response | after-headers | completed
     body_bytes_observed: int | None = None
     request_id: str | None = None
-    # `detail` is free text and stays in memory. These two are what may
-    # cross into a receipt, and both are local *by construction* rather
-    # than by inspection: `reason` comes from a fixed vocabulary, and
-    # `failure_type` is a Python class name, which no peer can choose.
-    # An `SSLCertVerificationError` message carries fields the peer
-    # picked; its class name does not.
+    # `detail` is free text and stays in memory. These are what may cross
+    # into a receipt, and each is local because its *vocabulary* is local,
+    # not because of where it was produced. "It is a Python class name"
+    # was the earlier argument and it did not hold: `SendResult` is
+    # constructible by an injected sender, `"BearerSecretValue"` satisfies
+    # `str.isidentifier()`, and syntax is not provenance.
     reason: str | None = None
-    failure_type: str | None = None
+    failure_kind: str | None = None
+    failure_class_sha256: str | None = None
 
 
 # Why an exchange did not complete, in this module's own words. A reason is
@@ -899,6 +986,27 @@ TRANSPORT_REASONS = (
     "credential-not-header-safe",
     "request-not-constructed",
 )
+
+# What kind of thing went wrong, closed. The concrete exception class is often
+# worth knowing — `BadStatusLine` and `LineTooLong` are different problems — so
+# it crosses beside this as a digest, which anyone can recompute for a class
+# they suspect without the field being able to carry anything else.
+TRANSPORT_FAILURE_KINDS = (
+    "timeout-error",
+    "url-error",
+    "http-framing-error",
+    "body-read-error",
+    "os-error",
+    "request-construction-error",
+)
+
+
+def failure_evidence(kind: str, exc: BaseException | None) -> dict[str, str]:
+    """A local kind, and the exception class as a digest rather than as a name."""
+    fields = {"failure_kind": kind}
+    if exc is not None:
+        fields["failure_class_sha256"] = evidence_digest("failure-class", type(exc).__name__)
+    return fields
 
 
 class BodyTooLarge(ValueError):
@@ -1002,10 +1110,14 @@ def validate_send_result(result: SendResult) -> SendResult:
     # A Python identifier, because that is all a class name can be. Cheap to
     # check and it makes "this field is local" an assertion rather than a
     # convention somebody has to keep.
-    if result.failure_type is not None and not (
-        isinstance(result.failure_type, str) and result.failure_type.isidentifier()
+    if result.failure_kind is not None and result.failure_kind not in TRANSPORT_FAILURE_KINDS:
+        raise ValueError(f"unknown transport failure kind {result.failure_kind!r}")
+    if result.failure_class_sha256 is not None and not (
+        isinstance(result.failure_class_sha256, str)
+        and len(result.failure_class_sha256) == 64
+        and all(ch in "0123456789abcdef" for ch in result.failure_class_sha256)
     ):
-        raise ValueError(f"failure_type must be a class name, got {result.failure_type!r}")
+        raise ValueError("failure_class_sha256 must be a sha256 hex digest")
     if result.request_id is not None:
         if not shape["response_derived"]:
             raise ValueError(
@@ -1138,19 +1250,23 @@ def send_json(url: str, body: bytes, key: str, timeout: float, limit: int = MAX_
             return SendResult(
                 exc.code, None, capture_detail("HTTP body capture failure", read_exc),
                 "after-headers", bytes_seen(read_exc), request_id,
-                "body-capture-failure", type(read_exc).__name__,
+                "body-capture-failure", **failure_evidence("body-read-error", read_exc),
             )
         return SendResult(exc.code, raw, "", "completed", len(raw), request_id)
     except TimeoutError as exc:
         return SendResult(None, None, "timeout", "before-response",
-                          reason="timeout", failure_type=type(exc).__name__)
+                          reason="timeout", **failure_evidence("timeout-error", exc))
     except urllib.error.URLError as exc:
         reason = exc.reason
         detail = "timeout" if isinstance(reason, TimeoutError) else str(reason)
+        timed_out = isinstance(reason, TimeoutError)
         return SendResult(
             None, None, detail, "before-response",
-            reason="timeout" if isinstance(reason, TimeoutError) else "connection-failed",
-            failure_type=type(reason).__name__ if isinstance(reason, BaseException) else None,
+            reason="timeout" if timed_out else "connection-failed",
+            **failure_evidence(
+                "timeout-error" if timed_out else "url-error",
+                reason if isinstance(reason, BaseException) else exc,
+            ),
         )
     except http.client.HTTPException as exc:
         # `BadStatusLine`, `LineTooLong` and the rest of the framing family
@@ -1160,7 +1276,7 @@ def send_json(url: str, body: bytes, key: str, timeout: float, limit: int = MAX_
         # corruption as `INTERNAL_ERROR`, a defect in this tool.
         return SendResult(
             None, None, capture_detail("HTTP framing failure", exc), "response-framing",
-            reason="http-framing-failure", failure_type=type(exc).__name__,
+            reason="http-framing-failure", **failure_evidence("http-framing-error", exc),
         )
 
     # Read outside the try: these are attribute accesses on an object we already
@@ -1184,7 +1300,7 @@ def send_json(url: str, body: bytes, key: str, timeout: float, limit: int = MAX_
         return SendResult(
             status, None, capture_detail("HTTP body capture failure", exc),
             "after-headers", bytes_seen(exc), request_id,
-            "body-capture-failure", type(exc).__name__,
+            "body-capture-failure", **failure_evidence("body-read-error", exc),
         )
     return SendResult(status, raw, "", "completed", len(raw), request_id)
 
@@ -1209,7 +1325,8 @@ def key_bound_sender(key_env: str):
             # escape toward `main`, which prints `ValueError` to stderr.
             del exc
             return SendResult(None, None, "the request could not be constructed",
-                              "before-response", reason="request-not-constructed")
+                              "before-response", reason="request-not-constructed",
+                              failure_kind="request-construction-error")
 
     return send
 
@@ -1342,7 +1459,7 @@ def probe_target(
         "model": target["model"],
         "messages": [{"role": "user", "content": "Return exactly: QODEC_PROBE_OK"}],
         "temperature": 0,
-        "max_tokens": 16,
+        "max_tokens": PROBE_MAX_TOKENS,
     })
     result: dict[str, Any] = {
         "schema": PROBE_SCHEMA,
@@ -1382,9 +1499,11 @@ def probe_target(
         else:
             kind = "TIMEOUT" if sent.detail == "timeout" else "TRANSPORT_FAILURE"
         reason = transport_reason(sent)
-        if sent.failure_type is not None:
-            result["transport_failure_type"] = sent.failure_type
-            reason = f"{reason} ({sent.failure_type})"
+        if sent.failure_kind is not None:
+            result["transport_failure_kind"] = sent.failure_kind
+            reason = f"{reason} ({sent.failure_kind})"
+        if sent.failure_class_sha256 is not None:
+            result["transport_failure_class_sha256"] = sent.failure_class_sha256
         if sent.reason == "credential-missing":
             reason = f"{reason}: {target['key_env']}"
         result.update(classification=kind, detail=reason, latency_ms=latency)
@@ -1400,14 +1519,16 @@ def probe_target(
         result.update(
             classification=classify_http(status),
             http_status=status,
-            response_sha256=sha256_bytes(raw),
+            response_sha256=evidence_digest("response-body", raw),
+            response_bytes=len(raw),
             latency_ms=latency,
         )
         return result
 
     result.update(
         http_status=status,
-        response_sha256=sha256_bytes(raw),
+        response_sha256=evidence_digest("response-body", raw),
+        response_bytes=len(raw),
         latency_ms=latency,
     )
     try:
@@ -1442,7 +1563,8 @@ def probe_target(
     else:
         result["classification"] = "PASS"
     if isinstance(payload.get("usage"), dict):
-        result["provider_usage"] = normalize_provider_usage(payload["usage"])
+        result["provider_usage"] = normalize_provider_usage(
+            payload["usage"], usage_bounds(len(request_body), PROBE_MAX_TOKENS))
     return result
 
 
@@ -1711,7 +1833,7 @@ def canonical_request(surface: dict[str, Any], model: str, messages: list[dict[s
         # written to grade prose rather than the model.
         "tool_choice": "required",
         "temperature": 0,
-        "max_tokens": 1024,
+        "max_tokens": QUALIFY_MAX_TOKENS,
     }
 
 
@@ -1851,7 +1973,9 @@ def parse_tool_calls(message: dict[str, Any]) -> ParsedAssistant:
     if role != "assistant":
         return ParsedAssistant(
             [], None,
-            ("PROTOCOL_VIOLATION", f"tool calls arrived under role {role!r}, not 'assistant'"),
+            ("PROTOCOL_VIOLATION",
+             f"tool calls arrived under role {discriminator('message-role', role, MESSAGE_ROLES)}, "
+             "not 'assistant'"),
         )
     # Before anything else about the calls: a message whose own fields are the
     # wrong type is malformed whatever it happens to be asking for, and this
@@ -1894,7 +2018,9 @@ def parse_tool_calls(message: dict[str, Any]) -> ParsedAssistant:
             # arriving as anything else is a shape it will not deserialize.
             return ParsedAssistant(
                 [], content,
-                ("PROTOCOL_VIOLATION", f"tool call type was {kind!r}, not 'function'"),
+                ("PROTOCOL_VIOLATION",
+                 f"tool call type was {discriminator('tool-call-type', kind, TOOL_CALL_TYPES)}, "
+                 "not 'function'"),
             )
         call_id = entry.get("id")
         if not isinstance(call_id, str) or not call_id:
@@ -2154,7 +2280,13 @@ def qualify_target(
         }
         sent = as_send_result(send(url, body, timeout))
         status, raw, detail = sent.status, sent.body, sent.detail
-        record["response_sha256"] = sha256_bytes(raw) if raw is not None else None
+        # Domain-separated like every other provider-chosen value. The prefix
+        # is a public constant, so anyone holding the body can still verify
+        # the digest; what they cannot do is match it against a digest of the
+        # same bytes taken somewhere else in the artifact.
+        record["response_sha256"] = (
+            evidence_digest("response-body", raw) if raw is not None else None)
+        record["response_bytes"] = len(raw) if raw is not None else None
         # Whatever the provider managed to say is kept, even when the exchange
         # failed. `http_status` is present here whenever headers arrived, which
         # is exactly when it exists.
@@ -2168,8 +2300,10 @@ def qualify_target(
             reason = transport_reason(sent)
             record["outcome"] = STAGE_OUTCOME.get(sent.stage, "transport-failure")
             record["transport_reason"] = reason
-            if sent.failure_type is not None:
-                record["transport_failure_type"] = sent.failure_type
+            if sent.failure_kind is not None:
+                record["transport_failure_kind"] = sent.failure_kind
+            if sent.failure_class_sha256 is not None:
+                record["transport_failure_class_sha256"] = sent.failure_class_sha256
             if reason == "credential-missing":
                 # The env var name comes from the trusted registry by way of
                 # the target, never from the transport's message.
@@ -2180,8 +2314,8 @@ def qualify_target(
             # would throw away what the provider already told us. The
             # reason beside it is a local enum, not the transport's words.
             detail = f"HTTP {status}: {reason}" if status is not None else reason
-            if sent.failure_type is not None:
-                detail = f"{detail} ({sent.failure_type})"
+            if sent.failure_kind is not None:
+                detail = f"{detail} ({sent.failure_kind})"
             if reason == "credential-missing":
                 detail = f"{detail}: {target['key_env']}"
             receipt.update(classification=kind, detail=detail, turn_count=turn + 1)
@@ -2241,7 +2375,8 @@ def qualify_target(
         only = receipt["reported_models"][0] if len(receipt["reported_models"]) == 1 else None
         receipt["reported_model"] = only.get("reported_model") if only else None
         if isinstance(payload.get("usage"), dict):
-            record["reported_usage"] = normalize_provider_usage(payload["usage"])
+            record["reported_usage"] = normalize_provider_usage(
+                payload["usage"], usage_bounds(len(body), QUALIFY_MAX_TOKENS))
 
         parsed = parse_tool_calls(message)
         calls, problem = parsed.calls, parsed.problem
