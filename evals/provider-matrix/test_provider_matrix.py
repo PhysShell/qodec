@@ -1832,3 +1832,73 @@ class JsonAdmissionParityTests(unittest.TestCase):
         receipt = pm.qualify_target(target(), surface(), 30.0, 6,
                                     scripted([(429, b'{"error":{"message":NaN}}', "")]))
         self.assertEqual(receipt["classification"], "RATE_LIMITED")
+
+
+class JsonRecursionDepthTests(unittest.TestCase):
+    """Parity over a finite corpus is a sample, not a proof — depth was missing.
+
+    `serde_json`'s deserializer starts with a remaining depth of 128 and returns
+    `RecursionLimitExceeded` when it runs out; the oracle puts the boundary at
+    127 admitted, 128 refused. Python's decoder admits far more and then raises
+    `RecursionError`, which is not a `ValueError` and so would escape every
+    except tuple and be filed as `INTERNAL_ERROR` — blaming the matrix for a
+    body the provider sent.
+    """
+
+    def nested(self, kind: str, depth: int) -> str:
+        if kind == "array":
+            return "[" * depth + "]" * depth
+        return '{"a":' * depth + "1" + "}" * depth
+
+    def test_the_boundary_is_the_measured_one(self):
+        for kind in ("array", "object"):
+            pm.strict_json_loads(self.nested(kind, pm.MAX_JSON_DEPTH), "case")
+            with self.assertRaises(pm.UnadmittedJsonValue, msg=kind):
+                pm.strict_json_loads(self.nested(kind, pm.MAX_JSON_DEPTH + 1), "case")
+
+    def test_depth_is_measured_before_parsing(self):
+        """Otherwise Python's own decoder overflows before we can decide."""
+        for depth in (1_000, 5_000, 20_000):
+            with self.assertRaises(pm.UnadmittedJsonValue, msg=depth):
+                pm.strict_json_loads(self.nested("array", depth), "case")
+
+    def test_the_surrogate_walk_does_not_recurse(self):
+        """A check that itself overflows has swapped one crash for another."""
+        deep: Any = "x"
+        for _ in range(20_000):
+            deep = [deep]
+        pm._refuse_lone_surrogates(deep)
+
+    def test_brackets_inside_strings_do_not_nest(self):
+        self.assertEqual(pm.json_nesting_depth('{"a":"[[[[["}'), 1)
+        self.assertEqual(pm.json_nesting_depth(r'{"a":"\""}'), 1)
+        self.assertEqual(pm.json_nesting_depth('[[["]]]"]]]'), 3)
+        self.assertEqual(pm.json_nesting_depth('{"a":[1,{"b":2}]}'), 3)
+
+    def test_a_deep_value_in_an_unread_field_does_not_pass(self):
+        """The concrete false PASS. Nothing here reads `unread`."""
+        body = (b'{"model":"openai/gpt-oss-120b","choices":[{"message":{"role":"assistant",'
+                b'"tool_calls":[]}}],"unread":' + b"[" * 128 + b"]" * 128 + b"}")
+        receipt = pm.qualify_target(target(), surface(), 30.0, 6, scripted([(200, body, "")]))
+        self.assertEqual(receipt["classification"], "INVALID_OUTPUT")
+        self.assertNotEqual(receipt["model_status"], "verified")
+
+    def test_a_shallow_value_in_an_unread_field_still_passes_through(self):
+        body = (b'{"model":"openai/gpt-oss-120b","choices":[{"message":{"role":"assistant",'
+                b'"tool_calls":[]}}],"unread":' + b"[" * 120 + b"]" * 120 + b"}")
+        receipt = pm.qualify_target(target(), surface(), 30.0, 6, scripted([(200, body, "")]))
+        self.assertEqual(receipt["classification"], "NO_TERMINAL_ANSWER")
+        self.assertEqual(receipt["model_status"], "verified")
+
+    def test_deep_tool_arguments_are_malformed(self):
+        arguments = "[" * 128 + "]" * 128
+        receipt = pm.qualify_target(target(), surface(), 30.0, 6, scripted(
+            OPERATION_THEN((200, completion([call("qodec_answer", arguments, "call_ans")]), ""))))
+        self.assertEqual(receipt["classification"], "MALFORMED_TOOL_ARGUMENTS")
+        self.assertIn("nested", receipt["detail"])
+
+    def test_the_probe_applies_the_depth_rule_too(self):
+        body = (b'{"model":"m","choices":[{"message":{"content":"QODEC_PROBE_OK"}}],"unread":'
+                + b"[" * 128 + b"]" * 128 + b"}")
+        result = pm.probe_target(probe_row({}), 1, scripted([(200, body, "", "completed")]), registry())
+        self.assertEqual(result["classification"], "INVALID_OUTPUT")

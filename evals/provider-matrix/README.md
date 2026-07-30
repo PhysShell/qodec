@@ -137,7 +137,7 @@ python3 evals/provider-matrix/check_json_admission.py
 ```
 
 `examples/json_admission_oracle.rs` runs `serde_json::from_slice::<Value>` over
-`json-admission-corpus.json` — 34 cases carried as hex, so a case can be any
+`json-admission-corpus.json` — 41 cases carried as hex, so a case can be any
 byte sequence — and the checker compares its verdicts against the Python gate.
 Each case also carries a **frozen** `consumer_admits`, so the unit suite checks
 parity without a Rust toolchain while CI re-measures it and refuses a frozen
@@ -152,6 +152,29 @@ One measurement corrected a plan: integers past `u64::MAX` were to be rejected,
 and the oracle says `serde_json` admits them, falling back to `f64`. The gate
 therefore does not reject them either. Inventing a rule the consumer does not
 have is only free when it is deliberate.
+
+#### Nesting depth, which a corpus of hand-picked cases had missed
+
+A finite corpus is a sample, not a proof, and the first thing the sample missed
+was structural depth. `serde_json`'s deserializer starts with a remaining depth
+of 128 and refuses when it runs out; the oracle puts the boundary at **127
+admitted, 128 refused**, for arrays and objects alike. Python's decoder admits
+far more and then raises `RecursionError` — which is not a `ValueError`, so it
+would escape every except tuple and be filed as `INTERNAL_ERROR`, blaming the
+matrix for a body the provider sent.
+
+So the depth is measured **before** parsing, by scanning the text with an
+iterative bracket count that ignores brackets inside strings. That refuses
+exactly what the consumer refuses, and means the decoder is never handed
+anything deep enough to overflow. The surrogate walk is iterative for the same
+reason: a check that itself overflows has swapped one uncaught failure for
+another.
+
+The corpus carries the boundary on both sides, and the false PASS it closes:
+
+```json
+{"model": "openai/gpt-oss-120b", "choices": [...], "unread": [[[[…128 deep…]]]]}
+```
 
 ### The encoding is the consumer's, not a taste
 

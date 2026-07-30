@@ -103,6 +103,46 @@ class UnadmittedJsonValue(StrictJsonError):
 # consumer must admit too.
 SURROGATE_RANGE = ("\ud800", "\udfff")
 
+# Measured against the pinned `serde_json`, whose deserializer starts with a
+# remaining depth of 128 and returns `RecursionLimitExceeded` when it runs out:
+# 127 levels of array or object are admitted, 128 are refused. Python's decoder
+# admits far more and then dies of `RecursionError` — which is not a
+# `ValueError`, so it would escape every except tuple here and be filed as
+# `INTERNAL_ERROR`, blaming the matrix for a body the provider sent.
+#
+# So the depth is measured *before* parsing, by scanning the text. That refuses
+# the case the consumer refuses, and it means the decoder is never handed
+# anything deep enough to overflow its own stack.
+MAX_JSON_DEPTH = 127
+
+
+def json_nesting_depth(text: str) -> int:
+    """Deepest nesting in a JSON text, counted without parsing it.
+
+    Iterative on purpose: a recursive measurement of a deeply nested document
+    is the very failure it exists to prevent. Bracket characters inside strings
+    do not nest, so the scan tracks string state and escapes.
+    """
+    depth = deepest = 0
+    in_string = escaped = False
+    for ch in text:
+        if in_string:
+            if escaped:
+                escaped = False
+            elif ch == "\\":
+                escaped = True
+            elif ch == '"':
+                in_string = False
+            continue
+        if ch == '"':
+            in_string = True
+        elif ch in "[{":
+            depth += 1
+            deepest = max(deepest, depth)
+        elif ch in "]}":
+            depth -= 1
+    return deepest
+
 
 def _refuse_non_finite(constant: str) -> Any:
     raise UnadmittedJsonValue(f"{constant} is not a JSON value")
@@ -115,23 +155,29 @@ def _admissible_float(text: str) -> float:
     return value
 
 
-def _refuse_lone_surrogates(value: Any, where: str = "") -> None:
+def _refuse_lone_surrogates(value: Any) -> None:
     """A `str` holding U+D800..U+DFFF came from an unpaired escape.
 
     Python's decoder combines a valid pair into one non-surrogate character, so
     a surviving surrogate is exactly the case `serde_json` rejects — and the one
     that cannot be represented in a Rust `String` at all.
+
+    Walked with an explicit stack rather than by recursion: a check that itself
+    overflows on a deep document has swapped one uncaught failure for another.
     """
-    if isinstance(value, str):
-        if any(SURROGATE_RANGE[0] <= ch <= SURROGATE_RANGE[1] for ch in value):
-            raise UnadmittedJsonValue(f"lone surrogate in {where or 'a string'}")
-    elif isinstance(value, dict):
-        for key, sub in value.items():
-            _refuse_lone_surrogates(key, f"key {key!r}" if key.isprintable() else "an object key")
-            _refuse_lone_surrogates(sub, f"{where}.{key}" if where else key)
-    elif isinstance(value, list):
-        for index, sub in enumerate(value):
-            _refuse_lone_surrogates(sub, f"{where}[{index}]")
+    stack: list[tuple[Any, str]] = [(value, "<root>")]
+    while stack:
+        node, where = stack.pop()
+        if isinstance(node, str):
+            if any(SURROGATE_RANGE[0] <= ch <= SURROGATE_RANGE[1] for ch in node):
+                raise UnadmittedJsonValue(f"lone surrogate in {where}")
+        elif isinstance(node, dict):
+            for key, sub in node.items():
+                stack.append((key, "an object key"))
+                stack.append((sub, f"{where}.{key}" if where != "<root>" else key))
+        elif isinstance(node, list):
+            for index, sub in enumerate(node):
+                stack.append((sub, f"{where}[{index}]"))
 
 
 def strict_json_loads(raw: str | bytes, what: str) -> Any:
@@ -182,6 +228,14 @@ def strict_json_loads(raw: str | bytes, what: str) -> Any:
             raw = raw.decode("utf-8")
         except UnicodeDecodeError as exc:
             raise InvalidJsonEncoding(f"{what}: not valid UTF-8 ({exc.reason})") from None
+    # Before parsing, not after: Python's decoder recurses, and a body deep
+    # enough would raise `RecursionError` — not a `ValueError` — straight past
+    # every except tuple below.
+    depth = json_nesting_depth(raw)
+    if depth > MAX_JSON_DEPTH:
+        raise UnadmittedJsonValue(
+            f"{what}: nested {depth} deep; the consumer refuses more than {MAX_JSON_DEPTH}"
+        )
     try:
         parsed = json.loads(
             raw,
