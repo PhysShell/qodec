@@ -369,13 +369,57 @@ Usage is descriptive telemetry and never reaches a verdict.
 **Local means the vocabulary is local, not the address that produced it.** The
 transport's `detail` is free text and stays in memory: an
 `SSLCertVerificationError` message carries fields the peer chose. What crosses
-is `reason`, from a closed vocabulary, assigned where the failure happens. An
-earlier version recorded the exception's class name and argued that a Python
-class name cannot be chosen by a peer — but `SendResult` is constructible by an
-injected sender and `"BearerSecretValue"` satisfies `str.isidentifier()`. Syntax
-is not provenance. The kind is now an enum; the concrete class crosses beside it
-as a digest, so `BadStatusLine` and `LineTooLong` stay distinguishable to anyone
-who can hash a class name they suspect.
+is `reason`, from a closed vocabulary, assigned where the failure happens.
+
+### The producer reports; the consumer projects
+
+The boundary above says which *shapes* may cross. It does not by itself say
+**who decides** that a value has one of them, and that second question took its
+own round to answer, because `SendResult` is not only built by `send_json` — it
+is also whatever an injected `send` returns.
+
+```text
+externally constructible input
+        ↓
+validation against local facts and local bounds
+        ↓
+consumer-owned classification / projection
+        ↓
+durable evidence, or a typed FAIL
+```
+
+Two fields had it backwards.
+
+`body_bytes_observed` was the numeric channel `usage` closed, one field over. On
+`after-headers` there is no body, so nothing local contradicts the count — which
+is exactly what made it an opening: `int.from_bytes(secret, "big")` is a
+non-negative integer and went into a receipt. One `response_limit` now runs from
+the caller through the sender, `send_json`, `as_send_result` and
+`validate_send_result` to `transport_target.max_response_bytes`, so the artifact
+names the number every count was checked against instead of a second copy of a
+constant that would eventually lead its own life. The allowance is `limit + 1`,
+because `read_bounded` reads one past the limit deliberately to prove overflow;
+past that, a count is not something this contract can produce. The refusal never
+repeats the number it refused.
+
+`failure_class` was the third time a shape check was mistaken for a statement
+about origin. First the field held a class name and the argument was that a peer
+cannot choose a Python class name. Then it held a digest and the check was
+sixty-four hex characters — and a sixty-four-character hex credential satisfies a
+sixty-four-character hex check. A producer that submits finished evidence leaves
+the boundary nothing to verify but spelling. So the raw class name stays
+ephemeral and locally bounded, and `project_transport_failure` computes the
+domain-separated digest at the boundary for the probe and qualification paths
+alike, which also stops the two from drifting. `BadStatusLine` and `LineTooLong`
+remain distinguishable to anyone who can hash a class name they suspect.
+
+The same ownership question applies to a subprocess. `subprocess.run(...,
+text=True)` decodes with the host locale and raises `UnicodeDecodeError` — a
+`ValueError` — from inside the call, where neither the timeout nor the `OSError`
+handler covered it. A child's bytes were deciding whether a gate could return a
+verdict. Output is read as bytes and decoded here; a failure to decode is
+`UnreadableTestOutput`, reported without its own message, because the only
+detail that message carries is the bytes that caused it.
 
 The credential is validated *before* an `Authorization` header exists, because
 `http.client` reports a bad header value by putting it in the exception message,
@@ -682,6 +726,15 @@ Checks that no single mutation can reach are listed in that file as
 same fact, the mutated behaviour is provably identical, or the difference only
 shows on a machine CI is not. Writing a mutation that can never die is a worse
 outcome than admitting the gap — it reads as coverage.
+
+That is also why a new rule goes into the control rather than beside it. When
+the discovery gate learned to refuse output it cannot decode, the arm that
+proves it went into `--self-test` — a synthetic case that writes a raw `\xff` to
+its own file descriptor — and the failure-to-verdict mapping became a function
+so the control can reach that branch too. A decoding rule proved only by a test
+the harness never runs would have been a certificate on a wall. Deleting an arm
+outright is the one thing no control can catch about itself, and it is listed
+with the others.
 
 Every classification above except `NO_TERMINAL_ANSWER` is reached in one table
 in `test_every_classification_is_declared`, and that one has its own
