@@ -86,14 +86,25 @@ def self_test() -> int:
         return 0
 
 
+def described(cmd: object) -> str:
+    """A command line as a line, not as a repr of a list of strings."""
+    if isinstance(cmd, (list, tuple)):
+        return " ".join(str(part) for part in cmd)
+    return str(cmd)
+
+
 def main() -> int:
-    if "--self-test" in sys.argv[1:]:
-        return self_test()
+    # The self-test is inside the handler, not dispatched above it. It runs the
+    # synthetic module twice through the same `ids_from`, so it can stall in
+    # exactly the same way — and a traceback there would be the positive
+    # control failing to report, which is the one place it must not.
     try:
+        if "--self-test" in sys.argv[1:]:
+            return self_test()
         direct, direct_verdict = ids_from([f"{MODULE}.py"])
         module, module_verdict = ids_from(["-m", "unittest", MODULE])
     except subprocess.TimeoutExpired as exc:
-        print(f"FAIL a test run exceeded {TIMEOUT}s: {exc.cmd}")
+        print(f"FAIL a test run exceeded {TIMEOUT}s: {described(exc.cmd)}")
         return 1
     except OSError as exc:
         print(f"FAIL could not run the suite: {exc}")

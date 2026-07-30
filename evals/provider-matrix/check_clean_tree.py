@@ -33,10 +33,32 @@ from pathlib import Path
 TIMEOUT = 120
 
 
+class GitUnavailable(RuntimeError):
+    """git could not be run to a verdict: it stalled, or it is not there.
+
+    Raised rather than returned so no caller can read "no dirt was listed" as
+    "the tree is clean" — those are different answers, and only one of them is
+    an answer. Caught at `main()` and printed as a FAIL: a traceback out of a
+    120-second stall reads like the gate is broken, when what happened is that
+    the gate could not tell, which is a result and belongs in the exit code.
+    """
+
+
 def git(*args: str, cwd: Path) -> subprocess.CompletedProcess[str]:
-    return subprocess.run(
-        ["git", *args], cwd=cwd, capture_output=True, text=True, timeout=TIMEOUT
-    )
+    try:
+        return subprocess.run(
+            ["git", *args], cwd=cwd, capture_output=True, text=True, timeout=TIMEOUT
+        )
+    except subprocess.TimeoutExpired as exc:
+        raise GitUnavailable(
+            f"`git {' '.join(args)}` in {cwd} exceeded {TIMEOUT}s; a stalled "
+            "git leaves the state of the tree unknown, which is not clean"
+        ) from exc
+    except OSError as exc:
+        # `timeout=` was already passed here; what was missing was anyone to
+        # catch what it throws. The same was true of a missing git, so both
+        # arrive as one reported outcome rather than two tracebacks.
+        raise GitUnavailable(f"could not run `git {' '.join(args)}` in {cwd}: {exc}") from exc
 
 
 def dirt(root: Path) -> list[str]:
@@ -73,7 +95,7 @@ def repo_root(start: Path | None = None) -> Path:
     here = (start or Path(__file__).resolve().parent)
     top = git("rev-parse", "--show-toplevel", cwd=here)
     if top.returncode != 0:
-        raise RuntimeError(f"{here} is not inside a git checkout")
+        raise GitUnavailable(f"{here} is not inside a git checkout")
     return Path(top.stdout.strip())
 
 
@@ -131,9 +153,16 @@ def self_test() -> int:
 
 
 def main(argv: list[str]) -> int:
-    if "--self-test" in argv:
-        return self_test()
-    lines = dirt(repo_root())
+    # One handler for both modes: the self-test drives git a dozen times over
+    # throwaway repositories, and a stall in any of them is the same kind of
+    # non-answer as a stall over the checkout.
+    try:
+        if "--self-test" in argv:
+            return self_test()
+        lines = dirt(repo_root())
+    except GitUnavailable as exc:
+        print(f"FAIL {exc}")
+        return 1
     if lines:
         print(f"FAIL the checkout is not byte-clean ({len(lines)} entr{'y' if len(lines) == 1 else 'ies'}):")
         for line in lines:

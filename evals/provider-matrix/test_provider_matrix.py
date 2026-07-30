@@ -2135,6 +2135,89 @@ class GatesCanFailTests(unittest.TestCase):
     # again, forever. Its positive control is the synthetic case above; the real
     # comparison is a CI step, which is where a gate over the whole file belongs.
 
+    def stalled(self, module_name: str, cmd: list[str]):
+        """The gate module, with every subprocess call stalling past its timeout.
+
+        Both gates already passed `timeout=`; what neither had was anyone to
+        catch what it throws. A gate that dies of `TimeoutExpired` reports
+        nothing at all — the CI log shows a traceback, which reads as a broken
+        check rather than as the honest answer, "I could not tell".
+        """
+        import contextlib
+        import io as _io
+        import subprocess
+
+        gate = self.helper(module_name)
+        stall = subprocess.TimeoutExpired(cmd=cmd, timeout=gate.TIMEOUT)
+        out = _io.StringIO()
+        return gate, stall, out, contextlib.redirect_stdout(out)
+
+    def test_the_clean_tree_check_reports_a_stalled_git(self):
+        import subprocess
+
+        gate, stall, out, capture = self.stalled("check_clean_tree.py", ["git", "status"])
+        with patch.object(subprocess, "run", side_effect=stall):
+            with self.assertRaises(gate.GitUnavailable):
+                gate.git("status", cwd=Path(__file__).resolve().parent)
+            with capture:
+                self.assertEqual(gate.main([]), 1)
+        self.assertIn("FAIL", out.getvalue())
+        self.assertIn(f"exceeded {gate.TIMEOUT}s", out.getvalue())
+
+    def test_a_stalled_git_does_not_read_as_a_clean_tree(self):
+        """The failure mode worth naming: no dirt listed is not the same answer
+        as no dirt found, and only the exit code can keep them apart."""
+        import subprocess
+
+        gate, stall, out, capture = self.stalled("check_clean_tree.py", ["git", "status"])
+        with patch.object(subprocess, "run", side_effect=stall), capture:
+            self.assertEqual(gate.main([]), 1)
+        self.assertNotIn("byte-clean", out.getvalue())
+
+    def test_the_clean_tree_self_test_reports_a_stall_rather_than_raising(self):
+        """The positive control is the one place that must not die silently."""
+        import subprocess
+
+        gate, stall, out, capture = self.stalled("check_clean_tree.py", ["git", "init"])
+        with patch.object(subprocess, "run", side_effect=stall), capture:
+            self.assertEqual(gate.main(["--self-test"]), 1)
+        self.assertIn("FAIL", out.getvalue())
+
+    def test_the_clean_tree_check_reports_a_missing_git(self):
+        import subprocess
+
+        gate = self.helper("check_clean_tree.py")
+        import contextlib
+        import io as _io
+
+        out = _io.StringIO()
+        missing = FileNotFoundError(2, "No such file or directory: 'git'")
+        with patch.object(subprocess, "run", side_effect=missing):
+            with contextlib.redirect_stdout(out):
+                self.assertEqual(gate.main([]), 1)
+        self.assertIn("could not run", out.getvalue())
+
+    def test_the_discovery_self_test_reports_a_stall_rather_than_raising(self):
+        """`self_test()` used to be dispatched above the handler, so the two
+        synthetic runs it drives could stall straight through it."""
+        import subprocess
+
+        gate, stall, out, capture = self.stalled(
+            "check_test_discovery.py", [sys.executable, "synthetic_case.py", "-v"]
+        )
+        with patch.object(subprocess, "run", side_effect=stall):
+            with patch.object(sys, "argv", ["check_test_discovery.py", "--self-test"]):
+                with capture:
+                    self.assertEqual(gate.main(), 1)
+        self.assertIn("FAIL", out.getvalue())
+        self.assertIn(f"exceeded {gate.TIMEOUT}s", out.getvalue())
+
+    def test_a_stalled_command_is_reported_as_a_command_line(self):
+        gate = self.helper("check_test_discovery.py")
+        self.assertEqual(gate.described(["python3", "-m", "unittest", "x"]),
+                         "python3 -m unittest x")
+        self.assertEqual(gate.described("python3 x.py"), "python3 x.py")
+
     def test_the_mutation_list_declares_no_duplicate_specs(self):
         """`E7` and `N2` had different names and identical edits.
 
