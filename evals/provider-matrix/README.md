@@ -137,7 +137,7 @@ python3 evals/provider-matrix/check_json_admission.py
 ```
 
 `examples/json_admission_oracle.rs` runs `serde_json::from_slice::<Value>` over
-`json-admission-corpus.json` — 49 cases carried as hex, so a case can be any
+`json-admission-corpus.json` — cases carried as hex, so a case can be any
 byte sequence — and the checker compares its verdicts against the Python gate.
 Each case also carries a **frozen** `consumer_admits`, so the unit suite checks
 parity without a Rust toolchain while CI re-measures it and refuses a frozen
@@ -450,7 +450,7 @@ actions.
 
 ### Causes are kept apart
 
-```
+```text
 ENDPOINT_REJECTED  UNAVAILABLE  RESPONSE_CAPTURE_FAILED  REDIRECT_NOT_FOLLOWED
 AUTH_FAILED  RATE_LIMITED  PROVIDER_REJECTED  MODEL_MISSING
 MODEL_IDENTITY_MISSING  PROVIDER_SUBSTITUTED  TOOL_CHOICE_UNSUPPORTED
@@ -519,6 +519,14 @@ python3 evals/provider-matrix/check_surface.py
 
 # the JSON gate admits nothing serde_json refuses
 python3 evals/provider-matrix/check_json_admission.py
+
+# the checkout is byte-clean, and the check can prove it would say otherwise
+python3 evals/provider-matrix/check_clean_tree.py
+python3 evals/provider-matrix/check_clean_tree.py --self-test
+
+# both ways of running the suite find the same tests
+python3 evals/provider-matrix/check_test_discovery.py
+python3 evals/provider-matrix/check_test_discovery.py --self-test
 
 # and the tests would notice if the contracts were removed
 python3 evals/provider-matrix/mutations.py

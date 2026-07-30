@@ -35,9 +35,13 @@ from pathlib import Path
 
 HERE = Path(__file__).resolve().parent
 SRC = HERE / "provider_matrix.py"
+# A spec may carry a fourth element naming the file to mutate. The gates are
+# code too, and "this check can fail" is a claim like any other.
+DEFAULT_TARGET = "provider_matrix.py"
 # `jsonschema_mini` is resolved relative to the real tree, so the working copy
 # below reaches it through PYTHONPATH rather than through its own parent.
 CORPUS_TOOLS = HERE.parent / "interop" / "v2" / "corpus" / "tools"
+SUITE_TIMEOUT = 600
 
 # (name, exact source to find, what to put there instead). The anchor must match
 # exactly once — a pattern that matches twice is mutating something the name
@@ -191,11 +195,11 @@ MUTATIONS = [
 
     # -- G: the status survives a lost body --
     ("G1 an error status is discarded when its body is lost",
-     "            return SendResult(exc.code, None, str(read_exc), \"after-headers\", observed, request_id)",
-     "            return SendResult(None, None, str(read_exc), \"after-headers\", observed, request_id)"),
+     "                exc.code, None, str(read_exc), \"after-headers\",",
+     "                None, None, str(read_exc), \"after-headers\","),
     ("G2 a success status is discarded when its body is lost",
-     "        return SendResult(status, None, str(exc), \"after-headers\", observed, request_id)",
-     "        return SendResult(None, None, str(exc), \"after-headers\", observed, request_id)"),
+     "        return SendResult(status, None, str(exc), \"after-headers\", bytes_seen(exc), request_id)",
+     "        return SendResult(None, None, str(exc), \"after-headers\", bytes_seen(exc), request_id)"),
     ("G3 the receipt drops a status it was handed",
      "        if status is not None:\n            record[\"http_status\"] = status",
      "        if False:\n            record[\"http_status\"] = status"),
@@ -285,9 +289,9 @@ MUTATIONS = [
     ("N1 the strict loader replaced by plain json.loads",
      "        parsed = json.loads(\n            raw,\n            object_pairs_hook=reject_duplicate_keys,",
      "        parsed = json.loads(\n            raw,\n            object_pairs_hook=None,"),
-    ("N2 a repeated key resolved by document order",
-     "        if key in seen:",
-     "        if False:"),
+    ("N2 nothing is ever added to the seen set",
+     "        seen.add(key)",
+     "        pass"),
     ("N3 the source export parsed leniently",
      "    rows = source_rows(strict_json_loads(raw_bytes, source.name))",
      "    rows = source_rows(json.loads(raw_bytes))"),
@@ -302,8 +306,11 @@ MUTATIONS = [
     ("O2 a SendResult passed straight through unvalidated",
      "        return validate_send_result(value)",
      "        return value"),
-    ("O3 stage shapes not enforced",
-     "    if actual != shape:",
+    ("O3 the stage/status shape not enforced",
+     "    if (result.status is not None) != shape[\"status\"]:",
+     "    if False:"),
+    ("O3b the stage/body shape not enforced",
+     "    if (result.body is not None) != shape[\"body\"]:",
      "    if False:"),
 
     # -- P: the deciding provider boundaries are strict too --
@@ -351,11 +358,53 @@ MUTATIONS = [
      "    if result.body is not None and type(result.body) is not bytes:",
      "    if result.body is not None and not isinstance(result.body, (bytes, bytearray, memoryview)):"),
     ("Q6 a negative observed byte count accepted",
-     "    if observed is not None and (type(observed) is not int or observed < 0):",
-     "    if False:"),
+     "        if type(observed) is not int or observed < 0:",
+     "        if False:"),
     ("Q7 a non-string request id accepted",
-     "    if result.request_id is not None and not isinstance(result.request_id, str):",
-     "    if False:"),
+     "        if not isinstance(result.request_id, str):",
+     "        if False:"),
+
+    # -- T: response-derived metadata cannot precede a response --
+    ("T1 observed bytes accepted on a stage that received nothing",
+     "        if not shape[\"response_derived\"]:\n            raise ValueError(\n                f\"send stage {result.stage!r} means nothing was received, so it cannot \"",
+     "        if False:\n            raise ValueError(\n                f\"send stage {result.stage!r} means nothing was received, so it cannot \""),
+    ("T2 a request id accepted on a stage where no headers arrived",
+     "        if not shape[\"response_derived\"]:\n            raise ValueError(\n                f\"send stage {result.stage!r} means no headers arrived, so it cannot \"",
+     "        if False:\n            raise ValueError(\n                f\"send stage {result.stage!r} means no headers arrived, so it cannot \""),
+    ("T3 an observed count that disagrees with the body accepted",
+     "        if result.body is not None and observed != len(result.body):",
+     "        if False:"),
+
+    # -- U: provider-controlled failures end in a local classification --
+    ("U1 a truncated body escapes as IncompleteRead",
+     "    except (OSError, ValueError, http.client.IncompleteRead) as exc:",
+     "    except (OSError, ValueError) as exc:"),
+    ("U2 a truncated error body escapes as IncompleteRead",
+     "        except (OSError, ValueError, http.client.IncompleteRead) as read_exc:",
+     "        except (OSError, ValueError) as read_exc:"),
+    ("U3 the partial length of a truncated body is lost",
+     "    if isinstance(exc, http.client.IncompleteRead):\n        return len(exc.partial)",
+     "    if False:\n        return len(exc.partial)"),
+    ("U4 the lenient reader loses its depth pre-scan",
+     "        if json_nesting_depth(text) > MAX_JSON_DEPTH:\n            return False",
+     "        if False:\n            return False"),
+    ("U5 the lenient reader stops catching decoder limits",
+     "    except (ValueError, TypeError) as exc:\n        # `JSONDecodeError` is a `ValueError`",
+     "    except (json.JSONDecodeError, TypeError) as exc:\n        # `JSONDecodeError` is a `ValueError`"),
+
+    # -- V: the gates themselves must be able to fail --
+    ("V1 the clean-tree check stops asserting on output",
+     "    lines = [line for line in status.stdout.splitlines() if line.strip()]",
+     "    lines = []",
+     "check_clean_tree.py"),
+    ("V2 the clean-tree check looks at one directory again",
+     "    return Path(top.stdout.strip())",
+     "    return here",
+     "check_clean_tree.py"),
+    ("V3 the discovery check stops comparing the two runs",
+     "    return sorted(module - direct), sorted(direct - module)",
+     "    return [], []",
+     "check_test_discovery.py"),
 
     # -- S: the JSON dialect is the consumer's, not Python's --
     ("S1 NaN and the infinities readmitted",
@@ -403,6 +452,15 @@ MUTATIONS = [
      "    if not math.isfinite(float(text)):",
      "    if not math.isfinite(float(int(text))):"),
 
+    ("V4 the mutation list stops noticing duplicate specs",
+     "        if len(names) > 1:\n            problems.append(f\"identical anchor and replacement: {', '.join(names)}\")",
+     "        if False:\n            problems.append(f\"identical anchor and replacement: {', '.join(names)}\")",
+     "mutations.py"),
+    ("V5 the mutation list stops noticing duplicate names",
+     "        if count > 1:\n            problems.append(f\"the name {name!r} is used {count} times\")",
+     "        if False:\n            problems.append(f\"the name {name!r} is used {count} times\")",
+     "mutations.py"),
+
     ("H5 the replay rebuilds the tool calls instead of echoing them",
      "            \"tool_calls\": message[\"tool_calls\"],",
      "            \"tool_calls\": [{\"id\": c[\"id\"], \"type\": \"function\", \"function\": "
@@ -410,23 +468,84 @@ MUTATIONS = [
 ]
 
 
+def spec_problems(specs: list) -> list[str]:
+    """Refuse a mutation list that flatters itself.
+
+    `E7` and `N2` carried different names, the same anchor and the same
+    replacement. "96 mutations killed" was therefore 95 mutations killed and one
+    counted twice, and one of the two names claimed coverage it did not add —
+    the same self-flattery the anchor check exists to prevent, one level up.
+    """
+    problems = []
+    by_name: dict[str, int] = {}
+    by_edit: dict[tuple, list[str]] = {}
+    for spec in specs:
+        name, old, new = spec[0], spec[1], spec[2]
+        target = spec[3] if len(spec) > 3 else DEFAULT_TARGET
+        by_name[name] = by_name.get(name, 0) + 1
+        edits = tuple(zip(old, new)) if isinstance(old, list) else ((old, new),)
+        by_edit.setdefault((target, edits), []).append(name)
+    for name, count in by_name.items():
+        if count > 1:
+            problems.append(f"the name {name!r} is used {count} times")
+    for names in by_edit.values():
+        if len(names) > 1:
+            problems.append(f"identical anchor and replacement: {', '.join(names)}")
+    return problems
+
+
+# How to ask each mutated file "are you still working". For the module under
+# test that is the suite; for a gate it is the gate's own positive control,
+# because a gate is proven by its ability to fail, not by the suite passing.
+GATE_SELF_TESTS = {
+    "check_clean_tree.py": ["check_clean_tree.py", "--self-test"],
+    "check_test_discovery.py": ["check_test_discovery.py", "--self-test"],
+}
+
+
+def run_gate(workdir: Path, filename: str) -> tuple[bool, str]:
+    argv = GATE_SELF_TESTS.get(filename)
+    if argv is None:
+        return run_suite(workdir)
+    env = dict(os.environ, PYTHONPATH=str(CORPUS_TOOLS), PYTHONDONTWRITEBYTECODE="1")
+    try:
+        proc = subprocess.run(
+            [sys.executable, *argv], cwd=workdir, capture_output=True, text=True,
+            env=env, timeout=SUITE_TIMEOUT,
+        )
+    except subprocess.TimeoutExpired:
+        return False, f"timed out after {SUITE_TIMEOUT}s"
+    tail = (proc.stdout + proc.stderr).strip().splitlines()
+    return proc.returncode == 0, tail[-1] if tail else "(no output)"
+
+
 def run_suite(workdir: Path) -> tuple[bool, str]:
     env = dict(os.environ, PYTHONPATH=str(CORPUS_TOOLS), PYTHONDONTWRITEBYTECODE="1")
-    proc = subprocess.run(
-        [sys.executable, "-m", "unittest", "test_provider_matrix.py"],
-        cwd=workdir, capture_output=True, text=True, env=env,
-    )
+    try:
+        proc = subprocess.run(
+            [sys.executable, "-m", "unittest", "test_provider_matrix.py"],
+            cwd=workdir, capture_output=True, text=True, env=env, timeout=SUITE_TIMEOUT,
+        )
+    except subprocess.TimeoutExpired:
+        # A mutation that makes the suite loop is not green, and a harness that
+        # blocks on it reports nothing at all. Not-green is the honest reading.
+        return False, f"timed out after {SUITE_TIMEOUT}s"
     tail = (proc.stdout + proc.stderr).strip().splitlines()
     return proc.returncode == 0, tail[-1] if tail else "(no output)"
 
 
 def main() -> int:
     original = SRC.read_text(encoding="utf-8")
+    problems = spec_problems(MUTATIONS)
+    if problems:
+        print("FAIL the mutation list is not honest about its own size:")
+        for line in problems:
+            print(f"  {line}")
+        return 2
     failures: list[str] = []
     with tempfile.TemporaryDirectory() as tmp:
         work = Path(tmp) / "provider-matrix"
         shutil.copytree(HERE, work, ignore=shutil.ignore_patterns("__pycache__"))
-        target = work / "provider_matrix.py"
 
         ok, verdict = run_suite(work)
         print(f"baseline: {'GREEN' if ok else 'RED'} ({verdict})")
@@ -434,9 +553,12 @@ def main() -> int:
             print("baseline is red; nothing below means anything")
             return 2
 
-        for name, old, new in MUTATIONS:
+        for spec in MUTATIONS:
+            name, old, new = spec[0], spec[1], spec[2]
+            filename = spec[3] if len(spec) > 3 else DEFAULT_TARGET
+            source = (HERE / filename).read_text(encoding="utf-8")
             edits = list(zip(old, new)) if isinstance(old, list) else [(old, new)]
-            mutated = original
+            mutated = source
             bad = None
             for find, replace in edits:
                 count = mutated.count(find)
@@ -452,9 +574,10 @@ def main() -> int:
                 print(f"  SKIPPED  {name}: {bad}")
                 failures.append(name)
                 continue
-            target.write_text(mutated, encoding="utf-8")
-            ok, verdict = run_suite(work)
-            target.write_text(original, encoding="utf-8")
+            victim = work / filename
+            victim.write_text(mutated, encoding="utf-8")
+            ok, verdict = run_gate(work, filename)
+            victim.write_text(source, encoding="utf-8")
             if ok:
                 print(f"  SURVIVED {name}  <-- the suite did not notice ({verdict})")
                 failures.append(name)

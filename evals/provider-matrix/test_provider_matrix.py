@@ -1,4 +1,5 @@
 import argparse
+import http.client
 import io
 import sys
 import json
@@ -8,6 +9,7 @@ import urllib.error
 from pathlib import Path
 from unittest.mock import patch
 
+import mutations
 import provider_matrix as pm
 
 
@@ -1030,10 +1032,6 @@ class StrictOpenAiDialectTests(unittest.TestCase):
         self.assertEqual(captured, ["SOME_KEY"])
 
 
-if __name__ == "__main__":
-    unittest.main()
-
-
 class ByteEnvelopeOracleTests(unittest.TestCase):
     """One strict oracle, agreeing with `canon.rs` on a negative corpus.
 
@@ -1619,6 +1617,13 @@ class SendResultTypeTests(unittest.TestCase):
         for observed in (-1, -4096, "9", 1.5, True):
             with self.assertRaises(ValueError, msg=repr(observed)):
                 pm.as_send_result((200, b"{}", "", "completed", observed))
+        # On `after-headers` there is no body to compare a count against, so the
+        # range check is the only thing standing between a receipt and a
+        # negative number of bytes.
+        for observed in (-1, -4096, "9", 1.5, True):
+            with self.assertRaises(ValueError, msg=f"after-headers {observed!r}"):
+                pm.as_send_result((503, None, "lost", "after-headers", observed))
+        self.assertEqual(pm.as_send_result((503, None, "lost", "after-headers", 0)).body_bytes_observed, 0)
 
     def test_a_non_string_request_id_is_refused(self):
         with self.assertRaisesRegex(ValueError, "request_id"):
@@ -1973,3 +1978,181 @@ class JsonIntegerRangeTests(unittest.TestCase):
                 + b"9" * 400 + b"}")
         result = pm.probe_target(probe_row({}), 1, scripted([(200, body, "", "completed")]), registry())
         self.assertEqual(result["classification"], "INVALID_OUTPUT")
+
+
+class ProviderControlledFailureTests(unittest.TestCase):
+    """Every path over untrusted bytes must end in a local classification.
+
+    `INTERNAL_ERROR` means *this tool* is broken. Using it for anything the
+    provider chose to send blames the matrix for the wire, and the exceptions
+    that get there are the ones nobody thought to catch because they are not
+    `ValueError`.
+    """
+
+    def truncating_response(self):
+        class Truncated:
+            status = 200
+            headers = {"x-request-id": "req-truncated"}
+
+            def read(self, size=-1):
+                # The genuine article, not a stand-in: `IncompleteRead` derives
+                # from `HTTPException`, which is the whole point.
+                raise http.client.IncompleteRead(b"partial body", 500)
+
+            def __enter__(self):
+                return self
+
+            def __exit__(self, *exc):
+                return False
+
+        return Truncated()
+
+    def test_a_truncated_body_is_an_after_headers_loss(self):
+        with patch.object(pm._OPENER, "open", side_effect=lambda *a, **k: self.truncating_response()):
+            sent = pm.send_json("https://api.example/v1", b"{}", "k", 1)
+        self.assertEqual(sent.stage, "after-headers")
+        self.assertEqual(sent.status, 200)
+        self.assertIsNone(sent.body, "a truncated body is not a body")
+        self.assertEqual(sent.body_bytes_observed, len(b"partial body"))
+        self.assertEqual(sent.request_id, "req-truncated")
+        self.assertEqual(pm.validate_send_result(sent), sent)
+
+    def test_a_truncated_error_body_keeps_its_status(self):
+        err = urllib.error.HTTPError("https://api.example/v1", 429, "slow", {}, io.BytesIO(b""))
+        err.read = lambda *a: (_ for _ in ()).throw(http.client.IncompleteRead(b"half", 99))
+        with patch.object(pm._OPENER, "open", side_effect=err):
+            sent = pm.send_json("https://api.example/v1", b"{}", "k", 1)
+        self.assertEqual((sent.stage, sent.status), ("after-headers", 429))
+        self.assertEqual(sent.body_bytes_observed, 4)
+
+    def test_a_truncated_body_classifies_rather_than_crashing(self):
+        receipt = pm.qualify_target(target(), surface(), 30.0, 6, scripted(
+            [(200, None, "IncompleteRead(12 bytes read)", "after-headers", 12, "req-x")]))
+        self.assertEqual(receipt["classification"], "RESPONSE_CAPTURE_FAILED")
+        self.assertNotEqual(receipt["classification"], "INTERNAL_ERROR")
+        self.assertEqual(receipt["turns"][0]["http_status"], 200)
+
+    # -- the lenient error-body reader is total --
+
+    def test_the_lenient_reader_never_raises(self):
+        """Contract: any bytes in, a bool out. It is the one lenient parse."""
+        for name, body in (
+            ("huge integer", b'{"error":{"message":"x"},"pad":' + b"9" * 5000 + b"}"),
+            ("deep nesting", b'{"error":' + b"[" * 400 + b"]" * 400 + b"}"),
+            ("very deep nesting", b"[" * 40_000 + b"]" * 40_000),
+            ("broken utf-8", b'{"error":"\xff\xfe"}'),
+            ("not json", b"<html>502</html>"),
+            ("empty", b""),
+            ("bare scalar", b"5"),
+            ("nan", b'{"error":{"message":NaN}}'),
+        ):
+            self.assertIsInstance(pm.provider_named_the_tools(body), bool, name)
+
+    def test_a_huge_integer_in_an_error_body_still_classifies(self):
+        """`int()` past the digit limit raises a bare `ValueError`, not a decode error."""
+        body = b'{"error":{"message":"tool_choice unsupported"},"pad":' + b"9" * 5000 + b"}"
+        receipt = pm.qualify_target(target(), surface(), 30.0, 6, scripted([(400, body, "")]))
+        self.assertNotEqual(receipt["classification"], "INTERNAL_ERROR")
+        self.assertEqual(receipt["classification"], "PROVIDER_REJECTED")
+
+    def test_a_deeply_nested_error_body_still_classifies(self):
+        """`json.loads` recurses; `RecursionError` is not a `ValueError`."""
+        body = b'{"error":' + b"[" * 400 + b"]" * 400 + b"}"
+        receipt = pm.qualify_target(target(), surface(), 30.0, 6, scripted([(429, body, "")]))
+        self.assertNotEqual(receipt["classification"], "INTERNAL_ERROR")
+        self.assertEqual(receipt["classification"], "RATE_LIMITED")
+
+    def test_a_lenient_read_still_recognises_a_normal_dialect_rejection(self):
+        """Totality must not be bought by refusing to read anything."""
+        body = b'{"error":{"param":"tool_choice","message":"unsupported"}}'
+        self.assertTrue(pm.provider_named_the_tools(body))
+
+
+class SendResultCrossFieldTests(unittest.TestCase):
+    """A receipt must not be able to hold an impossible transport state."""
+
+    def test_a_stage_that_received_nothing_carries_no_response_metadata(self):
+        """The defect: no headers arrived, yet 123 bytes and a request id.
+
+        Both impossibilities were then persisted, because the table checked
+        `status`/`body` and merely type-checked the other two fields.
+        """
+        for stage in ("before-response", "no-credential"):
+            with self.assertRaisesRegex(ValueError, "observed body bytes", msg=stage):
+                pm.as_send_result((None, None, "x", stage, 123, None))
+            with self.assertRaisesRegex(ValueError, "request id", msg=stage):
+                pm.as_send_result((None, None, "x", stage, None, "req-1"))
+
+    def test_an_after_headers_loss_may_carry_both(self):
+        sent = pm.as_send_result((503, None, "lost", "after-headers", 4096, "req-2"))
+        self.assertEqual((sent.body_bytes_observed, sent.request_id), (4096, "req-2"))
+
+    def test_a_completed_count_must_match_the_body(self):
+        """A number nobody can check is a number everybody believes."""
+        pm.as_send_result((200, b"{}", "", "completed", 2, None))
+        for wrong in (0, 1, 3, 99):
+            with self.assertRaises(ValueError, msg=wrong):
+                pm.as_send_result((200, b"{}", "", "completed", wrong, None))
+
+    def test_the_real_transport_reports_a_count_that_matches(self):
+        class Response:
+            status = 200
+            headers = {}
+
+            def read(self, size=-1):
+                return b'{"ok":1}'
+
+            def __enter__(self):
+                return self
+
+            def __exit__(self, *exc):
+                return False
+
+        with patch.object(pm._OPENER, "open", side_effect=lambda *a, **k: Response()):
+            sent = pm.send_json("https://api.example/v1", b"{}", "k", 1)
+        self.assertEqual(sent.body_bytes_observed, len(sent.body))
+
+
+class GatesCanFailTests(unittest.TestCase):
+    """Every CI gate needs a positive control, or green means nothing."""
+
+    def helper(self, name: str):
+        import importlib.util
+        path = Path(__file__).resolve().parent / name
+        spec = importlib.util.spec_from_file_location(name[:-3], path)
+        module = importlib.util.module_from_spec(spec)
+        spec.loader.exec_module(module)
+        return module
+
+    def test_the_clean_tree_check_detects_all_three_kinds_of_dirt(self):
+        self.assertEqual(self.helper("check_clean_tree.py").self_test(), 0)
+
+    def test_the_discovery_check_detects_a_mid_file_entrypoint(self):
+        self.assertEqual(self.helper("check_test_discovery.py").self_test(), 0)
+
+    # `check_test_discovery.main()` is deliberately *not* called from here: it
+    # runs this suite twice as subprocesses, and this suite would then run it
+    # again, forever. Its positive control is the synthetic case above; the real
+    # comparison is a CI step, which is where a gate over the whole file belongs.
+
+    def test_the_mutation_list_declares_no_duplicate_specs(self):
+        """`E7` and `N2` had different names and identical edits.
+
+        "96 mutations killed" was 95 killed and one counted twice.
+        """
+        self.assertEqual(mutations.spec_problems(mutations.MUTATIONS), [])
+
+    def test_the_uniqueness_guard_notices_a_duplicate(self):
+        same_edit = [("A", "x", "y"), ("B", "x", "y")]
+        self.assertTrue(any("identical anchor" in p for p in mutations.spec_problems(same_edit)))
+        same_name = [("A", "x", "y"), ("A", "p", "q")]
+        self.assertTrue(any("used 2 times" in p for p in mutations.spec_problems(same_name)))
+
+    def test_a_spec_targeting_another_file_is_distinct(self):
+        """The same edit in two files is two mutations, not a duplicate."""
+        across = [("A", "x", "y"), ("B", "x", "y", "other.py")]
+        self.assertEqual(mutations.spec_problems(across), [])
+
+
+if __name__ == "__main__":
+    unittest.main()

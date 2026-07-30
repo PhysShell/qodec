@@ -11,6 +11,7 @@ from __future__ import annotations
 import argparse
 import codecs
 import hashlib
+import http.client
 import json
 import math
 import os
@@ -702,11 +703,20 @@ class BodyTooLarge(ValueError):
 # believe. Inferring the stage only for legacy tuples left the explicit form
 # unchecked, so `(503, None, "lost", "completed")` promoted a billed
 # after-headers loss to a success through the front door instead of the back.
+# Every stage against **every** field, not just status and body. Checking two
+# fields and merely type-checking the other two let this through:
+#
+#     SendResult(None, None, "…", "before-response", 123, "req-1")
+#
+# which asserts that no headers ever arrived *and* that 123 response bytes and a
+# provider request id were observed. Both impossibilities then went into a
+# receipt. `response_derived` marks the fields that cannot exist until the
+# provider has answered.
 SEND_STAGE_SHAPES = {
-    "before-response": (False, False),
-    "no-credential": (False, False),
-    "after-headers": (True, False),
-    "completed": (True, True),
+    "before-response": {"status": False, "body": False, "response_derived": False},
+    "no-credential": {"status": False, "body": False, "response_derived": False},
+    "after-headers": {"status": True, "body": False, "response_derived": True},
+    "completed": {"status": True, "body": True, "response_derived": True},
 }
 
 
@@ -733,12 +743,15 @@ def validate_send_result(result: SendResult) -> SendResult:
     shape = SEND_STAGE_SHAPES.get(result.stage)
     if shape is None:
         raise ValueError(f"unknown send stage {result.stage!r}")
-    actual = (result.status is not None, result.body is not None)
-    if actual != shape:
-        wants = f"status={'an int' if shape[0] else 'None'}, body={'bytes' if shape[1] else 'None'}"
+    if (result.status is not None) != shape["status"]:
         raise ValueError(
-            f"send stage {result.stage!r} requires {wants}; got "
-            f"status={result.status!r}, body={type(result.body).__name__}"
+            f"send stage {result.stage!r} requires status="
+            f"{'an int' if shape['status'] else 'None'}; got {result.status!r}"
+        )
+    if (result.body is not None) != shape["body"]:
+        raise ValueError(
+            f"send stage {result.stage!r} requires body="
+            f"{'bytes' if shape['body'] else 'None'}; got {type(result.body).__name__}"
         )
     if result.status is not None and not is_http_status(result.status):
         raise ValueError(f"status must be an int in 100..599, got {result.status!r}")
@@ -746,11 +759,31 @@ def validate_send_result(result: SendResult) -> SendResult:
     # length recorded, and a mutable view of it is not the thing that arrived.
     if result.body is not None and type(result.body) is not bytes:
         raise ValueError(f"body must be bytes, got {type(result.body).__name__}")
+
     observed = result.body_bytes_observed
-    if observed is not None and (type(observed) is not int or observed < 0):
-        raise ValueError(f"body_bytes_observed must be a non-negative int, got {observed!r}")
-    if result.request_id is not None and not isinstance(result.request_id, str):
-        raise ValueError(f"request_id must be a string, got {type(result.request_id).__name__}")
+    if observed is not None:
+        if not shape["response_derived"]:
+            raise ValueError(
+                f"send stage {result.stage!r} means nothing was received, so it cannot "
+                f"also report {observed!r} observed body bytes"
+            )
+        if type(observed) is not int or observed < 0:
+            raise ValueError(f"body_bytes_observed must be a non-negative int, got {observed!r}")
+        # On a completed exchange the body is right there, so a count that
+        # disagrees with it is a number nobody checks and everybody believes.
+        if result.body is not None and observed != len(result.body):
+            raise ValueError(
+                f"body_bytes_observed {observed} disagrees with the {len(result.body)} bytes present"
+            )
+
+    if result.request_id is not None:
+        if not shape["response_derived"]:
+            raise ValueError(
+                f"send stage {result.stage!r} means no headers arrived, so it cannot "
+                f"also carry the request id {result.request_id!r}"
+            )
+        if not isinstance(result.request_id, str):
+            raise ValueError(f"request_id must be a string, got {type(result.request_id).__name__}")
     return result
 
 
@@ -793,6 +826,19 @@ def as_send_result(value: Any) -> SendResult:
     # hand is a claim like any other and gets no more credit for being written
     # down than for being deduced.
     return validate_send_result(result)
+
+
+def bytes_seen(exc: BaseException) -> int | None:
+    """How much of the body arrived, from whichever exception knows.
+
+    `BodyTooLarge` carries its own count; `IncompleteRead` carries the bytes it
+    managed to read. Neither partial body is kept — a truncated response is not
+    a response — but its length is evidence about a generation that was billed.
+    """
+    if isinstance(exc, http.client.IncompleteRead):
+        return len(exc.partial)
+    observed = getattr(exc, "observed", None)
+    return observed if isinstance(observed, int) else None
 
 
 def read_bounded(stream: Any, limit: int) -> bytes:
@@ -843,9 +889,11 @@ def send_json(url: str, body: bytes, key: str, timeout: float, limit: int = MAX_
         try:
             with exc:
                 raw = read_bounded(exc, limit)
-        except (OSError, ValueError) as read_exc:
-            observed = getattr(read_exc, "observed", None)
-            return SendResult(exc.code, None, str(read_exc), "after-headers", observed, request_id)
+        except (OSError, ValueError, http.client.IncompleteRead) as read_exc:
+            return SendResult(
+                exc.code, None, str(read_exc), "after-headers",
+                bytes_seen(read_exc), request_id,
+            )
         return SendResult(exc.code, raw, "", "completed", len(raw), request_id)
     except TimeoutError:
         return SendResult(None, None, "timeout", "before-response")
@@ -863,9 +911,12 @@ def send_json(url: str, body: bytes, key: str, timeout: float, limit: int = MAX_
     try:
         with response:
             raw = read_bounded(response, limit)
-    except (OSError, ValueError) as exc:
-        observed = getattr(exc, "observed", None)
-        return SendResult(status, None, str(exc), "after-headers", observed, request_id)
+    except (OSError, ValueError, http.client.IncompleteRead) as exc:
+        # `IncompleteRead` — the provider closed before `Content-Length` was
+        # satisfied — derives from `HTTPException`, so it is neither an
+        # `OSError` nor a `ValueError` and escaped both handlers into
+        # `INTERNAL_ERROR`, discarding a status and request id we already had.
+        return SendResult(status, None, str(exc), "after-headers", bytes_seen(exc), request_id)
     return SendResult(status, raw, "", "completed", len(raw), request_id)
 
 
@@ -1398,10 +1449,27 @@ def classify_qualify_http(status: int, body: bytes, carried_tool_results: bool) 
 
 
 def provider_named_the_tools(body: bytes) -> bool:
-    """Did the provider blame the tools or the forcing? Read, never retained."""
+    """Did the provider blame the tools or the forcing? Read, never retained.
+
+    Total by contract: **any** bytes in, a `bool` out, never an exception. This
+    is the one deliberately lenient parse, and lenient was taken to mean "do not
+    impose the consumer's dialect" — not "let Python throw the process out of a
+    window". It did both: a 5000-digit integer in an unused field raised a bare
+    `ValueError` from `int()`, and deep nesting raised `RecursionError`, and each
+    escaped to be filed as `INTERNAL_ERROR` — blaming the matrix for bytes the
+    provider chose.
+    """
     try:
-        payload = json.loads(body)
-    except (json.JSONDecodeError, TypeError, UnicodeDecodeError):
+        text = body.decode("utf-8", "replace")
+        # The depth pre-scan, for the same reason the strict path has one:
+        # `json.loads` recurses, and `RecursionError` is not a `ValueError`.
+        if json_nesting_depth(text) > MAX_JSON_DEPTH:
+            return False
+        payload = json.loads(text)
+    except (ValueError, TypeError) as exc:
+        # `JSONDecodeError` is a `ValueError`, and so is the decoder's
+        # integer-length refusal — which is the one that got out.
+        del exc
         return False
     if not isinstance(payload, dict):
         return False

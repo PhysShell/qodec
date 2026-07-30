@@ -17,13 +17,30 @@ Exit 0 when they agree, 1 when they do not, with the disagreement printed.
 
 from __future__ import annotations
 
+import json
 import subprocess
 import sys
 from pathlib import Path
 
 HERE = Path(__file__).resolve().parent
 ROOT = HERE.parent.parent
+EMITTER_TIMEOUT = 600
 FROZEN = HERE / "c1-panel-surface.json"
+
+
+def unsorted_paths(value: object, path: str = "") -> list[str]:
+    """Every object whose keys are not in sorted order, recursively."""
+    out: list[str] = []
+    if isinstance(value, dict):
+        keys = list(value)
+        if keys != sorted(keys):
+            out.append(path)
+        for key, sub in value.items():
+            out.extend(unsorted_paths(sub, f"{path}.{key}" if path else key))
+    elif isinstance(value, list):
+        for index, sub in enumerate(value):
+            out.extend(unsorted_paths(sub, f"{path}[{index}]"))
+    return out
 
 
 def main() -> int:
@@ -36,7 +53,11 @@ def main() -> int:
             ["cargo", "run", "-q", "--example", "emit_panel_surface"],
             cwd=ROOT,
             capture_output=True,
+            timeout=EMITTER_TIMEOUT,
         )
+    except subprocess.TimeoutExpired:
+        print(f"FAIL the emitter exceeded {EMITTER_TIMEOUT}s; a stalled build must fail, not hang")
+        return 1
     except OSError as exc:
         # The `returncode` branch below only covers a cargo that exists and
         # fails. A cargo that is not installed raised `FileNotFoundError`
@@ -53,6 +74,20 @@ def main() -> int:
 
     fresh = proc.stdout
     frozen = FROZEN.read_bytes()
+
+    # The emitter's key order comes from `serde_json::Map`, which is a BTreeMap
+    # unless the `preserve_order` feature is on — a fact about feature
+    # resolution, not about this artifact. Since the comparison above is
+    # byte-for-byte, a silent switch would turn every future run red for a
+    # reason nobody would guess. Assert the property instead of trusting it.
+    unsorted = unsorted_paths(json.loads(fresh))
+    if unsorted:
+        print("FAIL the emitted surface is not canonically ordered")
+        for path in unsorted[:10]:
+            print(f"  keys out of order at {path or '<root>'}")
+        print("  serde_json's `preserve_order` feature would do this")
+        return 1
+
     if fresh == frozen:
         print("OK c1-panel-surface.json matches panel::tool_schemas() + answer_schema()")
         return 0

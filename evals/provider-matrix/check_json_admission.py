@@ -40,6 +40,7 @@ from pathlib import Path
 
 HERE = Path(__file__).resolve().parent
 ROOT = HERE.parent.parent
+ORACLE_TIMEOUT = 600
 CORPUS = HERE / "json-admission-corpus.json"
 
 sys.path.insert(0, str(HERE))
@@ -69,7 +70,11 @@ def main() -> int:
             ["cargo", "run", "-q", "--example", "json_admission_oracle", "--", str(CORPUS)],
             cwd=ROOT,
             capture_output=True,
+            timeout=ORACLE_TIMEOUT,
         )
+    except subprocess.TimeoutExpired:
+        print(f"FAIL the oracle exceeded {ORACLE_TIMEOUT}s; a stalled build must fail, not hang")
+        return 1
     except OSError as exc:
         print(f"FAIL could not run the oracle: {exc}")
         return 1

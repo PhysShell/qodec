@@ -106,21 +106,34 @@ jobs:
       # reachable from the stand-in transport.
       - name: Provider qualification canary (model-free)
         run: python3 -m unittest discover -s evals/provider-matrix -p 'test_*.py' -t evals/provider-matrix
+      # `unittest.main()` once sat above fourteen test classes, so the direct
+      # invocation ran fewer than half of them and printed OK. CI uses
+      # `-m unittest`, which imports first and is unaffected — so the hole was
+      # invisible from the green side. This compares the test ids each
+      # invocation actually reports, not a number written down somewhere.
+      - name: Both ways of running the suite find the same tests
+        run: python3 evals/provider-matrix/check_test_discovery.py
       # A green suite proves the tests pass, not that they would notice. Every
       # hardening contract is stated as its own negation here and must turn the
       # suite red. Run in a throwaway copy, so the checkout is never mutated —
       # the guard below then says so out loud rather than trusting it.
       - name: Provider canary mutation harness (model-free)
         run: python3 evals/provider-matrix/mutations.py
+      # Not `git status --porcelain`, which prints what it finds and exits 0 —
+      # the step that existed to prove the harness left nothing behind would
+      # have stayed green while printing the mess. This asserts on output, over
+      # the whole checkout, and `--self-test` proves it can say otherwise.
+      - name: The clean-tree check can fail
+        run: python3 evals/provider-matrix/check_clean_tree.py --self-test
       - name: The mutation harness left the tree byte-clean
-        run: git diff --exit-code && git status --porcelain --untracked-files=all evals/provider-matrix
+        run: python3 evals/provider-matrix/check_clean_tree.py
       # The canary sends the crate's own schemas, not a paraphrase of them. If
       # the frozen artifact drifts from `panel::tool_schemas()`, the canary goes
       # on reporting PASS for a surface the arm no longer uses, and the receipt
       # looks exactly as convincing as before.
       - name: C1 panel surface has not drifted from the crate
         run: nix develop --command python3 evals/provider-matrix/check_surface.py
-      # Six review rounds found the same defect in different clothes: the canary
+      # Round after round found the same defect in different clothes: the canary
       # accepting something the adapter will refuse. This asks the real
       # `serde_json` what it admits and requires the Python gate to admit
       # nothing more — one-directional, since refusing duplicate keys is a
