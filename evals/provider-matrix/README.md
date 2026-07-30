@@ -137,7 +137,7 @@ python3 evals/provider-matrix/check_json_admission.py
 ```
 
 `examples/json_admission_oracle.rs` runs `serde_json::from_slice::<Value>` over
-`json-admission-corpus.json` — 41 cases carried as hex, so a case can be any
+`json-admission-corpus.json` — 49 cases carried as hex, so a case can be any
 byte sequence — and the checker compares its verdicts against the Python gate.
 Each case also carries a **frozen** `consumer_admits`, so the unit suite checks
 parity without a Rust toolchain while CI re-measures it and refuses a frozen
@@ -152,6 +152,24 @@ One measurement corrected a plan: integers past `u64::MAX` were to be rejected,
 and the oracle says `serde_json` admits them, falling back to `f64`. The gate
 therefore does not reject them either. Inventing a rule the consumer does not
 have is only free when it is deliberate.
+
+The same measurement then found the rest of the rule. `serde_json` keeps an
+integer while it fits `u64`/`i64`, falls back to `f64` past that, and refuses
+only when *the fallback overflows*. `parse_float` had been replaced and
+`parse_int` had not, so a 400-digit literal parsed here and sank the whole body
+there. The boundary is the fallback's finiteness, **not** a digit count:
+
+| literal | digits | consumer |
+| --- | --- | --- |
+| `18446744073709551616` (`u64::MAX + 1`) | 20 | admits, as `f64` |
+| 308 nines | 308 | admits |
+| `1` then 308 zeros | 309 | admits |
+| 309 nines | 309 | refuses |
+
+`float` runs before `int` in the gate, because Python refuses `int()` past
+`sys.get_int_max_str_digits()` with a bare `ValueError` — not a
+`JSONDecodeError`, so it would escape every except tuple and be filed as
+`INTERNAL_ERROR`. Anything that long overflows `f64` anyway.
 
 #### Nesting depth, which a corpus of hand-picked cases had missed
 

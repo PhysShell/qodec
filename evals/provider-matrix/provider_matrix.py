@@ -155,6 +155,32 @@ def _admissible_float(text: str) -> float:
     return value
 
 
+def _admissible_int(text: str) -> int:
+    """An integer literal the consumer's number type can hold.
+
+    `serde_json` keeps an integer while it fits `u64`/`i64` and falls back to
+    `f64` past that, refusing only when the fallback overflows to infinity. So
+    `u64::MAX + 1` is admitted — measured, and a rule banning "anything past
+    u64" would have been a tidy invention the consumer does not have — while a
+    309-digit literal is not.
+
+    The rule is the fallback's finiteness, not a digit count: 308 nines are
+    admitted and `1` followed by 308 zeros is too, though the latter is longer.
+
+    `float` runs first on purpose. Python refuses `int()` on a literal past
+    `sys.get_int_max_str_digits()` with a bare `ValueError`, which is not a
+    `JSONDecodeError` and would escape every except tuple to be filed as
+    `INTERNAL_ERROR`. Anything that long overflows `f64` anyway, so it is
+    refused here — as the provider's fault, which it is — before `int` is asked.
+    """
+    if not math.isfinite(float(text)):
+        raise UnadmittedJsonValue(
+            f"{text[:32]}… has {len(text.lstrip('-'))} digits; the consumer's f64 "
+            "fallback overflows and it refuses the number"
+        )
+    return int(text)
+
+
 def _refuse_lone_surrogates(value: Any) -> None:
     """A `str` holding U+D800..U+DFFF came from an unpaired escape.
 
@@ -242,6 +268,7 @@ def strict_json_loads(raw: str | bytes, what: str) -> Any:
             object_pairs_hook=reject_duplicate_keys,
             parse_constant=_refuse_non_finite,
             parse_float=_admissible_float,
+            parse_int=_admissible_int,
         )
     except DuplicateJsonKey as exc:
         raise DuplicateJsonKey(f"{what}: {exc}") from None

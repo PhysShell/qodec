@@ -1,5 +1,6 @@
 import argparse
 import io
+import sys
 import json
 import tempfile
 import unittest
@@ -1900,5 +1901,75 @@ class JsonRecursionDepthTests(unittest.TestCase):
     def test_the_probe_applies_the_depth_rule_too(self):
         body = (b'{"model":"m","choices":[{"message":{"content":"QODEC_PROBE_OK"}}],"unread":'
                 + b"[" * 128 + b"]" * 128 + b"}")
+        result = pm.probe_target(probe_row({}), 1, scripted([(200, body, "", "completed")]), registry())
+        self.assertEqual(result["classification"], "INVALID_OUTPUT")
+
+
+class JsonIntegerRangeTests(unittest.TestCase):
+    """`parse_int` was left standard while `parse_float` was replaced.
+
+    `serde_json` keeps an integer while it fits `u64`/`i64`, falls back to
+    `f64` past that, and refuses only when the fallback overflows. Python hands
+    every integer literal to `int()`, which is unbounded — so a 400-digit number
+    parsed here and sank the whole body there.
+    """
+
+    def qualify(self, raw: bytes):
+        return pm.qualify_target(target(), surface(), 30.0, 6, scripted([(200, raw, "")]))
+
+    def test_moderately_out_of_range_integers_are_still_admitted(self):
+        """Measured. A rule banning "anything past u64" would be an invention."""
+        for literal in ("18446744073709551616", "-9223372036854775809",
+                        "10000000000000000000000000000000"):
+            self.assertEqual(pm.strict_json_loads('{"a":%s}' % literal, "case"),
+                             {"a": int(literal)}, literal)
+
+    def test_the_boundary_is_the_fallback_not_the_digit_count(self):
+        """308 nines pass; 1 with 308 zeros is longer and also passes; 309 nines do not."""
+        pm.strict_json_loads('{"a":%s}' % ("9" * 308), "case")
+        pm.strict_json_loads('{"a":1%s}' % ("0" * 308), "case")
+        with self.assertRaises(pm.UnadmittedJsonValue):
+            pm.strict_json_loads('{"a":%s}' % ("9" * 309), "case")
+        with self.assertRaises(pm.UnadmittedJsonValue):
+            pm.strict_json_loads('{"a":1%s}' % ("0" * 309), "case")
+
+    def test_the_negative_side_is_refused_too(self):
+        with self.assertRaises(pm.UnadmittedJsonValue):
+            pm.strict_json_loads('{"a":-%s}' % ("9" * 309), "case")
+
+    def test_a_literal_past_pythons_int_limit_does_not_escape(self):
+        """`int()` refuses past `sys.get_int_max_str_digits()` with a bare `ValueError`.
+
+        Not a `JSONDecodeError`, so it would escape every except tuple and be
+        filed as `INTERNAL_ERROR`. The float check runs first for that reason.
+        """
+        self.assertLess(sys.get_int_max_str_digits(), 5000)
+        with self.assertRaises(pm.UnadmittedJsonValue):
+            pm.strict_json_loads('{"a":%s}' % ("9" * 5000), "case")
+
+    def test_a_huge_integer_in_an_unread_field_does_not_pass(self):
+        body = (b'{"model":"openai/gpt-oss-120b","choices":[{"message":{"role":"assistant",'
+                b'"tool_calls":[]}}],"unread":' + b"9" * 400 + b"}")
+        receipt = self.qualify(body)
+        self.assertEqual(receipt["classification"], "INVALID_OUTPUT")
+        self.assertNotEqual(receipt["model_status"], "verified")
+
+    def test_a_large_finite_integer_in_an_unread_field_still_passes_through(self):
+        body = (b'{"model":"openai/gpt-oss-120b","choices":[{"message":{"role":"assistant",'
+                b'"tool_calls":[]}}],"unread":' + b"9" * 100 + b"}")
+        receipt = self.qualify(body)
+        self.assertEqual(receipt["classification"], "NO_TERMINAL_ANSWER")
+        self.assertEqual(receipt["model_status"], "verified")
+
+    def test_a_huge_integer_in_tool_arguments_is_malformed(self):
+        arguments = '{"handle":%s}' % ("9" * 400)
+        receipt = pm.qualify_target(target(), surface(), 30.0, 6, scripted(
+            OPERATION_THEN((200, completion([call("qodec_answer", arguments, "call_ans")]), ""))))
+        self.assertEqual(receipt["classification"], "MALFORMED_TOOL_ARGUMENTS")
+        self.assertIn("not acceptable JSON", receipt["detail"])
+
+    def test_the_probe_applies_the_integer_rule_too(self):
+        body = (b'{"model":"m","choices":[{"message":{"content":"QODEC_PROBE_OK"}}],"unread":'
+                + b"9" * 400 + b"}")
         result = pm.probe_target(probe_row({}), 1, scripted([(200, body, "", "completed")]), registry())
         self.assertEqual(result["classification"], "INVALID_OUTPUT")

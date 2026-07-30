@@ -393,6 +393,16 @@ MUTATIONS = [
      "        if in_string:\n            if escaped:",
      "        if False:\n            if escaped:"),
 
+    ("S12 integer literals handed to Python's unbounded int",
+     "            parse_int=_admissible_int,\n",
+     ""),
+    ("S13 the integer fallback overflow check removed",
+     "    if not math.isfinite(float(text)):\n        raise UnadmittedJsonValue(\n            f\"{text[:32]}… has",
+     "    if False:\n        raise UnadmittedJsonValue(\n            f\"{text[:32]}… has"),
+    ("S14 int() called before the overflow check, so long literals crash",
+     "    if not math.isfinite(float(text)):",
+     "    if not math.isfinite(float(int(text))):"),
+
     ("H5 the replay rebuilds the tool calls instead of echoing them",
      "            \"tool_calls\": message[\"tool_calls\"],",
      "            \"tool_calls\": [{\"id\": c[\"id\"], \"type\": \"function\", \"function\": "
