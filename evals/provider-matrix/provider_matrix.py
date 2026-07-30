@@ -46,6 +46,196 @@ def sha256_bytes(value: bytes) -> str:
     return hashlib.sha256(value).hexdigest()
 
 
+# ---------------------------------------------------------------------------
+# The durable projection boundary
+# ---------------------------------------------------------------------------
+#
+#   raw provider response
+#           ↓
+#   ephemeral protocol state    — whatever the loop needs, in memory only
+#           ↓
+#   typed, sanitised evidence   — this section
+#           ↓
+#   durable receipt             — committed, and read by more people than the
+#                                 credential is
+#
+# Two review rounds found the same defect in two different fields: `usage`
+# copied whole into a receipt, and `request_id` taken verbatim from a
+# provider-controlled header. Either could have been closed with an `if`, and
+# the `if` is the wrong repair — the next review finds the tool call id, then
+# the substituted model name, then whatever a creative gateway decides to put in
+# the next field, one per round, forever. The provider has already seen the
+# bearer token; every string it sends back is a channel for returning it.
+#
+# So the contract is about the boundary, not the field: **nothing the provider
+# chose is copied into durable evidence.** What crosses is one of four shapes:
+#
+#   * a value that matched a trusted local one → the local value
+#   * a value from a local enum                → the enum member
+#   * a bounded numeric scalar                 → after a type check
+#   * an arbitrary identifier or text          → a digest, a length, and a
+#                                                local classification
+#
+# An unrecognised object or list does not cross at all. Diagnostics lose some
+# convenience to this and that is the trade being made deliberately: a raw
+# request id is genuinely useful to support, and belongs in a secret-scoped
+# artifact that does not exist yet, not in a file that gets committed.
+
+# One domain per kind of value, so two fields cannot be correlated by digest.
+# Without the prefix, a request id and a tool call id that happen to be the same
+# string hash identically, and anyone holding the receipt learns that the
+# provider reflected one into the other. A small leak, and a free one to close.
+EVIDENCE_DOMAINS = {
+    "request-id": b"qodec-provider-request-id-v1\0",
+    "tool-call-id": b"qodec-provider-tool-call-id-v1\0",
+    "tool-name": b"qodec-provider-tool-name-v1\0",
+    "model-name": b"qodec-provider-model-name-v1\0",
+    "handle": b"qodec-provider-handle-v1\0",
+    "answer-bytes": b"qodec-provider-answer-bytes-v1\0",
+    "citation": b"qodec-provider-citation-v1\0",
+    "argument-errors": b"qodec-provider-argument-errors-v1\0",
+    "json-value": b"qodec-provider-json-value-v1\0",
+}
+
+
+def evidence_bytes(value: Any) -> bytes:
+    """The bytes a provider-chosen value is hashed as, canonically.
+
+    `default=repr` rather than letting `json.dumps` raise: this runs on values
+    the provider chose, and a projection that can fail on one of them is a
+    projection that stops projecting exactly when it matters.
+    """
+    if isinstance(value, (bytes, bytearray)):
+        return bytes(value)
+    if isinstance(value, str):
+        return value.encode("utf-8", "surrogatepass")
+    return json.dumps(value, sort_keys=True, default=repr).encode("utf-8", "surrogatepass")
+
+
+def evidence_digest(domain: str, value: Any) -> str:
+    """`sha256(domain-prefix || value)`."""
+    return hashlib.sha256(EVIDENCE_DOMAINS[domain] + evidence_bytes(value)).hexdigest()
+
+
+def opaque(prefix: str, domain: str, value: Any) -> dict[str, Any]:
+    """Evidence *about* a provider-chosen value. Never the value.
+
+    Three fields, because all three are things support actually needs and none
+    of them is the string itself: whether there was one at all, which one it was
+    (comparably, across turns and across runs), and how long it was.
+    """
+    if value is None:
+        return {f"{prefix}_present": False}
+    return {
+        f"{prefix}_present": True,
+        f"{prefix}_sha256": evidence_digest(domain, value),
+        f"{prefix}_bytes": len(evidence_bytes(value)),
+    }
+
+
+def opaque_ref(domain: str, value: Any) -> str:
+    """Name a provider-chosen value inside a local message without repeating it.
+
+    Messages end up in `detail`, and `detail` ends up on disk. A message that
+    interpolates what the provider sent is the same leak as a field that copies
+    it, with better camouflage.
+    """
+    return f"<{domain} sha256:{evidence_digest(domain, value)[:16]} {len(evidence_bytes(value))}B>"
+
+
+# The counters, and nothing else. Anything outside this tuple is discarded
+# rather than recorded, however plausible it looks.
+USAGE_COUNTERS = ("prompt_tokens", "completion_tokens", "total_tokens")
+
+
+def normalize_provider_usage(value: Any) -> dict[str, int]:
+    """The provider's token counters, and nothing else it decided to send.
+
+    An allowlist, not a filter. `usage` is a JSON object the provider fills in,
+    so `{"prompt_tokens": 12, "echo": "Bearer …"}` is a shape it can choose, and
+    copying the object whole put that second field into a committed receipt — on
+    a PASS, where nobody would think to look.
+
+    `type(n) is int` rather than `isinstance`, because `True` is an `int` in
+    Python and would otherwise be recorded as a token count of 1. A negative
+    count is refused for the same reason a status of 700 is: it is not a
+    measurement, and keeping it would be recording a claim.
+
+    Usage is descriptive telemetry. It never reaches a verdict, in either path.
+    """
+    if not isinstance(value, dict):
+        return {}
+    counts: dict[str, int] = {}
+    for name in USAGE_COUNTERS:
+        count = value.get(name)
+        if type(count) is int and count >= 0:
+            counts[name] = count
+    return counts
+
+
+def model_evidence(requested: str, reported: Any) -> dict[str, Any]:
+    """The reported model, kept as text only when it is the one we asked for.
+
+    `verified` means the string equalled a value we already had, so recording it
+    records nothing new about the provider. Any other string is the provider's
+    choice — including, if it likes, the bearer token — and crosses as evidence.
+    `model_status` beside it says which case this is.
+    """
+    if isinstance(reported, str) and reported == requested:
+        return {"reported_model": requested, "reported_model_present": True}
+    return {"reported_model": None, **opaque("reported_model", "model-name", reported)}
+
+
+# The vocabulary `jsonschema_mini` and the envelope oracle emit. Matching on it
+# is matching on *our* words, not the provider's: the messages interpolate the
+# instance (`{instance!r}`, `additional property '{key}'`), so the text cannot
+# be kept, but which rule fired is a local fact and is worth keeping.
+ARGUMENT_ERROR_KINDS = (
+    ("expected type", "type"),
+    ("not in enum", "enum"),
+    ("fails pattern", "pattern"),
+    ("shorter than minLength", "min-length"),
+    ("below minimum", "minimum"),
+    ("missing required field", "required"),
+    ("additional property", "additional-property"),
+    ("fewer than minItems", "min-items"),
+    ("items not unique", "unique-items"),
+    ("unsupported $ref", "ref"),
+    ("is not a declared tool", "undeclared-tool"),
+    ("envelope", "envelope"),
+    ("canonical spelling", "envelope-canonicality"),
+    ("display_utf8", "envelope-display"),
+    ("encoding must be", "envelope-encoding"),
+)
+
+
+def argument_error_kind(message: str) -> str:
+    for marker, kind in ARGUMENT_ERROR_KINDS:
+        if marker in message:
+            return kind
+    return "other"
+
+
+def error_evidence(prefix: str, errors: list[str]) -> dict[str, Any]:
+    """Validation failures as counts, kinds and a digest — never as their text.
+
+    `jsonschema_mini` is not this module's to rewrite and its messages carry the
+    offending instance, so the free text cannot cross. What crosses is what a
+    reader actually acts on: how many rules failed, which rules, and a digest
+    that makes two runs comparable without either of them being readable.
+    """
+    kinds: list[str] = []
+    for message in errors:
+        kind = argument_error_kind(message)
+        if kind not in kinds:
+            kinds.append(kind)
+    return {
+        f"{prefix}_count": len(errors),
+        f"{prefix}_kinds": sorted(kinds),
+        f"{prefix}_sha256": evidence_digest("argument-errors", "\n".join(errors)),
+    }
+
+
 def reject_duplicate_keys(pairs: list[tuple[str, Any]]) -> dict[str, Any]:
     """`json.loads` keeps the last of two identical keys, silently.
 
@@ -687,6 +877,28 @@ class SendResult(NamedTuple):
     stage: str = "before-response"  # before-response | after-headers | completed
     body_bytes_observed: int | None = None
     request_id: str | None = None
+    # `detail` is free text and stays in memory. These two are what may
+    # cross into a receipt, and both are local *by construction* rather
+    # than by inspection: `reason` comes from a fixed vocabulary, and
+    # `failure_type` is a Python class name, which no peer can choose.
+    # An `SSLCertVerificationError` message carries fields the peer
+    # picked; its class name does not.
+    reason: str | None = None
+    failure_type: str | None = None
+
+
+# Why an exchange did not complete, in this module's own words. A reason is
+# only ever assigned where the failure happens, so nothing downstream has to
+# decide whether a string is safe to keep.
+TRANSPORT_REASONS = (
+    "timeout",
+    "connection-failed",
+    "http-framing-failure",
+    "body-capture-failure",
+    "credential-missing",
+    "credential-not-header-safe",
+    "request-not-constructed",
+)
 
 
 class BodyTooLarge(ValueError):
@@ -785,11 +997,20 @@ def validate_send_result(result: SendResult) -> SendResult:
                 f"body_bytes_observed {observed} disagrees with the {len(result.body)} bytes present"
             )
 
+    if result.reason is not None and result.reason not in TRANSPORT_REASONS:
+        raise ValueError(f"unknown transport reason {result.reason!r}")
+    # A Python identifier, because that is all a class name can be. Cheap to
+    # check and it makes "this field is local" an assertion rather than a
+    # convention somebody has to keep.
+    if result.failure_type is not None and not (
+        isinstance(result.failure_type, str) and result.failure_type.isidentifier()
+    ):
+        raise ValueError(f"failure_type must be a class name, got {result.failure_type!r}")
     if result.request_id is not None:
         if not shape["response_derived"]:
             raise ValueError(
                 f"send stage {result.stage!r} means no headers arrived, so it cannot "
-                f"also carry the request id {result.request_id!r}"
+                f"also carry the request id {opaque_ref('request-id', result.request_id)}"
             )
         if not isinstance(result.request_id, str):
             raise ValueError(f"request_id must be a string, got {type(result.request_id).__name__}")
@@ -896,7 +1117,8 @@ def send_json(url: str, body: bytes, key: str, timeout: float, limit: int = MAX_
     # would then print to stderr and CI would keep forever. The check is on the
     # value; the error never repeats it.
     if not credential_is_header_safe(key):
-        return SendResult(None, None, "credential is not a valid header value", "no-credential")
+        return SendResult(None, None, "credential is not a valid header value",
+                          "no-credential", reason="credential-not-header-safe")
     request = urllib.request.Request(
         url,
         data=body,
@@ -916,14 +1138,20 @@ def send_json(url: str, body: bytes, key: str, timeout: float, limit: int = MAX_
             return SendResult(
                 exc.code, None, capture_detail("HTTP body capture failure", read_exc),
                 "after-headers", bytes_seen(read_exc), request_id,
+                "body-capture-failure", type(read_exc).__name__,
             )
         return SendResult(exc.code, raw, "", "completed", len(raw), request_id)
-    except TimeoutError:
-        return SendResult(None, None, "timeout", "before-response")
+    except TimeoutError as exc:
+        return SendResult(None, None, "timeout", "before-response",
+                          reason="timeout", failure_type=type(exc).__name__)
     except urllib.error.URLError as exc:
         reason = exc.reason
         detail = "timeout" if isinstance(reason, TimeoutError) else str(reason)
-        return SendResult(None, None, detail, "before-response")
+        return SendResult(
+            None, None, detail, "before-response",
+            reason="timeout" if isinstance(reason, TimeoutError) else "connection-failed",
+            failure_type=type(reason).__name__ if isinstance(reason, BaseException) else None,
+        )
     except http.client.HTTPException as exc:
         # `BadStatusLine`, `LineTooLong` and the rest of the framing family
         # derive from `HTTPException`, not from `OSError`, and urllib re-raises
@@ -931,7 +1159,8 @@ def send_json(url: str, body: bytes, key: str, timeout: float, limit: int = MAX_
         # handler here and `guarded_receipt` filed provider-controlled wire
         # corruption as `INTERNAL_ERROR`, a defect in this tool.
         return SendResult(
-            None, None, capture_detail("HTTP framing failure", exc), "response-framing"
+            None, None, capture_detail("HTTP framing failure", exc), "response-framing",
+            reason="http-framing-failure", failure_type=type(exc).__name__,
         )
 
     # Read outside the try: these are attribute accesses on an object we already
@@ -955,6 +1184,7 @@ def send_json(url: str, body: bytes, key: str, timeout: float, limit: int = MAX_
         return SendResult(
             status, None, capture_detail("HTTP body capture failure", exc),
             "after-headers", bytes_seen(exc), request_id,
+            "body-capture-failure", type(exc).__name__,
         )
     return SendResult(status, raw, "", "completed", len(raw), request_id)
 
@@ -969,7 +1199,8 @@ def key_bound_sender(key_env: str):
     def send(url: str, body: bytes, timeout: float) -> SendResult:
         key = os.environ.get(key_env)
         if not key:
-            return SendResult(None, None, f"missing env {key_env}", "no-credential")
+            return SendResult(None, None, f"missing env {key_env}", "no-credential",
+                              reason="credential-missing")
         try:
             return send_json(url, body, key, timeout)
         except ValueError as exc:
@@ -977,7 +1208,8 @@ def key_bound_sender(key_env: str):
             # unreachable — but an exception carrying a header value must never
             # escape toward `main`, which prints `ValueError` to stderr.
             del exc
-            return SendResult(None, None, "the request could not be constructed", "before-response")
+            return SendResult(None, None, "the request could not be constructed",
+                              "before-response", reason="request-not-constructed")
 
     return send
 
@@ -1130,8 +1362,10 @@ def probe_target(
     send = send if send is not None else key_bound_sender(target["key_env"])
     sent = as_send_result(send(url, request_body, timeout))
     latency = round((time.time() - started) * 1000)
-    if sent.request_id:
-        result["request_id"] = sent.request_id
+    # The header is provider-controlled and the provider has seen the bearer
+    # token, so `x-request-id` is a channel for handing it back. The raw value
+    # stays in `sent`, in memory; the artifact gets evidence about it.
+    result.update(opaque("request_id", "request-id", sent.request_id))
     if sent.stage != "completed":
         # A body-read failure is not unavailability: the provider answered, the
         # generation exists, and it will appear on the bill. Retrying it is a
@@ -1147,10 +1381,16 @@ def probe_target(
             kind = "RESPONSE_CAPTURE_FAILED"
         else:
             kind = "TIMEOUT" if sent.detail == "timeout" else "TRANSPORT_FAILURE"
-        result.update(classification=kind, detail=sent.detail, latency_ms=latency)
+        reason = transport_reason(sent)
+        if sent.failure_type is not None:
+            result["transport_failure_type"] = sent.failure_type
+            reason = f"{reason} ({sent.failure_type})"
+        if sent.reason == "credential-missing":
+            reason = f"{reason}: {target['key_env']}"
+        result.update(classification=kind, detail=reason, latency_ms=latency)
         if sent.status is not None:
             result["http_status"] = sent.status
-            result["detail"] = f"HTTP {sent.status}: {sent.detail}"
+            result["detail"] = f"HTTP {sent.status}: {reason}"
         if sent.body_bytes_observed is not None:
             result["body_bytes_observed"] = sent.body_bytes_observed
         return result
@@ -1185,7 +1425,7 @@ def probe_target(
     except (StrictJsonError, json.JSONDecodeError, KeyError, TypeError, IndexError, AttributeError):
         result["classification"] = "INVALID_OUTPUT"
         return result
-    result["reported_model"] = reported_model
+    result.update(model_evidence(target["model"], reported_model))
     # Three-valued, like the qualification side. The old `if reported_model and
     # ...` let a response that named no model fall through to PASS whenever the
     # text happened to be right, so a target whose identity was never
@@ -1202,7 +1442,7 @@ def probe_target(
     else:
         result["classification"] = "PASS"
     if isinstance(payload.get("usage"), dict):
-        result["provider_usage"] = payload["usage"]
+        result["provider_usage"] = normalize_provider_usage(payload["usage"])
     return result
 
 
@@ -1291,6 +1531,25 @@ STAGE_OUTCOME = {
     "after-headers": "response-capture-failure",
 }
 
+
+def transport_reason(sent: SendResult) -> str:
+    """A local reason code for a failed exchange — never the transport's prose.
+
+    `SendResult.detail` is free text, and free text on this path is not as local
+    as it looks: an `SSLCertVerificationError` message carries fields the peer
+    chose, and an injected `send` can put anything there at all. Copying it into
+    a receipt is the same defect as copying `usage` — one field further down.
+
+    So the reason is assigned where the failure happens, from a fixed
+    vocabulary, and read from the field here. Nothing downstream has to judge
+    whether a string is safe to keep.
+    """
+    if sent.reason is not None:
+        return sent.reason
+    # An injected `send` that supplied no reason gets the stage's own name,
+    # which is local too. Its `detail` is never consulted.
+    return STAGE_OUTCOME.get(sent.stage, "transport-failure")
+
 QUALIFY_INSTRUCTIONS = (
     "You are answering one question about a document you cannot see. The document is not in "
     "this conversation and will not be shown to you. You have tools that run deterministic "
@@ -1362,7 +1621,20 @@ def fold_model_status(turns: list[dict[str, Any]]) -> str:
     return worst
 
 
-def fold_reported_models(turns: list[dict[str, Any]]) -> list[Any]:
+MODEL_EVIDENCE_FIELDS = (
+    "reported_model", "reported_model_present",
+    "reported_model_sha256", "reported_model_bytes",
+)
+
+
+def model_evidence_of(turn: dict[str, Any]) -> dict[str, Any] | None:
+    """One turn's projected identity, or `None` if it never reached a payload."""
+    if "reported_model_present" not in turn:
+        return None
+    return {key: turn[key] for key in MODEL_EVIDENCE_FIELDS if key in turn}
+
+
+def fold_reported_models(turns: list[dict[str, Any]]) -> list[dict[str, Any]]:
     """Every distinct model the provider named, in the order it named them.
 
     A single top-level `reported_model` overwritten each turn loses exactly the
@@ -1371,16 +1643,19 @@ def fold_reported_models(turns: list[dict[str, Any]]) -> list[Any]:
     provider reported X" because the last write won. The substituted model is
     the whole finding — it has to survive the fold.
 
+    It survives as *evidence*, not as the provider's string. Two different
+    substituted models still produce two entries, because their digests differ;
+    what nobody gets from the receipt is the names themselves, which the
+    provider chose and could have chosen to be the credential.
+
     Turns that never reached a payload contribute nothing, rather than a `null`
     that would read as "the provider named no model".
     """
-    seen: list[Any] = []
+    seen: list[dict[str, Any]] = []
     for turn in turns:
-        if "reported_model" not in turn:
-            continue
-        value = turn["reported_model"]
-        if value not in seen:
-            seen.append(value)
+        entry = model_evidence_of(turn)
+        if entry is not None and entry not in seen:
+            seen.append(entry)
     return seen
 
 
@@ -1632,20 +1907,23 @@ def parse_tool_calls(message: dict[str, Any]) -> ParsedAssistant:
             # result happens to be written last.
             return ParsedAssistant(
                 [], content,
-                ("PROTOCOL_VIOLATION", f"tool call id {call_id!r} appeared more than once"),
+                ("PROTOCOL_VIOLATION",
+                 f"a tool call id appeared more than once: {opaque_ref('tool-call-id', call_id)}"),
             )
         seen_ids.add(call_id)
         function = entry.get("function")
         if not isinstance(function, dict):
             return ParsedAssistant(
                 [], content,
-                ("PROTOCOL_VIOLATION", f"tool call {call_id} lacked a function object"),
+                ("PROTOCOL_VIOLATION",
+                 f"tool call {opaque_ref('tool-call-id', call_id)} lacked a function object"),
             )
         name = function.get("name")
         if not isinstance(name, str) or not name:
             return ParsedAssistant(
                 [], content,
-                ("PROTOCOL_VIOLATION", f"tool call {call_id} lacked a function name"),
+                ("PROTOCOL_VIOLATION",
+                 f"tool call {opaque_ref('tool-call-id', call_id)} lacked a function name"),
             )
         arguments = function.get("arguments")
         if isinstance(arguments, (dict, list)):
@@ -1654,13 +1932,14 @@ def parse_tool_calls(message: dict[str, Any]) -> ParsedAssistant:
             # is a different adapter, not a better prompt.
             return ParsedAssistant([], content, (
                 "DIALECT_MISMATCH",
-                f"{name} arguments arrived as a JSON {type(arguments).__name__}; "
-                "openai-chat requires a JSON string",
+                f"{opaque_ref('tool-name', name)} arguments arrived as a JSON "
+                f"{type(arguments).__name__}; openai-chat requires a JSON string",
             ))
         if not isinstance(arguments, str):
             return ParsedAssistant([], content, (
                 "PROTOCOL_VIOLATION",
-                f"{name} arguments were {type(arguments).__name__}, not a string",
+                f"{opaque_ref('tool-name', name)} arguments were "
+                f"{type(arguments).__name__}, not a string",
             ))
         calls.append({"id": call_id, "name": name, "raw_arguments": arguments})
     return ParsedAssistant(calls, content, None)
@@ -1675,17 +1954,24 @@ def decode_arguments(call: dict[str, Any]) -> tuple[dict[str, Any] | None, str |
     value. A canary that accepts an ambiguous call has qualified a shape a
     strict mapper may refuse — the defect this vertical exists to avoid.
     """
+    # The tool name and every one of these exception messages are the
+    # provider's words: `DuplicateJsonKey` names the repeated key, and
+    # `UnadmittedJsonValue` quotes the literal. Both would otherwise reach a
+    # receipt through `detail`, which is the leak the projection boundary
+    # exists to close — so what is reported is the *class* of failure and a
+    # reference to the value, not the value.
+    named = opaque_ref("tool-name", call["name"])
     raw = call["raw_arguments"]
     try:
-        parsed = strict_json_loads(raw, f"{call['name']} arguments")
-    except DuplicateJsonKey as exc:
-        return None, f"arguments for {call['name']} name a field twice: {exc}"
+        parsed = strict_json_loads(raw, "arguments")
+    except DuplicateJsonKey:
+        return None, f"arguments for {named} name a field twice"
     except StrictJsonError as exc:
-        return None, f"arguments for {call['name']} are not acceptable JSON: {exc}"
-    except json.JSONDecodeError as exc:
-        return None, f"arguments for {call['name']} are not valid JSON: {exc}"
+        return None, f"arguments for {named} are not acceptable JSON: {type(exc).__name__}"
+    except json.JSONDecodeError:
+        return None, f"arguments for {named} are not valid JSON"
     if not isinstance(parsed, dict):
-        return None, f"arguments for {call['name']} decoded to {type(parsed).__name__}, not an object"
+        return None, f"arguments for {named} decoded to {type(parsed).__name__}, not an object"
     return parsed, None
 
 
@@ -1764,24 +2050,33 @@ def canary_answer_errors(args: dict[str, Any], observed: Observed) -> list[str]:
     """
     errors: list[str] = []
 
+    # Every value named below came out of the provider's `arguments`, so none of
+    # them is spelled out: these strings reach `detail` and `detail` reaches a
+    # committed receipt. A digest is enough to compare two runs, or to compare a
+    # cited handle against one the operator can hash themselves.
     envelope_problems, decoded = envelope_errors(args.get("answer"), "answer")
     errors.extend(envelope_problems)
     if decoded is not None and decoded not in observed.bytes:
         errors.append(
-            f"answer bytes {decoded!r} were not in any result this run returned"
+            f"answer bytes {opaque_ref('answer-bytes', decoded)} were not in "
+            "any result this run returned"
         )
 
     handle = args.get("handle")
+    named = opaque_ref("handle", handle)
     if not observed.handles:
-        errors.append(f"cited handle {handle!r} but no operation in this run returned a handle")
+        errors.append(f"cited handle {named} but no operation in this run returned a handle")
     elif handle not in observed.handles:
-        errors.append(f"cited handle {handle!r} was never returned by any operation in this run")
+        errors.append(f"cited handle {named} was never returned by any operation in this run")
 
     cited = args.get("cited")
     for citation in cited if isinstance(cited, list) else []:
         spelled = json.dumps(citation, sort_keys=True)
         if spelled not in observed.support:
-            errors.append(f"citation {spelled} is not in the support this run returned")
+            errors.append(
+                f"citation {opaque_ref('citation', spelled)} is not in the "
+                "support this run returned"
+            )
     return errors
 
 
@@ -1865,20 +2160,30 @@ def qualify_target(
         # is exactly when it exists.
         if status is not None:
             record["http_status"] = status
-        if sent.request_id:
-            record["request_id"] = sent.request_id
+        record.update(opaque("request_id", "request-id", sent.request_id))
         if sent.body_bytes_observed is not None:
             record["body_bytes_observed"] = sent.body_bytes_observed
         if sent.stage != "completed":
             kind = STAGE_CAUSE.get(sent.stage, "UNAVAILABLE")
+            reason = transport_reason(sent)
             record["outcome"] = STAGE_OUTCOME.get(sent.stage, "transport-failure")
-            record["detail"] = detail
+            record["transport_reason"] = reason
+            if sent.failure_type is not None:
+                record["transport_failure_type"] = sent.failure_type
+            if reason == "credential-missing":
+                # The env var name comes from the trusted registry by way of
+                # the target, never from the transport's message.
+                record["key_env"] = target["key_env"]
             receipt["turns"].append(record)
-            if status is not None:
-                # The status is the most useful thing left when the body is
-                # gone; burying it in a turn record and reporting a bare cause
-                # would throw away what the provider already told us.
-                detail = f"HTTP {status}: {detail}"
+            # The status is the most useful thing left when the body is
+            # gone; burying it in a turn record and reporting a bare cause
+            # would throw away what the provider already told us. The
+            # reason beside it is a local enum, not the transport's words.
+            detail = f"HTTP {status}: {reason}" if status is not None else reason
+            if sent.failure_type is not None:
+                detail = f"{detail} ({sent.failure_type})"
+            if reason == "credential-missing":
+                detail = f"{detail}: {target['key_env']}"
             receipt.update(classification=kind, detail=detail, turn_count=turn + 1)
             return receipt
         if not 200 <= status < 300:
@@ -1917,8 +2222,8 @@ def qualify_target(
         receipt["tool_result_roundtrip"] = roundtrip_seen
 
         reported = payload.get("model")
-        record["reported_model"] = reported
         record["model_status"] = model_status_of(target["model"], reported)
+        record.update(model_evidence(target["model"], reported))
         # Worst turn decides, exactly as the Rust side does: a cell is only as
         # identified as its least identified turn. Folded from the per-turn
         # values at the end rather than accumulated here, so a run with no turns
@@ -1929,11 +2234,14 @@ def qualify_target(
         # one to offer. An overwritten scalar reports the last turn as if it were
         # the run.
         receipt["reported_models"] = fold_reported_models(receipt["turns"] + [record])
-        receipt["reported_model"] = (
-            receipt["reported_models"][0] if len(receipt["reported_models"]) == 1 else None
-        )
+        # The top-level convenience field keeps its old meaning — a single
+        # consistent value — but only ever holds a model that matched the one
+        # requested. Any other string is the provider's, and lives in
+        # `reported_models` as a digest.
+        only = receipt["reported_models"][0] if len(receipt["reported_models"]) == 1 else None
+        receipt["reported_model"] = only.get("reported_model") if only else None
         if isinstance(payload.get("usage"), dict):
-            record["reported_usage"] = payload["usage"]
+            record["reported_usage"] = normalize_provider_usage(payload["usage"])
 
         parsed = parse_tool_calls(message)
         calls, problem = parsed.calls, parsed.problem
@@ -1944,13 +2252,30 @@ def qualify_target(
             receipt["turns"].append(record)
             receipt.update(classification=kind, detail=why, turn_count=turn + 1)
             return receipt
-        record["tool_names"] = [c["name"] for c in calls]
-        record["tool_call_ids"] = [c["id"] for c in calls]
-
+        # Names and call ids are both provider-chosen. A name that matches one
+        # we declared is a value we already had, so it crosses as itself; any
+        # other name is the provider's text and crosses as a digest. Call ids
+        # are never one of ours, so nothing is lost by never keeping them: the
+        # ordinal links a call to its result, and replay still uses the real id
+        # in memory where it belongs.
         known = {op["name"] for op in surface["operations"]} | {ANSWER_TOOL}
+        record["tool_calls"] = [
+            {
+                "ordinal": index,
+                "name": c["name"] if c["name"] in known else None,
+                **({} if c["name"] in known else opaque("name", "tool-name", c["name"])),
+                **opaque("call_id", "tool-call-id", c["id"]),
+            }
+            for index, c in enumerate(calls)
+        ]
+        record["tool_names"] = [c["name"] for c in calls if c["name"] in known]
+
         unknown = [c["name"] for c in calls if c["name"] not in known]
         if unknown:
-            why = f"called tools that were never declared: {unknown}"
+            why = (
+                f"called {len(unknown)} tool(s) that were never declared: "
+                + ", ".join(opaque_ref("tool-name", name) for name in unknown)
+            )
             record["outcome"] = "protocol-violation"
             record["detail"] = why
             receipt["turns"].append(record)
@@ -1970,10 +2295,20 @@ def qualify_target(
                 return receipt
             errors = validate_arguments(surface, call["name"], args)
             if errors:
-                why = f"{call['name']} arguments violate the declared schema: " + "; ".join(errors)
+                # `jsonschema_mini` interpolates the offending instance —
+                # `{instance!r}`, `additional property '{key}'` — so the
+                # messages themselves are provider text and cannot be kept.
+                # What a reader acts on survives: how many rules failed, which
+                # rules, and a digest that makes two runs comparable.
+                evidence = error_evidence("argument_errors", errors)
+                why = (
+                    f"{opaque_ref('tool-name', call['name'])} arguments violate the "
+                    f"declared schema: {evidence['argument_errors_count']} error(s), "
+                    f"{', '.join(evidence['argument_errors_kinds'])}"
+                )
                 record["outcome"] = "malformed-arguments"
                 record["detail"] = why
-                record["argument_errors"] = errors
+                record.update(evidence)
                 receipt["turns"].append(record)
                 receipt.update(
                     classification="MALFORMED_TOOL_ARGUMENTS", detail=why, turn_count=turn + 1
@@ -2031,13 +2366,19 @@ def qualify_target(
             # one". Both fail; only `verified` may pass.
             identity = receipt["model_status"]
             if identity == "drifted":
+                # Which model was substituted is the finding, and it survives
+                # as a digest rather than as the name: a provider that returns
+                # the bearer token in `model` would otherwise have written it
+                # into the detail line of a committed receipt.
                 substituted = [
-                    name for name in receipt["reported_models"]
-                    if isinstance(name, str) and name != target["model"]
+                    entry for entry in receipt["reported_models"]
+                    if entry.get("reported_model") is None and entry.get("reported_model_present")
                 ]
                 receipt["classification"] = MODEL_STATUS_VERDICT["drifted"]
                 receipt["detail"] = (
-                    f"requested {target['model']}, provider reported {', '.join(substituted)}"
+                    f"requested {target['model']}, provider reported "
+                    f"{len(substituted)} other model(s): "
+                    + ", ".join(entry["reported_model_sha256"][:16] for entry in substituted)
                 )
             elif identity != "verified":
                 receipt["classification"] = MODEL_STATUS_VERDICT.get(identity, "MODEL_IDENTITY_MISSING")

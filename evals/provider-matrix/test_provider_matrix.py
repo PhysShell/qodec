@@ -1,4 +1,5 @@
 import argparse
+import hashlib
 import http.client
 import io
 import sys
@@ -126,7 +127,11 @@ class ProviderMatrixTests(unittest.TestCase):
         # The status the provider already sent is not thrown away with the body.
         self.assertEqual(result["http_status"], 429)
         self.assertEqual(result["body_bytes_observed"], 4096)
-        self.assertEqual(result["request_id"], "req-9")
+        # The raw header never crosses; evidence about it does.
+        self.assertTrue(result["request_id_present"])
+        self.assertNotIn("req-9", json.dumps(result))
+        self.assertEqual(result["request_id_sha256"],
+                         pm.evidence_digest("request-id", "req-9"))
 
 
 # ---------------------------------------------------------------------------
@@ -294,7 +299,10 @@ class QualificationTests(unittest.TestCase):
     def test_a_transport_failure_is_unavailable(self):
         receipt, _ = self.run_qualify([(None, None, "connection refused")])
         self.assertEqual(receipt["classification"], "UNAVAILABLE")
-        self.assertEqual(receipt["detail"], "connection refused")
+        # A local reason code, not the transport's prose: an SSL failure's
+        # message carries fields the peer chose, and this string is committed.
+        self.assertEqual(receipt["detail"], "transport-failure")
+        self.assertNotIn("connection refused", json.dumps(receipt))
 
     def test_a_substituted_model_does_not_pass(self):
         receipt, _ = self.run_qualify(OPERATION_THEN(
@@ -302,7 +310,8 @@ class QualificationTests(unittest.TestCase):
         ))
         self.assertEqual(receipt["classification"], "PROVIDER_SUBSTITUTED")
         self.assertEqual(receipt["model_status"], "drifted")
-        self.assertIn("some-other-model", receipt["detail"])
+        self.assertNotIn("some-other-model", receipt["detail"])
+        self.assertIn(pm.evidence_digest("model-name", "some-other-model")[:16], receipt["detail"])
 
     def test_the_drifting_model_survives_a_later_correct_turn(self):
         """`drifted → verified` must not fold into "reported the model we asked for".
@@ -318,18 +327,26 @@ class QualificationTests(unittest.TestCase):
         ])
         self.assertEqual(receipt["model_status"], "drifted")
         self.assertEqual(receipt["classification"], "PROVIDER_SUBSTITUTED")
-        self.assertEqual(receipt["reported_models"], ["sneaky-substitute", "openai/gpt-oss-120b"])
-        self.assertEqual(receipt["turns"][0]["reported_model"], "sneaky-substitute")
+        # Two distinct entries survive the fold — the substituted one as a
+        # digest, since the provider chose that string and could have chosen
+        # the credential.
+        self.assertEqual(len(receipt["reported_models"]), 2)
+        self.assertIsNone(receipt["turns"][0]["reported_model"])
+        self.assertEqual(receipt["turns"][0]["reported_model_sha256"],
+                         pm.evidence_digest("model-name", "sneaky-substitute"))
         self.assertEqual(receipt["turns"][1]["reported_model"], "openai/gpt-oss-120b")
         # No single consistent value exists, so none is claimed.
         self.assertIsNone(receipt["reported_model"])
-        # And the detail names the model that actually drifted.
-        self.assertIn("sneaky-substitute", receipt["detail"])
+        # And the detail identifies the model that actually drifted, without
+        # repeating what the provider sent.
+        self.assertNotIn("sneaky-substitute", receipt["detail"])
+        self.assertIn(pm.evidence_digest("model-name", "sneaky-substitute")[:16], receipt["detail"])
         self.assertNotIn("provider reported openai/gpt-oss-120b", receipt["detail"])
 
     def test_a_consistent_reported_model_is_still_offered_once(self):
         receipt, _ = self.run_qualify(OPERATION_THEN(ANSWER_REPLY))
-        self.assertEqual(receipt["reported_models"], ["openai/gpt-oss-120b"])
+        self.assertEqual(receipt["reported_models"],
+                         [{"reported_model": "openai/gpt-oss-120b", "reported_model_present": True}])
         self.assertEqual(receipt["reported_model"], "openai/gpt-oss-120b")
 
     def test_an_unnamed_model_is_missing_and_does_not_pass(self):
@@ -366,7 +383,10 @@ class QualificationTests(unittest.TestCase):
         receipt, _ = self.run_qualify([(200, unnamed, ""), ANSWER_REPLY])
         self.assertEqual(receipt["model_status"], "missing")
         self.assertEqual(receipt["classification"], "MODEL_IDENTITY_MISSING")
-        self.assertEqual(receipt["reported_models"], [None, "openai/gpt-oss-120b"])
+        self.assertEqual(receipt["reported_models"], [
+            {"reported_model": None, "reported_model_present": False},
+            {"reported_model": "openai/gpt-oss-120b", "reported_model_present": True},
+        ])
 
     def test_unparseable_arguments_are_malformed_not_a_protocol_violation(self):
         receipt, _ = self.run_qualify([(200, completion([call("qodec_answer", "{not json")]), "")])
@@ -375,7 +395,9 @@ class QualificationTests(unittest.TestCase):
     def test_missing_required_arguments_are_malformed(self):
         receipt, _ = self.run_qualify([(200, completion([call("qodec_answer", json.dumps({"answer": {}}))]), "")])
         self.assertEqual(receipt["classification"], "MALFORMED_TOOL_ARGUMENTS")
-        self.assertIn("handle", receipt["detail"])
+        # Which rule failed, not which field: `jsonschema_mini` interpolates
+        # the instance, so its text cannot reach a committed receipt.
+        self.assertIn("required", receipt["turns"][0]["argument_errors_kinds"])
 
     def test_two_answers_are_a_protocol_violation(self):
         receipt, _ = self.run_qualify([(200, completion([
@@ -533,13 +555,13 @@ class ArgumentSchemaTests(unittest.TestCase):
 
     def test_a_wrong_type_is_not_valid_merely_because_the_key_is_present(self):
         receipt = self.malformed("qodec_intersect", {"index": 123, "sections": ["attempt_1"]})
-        self.assertTrue(any("expected type" in e for e in receipt["turns"][0]["argument_errors"]))
+        self.assertIn("type", receipt["turns"][0]["argument_errors_kinds"])
 
     def test_a_forbidden_extra_field_is_rejected(self):
         receipt = self.malformed("qodec_intersect", {
             "index": "line", "sections": ["attempt_1"], "unexpected_field": True,
         })
-        self.assertTrue(any("additional property" in e for e in receipt["turns"][0]["argument_errors"]))
+        self.assertIn("additional-property", receipt["turns"][0]["argument_errors_kinds"])
 
     def test_an_array_field_given_a_string_is_rejected(self):
         self.malformed("qodec_intersect", {"index": "line", "sections": "not-an-array"})
@@ -552,14 +574,14 @@ class ArgumentSchemaTests(unittest.TestCase):
         receipt = self.malformed("qodec_lookup", {
             "index": "line", "key": {"encoding": "hex", "data": "61"},
         })
-        self.assertTrue(any("enum" in e for e in receipt["turns"][0]["argument_errors"]))
+        self.assertIn("enum", receipt["turns"][0]["argument_errors_kinds"])
 
     def test_a_handle_that_is_not_a_sha256_is_rejected(self):
         receipt = self.malformed("qodec_materialize", {
             "handle": "sha256:not-a-digest",
             "record_ids": [{"store": pm.CANNED_HANDLE, "section": "attempt_1", "ordinal": 0}],
         })
-        self.assertTrue(any("pattern" in e for e in receipt["turns"][0]["argument_errors"]))
+        self.assertIn("pattern", receipt["turns"][0]["argument_errors_kinds"])
 
     def test_a_nested_citation_error_is_rejected(self):
         self.malformed("qodec_answer", {
@@ -588,7 +610,9 @@ class CanaryAnswerTests(unittest.TestCase):
             "cited": [{"store": pm.CANNED_HANDLE, "section": "attempt_1", "ordinal": 0}],
         })
         self.assertEqual(receipt["classification"], "CANARY_ANSWER_MISMATCH")
-        self.assertIn("beta", receipt["detail"])
+        # The wrong answer is named by digest: those bytes are the provider's.
+        self.assertNotIn("beta", receipt["detail"])
+        self.assertIn(pm.evidence_digest("answer-bytes", b"beta")[:16], receipt["detail"])
         self.assertIn("not in any result this run returned", receipt["detail"])
         self.assertFalse(receipt["turns"][1]["canary_answer_matches"])
         # The protocol still held, and the receipt says so.
@@ -908,11 +932,18 @@ class StrictOpenAiDialectTests(unittest.TestCase):
         self.assertEqual(receipt["classification"], "UNAVAILABLE")
 
     def test_a_missing_credential_is_an_auth_failure_not_an_outage(self):
-        receipt = pm.qualify_target(
-            target(), surface(), 30.0, 6, pm.key_bound_sender("DEFINITELY_ABSENT_KEY"),
-        )
+        spec = target()
+        with patch.dict("os.environ", {}, clear=True):
+            receipt = pm.qualify_target(
+                spec, surface(), 30.0, 6, pm.key_bound_sender(spec["key_env"]),
+            )
         self.assertEqual(receipt["classification"], "AUTH_FAILED")
-        self.assertIn("DEFINITELY_ABSENT_KEY", receipt["detail"])
+        # The env var name comes from the trusted registry by way of the
+        # target, so it is a local value and may be named. The transport's
+        # own message is not consulted for it.
+        self.assertIn(spec["key_env"], receipt["detail"])
+        self.assertEqual(receipt["turns"][0]["transport_reason"], "credential-missing")
+        self.assertEqual(receipt["turns"][0]["key_env"], spec["key_env"])
 
     def test_a_refused_redirect_is_recorded_not_followed(self):
         """The real `send_json`, not the stand-in.
@@ -983,7 +1014,9 @@ class StrictOpenAiDialectTests(unittest.TestCase):
         turn = receipt["turns"][0]
         self.assertEqual(turn["http_status"], 401)
         self.assertEqual(turn["body_bytes_observed"], 4194305)
-        self.assertEqual(turn["request_id"], "req-3")
+        self.assertTrue(turn["request_id_present"])
+        self.assertEqual(turn["request_id_sha256"],
+                         pm.evidence_digest("request-id", "req-3"))
 
     def test_a_connect_failure_stops_before_the_response(self):
         with patch.object(pm._OPENER, "open", side_effect=urllib.error.URLError("refused")):
@@ -1254,6 +1287,273 @@ class SecretContainmentTests(unittest.TestCase):
         self.assertEqual(turn["http_status"], 400)
         self.assertTrue(turn["response_sha256"])
         self.assertNotIn("unsupported", json.dumps(receipt))
+
+
+def occurrences(value, needle, path="$"):
+    """Every place `needle` appears anywhere inside `value`, as paths.
+
+    Recursive on purpose. Two rounds of review found the credential in a field
+    nobody had thought to check — `usage`, then `request_id` — because the
+    containment tests looked in a list of *known* places. A list of known places
+    ages faster than milk on a radiator: the next field is always the one that
+    is not on it.
+    """
+    found = []
+    if isinstance(value, dict):
+        for key, sub in value.items():
+            if needle in str(key):
+                found.append(f"{path}.<key {key!r}>")
+            found.extend(occurrences(sub, needle, f"{path}.{key}"))
+    elif isinstance(value, (list, tuple)):
+        for index, sub in enumerate(value):
+            found.extend(occurrences(sub, needle, f"{path}[{index}]"))
+    elif isinstance(value, str):
+        if needle in value:
+            found.append(path)
+    elif isinstance(value, (bytes, bytearray)):
+        if needle.encode() in bytes(value):
+            found.append(path)
+    return found
+
+
+class DurableProjectionTests(unittest.TestCase):
+    """Nothing the provider chose is copied into durable evidence.
+
+    Two rounds found this as two bugs — `usage` copied whole, `request_id` taken
+    verbatim from a provider-controlled header — and either could have been
+    closed with an `if`. The `if` is the wrong repair: the next review finds the
+    tool call id, then the substituted model name, then whatever a creative
+    gateway puts in the next field, one per round, forever. The provider has
+    already seen the bearer token; every string it returns is a way to hand it
+    back.
+    """
+
+    SENTINEL = "sk-QODEC-SENTINEL-b3f9c1d7e2a4-DO-NOT-LEAK"
+
+    def assert_absent(self, artifact, label):
+        """The recursive assertion, not a list of fields to remember."""
+        where = occurrences(artifact, self.SENTINEL)
+        self.assertEqual(where, [], f"the credential reached {label} at {where}")
+        self.assertNotIn(self.SENTINEL, json.dumps(artifact, default=repr), label)
+
+    # -- usage --
+
+    def test_only_known_non_negative_integer_counters_survive(self):
+        self.assertEqual(
+            pm.normalize_provider_usage({
+                "prompt_tokens": 12, "completion_tokens": 0, "total_tokens": 12,
+                "echo": f"Bearer {self.SENTINEL}",
+                "prompt_tokens_details": {"cached": 3},
+                "queue_time": 0.03,
+                # An allowlist, not a type filter: a plausible integer under
+                # an unknown name is still a field the provider invented.
+                "queue_position": 3,
+                "reasoning_tokens": 7,
+            }),
+            {"prompt_tokens": 12, "completion_tokens": 0, "total_tokens": 12},
+        )
+
+    def test_a_counter_that_is_not_a_count_is_dropped(self):
+        for label, usage in (
+            ("string", {"prompt_tokens": "12"}),
+            # `True` is an `int` in Python and would land in a receipt as 1.
+            ("bool", {"prompt_tokens": True}),
+            ("float", {"prompt_tokens": 12.0}),
+            ("negative", {"prompt_tokens": -1}),
+            ("null", {"prompt_tokens": None}),
+            ("object", {"prompt_tokens": {"value": 12}}),
+        ):
+            self.assertEqual(pm.normalize_provider_usage(usage), {}, label)
+
+    def test_a_usage_that_is_not_an_object_yields_nothing(self):
+        for value in ("12", 12, None, [1, 2], True):
+            self.assertEqual(pm.normalize_provider_usage(value), {})
+
+    def test_usage_never_reaches_a_verdict(self):
+        """Descriptive telemetry. A poisoned `usage` changes nothing but itself."""
+        poisoned = {"prompt_tokens": 12, "echo": f"Bearer {self.SENTINEL}"}
+        body = json.dumps({
+            "id": "chatcmpl", "model": "openai/gpt-oss-120b", "usage": poisoned,
+            "choices": [{"message": {"role": "assistant", "content": None,
+                                     "tool_calls": [call("qodec_intersect", INTERSECT_ARGS, "op")]}}],
+        }).encode()
+        receipt = pm.qualify_target(target(), surface(), 30.0, 6,
+                                    scripted([(200, body, ""), ANSWER_REPLY]))
+        self.assertEqual(receipt["classification"], "PASS")
+        self.assertEqual(receipt["turns"][0]["reported_usage"], {"prompt_tokens": 12})
+        self.assert_absent(receipt, "a PASS receipt")
+
+    # -- request id --
+
+    def test_a_reflected_request_id_never_reaches_an_artifact(self):
+        body = completion([call("qodec_answer", ANSWER_ARGS, "call_ans")])
+        for label, replies in (
+            ("qualification", OPERATION_THEN(
+                (200, body, "", "completed", len(body), self.SENTINEL))),
+            ("capture failure", [(500, None, "lost", "after-headers", 9, self.SENTINEL)]),
+        ):
+            receipt = pm.qualify_target(target(), surface(), 30.0, 6, scripted(replies))
+            self.assert_absent(receipt, f"the {label} receipt")
+
+    def test_the_request_id_crosses_as_evidence_and_stays_comparable(self):
+        sent = [(500, None, "lost", "after-headers", 9, "req-42")]
+        receipt = pm.qualify_target(target(), surface(), 30.0, 6, scripted(sent))
+        turn = receipt["turns"][0]
+        self.assertTrue(turn["request_id_present"])
+        self.assertEqual(turn["request_id_bytes"], len("req-42"))
+        self.assertEqual(turn["request_id_sha256"], pm.evidence_digest("request-id", "req-42"))
+        self.assertNotIn("req-42", json.dumps(receipt))
+
+    def test_an_absent_request_id_says_so_rather_than_hashing_nothing(self):
+        receipt = pm.qualify_target(target(), surface(), 30.0, 6,
+                                    scripted([(500, None, "lost", "after-headers", 9, None)]))
+        turn = receipt["turns"][0]
+        self.assertEqual(turn["request_id_present"], False)
+        self.assertNotIn("request_id_sha256", turn)
+
+    def test_digests_are_domain_separated(self):
+        """The same string in two fields must not produce the same hash.
+
+        Otherwise a receipt reveals that the provider reflected its request id
+        into a tool call id — small, and free to close.
+        """
+        digests = {
+            pm.evidence_digest(domain, "identical") for domain in pm.EVIDENCE_DOMAINS
+        }
+        self.assertEqual(len(digests), len(pm.EVIDENCE_DOMAINS))
+        self.assertNotEqual(
+            pm.evidence_digest("request-id", "x"), hashlib.sha256(b"x").hexdigest())
+
+    # -- every other field the provider fills in --
+
+    def poisoned_receipt(self, replies):
+        return pm.qualify_target(target(), surface(), 30.0, 6, scripted(replies))
+
+    def test_no_reflected_field_reaches_a_qualification_receipt(self):
+        poisoned_usage = {"prompt_tokens": 1, "echo": f"Bearer {self.SENTINEL}"}
+        answer = completion([call("qodec_answer", ANSWER_ARGS, "call_ans")])
+        scenarios = {
+            "PASS": OPERATION_THEN((200, answer, "")),
+            "provider rejection": [(400, json.dumps(
+                {"error": {"message": f"rejected Bearer {self.SENTINEL}"}}).encode(), "")],
+            "response-capture failure": [
+                (500, None, f"lost {self.SENTINEL}", "after-headers", 9, self.SENTINEL)],
+            "model substitution": OPERATION_THEN((200, completion(
+                [call("qodec_answer", ANSWER_ARGS, "call_ans")], model=self.SENTINEL), "")),
+            "unknown tool": [(200, completion(
+                [call(f"tool_{self.SENTINEL}", "{}", "call_x")]), "")],
+            "call-id reflection": [(200, completion(
+                [call("qodec_intersect", INTERSECT_ARGS, self.SENTINEL)]), "")],
+            "duplicate call-id reflection": [(200, completion([
+                call("qodec_intersect", INTERSECT_ARGS, self.SENTINEL),
+                call("qodec_lookup", INTERSECT_ARGS, self.SENTINEL),
+            ]), "")],
+            "model-name reflection": [(200, completion(
+                [call("qodec_intersect", INTERSECT_ARGS, "op")], model=self.SENTINEL), "")],
+            "usage unknown field": [(200, json.dumps({
+                "model": "openai/gpt-oss-120b", "usage": poisoned_usage,
+                "choices": [{"message": {"role": "assistant", "content": None,
+                                         "tool_calls": [call("qodec_intersect", INTERSECT_ARGS, "op")]}}],
+            }).encode(), "")],
+            "malformed arguments": [(200, completion(
+                [call("qodec_intersect", json.dumps({"index": self.SENTINEL, "sections": []}), "op")]), "")],
+            "cited handle reflection": OPERATION_THEN((200, completion([call(
+                "qodec_answer",
+                json.dumps({"handle": self.SENTINEL,
+                            "answer": {"encoding": "base64url-nopad", "data": "YWxwaGE"},
+                            "cited": [{"store": self.SENTINEL, "section": "attempt_1", "ordinal": 0}]}),
+                "call_ans")]), "")),
+            "assistant content reflection": [(200, completion_with_content(
+                self.SENTINEL, [call("qodec_intersect", INTERSECT_ARGS, "op")]), "")],
+        }
+        for label, replies in scenarios.items():
+            with self.subTest(scenario=label):
+                self.assert_absent(self.poisoned_receipt(replies), label)
+
+    def test_no_reflected_field_reaches_a_probe_result(self):
+        poisoned_usage = {"prompt_tokens": 1, "echo": f"Bearer {self.SENTINEL}"}
+        ok = {"model": "m", "choices": [{"message": {"content": "QODEC_PROBE_OK"}}]}
+        scenarios = {
+            "PASS with poisoned usage": [(200, json.dumps(
+                dict(ok, usage=poisoned_usage)).encode(), "")],
+            "request-id reflection": [(200, json.dumps(ok).encode(), "",
+                                       "completed", len(json.dumps(ok)), self.SENTINEL)],
+            "model-name reflection": [(200, json.dumps(
+                dict(ok, model=self.SENTINEL)).encode(), "")],
+            "capture failure": [(500, None, "lost", "after-headers", 9, self.SENTINEL)],
+        }
+        for label, replies in scenarios.items():
+            with self.subTest(scenario=label):
+                result = pm.probe_target(probe_row({}), 1, scripted(replies), registry())
+                self.assert_absent(result, label)
+
+    def test_a_reflected_model_still_fails_the_identity_check(self):
+        """Projection must not buy containment by losing the finding."""
+        receipt = self.poisoned_receipt(OPERATION_THEN((200, completion(
+            [call("qodec_answer", ANSWER_ARGS, "call_ans")], model=self.SENTINEL), "")))
+        self.assertEqual(receipt["classification"], "PROVIDER_SUBSTITUTED")
+        self.assertEqual(receipt["model_status"], "drifted")
+        self.assertIn(pm.evidence_digest("model-name", self.SENTINEL)[:16], receipt["detail"])
+
+    def test_a_reflected_tool_name_is_still_an_undeclared_tool(self):
+        receipt = self.poisoned_receipt([(200, completion(
+            [call(f"tool_{self.SENTINEL}", "{}", "call_x")]), "")])
+        self.assertEqual(receipt["classification"], "PROTOCOL_VIOLATION")
+        self.assertIn("never declared", receipt["detail"])
+
+    def test_a_cited_handle_is_named_by_digest_and_never_spelled_out(self):
+        """Schema-valid and unobserved: the one shape that reaches the grader.
+
+        A handle carrying the sentinel cannot get this far — it fails the
+        `sha256:` pattern first — so the sentinel sweep cannot cover this path.
+        The contract is asserted directly instead of assumed.
+        """
+        invented = "sha256:" + "b" * 64
+        errors = pm.canary_answer_errors(
+            {"handle": invented,
+             "answer": {"encoding": "base64url-nopad", "data": "YWxwaGE"},
+             "cited": []},
+            pm.Observed(),
+        )
+        joined = " ".join(errors)
+        self.assertNotIn(invented, joined)
+        self.assertIn(pm.evidence_digest("handle", invented)[:16], joined)
+
+    def test_an_unknown_transport_reason_is_refused(self):
+        """The vocabulary is closed, or it is not a vocabulary.
+
+        A reason nobody declared would reach a receipt as free text wearing an
+        enum's clothes — which is the whole failure mode this round exists for.
+        """
+        with self.assertRaisesRegex(ValueError, "unknown transport reason"):
+            pm.validate_send_result(
+                pm.SendResult(None, None, "x", "before-response", reason="made-up"))
+        for reason in pm.TRANSPORT_REASONS:
+            ok = pm.SendResult(None, None, "x", "before-response", reason=reason)
+            self.assertEqual(pm.validate_send_result(ok), ok)
+
+    def test_a_failure_type_must_be_a_class_name(self):
+        with self.assertRaisesRegex(ValueError, "failure_type"):
+            pm.validate_send_result(pm.SendResult(
+                None, None, "x", "before-response", failure_type=f"Bearer {self.SENTINEL}"))
+
+    def test_call_ids_cross_as_ordinals_and_digests(self):
+        receipt = self.poisoned_receipt([(200, completion(
+            [call("qodec_intersect", INTERSECT_ARGS, "call_op")]), "")])
+        entry = receipt["turns"][0]["tool_calls"][0]
+        self.assertEqual(entry["ordinal"], 0)
+        self.assertEqual(entry["name"], "qodec_intersect")
+        self.assertEqual(entry["call_id_sha256"], pm.evidence_digest("tool-call-id", "call_op"))
+        self.assertNotIn("call_op", json.dumps(receipt))
+
+    def test_replay_still_uses_the_real_call_id_the_provider_sent(self):
+        """Containment is about the artifact, not about the wire."""
+        send = scripted([(200, completion(
+            [call("qodec_intersect", INTERSECT_ARGS, "call_op")]), ""), ANSWER_REPLY])
+        pm.qualify_target(target(), surface(), 30.0, 6, send)
+        replayed = json.loads(send.seen[1][1])
+        results = [m for m in replayed["messages"] if m.get("role") == "tool"]
+        self.assertEqual([m["tool_call_id"] for m in results], ["call_op"])
 
 
 class MatrixIsolationTests(unittest.TestCase):
@@ -1915,7 +2215,8 @@ class JsonRecursionDepthTests(unittest.TestCase):
         receipt = pm.qualify_target(target(), surface(), 30.0, 6, scripted(
             OPERATION_THEN((200, completion([call("qodec_answer", arguments, "call_ans")]), ""))))
         self.assertEqual(receipt["classification"], "MALFORMED_TOOL_ARGUMENTS")
-        self.assertIn("nested", receipt["detail"])
+        self.assertIn("UnadmittedJsonValue", receipt["detail"])
+        self.assertNotIn("nested", receipt["detail"])
 
     def test_the_probe_applies_the_depth_rule_too(self):
         body = (b'{"model":"m","choices":[{"message":{"content":"QODEC_PROBE_OK"}}],"unread":'
