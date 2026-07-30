@@ -87,6 +87,14 @@ SUITE_TIMEOUT = 600
 #     that the guard is what makes them equal: a consumer reaching past its own
 #     validator stops being covered the moment the validator changes. Stated
 #     here rather than shipped as a mutation that would always survive.
+#   * deleting an arm from a gate's own `--self-test` outright. A control
+#     cannot detect the removal of one of its own checks; that is true of
+#     any positive control and not a property of this one. What *is*
+#     reachable is whether each arm still exercises its contract, and
+#     `DG4` covers the decoding arm by making its synthetic case emit
+#     decodable bytes. The unit suite covers the deletion, and the suite is
+#     not what qualifies a mutated gate — which is the disclosed
+#     `run_gate` limit, stated rather than papered over.
 #   * the `env` argument threaded into `dirt()` from the self-test — it matters
 #     against a developer's `core.excludesFile`, and CI runs on a machine that
 #     has none, so dropping it changes nothing observable *here*. `W1` covers
@@ -319,7 +327,7 @@ MUTATIONS = [
      "    if len(fields) < 4:\n        result = result._replace(stage=infer_stage(result.status, result.body))",
      "    if len(fields) < 4:\n        result = result._replace(stage=infer_stage(result.status, result.body))\n    else:\n        return result"),
     ("O2 a SendResult passed straight through unvalidated",
-     "        return validate_send_result(value)",
+     "        return validate_send_result(value, response_limit)",
      "        return value"),
     ("O3 the stage/status shape not enforced",
      "    if (result.status is not None) != shape[\"status\"]:",
@@ -503,15 +511,72 @@ MUTATIONS = [
     ("DP26 any identifier accepted as a transport failure kind",
      "    if result.failure_kind is not None and result.failure_kind not in TRANSPORT_FAILURE_KINDS:",
      "    if result.failure_kind is not None and not result.failure_kind.isidentifier():"),
-    ("DP27 the exception class name written down instead of hashed",
-     "        fields[\"failure_class_sha256\"] = evidence_digest(\"failure-class\", type(exc).__name__)",
-     "        fields[\"failure_class_sha256\"] = type(exc).__name__"),
     ("DP28 a non-string model hashed rather than typed",
      "        \"reported_model_type\": json_type_name(reported),",
      "        **opaque(\"reported_model\", \"model-name\", reported),"),
     ("DP29 the response digest stops being domain-separated",
      "            evidence_digest(\"response-body\", raw) if raw is not None else None)",
      "            sha256_bytes(raw) if raw is not None else None)"),
+
+    # -- TB: the consumer owns the transport boundary --
+    ("TB1 the observed byte count loses its upper bound",
+     "        if observed > response_limit + 1:",
+     "        if False:"),
+    ("TB2 the limit+1 allowance becomes unbounded",
+     "        if observed > response_limit + 1:",
+     "        if observed > response_limit * 2 ** 32:"),
+    ("TB3 the completed body is not measured against the limit",
+     "    if result.body is not None and len(result.body) > response_limit:",
+     "    if False:"),
+    ("TB4 the probe validates against the module constant, not its own limit",
+     ["    sent = as_send_result(send(url, request_body, timeout), response_limit)",
+      "        failure = project_transport_failure(sent, response_limit)\n        result.update(failure)"],
+     ["    sent = as_send_result(send(url, request_body, timeout), MAX_RESPONSE_BYTES)",
+      "        failure = project_transport_failure(sent, MAX_RESPONSE_BYTES)\n        result.update(failure)"]),
+    ("TB5 qualification validates against the module constant, not its own limit",
+     ["        sent = as_send_result(send(url, body, timeout), response_limit)",
+      "            failure = project_transport_failure(sent, response_limit)"],
+     ["        sent = as_send_result(send(url, body, timeout), MAX_RESPONSE_BYTES)",
+      "            failure = project_transport_failure(sent, MAX_RESPONSE_BYTES)"]),
+    ("TB6 the receipt stops naming the limit it was actually given",
+     "            \"max_response_bytes\": response_limit,",
+     "            \"max_response_bytes\": MAX_RESPONSE_BYTES,"),
+    ("TB7 the failure class is copied instead of hashed",
+     "        fields[\"failure_class_sha256\"] = evidence_digest(\"failure-class\", sent.failure_class)",
+     "        fields[\"failure_class_sha256\"] = sent.failure_class"),
+    ("TB8 an unknown failure kind accepted",
+     "    if result.failure_kind is not None and result.failure_kind not in TRANSPORT_FAILURE_KINDS:",
+     "    if False:"),
+    ("TB9 the failure class loses its local size bound",
+     "        if len(result.failure_class.encode(\"utf-8\", \"surrogatepass\")) > FAILURE_CLASS_MAX_BYTES:",
+     "        if False:"),
+    ("TB10 the failure class is no longer required to be a string",
+     "        if not isinstance(result.failure_class, str):",
+     "        if False:"),
+    ("TB11 the transport hashes the class itself instead of reporting it",
+     "    return {\"failure_kind\": kind, \"failure_class\": type(exc).__name__ if exc is not None else None}",
+     "    return {\"failure_kind\": kind, \"failure_class\": (\n"
+     "        evidence_digest(\"failure-class\", type(exc).__name__) if exc is not None else None)}"),
+
+    # -- DG: a subprocess may not choose whether a gate returns a verdict --
+    ("DG1 the child's output is decoded by the library again",
+     "        cwd=cwd or HERE, capture_output=True, text=False, timeout=TIMEOUT,",
+     "        cwd=cwd or HERE, capture_output=True, text=True, timeout=TIMEOUT,",
+     "check_test_discovery.py"),
+    ("DG2 undecodable output is silently replaced",
+     "        return (stdout + stderr).decode(\"utf-8\", \"strict\")",
+     "        return (stdout + stderr).decode(\"utf-8\", \"replace\")",
+     "check_test_discovery.py"),
+    ("DG3 unreadable output stops becoming a verdict",
+     "    if isinstance(exc, UnreadableTestOutput):\n"
+     "        return \"FAIL a test run produced output that was not valid UTF-8\"",
+     "    if False:\n"
+     "        return \"FAIL a test run produced output that was not valid UTF-8\"",
+     "check_test_discovery.py"),
+    ("DG4 the undecodable arm stops producing undecodable output",
+     "UNREADABLE = 'import os\\nos.write(1, b\"\\\\xff\")\\n'",
+     "UNREADABLE = 'import os\\nos.write(1, b\"ok\")\\n'",
+     "check_test_discovery.py"),
 
     # -- X: everything replay sends back was checked first --
     ("X1 the assistant content type guard removed",

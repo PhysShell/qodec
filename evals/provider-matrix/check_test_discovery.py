@@ -38,13 +38,40 @@ TIMEOUT = 600
 TEST_LINE = re.compile(r"^(\S+) \(([^)]+)\)")
 
 
+class UnreadableTestOutput(RuntimeError):
+    """A child wrote bytes this gate cannot read as text.
+
+    Its own type is the whole message. `UnicodeDecodeError`'s text quotes the
+    offending bytes, which came from outside, and printing it would put them in
+    the report — the same reasoning that keeps a provider's error prose out of a
+    receipt, applied to a subprocess.
+    """
+
+
+def decode_test_output(stdout: bytes, stderr: bytes) -> str:
+    """Decode a child's output, or say that it could not be decoded.
+
+    `subprocess.run(..., text=True)` decodes inside the standard library using
+    the host locale, and raises `UnicodeDecodeError` — a `ValueError`, not an
+    `OSError` — from inside the call. So the decision "is this output readable"
+    was being made by a library, in a place no handler covered, and the answer
+    left as a traceback out of a gate whose only job is to print a verdict.
+    Reading bytes and decoding here makes the failure this gate's own.
+    """
+    try:
+        return (stdout + stderr).decode("utf-8", "strict")
+    except UnicodeDecodeError:
+        raise UnreadableTestOutput from None
+
+
 def ids_from(argv: list[str], cwd: Path | None = None) -> tuple[set[str], str]:
     proc = subprocess.run(
         [sys.executable, *argv, "-v"],
-        cwd=cwd or HERE, capture_output=True, text=True, timeout=TIMEOUT,
+        cwd=cwd or HERE, capture_output=True, text=False, timeout=TIMEOUT,
     )
+    combined = decode_test_output(proc.stdout, proc.stderr)
     found = set()
-    for line in (proc.stdout + proc.stderr).splitlines():
+    for line in combined.splitlines():
         match = TEST_LINE.match(line.strip())
         if match:
             # The direct run names the module `__main__`, `-m unittest` names it
@@ -57,9 +84,13 @@ def ids_from(argv: list[str], cwd: Path | None = None) -> tuple[set[str], str]:
     # printed a single newline was truthy, split to `[]`, and `[-1]` raised —
     # a traceback out of the gate instead of the report the gate exists to
     # print. `run_gate`/`run_suite` in `mutations.py` already had this shape.
-    tail = (proc.stdout + proc.stderr).strip().splitlines()
+    tail = combined.strip().splitlines()
     return found, tail[-1] if tail else "(no output)"
 
+
+# Straight to the file descriptor, so no encoder gets a say: this is the byte
+# sequence a child can emit and a locale-driven decode cannot read.
+UNREADABLE = 'import os\nos.write(1, b"\\xff")\n'
 
 SYNTHETIC = 'import unittest\n\n\nclass Early(unittest.TestCase):\n    def test_one(self):\n        pass\n\n\nif __name__ == "__main__":\n    unittest.main()\n\n\nclass Late(unittest.TestCase):\n    def test_two(self):\n        pass\n'
 
@@ -67,6 +98,31 @@ SYNTHETIC = 'import unittest\n\n\nclass Early(unittest.TestCase):\n    def test_
 def disagreements(direct: set[str], module: set[str]) -> tuple[list[str], list[str]]:
     """The comparison itself, so the self-test proves the code main() runs."""
     return sorted(module - direct), sorted(direct - module)
+
+
+def described(cmd: object) -> str:
+    """A command line as a line, not as a repr of a list of strings."""
+    if isinstance(cmd, (list, tuple)):
+        return " ".join(str(part) for part in cmd)
+    return str(cmd)
+
+
+def verdict_for(exc: BaseException) -> str:
+    """The line this gate prints for a failure it can suffer.
+
+    One mapping rather than three `print`s inside `main`, because a mutated
+    gate is qualified by its own `--self-test` and a branch the control cannot
+    reach cannot be killed by any mutation. As a function it is reachable, and
+    the control checks it.
+
+    `UnreadableTestOutput` prints no detail on purpose: the only detail
+    available is the bytes that caused it.
+    """
+    if isinstance(exc, subprocess.TimeoutExpired):
+        return f"FAIL a test run exceeded {TIMEOUT}s: {described(exc.cmd)}"
+    if isinstance(exc, UnreadableTestOutput):
+        return "FAIL a test run produced output that was not valid UTF-8"
+    return f"FAIL could not run the suite: {exc}"
 
 
 def self_test() -> int:
@@ -100,17 +156,33 @@ def self_test() -> int:
             print(f"  verdict: {verdict!r}")
             return 1
 
+        # The third arm, and the reason it lives here rather than only in the
+        # unit suite: a mutated gate is qualified by its own `--self-test`, so a
+        # contract this control does not exercise cannot be killed by a
+        # mutation. A decoding rule proved only by a test the harness never runs
+        # would be a certificate on a wall.
+        (work / "unreadable_case.py").write_text(UNREADABLE, encoding="utf-8")
+        try:
+            ids_from(["unreadable_case.py"], work)
+        except UnreadableTestOutput:
+            pass
+        else:
+            print("FAIL output that is not valid UTF-8 was not reported as unreadable")
+            return 1
+
+        # And the failure has to become a verdict, not merely a distinct
+        # exception. This is the branch `main` takes, checked here because the
+        # control is what qualifies a mutated gate.
+        spoken = verdict_for(UnreadableTestOutput())
+        if "not valid UTF-8" not in spoken:
+            print(f"FAIL unreadable output is not reported as a verdict: {spoken!r}")
+            return 1
+
         print("OK the check detects a mid-file entrypoint "
-              f"(the direct run misses {', '.join(only_module)}) "
-              "and reports a silent run rather than raising")
+              f"(the direct run misses {', '.join(only_module)}), "
+              "reports a silent run rather than raising, and refuses "
+              "output it cannot decode")
         return 0
-
-
-def described(cmd: object) -> str:
-    """A command line as a line, not as a repr of a list of strings."""
-    if isinstance(cmd, (list, tuple)):
-        return " ".join(str(part) for part in cmd)
-    return str(cmd)
 
 
 def main() -> int:
@@ -123,11 +195,8 @@ def main() -> int:
             return self_test()
         direct, direct_verdict = ids_from([f"{MODULE}.py"])
         module, module_verdict = ids_from(["-m", "unittest", MODULE])
-    except subprocess.TimeoutExpired as exc:
-        print(f"FAIL a test run exceeded {TIMEOUT}s: {described(exc.cmd)}")
-        return 1
-    except OSError as exc:
-        print(f"FAIL could not run the suite: {exc}")
+    except (subprocess.TimeoutExpired, UnreadableTestOutput, OSError) as exc:
+        print(verdict_for(exc))
         return 1
 
     if not direct or not module:

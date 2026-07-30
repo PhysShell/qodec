@@ -1062,7 +1062,11 @@ class StrictOpenAiDialectTests(unittest.TestCase):
         with patch.dict("os.environ", {"SOME_KEY": "sk-super-secret"}, clear=True):
             send = pm.key_bound_sender("SOME_KEY")
         captured = [cell.cell_contents for cell in send.__closure__ or ()]
-        self.assertEqual(captured, ["SOME_KEY"])
+        # The contract is what is *absent*. Asserting an exact list makes the
+        # test fail whenever the sender gains a parameter, which says nothing
+        # about the credential.
+        self.assertNotIn("sk-super-secret", captured)
+        self.assertIn("SOME_KEY", captured)
 
 
 class ByteEnvelopeOracleTests(unittest.TestCase):
@@ -1619,6 +1623,126 @@ class DurableProjectionTests(unittest.TestCase):
         self.assertEqual(turn["response_bytes"], len(body))
         self.assertNotEqual(turn["response_sha256"], hashlib.sha256(body).hexdigest())
 
+    # -- the consumer owns the boundary --
+
+    def test_an_unbounded_observed_count_never_reaches_a_receipt(self):
+        """The channel `usage` closed, one field over.
+
+        `after-headers` has no body, so nothing local contradicts the number —
+        which is exactly what made it an opening. The transport's own limit is
+        the only fact that bounds it.
+        """
+        limit = 4096
+        for label, run in (
+            ("qualification", lambda replies: pm.qualify_target(
+                target(), surface(), 30.0, 6, scripted(replies), response_limit=limit)),
+            ("probe", lambda replies: pm.probe_target(
+                probe_row({}), 1, scripted(replies), registry(), response_limit=limit)),
+        ):
+            # `limit + 2` as well as the encoded secret: a path that validated
+            # against the module constant rather than against its own limit
+            # would still refuse a number the size of a credential, and pass
+            # this one. The small number is what catches that.
+            for name, observed in (("encoded secret", self.ENCODED), ("just over", limit + 2)):
+                with self.subTest(path=label, count=name):
+                    artifact = pm.guarded_receipt(
+                        "x", {"target_id": "t", "provider": "p", "model": "m"},
+                        lambda: run([(500, None, "lost", "after-headers", observed, None)]))
+                    self.assert_absent(artifact, f"the {label} artifact")
+                    self.assertEqual(artifact["classification"], "INTERNAL_ERROR")
+
+    def test_the_limit_plus_one_sentinel_is_admitted_and_nothing_beyond_it(self):
+        """`read_bounded` reads `limit + 1` on purpose, to prove overflow.
+
+        One past the limit is therefore the largest count this transport
+        contract can produce; two past it is not a measurement.
+        """
+        limit = 4096
+        ok = pm.SendResult(500, None, "lost", "after-headers", limit + 1, None)
+        self.assertEqual(pm.validate_send_result(ok, limit), ok)
+        with self.assertRaisesRegex(ValueError, "exceeds the local response limit"):
+            pm.validate_send_result(
+                pm.SendResult(500, None, "lost", "after-headers", limit + 2, None), limit)
+
+    def test_the_refusal_never_repeats_the_number_it_refused(self):
+        limit = 4096
+        with self.assertRaises(ValueError) as caught:
+            pm.validate_send_result(
+                pm.SendResult(500, None, "lost", "after-headers", self.ENCODED, None), limit)
+        self.assertNotIn(str(self.ENCODED), str(caught.exception))
+
+    def test_a_completed_body_is_bounded_and_must_agree_with_its_count(self):
+        limit = 16
+        with self.assertRaisesRegex(ValueError, "longer than the local response limit"):
+            pm.validate_send_result(
+                pm.SendResult(200, b"x" * 17, "", "completed", 17, None), limit)
+        with self.assertRaisesRegex(ValueError, "disagrees"):
+            pm.validate_send_result(
+                pm.SendResult(200, b"xx", "", "completed", 9, None), limit)
+
+    def test_the_limit_is_one_number_from_the_caller_to_the_receipt(self):
+        limit = 8192
+        receipt = pm.qualify_target(
+            target(), surface(), 30.0, 6, scripted(OPERATION_THEN(ANSWER_REPLY)),
+            response_limit=limit)
+        self.assertEqual(receipt["transport_target"]["max_response_bytes"], limit)
+
+    # -- the digest is computed here, never submitted --
+
+    def test_a_pre_projected_digest_cannot_be_submitted(self):
+        """Three times now: a shape check is not a statement about origin.
+
+        `isidentifier()`, then 64 hex characters. A 64-hex credential satisfies
+        a 64-hex check, so the field is gone and the consumer projects.
+        """
+        self.assertNotIn("failure_class_sha256", pm.SendResult._fields)
+        self.assertIn("failure_class", pm.SendResult._fields)
+
+    def test_a_hex_credential_offered_as_a_class_becomes_a_digest_of_itself(self):
+        hex_secret = "c0ffee" + "0" * 58
+        self.assertEqual(len(hex_secret), 64)
+        sent = pm.SendResult(None, None, "x", "before-response",
+                             reason="connection-failed", failure_kind="url-error",
+                             failure_class=hex_secret)
+        projected = pm.project_transport_failure(sent, pm.MAX_RESPONSE_BYTES)
+        self.assertEqual(projected["failure_class_sha256"],
+                         pm.evidence_digest("failure-class", hex_secret))
+        self.assertNotIn(hex_secret, json.dumps(projected))
+
+    def test_both_paths_project_a_failure_class_the_same_way(self):
+        replies = [(None, None, "refused", "before-response")]
+        sent = pm.SendResult(None, None, "refused", "before-response",
+                             reason="connection-failed", failure_kind="url-error",
+                             failure_class="ConnectionRefusedError")
+        digest = pm.evidence_digest("failure-class", "ConnectionRefusedError")
+        receipt = pm.qualify_target(target(), surface(), 30.0, 6, scripted([sent]))
+        result = pm.probe_target(probe_row({}), 1, scripted([sent]), registry())
+        self.assertEqual(receipt["turns"][0]["failure_class_sha256"], digest)
+        self.assertEqual(result["failure_class_sha256"], digest)
+        self.assertTrue(receipt["turns"][0]["failure_class_present"])
+        del replies
+
+    def test_two_framing_classes_stay_distinguishable(self):
+        self.assertNotEqual(pm.evidence_digest("failure-class", "BadStatusLine"),
+                            pm.evidence_digest("failure-class", "LineTooLong"))
+
+    def test_a_failure_class_is_locally_bounded(self):
+        with self.assertRaisesRegex(ValueError, "longer than the local bound"):
+            pm.validate_send_result(pm.SendResult(
+                None, None, "x", "before-response",
+                failure_class="C" * (pm.FAILURE_CLASS_MAX_BYTES + 1)))
+        with self.assertRaisesRegex(ValueError, "must be a string"):
+            pm.validate_send_result(pm.SendResult(
+                None, None, "x", "before-response", failure_class=["C"]))
+
+    def test_a_raw_failure_class_never_reaches_a_detail(self):
+        sent = pm.SendResult(None, None, "refused", "before-response",
+                             reason="connection-failed", failure_kind="url-error",
+                             failure_class=f"Cls{self.SENTINEL}")
+        receipt = pm.qualify_target(target(), surface(), 30.0, 6, scripted([sent]))
+        self.assert_absent(receipt, "a receipt whose failure class was poisoned")
+        self.assertNotIn(self.SENTINEL, receipt["detail"])
+
     def test_a_reflected_model_still_fails_the_identity_check(self):
         """Projection must not buy containment by losing the finding."""
         receipt = self.poisoned_receipt(OPERATION_THEN((200, completion(
@@ -1674,10 +1798,13 @@ class DurableProjectionTests(unittest.TestCase):
         with self.assertRaisesRegex(ValueError, "unknown transport failure kind"):
             pm.validate_send_result(pm.SendResult(
                 None, None, "x", "before-response", failure_kind="BearerSecretValue"))
-        with self.assertRaisesRegex(ValueError, "sha256 hex digest"):
+        # A pre-projected digest can no longer be submitted at all: the field
+        # is gone, and the consumer computes the digest at the boundary.
+        self.assertNotIn("failure_class_sha256", pm.SendResult._fields)
+        with self.assertRaisesRegex(ValueError, "longer than the local bound"):
             pm.validate_send_result(pm.SendResult(
                 None, None, "x", "before-response",
-                failure_class_sha256=f"Bearer {self.SENTINEL}"))
+                failure_class="C" * (pm.FAILURE_CLASS_MAX_BYTES + 1)))
         for kind in pm.TRANSPORT_FAILURE_KINDS:
             ok = pm.SendResult(None, None, "x", "before-response", failure_kind=kind)
             self.assertEqual(pm.validate_send_result(ok), ok)
@@ -2696,7 +2823,7 @@ class HttpFramingFailureTests(unittest.TestCase):
         # The kind is named; the concrete class crosses as a digest anyone can
         # recompute for a class they suspect.
         self.assertIn("http-framing-error", receipt["detail"])
-        self.assertEqual(receipt["turns"][0]["transport_failure_class_sha256"],
+        self.assertEqual(receipt["turns"][0]["failure_class_sha256"],
                          pm.evidence_digest("failure-class", "BadStatusLine"))
 
     def test_qualification_classifies_a_framing_failure_rather_than_crashing(self):
@@ -2913,12 +3040,20 @@ class GatesCanFailTests(unittest.TestCase):
         self.assertIn("FAIL", out.getvalue())
         self.assertIn(f"exceeded {gate.TIMEOUT}s", out.getvalue())
 
-    def only_output(self, stdout: str, stderr: str = ""):
-        """A `subprocess.run` that produces exactly this output and exits 0."""
+    def only_output(self, stdout: str | bytes, stderr: str | bytes = b""):
+        """A `subprocess.run` that produces exactly these bytes and exits 0.
+
+        Bytes, because the gate now reads bytes: the decision "is this output
+        readable" belongs to the gate rather than to the standard library's
+        locale-driven decode, which raised out of a place no handler covered.
+        """
         import subprocess
 
+        def encoded(value):
+            return value.encode("utf-8") if isinstance(value, str) else value
+
         def fake(args, **kwargs):
-            return subprocess.CompletedProcess(args, 0, stdout, stderr)
+            return subprocess.CompletedProcess(args, 0, encoded(stdout), encoded(stderr))
 
         return patch.object(subprocess, "run", side_effect=fake)
 
@@ -2947,6 +3082,67 @@ class GatesCanFailTests(unittest.TestCase):
                     self.assertEqual(gate.main(), 1)
         self.assertIn("FAIL one of the runs reported no tests at all", out.getvalue())
         self.assertIn("(no output)", out.getvalue())
+
+    def test_undecodable_output_is_a_typed_failure_not_a_traceback(self):
+        """`text=True` decoded inside the library, and raised there too.
+
+        `UnicodeDecodeError` is a `ValueError`, so neither the `TimeoutExpired`
+        nor the `OSError` handler covered it and the gate died instead of
+        reporting. The decode is now this gate's own, and its failure has a
+        type of its own.
+        """
+        gate = self.helper("check_test_discovery.py")
+        with self.assertRaises(gate.UnreadableTestOutput):
+            gate.decode_test_output(b"\xff", b"")
+        with self.only_output(b"ok\xff\xfe", b""):
+            with self.assertRaises(gate.UnreadableTestOutput):
+                gate.ids_from(["-m", "unittest", "whatever"])
+
+    def test_undecodable_output_is_reported_as_a_fail(self):
+        import contextlib
+        import io as _io
+
+        gate = self.helper("check_test_discovery.py")
+        out = _io.StringIO()
+        with self.only_output(b"\xff"):
+            with patch.object(sys, "argv", ["check_test_discovery.py"]):
+                with contextlib.redirect_stdout(out):
+                    self.assertEqual(gate.main(), 1)
+        self.assertIn("not valid UTF-8", out.getvalue())
+
+    def test_the_report_never_repeats_the_bytes_that_caused_it(self):
+        """`UnicodeDecodeError`'s message quotes the offending bytes."""
+        import contextlib
+        import io as _io
+
+        gate = self.helper("check_test_discovery.py")
+        out = _io.StringIO()
+        with self.only_output(b"QODEC-BYTES-\xff-MARKER"):
+            with patch.object(sys, "argv", ["check_test_discovery.py"]):
+                with contextlib.redirect_stdout(out):
+                    gate.main()
+        printed = out.getvalue()
+        self.assertNotIn("QODEC-BYTES", printed)
+        self.assertNotIn("UnicodeDecodeError", printed)
+        self.assertNotIn("0xff", printed)
+
+    def test_the_self_test_proves_the_decoding_contract(self):
+        """The control must exercise the rule, not merely coexist with it.
+
+        A mutated gate is qualified by its own `--self-test`, so a decoding
+        rule the control never runs could not be killed by any mutation. Make
+        the decode lenient and the control has to notice.
+        """
+        gate = self.helper("check_test_discovery.py")
+        import contextlib
+        import io as _io
+
+        out = _io.StringIO()
+        with patch.object(gate, "decode_test_output",
+                          lambda o, e: (o + e).decode("utf-8", "replace")):
+            with contextlib.redirect_stdout(out):
+                self.assertEqual(gate.self_test(), 1)
+        self.assertIn("unreadable", out.getvalue())
 
     # -- the clean-tree self-test is hermetic, and says so when it is not --
 

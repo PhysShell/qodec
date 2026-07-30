@@ -971,7 +971,12 @@ class SendResult(NamedTuple):
     # `str.isidentifier()`, and syntax is not provenance.
     reason: str | None = None
     failure_kind: str | None = None
-    failure_class_sha256: str | None = None
+    # The exception class as it was raised, kept **raw** and ephemeral. An
+    # earlier version carried the digest, and validation checked that it was
+    # 64 hex characters — which is the same mistake as the `isidentifier()`
+    # check it replaced, in a longer alphabet. A 64-hex credential passes a
+    # 64-hex check. Producers report observations; the consumer projects.
+    failure_class: str | None = None
 
 
 # Why an exchange did not complete, in this module's own words. A reason is
@@ -1001,12 +1006,20 @@ TRANSPORT_FAILURE_KINDS = (
 )
 
 
-def failure_evidence(kind: str, exc: BaseException | None) -> dict[str, str]:
-    """A local kind, and the exception class as a digest rather than as a name."""
-    fields = {"failure_kind": kind}
-    if exc is not None:
-        fields["failure_class_sha256"] = evidence_digest("failure-class", type(exc).__name__)
-    return fields
+# A class name is short. The bound is here so that closing the numeric channel
+# on the right does not open a textual one on the left for symmetry.
+FAILURE_CLASS_MAX_BYTES = 256
+
+
+def failure_evidence(kind: str, exc: BaseException | None) -> dict[str, str | None]:
+    """What the transport observed: a local kind, and the class it caught.
+
+    Deliberately *not* a digest. Projection belongs to the consumer that
+    writes the receipt, not to the producer that hands it a value — otherwise
+    an injected sender can submit a finished digest and the boundary has
+    nothing left to check but its spelling.
+    """
+    return {"failure_kind": kind, "failure_class": type(exc).__name__ if exc is not None else None}
 
 
 class BodyTooLarge(ValueError):
@@ -1059,7 +1072,7 @@ def is_http_status(value: Any) -> bool:
     return type(value) is int and 100 <= value <= 599
 
 
-def validate_send_result(result: SendResult) -> SendResult:
+def validate_send_result(result: SendResult, response_limit: int = MAX_RESPONSE_BYTES) -> SendResult:
     """Refuse a `SendResult` that disagrees with itself, however it was built.
 
     The shape table says `status=int, body=bytes`, so that is what is checked —
@@ -1088,6 +1101,8 @@ def validate_send_result(result: SendResult) -> SendResult:
     # length recorded, and a mutable view of it is not the thing that arrived.
     if result.body is not None and type(result.body) is not bytes:
         raise ValueError(f"body must be bytes, got {type(result.body).__name__}")
+    if result.body is not None and len(result.body) > response_limit:
+        raise ValueError("body is longer than the local response limit")
 
     observed = result.body_bytes_observed
     if observed is not None:
@@ -1104,6 +1119,15 @@ def validate_send_result(result: SendResult) -> SendResult:
             raise ValueError(
                 f"body_bytes_observed {observed} disagrees with the {len(result.body)} bytes present"
             )
+        # And when there is no body, nothing local contradicts the number — which
+        # is the whole opening. `int.from_bytes(secret, "big")` is a perfectly
+        # non-negative integer, and an `after-headers` result carries it straight
+        # into a receipt. The transport's own limit is the only fact that bounds
+        # it: `read_bounded` reads `limit + 1` deliberately, to prove overflow,
+        # so one past the limit is the largest count this contract can produce.
+        # The message never repeats the number.
+        if observed > response_limit + 1:
+            raise ValueError("body_bytes_observed exceeds the local response limit")
 
     if result.reason is not None and result.reason not in TRANSPORT_REASONS:
         raise ValueError(f"unknown transport reason {result.reason!r}")
@@ -1112,12 +1136,12 @@ def validate_send_result(result: SendResult) -> SendResult:
     # convention somebody has to keep.
     if result.failure_kind is not None and result.failure_kind not in TRANSPORT_FAILURE_KINDS:
         raise ValueError(f"unknown transport failure kind {result.failure_kind!r}")
-    if result.failure_class_sha256 is not None and not (
-        isinstance(result.failure_class_sha256, str)
-        and len(result.failure_class_sha256) == 64
-        and all(ch in "0123456789abcdef" for ch in result.failure_class_sha256)
-    ):
-        raise ValueError("failure_class_sha256 must be a sha256 hex digest")
+    if result.failure_class is not None:
+        if not isinstance(result.failure_class, str):
+            raise ValueError(
+                f"failure_class must be a string, got {type(result.failure_class).__name__}")
+        if len(result.failure_class.encode("utf-8", "surrogatepass")) > FAILURE_CLASS_MAX_BYTES:
+            raise ValueError("failure_class is longer than the local bound")
     if result.request_id is not None:
         if not shape["response_derived"]:
             raise ValueError(
@@ -1152,14 +1176,14 @@ def infer_stage(status: int | None, body: bytes | None) -> str:
     return "completed" if body is not None else "after-headers"
 
 
-def as_send_result(value: Any) -> SendResult:
+def as_send_result(value: Any, response_limit: int = MAX_RESPONSE_BYTES) -> SendResult:
     """Accept a `SendResult`, or a positional tuple from an injected `send`.
 
     Deliberately narrow: this is the test-injection boundary, not a general
     coercion. Everything inside this module builds a `SendResult` directly.
     """
     if isinstance(value, SendResult):
-        return validate_send_result(value)
+        return validate_send_result(value, response_limit)
     fields = tuple(value)
     result = SendResult(*fields)
     if len(fields) < 4:
@@ -1167,7 +1191,7 @@ def as_send_result(value: Any) -> SendResult:
     # Validated on every path, including the explicit one. A stage supplied by
     # hand is a claim like any other and gets no more credit for being written
     # down than for being deduced.
-    return validate_send_result(result)
+    return validate_send_result(result, response_limit)
 
 
 def bytes_seen(exc: BaseException) -> int | None:
@@ -1305,7 +1329,7 @@ def send_json(url: str, body: bytes, key: str, timeout: float, limit: int = MAX_
     return SendResult(status, raw, "", "completed", len(raw), request_id)
 
 
-def key_bound_sender(key_env: str):
+def key_bound_sender(key_env: str, response_limit: int = MAX_RESPONSE_BYTES):
     """A `send` closed over the env var that holds the key — never over the key.
 
     The credential is read at call time and stays inside `send_json`. Nothing
@@ -1318,7 +1342,7 @@ def key_bound_sender(key_env: str):
             return SendResult(None, None, f"missing env {key_env}", "no-credential",
                               reason="credential-missing")
         try:
-            return send_json(url, body, key, timeout)
+            return send_json(url, body, key, timeout, response_limit)
         except ValueError as exc:
             # Last resort. `send_json` validates the key first, so this should be
             # unreachable — but an exception carrying a header value must never
@@ -1452,6 +1476,7 @@ def probe_target(
     timeout: float,
     send: Any = None,
     registry: dict[str, Any] | None = None,
+    response_limit: int = MAX_RESPONSE_BYTES,
 ) -> dict[str, Any]:
     registry = normalize_registry(registry) if registry is not None else load_registry()
     started = time.time()
@@ -1476,8 +1501,8 @@ def probe_target(
         return result
     result["endpoint"] = url
 
-    send = send if send is not None else key_bound_sender(target["key_env"])
-    sent = as_send_result(send(url, request_body, timeout))
+    send = send if send is not None else key_bound_sender(target["key_env"], response_limit)
+    sent = as_send_result(send(url, request_body, timeout), response_limit)
     latency = round((time.time() - started) * 1000)
     # The header is provider-controlled and the provider has seen the bearer
     # token, so `x-request-id` is a channel for handing it back. The raw value
@@ -1498,12 +1523,11 @@ def probe_target(
             kind = "RESPONSE_CAPTURE_FAILED"
         else:
             kind = "TIMEOUT" if sent.detail == "timeout" else "TRANSPORT_FAILURE"
-        reason = transport_reason(sent)
+        failure = project_transport_failure(sent, response_limit)
+        result.update(failure)
+        reason = failure["transport_reason"]
         if sent.failure_kind is not None:
-            result["transport_failure_kind"] = sent.failure_kind
             reason = f"{reason} ({sent.failure_kind})"
-        if sent.failure_class_sha256 is not None:
-            result["transport_failure_class_sha256"] = sent.failure_class_sha256
         if sent.reason == "credential-missing":
             reason = f"{reason}: {target['key_env']}"
         result.update(classification=kind, detail=reason, latency_ms=latency)
@@ -1652,6 +1676,30 @@ STAGE_OUTCOME = {
     "response-framing": "response-capture-failure",
     "after-headers": "response-capture-failure",
 }
+
+
+def project_transport_failure(sent: SendResult, response_limit: int) -> dict[str, Any]:
+    """The durable form of a failed exchange, computed **here**.
+
+    The consumer owns the boundary. `SendResult` is constructible by an injected
+    sender, so anything it hands over is a raw observation to be checked against
+    local facts and local bounds — never a finished artifact to be copied. That
+    is why the digest is taken at this line rather than accepted from the field:
+    a producer that submits `failure_class_sha256` leaves this boundary with
+    nothing to verify except that the string looks like a digest, and a 64-hex
+    credential looks exactly like a digest.
+
+    Re-validating here is deliberate belt behind brace: `as_send_result` already
+    ran, and this is the last place before the value becomes a file.
+    """
+    validate_send_result(sent, response_limit)
+    fields: dict[str, Any] = {"transport_reason": transport_reason(sent)}
+    if sent.failure_kind is not None:
+        fields["failure_kind"] = sent.failure_kind
+    fields["failure_class_present"] = sent.failure_class is not None
+    if sent.failure_class is not None:
+        fields["failure_class_sha256"] = evidence_digest("failure-class", sent.failure_class)
+    return fields
 
 
 def transport_reason(sent: SendResult) -> str:
@@ -2217,6 +2265,7 @@ def qualify_target(
     max_turns: int,
     send: Any,
     registry: dict[str, Any] | None = None,
+    response_limit: int = MAX_RESPONSE_BYTES,
 ) -> dict[str, Any]:
     """Run the C1 protocol shape against one provider × model target.
 
@@ -2241,7 +2290,10 @@ def qualify_target(
             "content_type": "application/json",
             "timeout_secs": timeout,
             "redirects_allowed": 0,
-            "max_response_bytes": MAX_RESPONSE_BYTES,
+            # The same number the transport was given and the same number
+            # every observed count is checked against. One source of truth,
+            # because two copies of a constant eventually lead separate lives.
+            "max_response_bytes": response_limit,
         },
         "turns": [],
         "turn_count": 0,
@@ -2278,7 +2330,7 @@ def qualify_target(
             "request_bytes": len(body),
             "carried_tool_results": awaiting_roundtrip,
         }
-        sent = as_send_result(send(url, body, timeout))
+        sent = as_send_result(send(url, body, timeout), response_limit)
         status, raw, detail = sent.status, sent.body, sent.detail
         # Domain-separated like every other provider-chosen value. The prefix
         # is a public constant, so anyone holding the body can still verify
@@ -2297,13 +2349,10 @@ def qualify_target(
             record["body_bytes_observed"] = sent.body_bytes_observed
         if sent.stage != "completed":
             kind = STAGE_CAUSE.get(sent.stage, "UNAVAILABLE")
-            reason = transport_reason(sent)
+            failure = project_transport_failure(sent, response_limit)
+            reason = failure["transport_reason"]
             record["outcome"] = STAGE_OUTCOME.get(sent.stage, "transport-failure")
-            record["transport_reason"] = reason
-            if sent.failure_kind is not None:
-                record["transport_failure_kind"] = sent.failure_kind
-            if sent.failure_class_sha256 is not None:
-                record["transport_failure_class_sha256"] = sent.failure_class_sha256
+            record.update(failure)
             if reason == "credential-missing":
                 # The env var name comes from the trusted registry by way of
                 # the target, never from the transport's message.
