@@ -25,7 +25,8 @@ REDIRECT_NOT_FOLLOWED / RESPONSE_CAPTURE_FAILED / INTERNAL_ERROR
 
 `unknown` never satisfies `--free-only`, `--no-card`, or `--no-training`.
 Provider-reported usage is retained as provider evidence, not normalized into a
-cross-provider token truth.
+cross-provider token truth — but only the counters, and only within bounds
+derived from the request that was sent. See the projection boundary below.
 
 ## Discovery does not get to name the endpoint
 
@@ -265,9 +266,13 @@ one of them derives from `http.client.HTTPException`, which is neither an
 them in `URLError`. So the base class is what both body reads catch, because the
 class is what "the provider broke the framing" means.
 
-What gets written down is the exception's **type**, never `str(exc)`:
-`BadStatusLine`'s message *is* the bytes the peer chose to send, and this string
-goes into a turn record and then into a receipt on disk.
+What gets written down is never `str(exc)`: `BadStatusLine`'s message *is* the
+bytes the peer chose to send, and this string goes into a turn record and then
+into a receipt on disk. A failed exchange crosses as `reason` — a member of a
+closed vocabulary, assigned where the failure happens — and `failure_kind`
+beside it, with the concrete exception class as a digest. `detail` never crosses
+at all; see the projection boundary above for why "it is a Python class name"
+was not, on its own, an argument that a field is local.
 
 `status is None` means one thing only: **no headers were ever received.** A body
 lost after the headers keeps its status, its `request_id` and how many bytes were
@@ -306,19 +311,85 @@ after-headers loss was reported as retryable `UNAVAILABLE`.
 
 ### Nothing untrusted, and no credential, reaches an artifact
 
-Receipts are committed and read by more people than the secret is. So a receipt
-records **facts, not the provider's prose**: HTTP status, request id, capture
-stage, body byte count, body digest, and one reason code from a fixed local
-vocabulary. The provider's error body is *read* — that is how a dialect
-rejection is told from a missing model — and then dropped. Scrubbing arbitrary
-provider text with a regex is a losing game: a key can come back base64'd,
-JSON-escaped, or split across fields.
+Receipts are committed and read by more people than the secret is, and the
+provider has already seen the bearer token — so every string it sends back is a
+way to hand it over. Scrubbing that text with a regex is a losing game: a key
+can come back base64'd, JSON-escaped, split across fields, or as an integer.
+
+So the rule is not about fields, it is about a boundary:
+
+```text
+raw provider response
+        ↓
+ephemeral protocol state    — whatever the loop needs, in memory only
+        ↓
+typed, sanitised evidence
+        ↓
+durable receipt
+```
+
+Four shapes may cross, and nothing else:
+
+| what it is | what crosses |
+| --- | --- |
+| a value that matched a trusted local one | the local value |
+| a value from a local enum | the enum member |
+| a bounded numeric scalar | the number, after a type *and range* check |
+| an arbitrary identifier or text | a digest, a length, a local classification |
+
+An unrecognised object or list does not cross at all — not even as a digest of
+itself, since hashing one would be the boundary quietly making an exception for
+its own rule.
+
+Digests are domain-separated: `sha256("qodec-provider-request-id-v1\0" ‖ value)`.
+Without the prefix, a request id and a tool call id that happen to be the same
+string hash identically, and the receipt reveals that the provider reflected one
+into the other. Small, and free to close. The prefixes are public constants, so
+anyone holding a value can still recompute its digest.
+
+**Why the boundary and not a list of `if`s.** Two review rounds found this as two
+separate bugs: `usage` copied whole into a receipt, so a gateway answering
+`{"prompt_tokens": 12, "echo": "Bearer …"}` writes the credential to disk on a
+`PASS`; and `request_id_of()` returning a provider-controlled header verbatim.
+Either could have been closed with an `if`. The next review would then have
+found the tool call id, then the substituted model name, then `role`, then
+`tool_call.type`, one per round, forever — because the receipt was still being
+built by copying decoded provider values into it.
+
+**Bounded means bounded at both ends.** `type(n) is int and n >= 0` is an
+arbitrary-precision integer with a type check in front of it:
+`int.from_bytes(secret.encode(), "big")` in `prompt_tokens` is a perfectly
+well-typed non-negative count, and a sweep for a *string* sentinel walks
+straight past it. Usage counters are bounded by the request this module sent —
+the prompt by the number of bytes we transmitted, since no tokenizer emits more
+than one token per byte, and the completion by the `max_tokens` we asked for.
+Nothing in the response decides how large a number the response may write down.
+Usage is descriptive telemetry and never reaches a verdict.
+
+**Local means the vocabulary is local, not the address that produced it.** The
+transport's `detail` is free text and stays in memory: an
+`SSLCertVerificationError` message carries fields the peer chose. What crosses
+is `reason`, from a closed vocabulary, assigned where the failure happens. An
+earlier version recorded the exception's class name and argued that a Python
+class name cannot be chosen by a peer — but `SendResult` is constructible by an
+injected sender and `"BearerSecretValue"` satisfies `str.isidentifier()`. Syntax
+is not provenance. The kind is now an enum; the concrete class crosses beside it
+as a digest, so `BadStatusLine` and `LineTooLong` stay distinguishable to anyone
+who can hash a class name they suspect.
 
 The credential is validated *before* an `Authorization` header exists, because
 `http.client` reports a bad header value by putting it in the exception message,
-and `main` prints exceptions to stderr. A whole-pipeline sentinel test runs every
-failure path with a unique fake key and asserts it appears in no receipt, no
-stdout, no stderr and no exception text.
+and `main` prints exceptions to stderr.
+
+**The regression is recursive, not a checklist.** A sentinel is planted in
+`usage`, the request id, a call id, a tool name, a model name, the assistant
+`content`, `role`, `tool_call.type`, a cited handle, an error body and the
+transport detail — and the assertion walks the entire serialised artifact for
+it, in text form *and* as an integer, across every qualification and probe
+scenario. It earned its keep immediately: it found `SendResult.detail` being
+copied into the receipt, which no reviewer had named and no field list would
+have caught. A list of known places ages faster than milk on a radiator; the
+next field is always the one that is not on it.
 
 ### One malformed target costs one receipt
 
@@ -441,6 +512,13 @@ then echoed back **by reference** rather than rebuilt from the parsed view —
 rebuilding drops fields the parser does not model and re-encodes the arguments,
 so a provider that only accepts its own emission back would fail for a reason
 this canary invented.
+
+`role` and `type` are on that list twice over: the contract switches on them,
+*and* they are strings the provider fills in. Reporting a violation as
+`f"role {role!r}"` reads like a harmless diagnostic and is a copy — either field
+can be the bearer token, and `detail` goes to disk. A discriminator that matched
+one of ours is named outright, because it is a value we already had; anything
+else is named by reference, and a non-string by its JSON type.
 
 `content` is on that list because it was the one field replay sent back without
 anyone having looked at it. The parser read `role` and `tool_calls`; replay then
