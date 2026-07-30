@@ -599,11 +599,11 @@ a preparation that did not happen used to surface as "a freshly committed tree
 was reported dirty", which is the gate diagnosing its own failure as a defect in
 the property it was checking.
 
-A handful of checks are listed in that file as **deliberately unmutated**, each
-with the reason no single mutation can reach it — two of them because a second
-guard holds the same fact, and two because the mutated behaviour is provably
-identical to the original. Writing a mutation that can never die is a worse
-outcome than admitting the gap.
+Checks that no single mutation can reach are listed in that file as
+**deliberately unmutated**, each with its own reason: a second guard holds the
+same fact, the mutated behaviour is provably identical, or the difference only
+shows on a machine CI is not. Writing a mutation that can never die is a worse
+outcome than admitting the gap — it reads as coverage.
 
 Every classification above except `NO_TERMINAL_ANSWER` is reached in one table
 in `test_every_classification_is_declared`, and that one has its own

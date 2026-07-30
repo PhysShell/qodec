@@ -53,9 +53,12 @@ SUITE_TIMEOUT = 600
 # choice is between deleting the redundancy to make a mutation score look tidy
 # and admitting that the unit under test is the fact, not the line.
 #
-# Three checks are deliberately absent from this list, because after the trusted
-# registry landed they became belts behind a brace and no single mutation can
-# reach them:
+# Some checks are deliberately absent from this list, each for a stated reason:
+# a second guard holds the same fact, the mutated behaviour is provably
+# identical, or the difference only shows on a machine CI is not. Writing a
+# mutation that can never die would be worse than admitting the gap — it would
+# read as coverage. The list is kept here rather than as a number somewhere,
+# because a number rots and a reason does not:
 #
 #   * `completions_url` at the two send sites and at intake — by then the origin
 #     is a registry value that `normalize_registry` already vetted, so the call
