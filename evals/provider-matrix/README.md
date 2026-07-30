@@ -87,11 +87,29 @@ The hostile claim is gone before `bind_to_registry` can refuse it, so "every
 authority value that is present is checked" holds only because the check never
 sees it. The same trick hides a duplicated field in a hand-edited plan.
 
-One `strict_json_loads` therefore parses **every document that decides
-something** — source export, catalog, plan, surface, registry — and refuses a
-repeated key. Provider response bodies deliberately do not go through it: they
-are evidence about a provider, not authority over anything, and refusing to read
-one would turn its sloppiness into our transport failure.
+The line is *decides* versus *describes*, not ours versus theirs. On that test a
+successful provider completion is firmly on the deciding side — its `model`
+settles identity and therefore whether a target may `PASS`, and its
+`function.arguments` **are** the tool call being qualified:
+
+```json
+{"model": "wrong-model", "model": "openai/gpt-oss-120b", "choices": [...]}
+{"handle": "invented", "handle": "sha256:0000…"}
+```
+
+Both resolve to the second value, and the run would report `verified` about a
+generation whose origin the response stated twice and differently, or grade a
+tool call the schema validator and the observed-only grading never saw whole.
+
+One `strict_json_loads` therefore parses **everything that decides something** —
+source export, catalog, plan, surface, registry, every successful 2xx completion,
+and the JSON string inside `function.arguments`. A repeated key is
+`INVALID_OUTPUT` in a completion and `MALFORMED_TOOL_ARGUMENTS` in a tool call.
+
+What stays lenient is the **HTTP error body**, and only that: it is read to pick
+a local reason code, never becomes a tool call, and cannot earn a `PASS`.
+Refusing to read a sloppy error would turn the provider's untidiness into our
+transport failure.
 
 This check cannot be repeated on a value that is already a `dict`. By then
 Python has discarded the losing value, so an earlier claim that a
@@ -143,6 +161,13 @@ just the legacy three-tuple left the explicit form unchecked, so
 success through the front door instead of the back. A stage written by hand is a
 claim like any other and gets no more credit for being written down than for
 being deduced.
+
+And the table says `status=int, body=bytes`, so that is what is checked — not
+merely whether the fields are present. `("503", None, …)` would otherwise fail
+later on a status comparison and `(200, "not bytes", …)` on hashing; `True`
+passes `isinstance(x, int)` and equals `1`, with the confidence usually reserved
+for bad APIs. `status` must be an `int` in 100..599, `body` exactly `bytes`,
+`body_bytes_observed` a non-negative `int`, `request_id` a `str`.
 
 `b""` is a **complete empty body**, not a lost one. Inferring the stage from
 "is there a status" alone promoted `(503, None)` to `completed`, so a billed

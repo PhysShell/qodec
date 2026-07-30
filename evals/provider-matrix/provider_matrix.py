@@ -73,13 +73,27 @@ class DuplicateJsonKey(ValueError):
 
 
 def strict_json_loads(raw: str | bytes, what: str) -> Any:
-    """Parse a trust-boundary document, refusing duplicate object keys.
+    """Parse anything that decides something, refusing duplicate object keys.
 
-    Used for every document whose contents decide something: the source export,
-    the catalog, the plan, the surface and the trusted registry. Provider
-    response bodies deliberately do *not* go through this — they are evidence
-    about a provider, not an authority over anything, and a provider repeating a
-    field is its own business.
+    The line is not "ours versus theirs" — it is *decides* versus *describes*.
+    On that test a successful provider completion is firmly on the deciding
+    side: its `model` settles identity and therefore whether a target may PASS,
+    and its `function.arguments` are the tool call being qualified. A body
+    spelled
+
+        {"model": "wrong-model", "model": "openai/gpt-oss-120b", ...}
+
+    resolves to the second value, and the run reports `verified` about a
+    generation whose origin the response stated twice and differently.
+
+    So this covers the source export, the catalog, the plan, the surface, the
+    trusted registry, every successful 2xx completion, and the JSON string
+    inside `function.arguments`.
+
+    What stays lenient is the **HTTP error body**, and only that. It is read to
+    pick a local reason code, it never becomes a tool call, and it cannot earn
+    a PASS — refusing to read a sloppy error would turn the provider's
+    untidiness into our transport failure.
     """
     try:
         return json.loads(raw, object_pairs_hook=reject_duplicate_keys)
@@ -516,8 +530,26 @@ SEND_STAGE_SHAPES = {
 }
 
 
+def is_http_status(value: Any) -> bool:
+    """A real status code. `type(...) is int` because `True` is not a status.
+
+    Python's `bool` subclasses `int`, so `isinstance(True, int)` is true and
+    `True == 1`. A `SendResult(True, ...)` would then compare, hash and format
+    like an HTTP status all the way into a receipt.
+    """
+    return type(value) is int and 100 <= value <= 599
+
+
 def validate_send_result(result: SendResult) -> SendResult:
-    """Refuse a `SendResult` that disagrees with itself, however it was built."""
+    """Refuse a `SendResult` that disagrees with itself, however it was built.
+
+    The shape table says `status=int, body=bytes`, so that is what is checked —
+    not merely whether the fields are present. Presence alone let `("503", None,
+    "lost", "after-headers")` through to fail later on a status comparison, and
+    `(200, "not bytes", ...)` through to fail on hashing. A value that is going
+    to be rejected is better rejected where the contract is written down than
+    three frames away in whatever happens to touch it first.
+    """
     shape = SEND_STAGE_SHAPES.get(result.stage)
     if shape is None:
         raise ValueError(f"unknown send stage {result.stage!r}")
@@ -528,6 +560,17 @@ def validate_send_result(result: SendResult) -> SendResult:
             f"send stage {result.stage!r} requires {wants}; got "
             f"status={result.status!r}, body={type(result.body).__name__}"
         )
+    if result.status is not None and not is_http_status(result.status):
+        raise ValueError(f"status must be an int in 100..599, got {result.status!r}")
+    # `bytearray` and `memoryview` are refused too: the body is hashed and its
+    # length recorded, and a mutable view of it is not the thing that arrived.
+    if result.body is not None and type(result.body) is not bytes:
+        raise ValueError(f"body must be bytes, got {type(result.body).__name__}")
+    observed = result.body_bytes_observed
+    if observed is not None and (type(observed) is not int or observed < 0):
+        raise ValueError(f"body_bytes_observed must be a non-negative int, got {observed!r}")
+    if result.request_id is not None and not isinstance(result.request_id, str):
+        raise ValueError(f"request_id must be a string, got {type(result.request_id).__name__}")
     return result
 
 
@@ -854,17 +897,18 @@ def probe_target(
         latency_ms=latency,
     )
     try:
-        payload = json.loads(raw)
-        # `[]`, `null` and `5` are valid JSON. `payload.get` on any of them
-        # raises `AttributeError`, which nothing caught — so one provider
-        # returning a bare array ended the whole matrix run and every later
-        # target lost its receipt.
+        # Strict: this body decides the reported model, and therefore whether
+        # the target may pass. `[]`, `null` and `5` are valid JSON too, and
+        # `payload.get` on any of them raises `AttributeError`, which nothing
+        # caught — so one provider returning a bare array ended the whole matrix
+        # run and every later target lost its receipt.
+        payload = strict_json_loads(raw, "completion")
         if not isinstance(payload, dict):
             raise TypeError(f"completion was a {type(payload).__name__}, not an object")
         reported_model = payload.get("model")
         choices = payload.get("choices", [])
         content = choices[0]["message"]["content"] if choices else None
-    except (json.JSONDecodeError, KeyError, TypeError, IndexError, AttributeError):
+    except (DuplicateJsonKey, json.JSONDecodeError, KeyError, TypeError, IndexError, AttributeError):
         result["classification"] = "INVALID_OUTPUT"
         return result
     result["reported_model"] = reported_model
@@ -1264,10 +1308,19 @@ def parse_tool_calls(message: dict[str, Any]) -> tuple[list[dict[str, Any]], tup
 
 
 def decode_arguments(call: dict[str, Any]) -> tuple[dict[str, Any] | None, str | None]:
-    """Decode the JSON string `parse_tool_calls` already insisted on."""
+    """Decode the JSON string `parse_tool_calls` already insisted on.
+
+    Strict about duplicate keys: these arguments *are* the tool call being
+    qualified, and `{"handle": "invented", "handle": "sha256:00…"}` would let
+    the schema validator and the observed-only grading see only the second
+    value. A canary that accepts an ambiguous call has qualified a shape a
+    strict mapper may refuse — the defect this vertical exists to avoid.
+    """
     raw = call["raw_arguments"]
     try:
-        parsed = json.loads(raw)
+        parsed = strict_json_loads(raw, f"{call['name']} arguments")
+    except DuplicateJsonKey as exc:
+        return None, f"arguments for {call['name']} name a field twice: {exc}"
     except json.JSONDecodeError as exc:
         return None, f"arguments for {call['name']} are not valid JSON: {exc}"
     if not isinstance(parsed, dict):
@@ -1476,13 +1529,16 @@ def qualify_target(
             return receipt
 
         try:
-            payload = json.loads(raw)
+            # Strict: everything the rest of this loop reads comes from here —
+            # the reported model, the chosen message, the tool calls and their
+            # ids. A field stated twice makes all of it ambiguous.
+            payload = strict_json_loads(raw, "completion")
             if not isinstance(payload, dict):
                 raise TypeError(f"completion was a {type(payload).__name__}, not an object")
             message = payload["choices"][0]["message"]
             if not isinstance(message, dict):
                 raise TypeError("choices[0].message was not an object")
-        except (json.JSONDecodeError, KeyError, IndexError, TypeError, AttributeError) as exc:
+        except (DuplicateJsonKey, json.JSONDecodeError, KeyError, IndexError, TypeError, AttributeError) as exc:
             why = f"unmappable 2xx completion: {type(exc).__name__}"
             record["outcome"] = "unreadable-response"
             record["detail"] = why

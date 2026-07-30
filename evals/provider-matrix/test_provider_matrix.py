@@ -1450,16 +1450,17 @@ class DuplicateJsonKeyTests(unittest.TestCase):
             with self.assertRaises(pm.DuplicateJsonKey, msg=name):
                 loader(path)
 
-    def test_a_provider_response_is_not_parsed_strictly(self):
-        """Evidence about a provider, not authority over anything.
+    def test_only_the_http_error_body_stays_lenient(self):
+        """The line is *decides* versus *describes*, not ours versus theirs.
 
-        A provider repeating a field is its own business, and refusing to read
-        the response would turn its sloppiness into our transport failure.
+        An error body is read to pick a local reason code; it never becomes a
+        tool call and cannot earn a PASS, so refusing to read a sloppy one would
+        turn the provider's untidiness into our transport failure. A successful
+        completion is the opposite: its `model` settles identity.
         """
-        body = json.dumps({"model": "m", "choices": [{"message": {"content": "QODEC_PROBE_OK"}}]})
-        body = body.replace('"model": "m"', '"model": "m", "model": "m"')
-        result = pm.probe_target(probe_row({}), 1, scripted([(200, body.encode(), "", "completed")]), registry())
-        self.assertEqual(result["classification"], "PASS")
+        sloppy_error = b'{"error": {"message": "no", "message": "really no"}}'
+        receipt = pm.qualify_target(target(), surface(), 30.0, 6, scripted([(429, sloppy_error, "")]))
+        self.assertEqual(receipt["classification"], "RATE_LIMITED")
 
 
 class ExplicitSendStageTests(unittest.TestCase):
@@ -1524,3 +1525,131 @@ class ExplicitSendStageTests(unittest.TestCase):
 
         no_key = pm.send_json("https://api.example/v1", b"{}", "bad\nkey", 1)
         self.assertEqual(pm.validate_send_result(no_key), no_key)
+
+
+class DecidingResponsesAreStrictTests(unittest.TestCase):
+    """A successful completion decides identity; its arguments are the tool call.
+
+    `strict_json_loads` first covered only documents we author or plan with, on
+    the reasoning that a provider response is "just evidence". That was wrong:
+    `model` settles whether a target may PASS, and `function.arguments` is the
+    call being qualified. A field stated twice makes both ambiguous, and Python
+    resolves the ambiguity by document order.
+    """
+
+    def qualify(self, body: bytes):
+        return pm.qualify_target(target(), surface(), 30.0, 6, scripted([(200, body, "")]))
+
+    def test_a_completion_naming_the_model_twice_is_invalid_output(self):
+        """`{"model": "wrong", "model": "requested"}` used to report `verified`."""
+        body = ('{"model":"wrong-model","model":"openai/gpt-oss-120b","choices":'
+                '[{"message":{"role":"assistant","tool_calls":[]}}]}').encode()
+        receipt = self.qualify(body)
+        self.assertEqual(receipt["classification"], "INVALID_OUTPUT")
+        self.assertNotEqual(receipt["model_status"], "verified")
+
+    def test_a_completion_naming_choices_twice_is_invalid_output(self):
+        body = ('{"model":"openai/gpt-oss-120b","choices":[],"choices":'
+                '[{"message":{"role":"assistant","tool_calls":[]}}]}').encode()
+        self.assertEqual(self.qualify(body)["classification"], "INVALID_OUTPUT")
+
+    def test_a_message_naming_tool_calls_twice_is_invalid_output(self):
+        inner = json.dumps(call("qodec_intersect", INTERSECT_ARGS, "c1"))
+        body = ('{"model":"openai/gpt-oss-120b","choices":[{"message":{"role":"assistant",'
+                '"tool_calls":[],"tool_calls":[%s]}}]}' % inner).encode()
+        self.assertEqual(self.qualify(body)["classification"], "INVALID_OUTPUT")
+
+    def test_a_probe_completion_naming_the_model_twice_is_invalid_output(self):
+        body = ('{"model":"wrong-model","model":"m","choices":'
+                '[{"message":{"content":"QODEC_PROBE_OK"}}]}').encode()
+        result = pm.probe_target(probe_row({}), 1, scripted([(200, body, "", "completed")]), registry())
+        self.assertNotEqual(result["classification"], "PASS")
+        self.assertEqual(result["classification"], "INVALID_OUTPUT")
+
+    def test_arguments_naming_a_field_twice_are_malformed(self):
+        for arguments in (
+            '{"handle":"invented","handle":"sha256:%s",'
+            '"answer":{"encoding":"base64url-nopad","data":"YWxwaGE"},"cited":[]}' % ("0" * 64),
+            '{"handle":"sha256:%s",'
+            '"answer":{"encoding":"base64url-nopad","data":"invalid","data":"YWxwaGE"},'
+            '"cited":[]}' % ("0" * 64),
+        ):
+            receipt = pm.qualify_target(target(), surface(), 30.0, 6, scripted(
+                OPERATION_THEN((200, completion([call("qodec_answer", arguments, "call_ans")]), ""))))
+            self.assertEqual(receipt["classification"], "MALFORMED_TOOL_ARGUMENTS", arguments)
+            self.assertIn("twice", receipt["detail"])
+
+    def test_the_ambiguous_answer_never_reaches_grading(self):
+        """Both spellings would otherwise be graded on the surviving one."""
+        arguments = ('{"handle":"invented","handle":"sha256:%s","answer":'
+                     '{"encoding":"base64url-nopad","data":"YWxwaGE"},"cited":'
+                     '[{"store":"sha256:%s","section":"attempt_1","ordinal":0}]}' % ("0" * 64, "0" * 64))
+        receipt = pm.qualify_target(target(), surface(), 30.0, 6, scripted(
+            OPERATION_THEN((200, completion([call("qodec_answer", arguments, "call_ans")]), ""))))
+        self.assertNotEqual(receipt["classification"], "PASS")
+        self.assertNotEqual(receipt["classification"], "CANARY_ANSWER_MISMATCH")
+        self.assertEqual(receipt["classification"], "MALFORMED_TOOL_ARGUMENTS")
+
+
+class SendResultTypeTests(unittest.TestCase):
+    """The table says `status=int, body=bytes`. That is what gets checked."""
+
+    def test_a_string_status_is_refused(self):
+        with self.assertRaisesRegex(ValueError, "100..599"):
+            pm.as_send_result(("503", None, "lost", "after-headers"))
+
+    def test_a_bool_status_is_refused(self):
+        """`bool` subclasses `int`, and `True == 1`, with great confidence."""
+        self.assertIsInstance(True, int)
+        with self.assertRaisesRegex(ValueError, "100..599"):
+            pm.as_send_result((True, b"{}", "", "completed"))
+
+    def test_a_status_outside_the_http_range_is_refused(self):
+        for status in (0, 99, 600, 1000, -200):
+            with self.assertRaises(ValueError, msg=status):
+                pm.as_send_result((status, b"{}", "", "completed"))
+
+    def test_a_non_bytes_body_is_refused(self):
+        for body in ("not bytes", bytearray(b"{}"), memoryview(b"{}"), ["{}"]):
+            with self.assertRaises(ValueError, msg=repr(body)):
+                pm.as_send_result((200, body, "", "completed"))
+
+    def test_a_negative_or_non_int_observed_count_is_refused(self):
+        for observed in (-1, -4096, "9", 1.5, True):
+            with self.assertRaises(ValueError, msg=repr(observed)):
+                pm.as_send_result((200, b"{}", "", "completed", observed))
+
+    def test_a_non_string_request_id_is_refused(self):
+        with self.assertRaisesRegex(ValueError, "request_id"):
+            pm.as_send_result((200, b"{}", "", "completed", 2, 12345))
+
+    def test_the_valid_shapes_are_still_accepted(self):
+        for good in (
+            (200, b"{}", "", "completed", 2, "req-1"),
+            (503, None, "lost", "after-headers", 4096, None),
+            (None, None, "refused", "before-response"),
+            (None, None, "missing env K", "no-credential"),
+            (100, b"", "", "completed", 0, "req-2"),
+            (599, b"x", "", "completed"),
+        ):
+            self.assertIsInstance(pm.as_send_result(good), pm.SendResult, repr(good))
+
+    def test_the_real_transport_still_satisfies_the_types(self):
+        class Response:
+            status = 200
+            headers = {"x-request-id": "req-7"}
+
+            def read(self, size=-1):
+                return b'{"ok":1}'
+
+            def __enter__(self):
+                return self
+
+            def __exit__(self, *exc):
+                return False
+
+        with patch.object(pm._OPENER, "open", side_effect=lambda *a, **k: Response()):
+            sent = pm.send_json("https://api.example/v1", b"{}", "k", 1)
+        self.assertEqual(pm.validate_send_result(sent), sent)
+        self.assertIs(type(sent.status), int)
+        self.assertIs(type(sent.body), bytes)
