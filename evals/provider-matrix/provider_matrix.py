@@ -43,8 +43,52 @@ def sha256_bytes(value: bytes) -> str:
     return hashlib.sha256(value).hexdigest()
 
 
+def reject_duplicate_keys(pairs: list[tuple[str, Any]]) -> dict[str, Any]:
+    """`json.loads` keeps the last of two identical keys, silently.
+
+    That silence is a tamper channel, not a curiosity. A catalog row spelled
+
+        {"api_base": "https://steal.example/v1",
+         "api_base": "https://api.groq.com/openai/v1"}
+
+    reaches `bind_to_registry` as a single agreeing value, and the hostile claim
+    is gone before anything can refuse it — so "any authority value that is
+    present is checked" is satisfied only because the check never sees it. The
+    same trick hides a duplicate field in a hand-edited plan.
+
+    Duplicate detection is only possible while parsing text. Once JSON has
+    become a dict the evidence has already been destroyed, which is why this is
+    a parser hook and not a validation step.
+    """
+    seen: set[str] = set()
+    for key, _ in pairs:
+        if key in seen:
+            raise DuplicateJsonKey(f"duplicate key {key!r}")
+        seen.add(key)
+    return dict(pairs)
+
+
+class DuplicateJsonKey(ValueError):
+    """One JSON object named the same field twice."""
+
+
+def strict_json_loads(raw: str | bytes, what: str) -> Any:
+    """Parse a trust-boundary document, refusing duplicate object keys.
+
+    Used for every document whose contents decide something: the source export,
+    the catalog, the plan, the surface and the trusted registry. Provider
+    response bodies deliberately do *not* go through this — they are evidence
+    about a provider, not an authority over anything, and a provider repeating a
+    field is its own business.
+    """
+    try:
+        return json.loads(raw, object_pairs_hook=reject_duplicate_keys)
+    except DuplicateJsonKey as exc:
+        raise DuplicateJsonKey(f"{what}: {exc}") from None
+
+
 def read_json(path: Path) -> Any:
-    return json.loads(path.read_text(encoding="utf-8"))
+    return strict_json_loads(path.read_text(encoding="utf-8"), path.name)
 
 
 def write_json(path: Path, value: Any) -> None:
@@ -269,23 +313,8 @@ def load_registry(path: Path | None = None) -> dict[str, Any]:
     name, the model, the free-tier metadata and its own provenance, and nothing
     that carries authority.
     """
-    text = (path or REGISTRY_PATH).read_text(encoding="utf-8")
-    return normalize_registry(json.loads(text, object_pairs_hook=_reject_duplicate_keys))
-
-
-def _reject_duplicate_keys(pairs: list[tuple[str, Any]]) -> dict[str, Any]:
-    """`json.loads` keeps the last of two identical keys, silently.
-
-    In a registry that means two entries for one provider and whichever the
-    parser happened to keep decides where a credential goes. The ambiguity has
-    to be an error, not a coin toss resolved by document order.
-    """
-    seen: set[str] = set()
-    for key, _ in pairs:
-        if key in seen:
-            raise ValueError(f"duplicate key {key!r} in the trusted registry")
-        seen.add(key)
-    return dict(pairs)
+    path = path or REGISTRY_PATH
+    return normalize_registry(strict_json_loads(path.read_text(encoding="utf-8"), path.name))
 
 
 def normalize_registry(raw: Any) -> dict[str, Any]:
@@ -296,6 +325,10 @@ def normalize_registry(raw: Any) -> dict[str, Any]:
     a path would be a trust boundary with a side door. The result is newly
     built, so nothing downstream holds a reference to a mutable object somebody
     else can still change.
+
+    One check cannot be repeated here: duplicate JSON keys. By the time a
+    registry is a dict, Python has already discarded the losing value, so that
+    refusal belongs to `strict_json_loads` and applies to text only.
     """
     if not isinstance(raw, dict):
         raise ValueError("a trusted registry must be an object")
@@ -469,6 +502,35 @@ class BodyTooLarge(ValueError):
         self.observed = observed
 
 
+# Every stage, and the exact (status, body) shape it asserts. A stage is a claim
+# about what happened, so a result whose fields contradict its own stage is not a
+# fact about an exchange — it is two facts, and no rule can say which one to
+# believe. Inferring the stage only for legacy tuples left the explicit form
+# unchecked, so `(503, None, "lost", "completed")` promoted a billed
+# after-headers loss to a success through the front door instead of the back.
+SEND_STAGE_SHAPES = {
+    "before-response": (False, False),
+    "no-credential": (False, False),
+    "after-headers": (True, False),
+    "completed": (True, True),
+}
+
+
+def validate_send_result(result: SendResult) -> SendResult:
+    """Refuse a `SendResult` that disagrees with itself, however it was built."""
+    shape = SEND_STAGE_SHAPES.get(result.stage)
+    if shape is None:
+        raise ValueError(f"unknown send stage {result.stage!r}")
+    actual = (result.status is not None, result.body is not None)
+    if actual != shape:
+        wants = f"status={'an int' if shape[0] else 'None'}, body={'bytes' if shape[1] else 'None'}"
+        raise ValueError(
+            f"send stage {result.stage!r} requires {wants}; got "
+            f"status={result.status!r}, body={type(result.body).__name__}"
+        )
+    return result
+
+
 def infer_stage(status: int | None, body: bytes | None) -> str:
     """The stage a legacy tuple implies — a table, not a guess.
 
@@ -499,12 +561,15 @@ def as_send_result(value: Any) -> SendResult:
     coercion. Everything inside this module builds a `SendResult` directly.
     """
     if isinstance(value, SendResult):
-        return value
+        return validate_send_result(value)
     fields = tuple(value)
     result = SendResult(*fields)
-    if len(fields) >= 4:
-        return result
-    return result._replace(stage=infer_stage(result.status, result.body))
+    if len(fields) < 4:
+        result = result._replace(stage=infer_stage(result.status, result.body))
+    # Validated on every path, including the explicit one. A stage supplied by
+    # hand is a claim like any other and gets no more credit for being written
+    # down than for being deduced.
+    return validate_send_result(result)
 
 
 def read_bounded(stream: Any, limit: int) -> bytes:
@@ -566,12 +631,14 @@ def send_json(url: str, body: bytes, key: str, timeout: float, limit: int = MAX_
         detail = "timeout" if isinstance(reason, TimeoutError) else str(reason)
         return SendResult(None, None, detail, "before-response")
 
-    status = None
-    request_id = None
+    # Read outside the try: these are attribute accesses on an object we already
+    # hold, and they must not be inside the block whose failure means "the body
+    # was lost". An `after-headers` result without a status would contradict its
+    # own stage, and `validate_send_result` would refuse it.
+    status = response.status
+    request_id = request_id_of(getattr(response, "headers", None))
     try:
         with response:
-            status = response.status
-            request_id = request_id_of(getattr(response, "headers", None))
             raw = read_bounded(response, limit)
     except (OSError, ValueError) as exc:
         observed = getattr(exc, "observed", None)
@@ -634,7 +701,7 @@ def normalize_target(row: dict[str, Any], registry: dict[str, Any]) -> dict[str,
 def import_catalog(source: Path, observed_at: str, registry: dict[str, Any] | None = None) -> dict[str, Any]:
     registry = normalize_registry(registry) if registry is not None else load_registry()
     raw_bytes = source.read_bytes()
-    rows = source_rows(json.loads(raw_bytes))
+    rows = source_rows(strict_json_loads(raw_bytes, source.name))
     targets = [normalize_target(row, registry) for row in rows]
     targets.sort(key=lambda row: (row["provider"], row["model"], row["api_base"]))
     ids = [row["target_id"] for row in targets]

@@ -67,6 +67,12 @@ CORPUS_TOOLS = HERE.parent / "interop" / "v2" / "corpus" / "tools"
 #     better message. The probe path is different: `payload.get("model")` on a
 #     list raises `AttributeError`, which nothing caught until this round, and
 #     `M1` removes both of its guards together to prove it.
+#   * reading `response.status` before the block that may lose the body — the
+#     assignment happens before `read_bounded` either way, so moving it is
+#     behaviourally identical unless `.status` itself raises, which no real
+#     response does. It stays because it makes the invariant structural rather
+#     than accidental, but `validate_send_result` is the gate, and `O3` is the
+#     mutation that proves it.
 MUTATIONS = [
     # -- A: the multi-turn roundtrip guard --
     ("A1 terminal answer accepted without a roundtrip",
@@ -274,6 +280,31 @@ MUTATIONS = [
     ("M4 a crashing target ends the matrix",
      "    except Exception as exc:  # noqa: BLE001 — deliberate: see the docstring",
      "    except ZeroDivisionError as exc:"),
+
+    # -- N: duplicate keys at every trust boundary --
+    ("N1 the strict loader replaced by plain json.loads",
+     "        return json.loads(raw, object_pairs_hook=reject_duplicate_keys)",
+     "        return json.loads(raw)"),
+    ("N2 a repeated key resolved by document order",
+     "        if key in seen:",
+     "        if False:"),
+    ("N3 the source export parsed leniently",
+     "    rows = source_rows(strict_json_loads(raw_bytes, source.name))",
+     "    rows = source_rows(json.loads(raw_bytes))"),
+    ("N4 files read leniently",
+     "    return strict_json_loads(path.read_text(encoding=\"utf-8\"), path.name)",
+     "    return json.loads(path.read_text(encoding=\"utf-8\"))"),
+
+    # -- O: an explicit stage is checked like any other claim --
+    ("O1 an explicit stage is taken on trust",
+     "    if len(fields) < 4:\n        result = result._replace(stage=infer_stage(result.status, result.body))",
+     "    if len(fields) < 4:\n        result = result._replace(stage=infer_stage(result.status, result.body))\n    else:\n        return result"),
+    ("O2 a SendResult passed straight through unvalidated",
+     "        return validate_send_result(value)",
+     "        return value"),
+    ("O3 stage shapes not enforced",
+     "    if actual != shape:",
+     "    if False:"),
 
     ("H5 the replay rebuilds the tool calls instead of echoing them",
      "            \"tool_calls\": message[\"tool_calls\"],",

@@ -415,7 +415,7 @@ class QualificationTests(unittest.TestCase):
             ([(429, b"{}", "")], "RATE_LIMITED"),
             ([(503, b"{}", "")], "UNAVAILABLE"),
             ([(302, b"", "")], "REDIRECT_NOT_FOLLOWED"),
-            ([(None, None, "body too large", "after-headers")], "RESPONSE_CAPTURE_FAILED"),
+            ([(502, None, "body too large", "after-headers")], "RESPONSE_CAPTURE_FAILED"),
             ([(None, None, "missing env GROQ_API_KEY", "no-credential")], "AUTH_FAILED"),
             ([(400, b'{"error":{"message":"nope"}}', "")], "PROVIDER_REJECTED"),
             ([(400, b'{"error":{"param":"tools","message":"x"}}', "")], "TOOL_CHOICE_UNSUPPORTED"),
@@ -891,7 +891,7 @@ class StrictOpenAiDialectTests(unittest.TestCase):
         """The generation exists and will be billed; a retry pays twice."""
         receipt = pm.qualify_target(
             target(), surface(), 30.0, 6,
-            scripted([(None, None, "response body exceeded 4194304 bytes", "after-headers")]),
+            scripted([(200, None, "response body exceeded 4194304 bytes", "after-headers")]),
         )
         self.assertEqual(receipt["classification"], "RESPONSE_CAPTURE_FAILED")
         self.assertNotEqual(receipt["classification"], "UNAVAILABLE")
@@ -1387,3 +1387,140 @@ class RegistryValidationTests(unittest.TestCase):
     def test_the_committed_registry_normalizes_to_itself(self):
         loaded = pm.load_registry()
         self.assertEqual(pm.normalize_registry(loaded), loaded)
+
+
+class DuplicateJsonKeyTests(unittest.TestCase):
+    """`json.loads` resolves a repeated key by document order, silently.
+
+    That silence is a tamper channel. A row naming `api_base` twice arrives at
+    `bind_to_registry` as one agreeing value, so "every authority value that is
+    present is checked" holds only because the check never sees the hostile one.
+    Detection is possible while parsing text and nowhere after: by the time JSON
+    is a dict, Python has already discarded the losing value.
+    """
+
+    def source(self, body: str) -> Path:
+        path = Path(self._td.name) / "source.json"
+        path.write_text(body, encoding="utf-8")
+        return path
+
+    def setUp(self):
+        self._td = tempfile.TemporaryDirectory()
+        self.addCleanup(self._td.cleanup)
+
+    def test_python_really_does_keep_the_last_one(self):
+        """The premise, stated as a test so it cannot quietly stop being true."""
+        self.assertEqual(json.loads('{"a": 1, "a": 2}'), {"a": 2})
+
+    def test_a_duplicated_api_base_in_a_source_row_is_refused(self):
+        body = ('[{"provider":"groq","model":"m",'
+                '"api_base":"https://steal.example/v1",'
+                '"api_base":"https://api.groq.com/openai/v1"}]')
+        with self.assertRaisesRegex(pm.DuplicateJsonKey, "api_base"):
+            pm.import_catalog(self.source(body), "2026-07-29T00:00:00Z")
+
+    def test_a_duplicated_key_env_in_a_source_row_is_refused(self):
+        body = ('[{"provider":"groq","model":"m",'
+                '"key_env":"ANTHROPIC_API_KEY","key_env":"GROQ_API_KEY"}]')
+        with self.assertRaisesRegex(pm.DuplicateJsonKey, "key_env"):
+            pm.import_catalog(self.source(body), "2026-07-29T00:00:00Z")
+
+    def test_a_duplicated_provider_or_model_is_refused(self):
+        for field in ("provider", "model"):
+            body = '[{"provider":"groq","model":"m","%s":"shadow"}]' % field
+            with self.assertRaises(pm.DuplicateJsonKey, msg=field):
+                pm.import_catalog(self.source(body), "2026-07-29T00:00:00Z")
+
+    def test_a_duplicated_authority_field_in_a_plan_is_refused(self):
+        path = Path(self._td.name) / "plan.json"
+        path.write_text(
+            '{"schema": "%s", "identity": {}, "plan_sha256": "x", "rejected": [],'
+            ' "selected": [{"target_id":"groq--m","provider":"groq","model":"m",'
+            '"api_style":"openai-chat","key_env":"GROQ_API_KEY",'
+            '"api_base":"https://steal.example/v1",'
+            '"api_base":"https://api.groq.com/openai/v1"}]}' % pm.PLAN_SCHEMA,
+            encoding="utf-8")
+        with self.assertRaisesRegex(pm.DuplicateJsonKey, "api_base"):
+            pm.read_json(path)
+
+    def test_the_surface_and_the_registry_share_the_one_loader(self):
+        for name, loader in (("surface", pm.load_surface), ("registry", pm.load_registry)):
+            path = Path(self._td.name) / f"{name}.json"
+            path.write_text('{"schema": "x", "schema": "y"}', encoding="utf-8")
+            with self.assertRaises(pm.DuplicateJsonKey, msg=name):
+                loader(path)
+
+    def test_a_provider_response_is_not_parsed_strictly(self):
+        """Evidence about a provider, not authority over anything.
+
+        A provider repeating a field is its own business, and refusing to read
+        the response would turn its sloppiness into our transport failure.
+        """
+        body = json.dumps({"model": "m", "choices": [{"message": {"content": "QODEC_PROBE_OK"}}]})
+        body = body.replace('"model": "m"', '"model": "m", "model": "m"')
+        result = pm.probe_target(probe_row({}), 1, scripted([(200, body.encode(), "", "completed")]), registry())
+        self.assertEqual(result["classification"], "PASS")
+
+
+class ExplicitSendStageTests(unittest.TestCase):
+    """A stage supplied by hand is a claim, not a credential."""
+
+    def test_every_stage_declares_its_shape(self):
+        self.assertEqual(set(pm.SEND_STAGE_SHAPES), {
+            "before-response", "no-credential", "after-headers", "completed",
+        })
+
+    def test_a_consistent_result_survives_every_input_form(self):
+        for value in (
+            pm.SendResult(200, b"{}", "", "completed"),
+            (200, b"{}", "", "completed"),
+            (200, b"{}"),
+            (None, None, "refused"),
+            (503, None, "lost"),
+        ):
+            self.assertIsInstance(pm.as_send_result(value), pm.SendResult)
+
+    def test_an_explicit_stage_cannot_promote_a_lost_body(self):
+        """The defect: only legacy tuples had their stage inferred and checked.
+
+        `(503, None, "lost", "completed")` walked past the inference entirely
+        and was treated as a successful exchange — the same promotion the table
+        exists to prevent, arriving through the front door.
+        """
+        with self.assertRaisesRegex(ValueError, "completed"):
+            pm.as_send_result((503, None, "lost", "completed"))
+
+    def test_an_explicit_after_headers_still_needs_a_status(self):
+        """`status is None` means no headers arrived. It cannot mean anything else."""
+        with self.assertRaisesRegex(ValueError, "after-headers"):
+            pm.as_send_result(pm.SendResult(None, None, "x", "after-headers"))
+        with self.assertRaisesRegex(ValueError, "after-headers"):
+            pm.as_send_result((None, None, "x", "after-headers"))
+
+    def test_a_before_response_result_cannot_carry_a_status_or_a_body(self):
+        for bad in ((200, None, "x", "before-response"), (None, b"{}", "x", "before-response")):
+            with self.assertRaises(ValueError, msg=repr(bad)):
+                pm.as_send_result(bad)
+
+    def test_a_completed_result_cannot_lack_a_body(self):
+        with self.assertRaises(ValueError):
+            pm.as_send_result(pm.SendResult(200, None, "", "completed"))
+
+    def test_an_unknown_stage_is_refused(self):
+        with self.assertRaisesRegex(ValueError, "unknown send stage"):
+            pm.as_send_result((200, b"{}", "", "probably-fine"))
+
+    def test_the_real_transport_only_produces_valid_results(self):
+        """`send_json`'s own outputs must satisfy the table, not just the tests."""
+        err = urllib.error.HTTPError(
+            "https://api.example/v1", 500, "boom", {}, io.BytesIO(b"z" * 300))
+        with patch.object(pm._OPENER, "open", side_effect=err):
+            lost = pm.send_json("https://api.example/v1", b"{}", "k", 1, limit=100)
+        self.assertEqual(pm.validate_send_result(lost), lost)
+
+        with patch.object(pm._OPENER, "open", side_effect=urllib.error.URLError("refused")):
+            refused = pm.send_json("https://api.example/v1", b"{}", "k", 1)
+        self.assertEqual(pm.validate_send_result(refused), refused)
+
+        no_key = pm.send_json("https://api.example/v1", b"{}", "bad\nkey", 1)
+        self.assertEqual(pm.validate_send_result(no_key), no_key)

@@ -68,11 +68,35 @@ rule exists to prevent. A provider absent from the registry never becomes a
 target at all.
 
 A registry supplied as an object takes the same validation path as the file:
-schema, unknown fields, types, lowercase provider names, plausible `key_env`,
-URL rules, and duplicate JSON keys (which `json.loads` otherwise resolves by
-document order — a coin toss deciding where a credential goes). The result is a
-freshly built object, so nothing downstream holds a reference the caller can
-still mutate.
+schema, unknown fields, types, lowercase provider names, plausible `key_env` and
+URL rules. The result is a freshly built object, so nothing downstream holds a
+reference the caller can still mutate.
+
+### Duplicate JSON keys are refused while parsing, and only there
+
+`json.loads` keeps the last of two identical keys and says nothing. That is a
+tamper channel:
+
+```json
+{"provider": "groq", "model": "m",
+ "api_base": "https://steal.example/v1",
+ "api_base": "https://api.groq.com/openai/v1"}
+```
+
+The hostile claim is gone before `bind_to_registry` can refuse it, so "every
+authority value that is present is checked" holds only because the check never
+sees it. The same trick hides a duplicated field in a hand-edited plan.
+
+One `strict_json_loads` therefore parses **every document that decides
+something** — source export, catalog, plan, surface, registry — and refuses a
+repeated key. Provider response bodies deliberately do not go through it: they
+are evidence about a provider, not authority over anything, and refusing to read
+one would turn its sloppiness into our transport failure.
+
+This check cannot be repeated on a value that is already a `dict`. By then
+Python has discarded the losing value, so an earlier claim that a
+caller-supplied registry was validated "including duplicate JSON keys" was not
+something any code could do.
 
 Checked at `import`, and again immediately before the key is attached — a plan
 is a reviewed file that still sits on disk afterwards. The catalog records the
@@ -112,6 +136,13 @@ the most useful fact in the exchange. The stage is a table, not an inference:
 | int    | `None`  | `after-headers` — the body was lost; billed     |
 | int    | `bytes` | `completed`                                     |
 | `None` | `bytes` | rejected: a body without a status is impossible |
+
+Enforced on **every** `SendResult`, not only on the inferred ones. Validating
+just the legacy three-tuple left the explicit form unchecked, so
+`(503, None, "lost", "completed")` promoted a billed after-headers loss to a
+success through the front door instead of the back. A stage written by hand is a
+claim like any other and gets no more credit for being written down than for
+being deduced.
 
 `b""` is a **complete empty body**, not a lost one. Inferring the stage from
 "is there a status" alone promoted `(503, None)` to `completed`, so a billed
