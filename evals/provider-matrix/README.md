@@ -417,9 +417,9 @@ The same ownership question applies to a subprocess. `subprocess.run(...,
 text=True)` decodes with the host locale and raises `UnicodeDecodeError` — a
 `ValueError` — from inside the call, where neither the timeout nor the `OSError`
 handler covered it. A child's bytes were deciding whether a gate could return a
-verdict. Output is read as bytes and decoded here; a failure to decode is
-`UnreadableTestOutput`, reported without its own message, because the only
-detail that message carries is the bytes that caused it.
+verdict. That fix landed in one gate, and a reviewer found the same defect in a
+second gate a round later, wearing the same clothes — which is not two bugs but
+a boundary with no owner. `process_boundary.py` is that owner now; see below.
 
 The credential is validated *before* an `Authorization` header exists, because
 `http.client` reports a bad header value by putting it in the exception message,
@@ -434,6 +434,130 @@ scenario. It earned its keep immediately: it found `SendResult.detail` being
 copied into the receipt, which no reviewer had named and no field list would
 have caught. A list of known places ages faster than milk on a radiator; the
 next field is always the one that is not on it.
+
+## Ownership is inventoried, not reviewed
+
+Five rounds closed five instances of one defect, one per round: a value the
+provider chose reached a durable artifact. Each repair above was correct. The
+*method* was not — a contract enforced at the sites a reviewer happened to visit
+has exactly as many exceptions as there are sites nobody visited. What was
+missing is not another `if`. It is the statement that the set is **closed**, and
+a machine that checks it.
+
+Four things now have exactly one owner apiece, and each ownership claim is a
+gate rather than a paragraph.
+
+### 1. Every durable field
+
+`receipt_policy.py` names **109 policies**, one per leaf either receipt kind may
+contain. A leaf no policy names is a finding, not a skip — which is the whole
+difference between an inventory and a spot check, because it means a field added
+next round stops the gate on the commit that adds it.
+
+| policy kind | what it admits |
+| --- | --- |
+| `Local(source)` | exactly the value the plan or the trusted registry already had |
+| `Enum(name, values)` | a member of a closed local vocabulary |
+| `BoundedInt(low, high)` | an integer, **both** ends bounded, `bool` refused |
+| `Digest(domain)` | 64 hex under a domain declared in `EVIDENCE_DOMAINS` |
+| `Prose(max_bytes)` | a rendered line — as defence in depth; see §3 |
+
+The audit runs over receipts the canary really produces: one scenario per
+reachable classification on both the probe and qualification paths, plus the
+guarded crash receipt, and the coverage of that scenario set is itself asserted.
+Provider-chosen material crosses only as a typed projection, never as itself.
+
+Running it found three things five rounds of review had not:
+
+* `transport_target.endpoint` was copied from the plan row *before* anything
+  verified it, so a receipt that correctly classified `ENDPOINT_REJECTED` still
+  carried the rejected host as a durable field.
+* `transport_reason` could hold a member of either of two enums depending on
+  which sender produced it — its fallback answered in the *turn outcome*
+  vocabulary — so one field had two vocabularies and therefore none.
+* `request_bytes` was unbounded, on the grounds that this module composed it
+  itself. Provenance is not a bound.
+
+The context the audit checks against is assembled from the plan, the registry
+and the caller's own claim about which receipt it asked for — never from the
+receipt. A context read out of the artifact under audit confirms whatever the
+artifact says, and every `Local` policy degrades to *this value equals itself*.
+
+### 2. Every verdict
+
+Eighteen `receipt.update(classification=...)` calls became one writer:
+
+```text
+facts (typed, all local)  →  reduce_*  →  Decision  →  apply_decision
+```
+
+`apply_decision` is the only function that writes `classification`,
+`decision_reason`, `detail_template` or `detail`, and an AST gate enforces that
+rather than trusting it. Both classification vocabularies are closed and keyed
+by schema — the probe's had never been written down, so a typo there would have
+produced a receipt with a verdict no consumer knows. `EndpointRejected` carries
+a reason from a closed vocabulary, so `str(exc)` no longer decides what a
+durable field says. The reducers read typed facts: `reduce_transport` reads
+`sent.reason`, never `sent.detail`, which the probe path was still doing a full
+round after the qualification path stopped.
+
+### 3. Every rendered line
+
+The first version of this inventory shipped one check that overstated what it
+proved, and the correction is worth stating plainly:
+
+> `Prose` established that a line belonged to the module's lexical language. It
+> did not establish that the module had produced *that particular line* from
+> locally owned facts.
+
+A provider can send `"timeout"`, or `"the completion carried the probe token"`,
+or sixteen hex characters. Every one of those is made of local words and local
+bytes. This vertical had already withdrawn that argument twice — for
+`str.isidentifier()` on a failure class, then for sixty-four hex characters on a
+digest — and the third withdrawal would have been inside the auditor built to
+retire it.
+
+So a detail is not text at the layer that decides it. `Decision.detail` is a
+`LocalDetail`: a template from a closed table plus **typed** arguments, where
+provider-chosen material can only appear as an `OpaqueRef` — a domain, a digest
+and a bounded length, with no way to spell anything else. Validation lives in
+`__post_init__`, so an inadmissible line cannot be constructed at all.
+
+Then the proof: every durable `detail` travels with the `detail_template` it was
+rendered from, and the audit **rebuilds** the line's grammar from that
+template's declared slots — each slot's own vocabulary, the reference grammar,
+the bounded counts, and trusted local values taken from the audit context rather
+than from the receipt. An `OpaqueRef` must be computed from the value it stands
+for, so a wrapper around the empty string is refused too: a reference that
+digests something else is evidence about nothing. `Prose` stays as a lexical
+defence in depth and no longer pretends to be a provenance proof.
+
+Converting the message producers to typed values closed three **live** leaks
+that no reviewer had named and the lexical check had never been shown, all three
+in the byte-envelope oracle, all three reaching `detail` through the canary's
+grading of a terminal answer:
+
+* the character a strict base64 decoder rejected, interpolated as `{ch!r}`;
+* the name of an unknown envelope field, interpolated as `{key!r}`;
+* the provider's own `data` spelling, interpolated as `{data!r}`.
+
+Five AST gates keep the construction path closed: no literal or f-string may
+reach `Decision(..., detail)`; every `LocalDetail` must name a registered
+template *and* every registered template must be built somewhere; only
+`DigestRef.of` shortens a digest; only `OpaqueRef.render` spells a reference;
+and only `apply_decision` and `record_detail` write a line into an artifact.
+
+### 4. Every subprocess
+
+`process_boundary.py` is the one place in this vertical that starts a process.
+`run_bytes` returns bytes — `text=False` is the point, since a decode made
+inside a library is a decode nobody caught — and decoding is a declared
+per-call policy: `decode_output` for a child whose output contract is UTF-8, so
+invalid bytes are a typed failure; `decode_path` for git, whose filenames are
+arbitrary bytes by design. Failures never repeat what caused them, because
+`UnicodeDecodeError`'s message contains the offending bytes and a child's stderr
+is whatever the child chose to write. All four gate consumers are migrated onto
+it, and an AST gate refuses a new caller anywhere else.
 
 ### One malformed target costs one receipt
 
@@ -685,6 +809,9 @@ python3 evals/provider-matrix/check_surface.py
 # the JSON gate admits nothing serde_json refuses
 python3 evals/provider-matrix/check_json_admission.py
 
+# the durable-field policy is consistent, and can refuse a receipt
+python3 evals/provider-matrix/receipt_policy.py --self-test
+
 # the checkout is byte-clean, and the check can prove it would say otherwise
 python3 evals/provider-matrix/check_clean_tree.py
 python3 evals/provider-matrix/check_clean_tree.py --self-test
@@ -702,16 +829,28 @@ terminal answer, degrade validation to required keys, let a catalog row choose
 the origin or the key, follow a redirect, pass a run whose model was never
 named, discard a status when its body is lost, accept object arguments, accept a
 numeric assistant `content`, narrow the framing catch back to one exception,
-write a malformed status line into a receipt, rebuild the replayed tool calls —
-and requires the suite to turn red for every one. It verifies that each
-substitution actually applied before believing the result: an anchor that no
-longer matches runs a green suite and reports "not caught", which is the most
-convincing way to be wrong about a test.
+write a malformed status line into a receipt, rebuild the replayed tool calls,
+skip a leaf no policy names, widen a slot pattern to anything, let a raw string
+into a `Decision` — and requires an oracle to turn red for every one. It
+verifies that each substitution actually applied before believing the result: an
+anchor that no longer matches runs a green suite and reports "not caught", which
+is the most convincing way to be wrong about a test.
 
-A mutated **gate** is answered by that gate's own `--self-test`, not by the
-suite, so a contract a self-test does not exercise cannot be killed. Both
-positive controls were extended rather than left to depend on that: the
-discovery check runs a module that prints exactly one newline, and the
+**A target names its oracles.** The harness used to run a dichotomy: a gate was
+answered by its own `--self-test` and *only* by it, everything else by the suite
+and only by it. That was disclosed as a known limit for five rounds, which is
+another way of saying it had become a design decision — and it cost real
+coverage, since a mutation to a gate that the suite would have caught was
+reported as killed by a control that never looked. `MUTATION_TARGETS` now maps
+each mutable file to the oracles that may object to it; a mutation is killed
+when **any** of them turns red, and the harness reports which one did, because
+"it died" and "it died where I expected" are different facts and only the second
+is evidence. `process_boundary.py` answers to both gate self-tests *and* the
+suite; before the table it had exactly one oracle, chosen by nothing but which
+`if` its filename fell into.
+
+Both positive controls were extended rather than left to depend on the old
+limit: the discovery check runs a module that prints exactly one newline, and the
 clean-tree check builds itself a HOME configured to break it — commit signing
 on, a hook that exits 1, and `*.tmp` in `core.excludesFile`. The last of those
 is the dangerous facet, because without isolation the untracked-file case goes
@@ -720,6 +859,16 @@ one that fails. Every setup command in that self-test goes through `must_git`:
 a preparation that did not happen used to surface as "a freshly committed tree
 was reported dirty", which is the gate diagnosing its own failure as a defect in
 the property it was checking.
+
+`receipt_policy.py --self-test` is the third control, and it exists for the same
+reason as the other two: a table that has never refused anything is a table
+nobody has tested. It carries nine defective specimens — an unnamed leaf, an
+unbounded integer, a foreign word in a line, a byte outside the local alphabet,
+a boolean wearing an HTTP status, an invented decision reason, a value that is
+not the local one, a line whose words are local but which this module never
+renders, and a line that disagrees with its own template — and requires every
+one to be refused, plus a duplicated policy and a digest policy naming an
+undeclared domain to be reported against the table itself.
 
 Checks that no single mutation can reach are listed in that file as
 **deliberately unmutated**, each with its own reason: a second guard holds the
@@ -735,6 +884,13 @@ so the control can reach that branch too. A decoding rule proved only by a test
 the harness never runs would have been a certificate on a wall. Deleting an arm
 outright is the one thing no control can catch about itself, and it is listed
 with the others.
+
+The counts, from CI on the head this describes: **322 tests**, found identically
+by `python3 test_provider_matrix.py` and by `python3 -m unittest`; **210 of 210
+mutations killed**; **109 durable-field policies** with **9 defective specimens
+refused**; **49 JSON admission cases** against the live `serde_json` oracle, one
+of them refused here on purpose; and a byte-clean checkout asserted by a check
+that proves it can say otherwise.
 
 Every classification above except `NO_TERMINAL_ANSWER` is reached in one table
 in `test_every_classification_is_declared`, and that one has its own
