@@ -3518,10 +3518,30 @@ class DurableFieldInventoryTests(unittest.TestCase):
         """A gate that has never reported a gap is a gate nobody has tested."""
         invented = receipt_policy.POLICIES + [
             receipt_policy.DurableFieldPolicy(
-                "nobody_writes_this", receipt_policy.Flag(), (receipt_policy.PROBE,))]
+                receipt_policy.P("nobody_writes_this"), receipt_policy.Flag(),
+                (receipt_policy.PROBE,))]
         gaps = receipt_policy.coverage_gaps(
             receipt_policy.PROBE, self.reached(self.probe_receipts, pm.PROBE_SCHEMA), invented)
-        self.assertEqual(gaps, ["nobody_writes_this"])
+        self.assertEqual(gaps, ["no run produces nobody_writes_this"])
+
+    def test_the_coverage_gate_looks_in_both_directions(self):
+        """Subtracting one way cannot see a declaration that is simply false.
+
+        Mark a shared policy probe-only and qualification keeps writing the
+        field; `required - reached` stays empty because nothing is *missing*.
+        What is wrong is the declaration, and only `reached - declared` sees it.
+        """
+        mislabelled = [
+            receipt_policy.DurableFieldPolicy(
+                policy.path, policy.kind, (receipt_policy.PROBE,), policy.nullable,
+                policy.coverage_required, policy.why)
+            if policy.path == receipt_policy.P("schema") else policy
+            for policy in receipt_policy.POLICIES
+        ]
+        reached = self.reached(self.qualification_receipts, pm.QUALIFY_SCHEMA)
+        report = receipt_policy.coverage(receipt_policy.QUALIFICATION, reached, mislabelled)
+        self.assertEqual(report.missing, [])
+        self.assertEqual(report.wrong_schema, ["schema"])
 
     def test_the_scenarios_reach_every_classification_the_module_declares(self):
         """An inventory over three receipts would prove almost nothing.
@@ -3569,6 +3589,52 @@ class DurableFieldInventoryTests(unittest.TestCase):
                 receipt["provider_said"] = hostile
                 self.assert_refused(receipt, "no policy names")
 
+    def test_a_key_cannot_impersonate_a_structural_path(self):
+        """`"turns[].detail"` as a literal top-level key is not `turns[].detail`.
+
+        While a path was a dotted string those two were the same value, so a
+        provider-chosen key could satisfy the policy written for a different
+        place entirely — and escaping `.` and `[]` would have been the third
+        patch on a representation problem. A path is now a tuple of steps, and
+        the string exists only when a finding is printed.
+        """
+        for hostile in ("turns[].detail", "turns.detail", "detail.name",
+                        "a.b", "x[]", "", "provider_said[]"):
+            with self.subTest(key=hostile):
+                receipt = self.specimen()
+                receipt[hostile] = "timeout"
+                self.assert_refused(receipt, "no policy names")
+
+    def test_a_key_that_is_not_a_string_is_a_finding_and_not_a_crash(self):
+        """A receipt is built in Python before it is serialised.
+
+        `str(key)` would launder an integer into a component that looks exactly
+        like a declared one, so a non-string key becomes a step no policy can
+        name — and its rendering carries the key's type, never its value.
+        """
+        receipt = self.specimen()
+        receipt[7] = "x"
+        findings = self.audit(receipt, target(), self.registry_entry())
+        self.assertTrue(any("non-string key: number" in f for f in findings), findings)
+        self.assertFalse(any("7" in f.split("non-string")[0] for f in findings))
+
+    def test_a_known_word_under_an_unknown_prefix_is_still_projected(self):
+        """A name declared in another branch is not a name declared *here*.
+
+        `provider_said.detail.name.ordinal` printed three provider-chosen keys
+        verbatim, because each of them is a real component somewhere else in the
+        tree. The walk is prefix-sensitive now: once a step is unrecognised,
+        every step below it is foreign too.
+        """
+        receipt = self.specimen()
+        receipt["provider_said"] = {"detail": {"name": {"ordinal": "sk-live-secret"}}}
+        findings = self.audit(receipt, target(), self.registry_entry())
+        joined = " ".join(findings)
+        for word in ("provider_said", "detail", "name", "ordinal"):
+            with self.subTest(component=word):
+                self.assertIn(pm.opaque_ref("json-value", word).render(), joined)
+        self.assertNotIn("sk-live-secret", joined)
+
     def test_the_refusal_names_the_shape_and_digests_the_key(self):
         """The gate must not print into CI what it is refusing to write to disk."""
         secret = "sk-live-not-a-real-key"
@@ -3580,19 +3646,22 @@ class DurableFieldInventoryTests(unittest.TestCase):
         self.assertIn(pm.opaque_ref("json-value", secret).render(), joined)
         # The components the table does declare stay readable: a finding nobody
         # can read is a finding nobody acts on.
-        self.assertIn("turns", receipt_policy.projected_path(
-            "turns[].sk", receipt_policy.POLICIES))
+        self.assertEqual(
+            receipt_policy.projected_path(
+                receipt_policy.P("turns", receipt_policy.EACH, "detail"),
+                receipt_policy.POLICIES),
+            "turns[].detail")
 
     def test_every_container_in_a_real_receipt_is_named(self):
         """The table describes the artifact's shape, not only its scalars."""
         receipt = self.specimen()
         nodes = [path for path, value in receipt_policy.flatten(receipt)
                  if isinstance(value, receipt_policy.Node)]
-        self.assertIn("turns", nodes)
-        self.assertIn("turns[]", nodes)
-        self.assertIn("transport_target", nodes)
+        self.assertIn(receipt_policy.P("turns"), nodes)
+        self.assertIn(receipt_policy.P("turns", receipt_policy.EACH), nodes)
+        self.assertIn(receipt_policy.P("transport_target"), nodes)
         for path in nodes:
-            with self.subTest(node=path):
+            with self.subTest(node=receipt_policy.render_path(path)):
                 policy = receipt_policy.exactly_one_policy_for(path)
                 self.assertIsInstance(policy.kind, receipt_policy.Shape)
 
@@ -3630,17 +3699,33 @@ class DurableFieldInventoryTests(unittest.TestCase):
 
     def test_a_doubly_owned_field_stops_the_gate(self):
         doubled = receipt_policy.POLICIES + [
-            receipt_policy.DurableFieldPolicy("detail", receipt_policy.Flag())]
+            receipt_policy.DurableFieldPolicy(receipt_policy.P("detail"), receipt_policy.Flag())]
         problems = receipt_policy.policy_problems(doubled)
         self.assertTrue(any("exactly one may" in p for p in problems), problems)
         with self.assertRaisesRegex(KeyError, "2 policies name"):
-            receipt_policy.exactly_one_policy_for("detail", doubled)
+            receipt_policy.exactly_one_policy_for(receipt_policy.P("detail"), doubled)
 
     def test_a_digest_policy_without_a_declared_domain_stops_the_gate(self):
         """A digest nobody can recompute is a field nobody can audit."""
         problems = receipt_policy.policy_problems(
-            [receipt_policy.DurableFieldPolicy("x", receipt_policy.Digest("invented"))])
+            [receipt_policy.DurableFieldPolicy(
+                receipt_policy.P("x"), receipt_policy.Digest("invented"))])
         self.assertTrue(any("not declared in EVIDENCE_DOMAINS" in p for p in problems), problems)
+
+    def test_a_coverage_opt_out_without_a_reason_stops_the_gate(self):
+        """An escape hatch from the closed world has to be argued for in writing."""
+        excused = [receipt_policy.DurableFieldPolicy(
+            receipt_policy.P("x"), receipt_policy.Flag(), coverage_required=False)]
+        self.assertTrue(any("without a stated reason" in p
+                            for p in receipt_policy.policy_problems(excused)))
+        argued = [receipt_policy.DurableFieldPolicy(
+            receipt_policy.P("x"), receipt_policy.Flag(), coverage_required=False,
+            why="companion-only, written by nothing")]
+        self.assertEqual(receipt_policy.policy_problems(argued), [])
+        # And every opt-out in the shipped table carries one.
+        for policy in receipt_policy.POLICIES:
+            if not policy.coverage_required:
+                self.assertTrue(policy.why, policy.named())
 
     def test_the_policy_modules_own_self_test_passes(self):
         self.assertEqual(receipt_policy.self_test(), 0)
@@ -3875,10 +3960,14 @@ class ProcessBoundaryOwnershipTests(unittest.TestCase):
     with no owner, and an owner is what this checks.
     """
 
+    # Exact relative paths, not bare filenames. `path.name` would give a nested
+    # `helpers/test_provider_matrix.py` the same diplomatic immunity as the real
+    # one, which is a strange thing for an ownership gate to hand out.
+    #
     # The test suite is exempt, stated rather than silently skipped: it runs the
     # CLI end to end and patches `subprocess.run` to prove the gates report
     # rather than raise. It writes no receipts and ships to nobody.
-    EXEMPT = {"process_boundary.py", "test_provider_matrix.py"}
+    EXEMPT = {Path("process_boundary.py"), Path("test_provider_matrix.py")}
 
     # The standard library's direct process-launch surface. The first version of
     # this gate matched only the word `subprocess`, which made the test an
@@ -3907,48 +3996,112 @@ class ProcessBoundaryOwnershipTests(unittest.TestCase):
     }
 
     def modules(self):
+        """Every module in the vertical, nested ones included.
+
+        `glob("*.py")` saw only the top level, so a future
+        `helpers/runner.py` could call `subprocess.run` with this gate green —
+        the ownership claim would have been true of one directory and asserted
+        of a package.
+        """
         here = Path(__file__).resolve().parent
-        return sorted(path for path in here.glob("*.py") if path.name not in self.EXEMPT)
+        return sorted(
+            path for path in here.rglob("*.py")
+            if "__pycache__" not in path.parts
+            and path.relative_to(here) not in self.EXEMPT
+        )
 
     def launches(self, module: str, attr: str) -> bool:
         allowed = self.LAUNCHERS.get(module, ())
         return module in self.LAUNCHERS and (allowed is None or attr in allowed)
 
-    def subprocess_uses(self, path):
-        """Every direct standard-library process launch in one module.
+    def launcher_names(self, tree):
+        """Local names that refer to a launcher module, to a fixed point.
 
-        Aliases are resolved rather than assumed away: `import subprocess as sp`
-        and `from os import system as sh` are the two spellings a future edit is
-        most likely to reach for, and neither contains the word the first
-        version of this gate was looking for.
+        `import os as other` was resolved and `launcher = os` was not, so the
+        alias the gate caught was the one a reader would notice anyway. Plain
+        assignment chains are reachable statically, so they are followed:
+        `again = launcher = os` binds all three.
         """
         import ast
-        tree = ast.parse(path.read_text(encoding="utf-8"))
-        uses = []
-        modules = {}      # local name -> module it refers to
+        names = {}
         for node in ast.walk(tree):
             if isinstance(node, ast.Import):
                 for alias in node.names:
                     root = alias.name.split(".")[0]
                     if root in self.LAUNCHERS:
-                        modules[alias.asname or alias.name] = root
-                        if root == "subprocess":
-                            uses.append(f"import {alias.name} at line {node.lineno}")
+                        names[alias.asname or alias.name] = root
+        changed = True
+        while changed:
+            changed = False
+            for node in ast.walk(tree):
+                if not isinstance(node, ast.Assign) or not isinstance(node.value, ast.Name):
+                    continue
+                source = names.get(node.value.id)
+                if source is None:
+                    continue
+                for goal in node.targets:
+                    if isinstance(goal, ast.Name) and names.get(goal.id) != source:
+                        names[goal.id] = source
+                        changed = True
+        return names
+
+    def subprocess_uses(self, path):
+        """Every direct standard-library process launch in one module.
+
+        Aliases are resolved rather than assumed away, including plain
+        assignment. Storing a launcher in an attribute or a subscript is itself
+        a finding: proving where such a value eventually flows is a points-to
+        analysis, and a gate that grows into one quietly stops being a gate.
+        """
+        import ast
+        tree = ast.parse(path.read_text(encoding="utf-8"))
+        uses = []
+        modules = self.launcher_names(tree)
+        for node in ast.walk(tree):
+            if isinstance(node, ast.Import):
+                for alias in node.names:
+                    if alias.name.split(".")[0] == "subprocess":
+                        uses.append(f"import {alias.name} at line {node.lineno}")
             if isinstance(node, ast.ImportFrom):
                 root = (node.module or "").split(".")[0]
                 for alias in node.names:
                     if self.launches(root, alias.name):
                         uses.append(f"from {node.module} import {alias.name} at line {node.lineno}")
         for node in ast.walk(tree):
-            if (isinstance(node, ast.Attribute) and isinstance(node.value, ast.Name)):
+            if isinstance(node, ast.Attribute) and isinstance(node.value, ast.Name):
                 module = modules.get(node.value.id, node.value.id)
                 if self.launches(module, node.attr):
                     uses.append(f"{module}.{node.attr} at line {node.lineno}")
+            # `holder.launcher = os` / `mapping["x"] = subprocess`
+            if isinstance(node, ast.Assign) and isinstance(node.value, ast.Name):
+                if modules.get(node.value.id) and any(
+                        isinstance(goal, (ast.Attribute, ast.Subscript)) for goal in node.targets):
+                    uses.append(
+                        f"a launcher stored out of reach at line {node.lineno}")
         return uses
 
     def test_no_module_but_the_boundary_starts_a_process(self):
-        offenders = {path.name: self.subprocess_uses(path) for path in self.modules()}
+        offenders = {str(path.name): self.subprocess_uses(path) for path in self.modules()}
         self.assertEqual({name: uses for name, uses in offenders.items() if uses}, {})
+
+    def test_the_enumeration_reaches_a_nested_module(self):
+        """`glob` saw one directory while the claim was about the vertical."""
+        here = Path(__file__).resolve().parent
+        found = self.modules()
+        self.assertIn(here / "receipt_policy.py", found)
+        self.assertNotIn(here / "process_boundary.py", found)
+        nested = here / "nested_probe_dir"
+        nested.mkdir(exist_ok=True)
+        try:
+            (nested / "runner.py").write_text("import subprocess\n", encoding="utf-8")
+            self.assertIn(nested / "runner.py", self.modules())
+            # And a nested file wearing an exempt name is not exempt.
+            (nested / "test_provider_matrix.py").write_text("import os\n", encoding="utf-8")
+            self.assertIn(nested / "test_provider_matrix.py", self.modules())
+        finally:
+            for leftover in nested.glob("*"):
+                leftover.unlink()
+            nested.rmdir()
 
     def test_the_gate_would_notice_every_class_of_new_caller(self):
         specimens = {
@@ -3960,9 +4113,18 @@ class ProcessBoundaryOwnershipTests(unittest.TestCase):
             "os.execv": "import os\nos.execv('/bin/ls', ['ls'])\n",
             "an aliased os": "import os as oh\noh.spawnv(0, '/bin/ls', ['ls'])\n",
             "from os import system": "from os import system\nsystem('ls')\n",
+            "from os import system as helper":
+                "from os import system as helper\nhelper('ls')\n",
             "asyncio": "import asyncio\nasyncio.create_subprocess_exec('ls')\n",
             "multiprocessing": "import multiprocessing\nmultiprocessing.Process()\n",
             "pty.spawn": "import pty\npty.spawn('ls')\n",
+            # assignment aliases, one hop and two
+            "a rebound module": "import os\nlauncher = os\nlauncher.system('ls')\n",
+            "a twice-rebound module":
+                "import os\nlauncher = os\nagain = launcher\nagain.system('ls')\n",
+            # stored out of static reach: a finding in itself
+            "stored on an attribute": "import os\nholder.launcher = os\n",
+            "stored in a mapping": "import subprocess\nmapping['x'] = subprocess\n",
         }
         with tempfile.TemporaryDirectory() as td:
             for name, source in specimens.items():
@@ -3974,14 +4136,15 @@ class ProcessBoundaryOwnershipTests(unittest.TestCase):
     def test_an_innocent_use_of_a_launcher_module_is_not_flagged(self):
         """`os.fsdecode` and `os.environ` are not process creation.
 
-        A gate that refuses every use of `os` would be refused by the codebase
-        within a week, and a gate that gets turned off protects nothing.
+        A gate that refuses every use of `os` would be turned off within a week,
+        and a gate that gets turned off protects nothing.
         """
         with tempfile.TemporaryDirectory() as td:
             innocent = Path(td) / "fine.py"
             innocent.write_text(
                 "import os\nfrom pathlib import Path\n"
-                "x = os.fsdecode(b'a')\ny = os.environ.get('HOME')\n",
+                "x = os.fsdecode(b'a')\ny = os.environ.get('HOME')\n"
+                "p = Path('x')\nq = p\nq.name\n",
                 encoding="utf-8")
             self.assertEqual(self.subprocess_uses(innocent), [])
 
@@ -4009,6 +4172,69 @@ class ProcessBoundaryOwnershipTests(unittest.TestCase):
         else:  # pragma: no cover
             self.fail("undecodable output was accepted")
 
+    def test_a_kill_counts_only_when_the_mutant_ran_as_a_program(self):
+        """The remains of the `DF9` class, as a rule rather than a name list.
+
+        Enumerating `NameError` and its friends would have been the sixth
+        neighbouring defect found one at a time. A suite run that never says how
+        many tests it discovered did not get as far as running any, whatever
+        exception it died of.
+        """
+        def suite(passed, output, count):
+            return mutations.OracleResult("suite", mutations.SUITE_ORACLE, passed, output, count)
+
+        # import-time AttributeError, import-time TypeError, a red process with
+        # no count at all: three spellings of the same incoherence.
+        for output in ("AttributeError: module has no attribute 'x'",
+                       "TypeError: unsupported operand",
+                       "Traceback (most recent call last):\n  RuntimeError: nope"):
+            with self.subTest(output=output.splitlines()[0]):
+                self.assertIn("never reported", suite(False, output, None).incoherent(330))
+        self.assertIn("discovered 12 tests", suite(False, "Ran 12 tests\nFAILED", 12).incoherent(330))
+        self.assertIsNone(suite(False, "Ran 330 tests\nFAILED", 330).incoherent(330))
+
+        # A gate is deliberately *not* held to this rule. Several gate
+        # mutations exist to make a gate die of a traceback instead of printing
+        # a report, so demanding a verdict line from it would refuse the very
+        # kill that proves the contract. The suite is the anchor instead, which
+        # is why every target names one.
+        def gate(passed, output):
+            return mutations.OracleResult("policy-gate", mutations.GATE_ORACLE, passed, output, None)
+
+        self.assertIsNone(gate(False, "Traceback (most recent call last):").incoherent(330))
+
+    def test_every_target_names_the_oracle_coherence_is_asked_of(self):
+        """No suite oracle means no anchor, and every kill taken on trust."""
+        self.assertEqual(mutations.target_problems(mutations.MUTATION_TARGETS), [])
+        unanchored = {"x.py": (mutations.POLICY_GATE,)}
+        self.assertEqual(mutations.target_problems(unanchored),
+                         ["x.py names no suite oracle to anchor coherence on"])
+
+    def test_an_expected_kill_must_come_from_the_oracle_that_failed(self):
+        """Otherwise the test id can arrive from a run that passed."""
+        name = "DF1 audit skips a leaf no policy names"
+        expected = mutations.EXPECTED_KILL[name]
+        red = mutations.OracleResult(
+            "suite", mutations.SUITE_ORACLE, False, "Ran 330 tests\nFAILED (failures=1)", 330)
+        green_with_the_name = mutations.OracleResult(
+            "policy-gate", mutations.GATE_ORACLE, True, f"OK ... {expected} ...", None)
+        state, why = mutations.verdict_for(name, [red, green_with_the_name], 330)
+        self.assertEqual(state, "MISATTRIBUTED", why)
+
+        red_with_the_name = mutations.OracleResult(
+            "suite", mutations.SUITE_ORACLE, False,
+            f"Ran 330 tests\nFAIL: {expected}\nFAILED (failures=1)", 330)
+        state, _ = mutations.verdict_for(name, [red_with_the_name], 330)
+        self.assertEqual(state, "killed")
+
+    def test_a_mutant_that_no_oracle_noticed_is_a_survivor(self):
+        green = mutations.OracleResult(
+            "suite", mutations.SUITE_ORACLE, True, "Ran 330 tests\nOK", 330)
+        state, _ = mutations.verdict_for("anything", [green], 330)
+        self.assertEqual(state, "SURVIVED")
+        state, why = mutations.verdict_for("anything", [], 330)
+        self.assertEqual(state, "INVALID", why)
+
     def test_every_mutation_target_names_its_oracles(self):
         """A file the harness can mutate but cannot ask about is unqualifiable."""
         named = {spec[3] if len(spec) > 3 else mutations.DEFAULT_TARGET
@@ -4018,6 +4244,8 @@ class ProcessBoundaryOwnershipTests(unittest.TestCase):
             with self.subTest(target=name):
                 self.assertTrue(oracles, f"{name} has no oracle")
                 self.assertTrue((Path(__file__).resolve().parent / name).exists())
+                for oracle in oracles:
+                    self.assertIn(oracle.kind, (mutations.SUITE_ORACLE, mutations.GATE_ORACLE))
 
 
 class DetailProvenanceTests(unittest.TestCase):

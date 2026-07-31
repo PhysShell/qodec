@@ -32,6 +32,7 @@ import re
 import shutil
 import sys
 import tempfile
+from dataclasses import dataclass
 from pathlib import Path
 
 HERE = Path(__file__).resolve().parent
@@ -807,8 +808,8 @@ MUTATIONS = [
      "receipt_policy.py"),
 
     ("DF7 two owners of one field stop being reported",
-     "    for path, count in sorted(seen.items()):\n        if count > 1:",
-     "    for path, count in sorted(seen.items()):\n        if count > 2:",
+     "        if count > 1:\n            problems.append(",
+     "        if count > 2:\n            problems.append(",
      "receipt_policy.py"),
 
     ("DF8 a digest policy may name an undeclared domain",
@@ -1066,8 +1067,8 @@ MUTATIONS = [
     # -- CV: the table is covered by runs, not by classifications ----------
 
     ("CV1 the coverage gate stops asking for the paths a run must produce",
-     "    return sorted(applicable_paths(kind, policies) - reached)",
-     "    return []",
+     "        missing=sorted(render_path(path) for path in required - reached),",
+     "        missing=[],",
      "receipt_policy.py"),
 
     ("CV2 coverage is asked over the union of both receipt kinds",
@@ -1079,7 +1080,93 @@ MUTATIONS = [
      "    coverage_required: bool = True",
      "    coverage_required: bool = False",
      "receipt_policy.py"),
+
+    ("CV4 coverage stops looking for a declaration that is simply false",
+     "        wrong_schema=sorted(",
+     "        wrong_schema=[] or sorted(\n            [] if True else",
+     "receipt_policy.py"),
+
+    ("CV5 a coverage opt-out needs no stated reason",
+     "        if not policy.coverage_required and not policy.why:",
+     "        if False:",
+     "receipt_policy.py"),
+
+    # -- the structural path model -----------------------------------------
+
+    # Matching by notation rather than by structure is the whole defect in one
+    # line: `"turns[].detail"` as a literal key renders exactly as the path
+    # `(Key("turns"), Each(), Key("detail"))` does.
+    ("NP6 a path is a string again, so a key can impersonate a structure",
+     "    matches = [policy for policy in table if policy.path == path]",
+     "    matches = [policy for policy in table if render_path(policy.path) == render_path(path)]",
+     "receipt_policy.py"),
+
+    ("NP7 the projection asks whether a word is known anywhere",
+     "        if not lost and isinstance(step, Key) and step in node:",
+     "        if isinstance(step, Key) and any(\n"
+     "                step in level for level in [node] + [{s: {} for p in POLICIES for s in p.path}]):",
+     "receipt_policy.py"),
+
+    ("NP8 a non-string key is laundered through str()",
+     "            step = Key(key) if isinstance(key, str) else BadKey(pm.json_type_name(key))",
+     "            step = Key(key) if isinstance(key, str) else Key(str(key))",
+     "receipt_policy.py"),
+
+    # -- MH: a kill is evidence only if the mutant ran ----------------------
+
+    ("MH1 a suite that never reported a test count is accepted",
+     "        if self.test_count is None:\n"
+     "            return f\"{self.label} never reported how many tests it ran\"",
+     "        if False:\n"
+     "            return f\"{self.label} never reported how many tests it ran\"",
+     "mutations.py"),
+
+    # Anchored with the line below it: this file quotes its own source in the
+    # spec literals, so a one-line anchor matches twice and the harness reports
+    # SKIPPED rather than pretending.
+    ("MH2 a suite that discovered a different number of tests is accepted",
+     "        if self.test_count != baseline_tests:\n"
+     "            return (f\"{self.label} discovered {self.test_count} tests, \"",
+     "        if False:\n"
+     "            return (f\"{self.label} discovered {self.test_count} tests, \"",
+     "mutations.py"),
+
+    ("MH3 a target may name no suite oracle to anchor coherence on",
+     "        if not any(oracle.kind == SUITE_ORACLE for oracle in oracles):\n"
+     "            problems.append(f\"{filename} names no suite oracle",
+     "        if False:\n"
+     "            problems.append(f\"{filename} names no suite oracle",
+     "mutations.py"),
+
+    ("MH4 an expected kill may arrive from an oracle that stayed green",
+     "        if not any(expected in result.output for result in red):\n"
+     "            return \"MISATTRIBUTED\", f\"killed, but not by {expected}\"",
+     "        if not any(expected in result.output for result in results):\n"
+     "            return \"MISATTRIBUTED\", f\"killed, but not by {expected}\"",
+     "mutations.py"),
+
+    ("MH5 the expected killer is no longer required at all",
+     "    if expected is not None:\n"
+     "        # In the failing oracle's own output",
+     "    if False:\n"
+     "        # In the failing oracle's own output",
+     "mutations.py"),
 ]
+
+
+def target_problems(targets: dict) -> list[str]:
+    """Refuse a target table that cannot support an attributed kill.
+
+    Coherence is asked of the suite — see `OracleResult.incoherent` — so a
+    target that names no suite oracle has no anchor, and every kill against it
+    would be taken on trust. A function rather than three lines inside `main`
+    because a check the suite cannot reach is a check no mutation can kill.
+    """
+    problems = []
+    for filename, oracles in sorted(targets.items()):
+        if not any(oracle.kind == SUITE_ORACLE for oracle in oracles):
+            problems.append(f"{filename} names no suite oracle to anchor coherence on")
+    return problems
 
 
 def spec_problems(specs: list) -> list[str]:
@@ -1113,20 +1200,28 @@ def spec_problems(specs: list) -> list[str]:
 # The old shape was a dichotomy: a gate was qualified by its own `--self-test`
 # and *only* by it, everything else by the suite and only by it. That was
 # written down as a known limit, and a known limit that stays written down for
-# five rounds is a design decision. It cost real coverage: a mutation to a gate
-# that the suite would have caught was reported as killed by a self-test that
-# never looked, and a mutation to `process_boundary.py` — which two gates and
-# the suite all depend on — had exactly one oracle by accident of filename.
-#
-# So a target names its oracles, plural, and is killed when **any** of them
-# turns red. The harness reports which one did, because "it died" and "it died
-# where I expected" are different facts and only the second is evidence.
-SUITE = ("suite", ["-m", "unittest", "test_provider_matrix.py"])
-DISCOVERY_GATE = ("discovery-gate", ["check_test_discovery.py", "--self-test"])
-CLEAN_TREE_GATE = ("clean-tree-gate", ["check_clean_tree.py", "--self-test"])
-POLICY_GATE = ("policy-gate", ["receipt_policy.py", "--self-test"])
+# five rounds is a design decision. `MUTATION_TARGETS` maps each mutable file to
+# the oracles that may object to it, **every** one of them is asked, and the
+# harness reports which ones did.
+SUITE_ORACLE = "suite"
+GATE_ORACLE = "gate"
 
-MUTATION_TARGETS: dict[str, tuple[tuple[str, list[str]], ...]] = {
+
+@dataclass(frozen=True)
+class Oracle:
+    label: str
+    argv: tuple[str, ...]
+    kind: str
+
+
+SUITE = Oracle("suite", ("-m", "unittest", "test_provider_matrix.py"), SUITE_ORACLE)
+DISCOVERY_GATE = Oracle(
+    "discovery-gate", ("check_test_discovery.py", "--self-test"), GATE_ORACLE)
+CLEAN_TREE_GATE = Oracle(
+    "clean-tree-gate", ("check_clean_tree.py", "--self-test"), GATE_ORACLE)
+POLICY_GATE = Oracle("policy-gate", ("receipt_policy.py", "--self-test"), GATE_ORACLE)
+
+MUTATION_TARGETS: dict[str, tuple[Oracle, ...]] = {
     "provider_matrix.py": (SUITE, POLICY_GATE),
     "test_provider_matrix.py": (SUITE,),
     "mutations.py": (SUITE,),
@@ -1139,6 +1234,51 @@ MUTATION_TARGETS: dict[str, tuple[tuple[str, list[str]], ...]] = {
     "check_test_discovery.py": (DISCOVERY_GATE, SUITE),
 }
 
+RAN_TESTS = re.compile(r"^Ran (\d+) tests?", re.M)
+
+@dataclass(frozen=True)
+class OracleResult:
+    """One oracle's answer, with enough structure to tell *how* it answered.
+
+    The previous version returned a boolean and a tail line, and inferred an
+    invalid mutant from a list of exception names. That list was the wrong
+    shape: `NameError` was on it because a mutation had died of one, and
+    tomorrow's `RuntimeError` would have been the sixth neighbouring defect
+    discovered one at a time — the exact habit this round exists to retire.
+    Coherence is asked structurally instead. A suite run that does not report
+    how many tests it discovered did not get as far as running any.
+    """
+
+    label: str
+    kind: str
+    passed: bool
+    output: str
+    test_count: int | None
+
+    def incoherent(self, baseline_tests: int) -> str | None:
+        """Did this oracle run far enough for its answer to mean anything?
+
+        Asked of the **suite** only, which is why every target names one. A gate
+        is the wrong place for this rule: several gate mutations exist precisely
+        to make a gate die of a traceback instead of printing a report, so
+        requiring a verdict line from it would refuse the kill that proves the
+        contract. The suite is the anchor because it discovers and runs the
+        whole file — a mutant that cannot be imported never gets that far.
+        """
+        if self.kind != SUITE_ORACLE:
+            return None
+        if self.test_count is None:
+            return f"{self.label} never reported how many tests it ran"
+        if self.test_count != baseline_tests:
+            return (f"{self.label} discovered {self.test_count} tests, "
+                    f"not the {baseline_tests} it discovers unmutated")
+        return None
+
+
+def discovered(output: str) -> int | None:
+    found = RAN_TESTS.search(output)
+    return int(found.group(1)) if found else None
+
 
 # A mutated program is an arbitrary program, so its output is arbitrary bytes.
 # Through the one boundary that starts processes, decoded the way arbitrary
@@ -1146,71 +1286,65 @@ MUTATION_TARGETS: dict[str, tuple[tuple[str, list[str]], ...]] = {
 # itself used to be the last direct `subprocess` caller outside the boundary,
 # which made "one module starts processes" true only if you did not count this
 # one.
-def run_oracle(workdir: Path, argv: list[str]) -> tuple[bool, str, str]:
+def run_oracle(workdir: Path, oracle: Oracle) -> OracleResult:
     env = dict(os.environ, PYTHONPATH=str(CORPUS_TOOLS), PYTHONDONTWRITEBYTECODE="1")
     try:
         proc = run_bytes(
-            [sys.executable, *argv], cwd=workdir, env=env, timeout=SUITE_TIMEOUT)
+            [sys.executable, *oracle.argv], cwd=workdir, env=env, timeout=SUITE_TIMEOUT)
     except ProcessFailure as exc:
         # A mutation that makes an oracle loop is not green, and a harness that
         # blocks on it reports nothing at all. Not-green is the honest reading.
-        return False, str(exc), ""
+        return OracleResult(oracle.label, oracle.kind, False, str(exc), None)
     output = printable(decode_path(proc.stdout + proc.stderr))
-    tail = output.strip().splitlines()
-    return proc.returncode == 0, (tail[-1] if tail else "(no output)"), output
+    return OracleResult(
+        oracle.label, oracle.kind, proc.returncode == 0, output, discovered(output))
 
 
-def run_gate(workdir: Path, filename: str) -> tuple[bool, str, str]:
-    """Ask **every** oracle this target names, and say which ones objected.
+def run_gate(workdir: Path, filename: str) -> list[OracleResult]:
+    """Ask **every** oracle this target names, and keep each answer separate.
 
     Stopping at the first red one was cheaper and quietly weaker: for a file
     whose oracles are ordered `(policy gate, suite)`, a mutation that reddens
-    the first is never shown to the second, so "killed" carried no information
-    about which contract failed. `EXPECTED_KILL` needs the whole answer, and so
-    does a reader deciding whether a kill means what its name says.
+    the first was never shown to the second. Concatenating their outputs
+    afterwards was weaker again — an expected test id could then be matched
+    against a run that did not fail at all.
     """
-    oracles = MUTATION_TARGETS.get(filename)
-    if oracles is None:
-        return True, f"no oracle is declared for {filename}", ""
-    objected: list[str] = []
-    collected: list[str] = []
-    for label, argv in oracles:
-        ok, verdict, output = run_oracle(workdir, argv)
-        collected.append(output)
-        if not ok:
-            objected.append(f"{label}: {verdict}")
-    if not objected:
-        return True, "every oracle stayed green", "\n".join(collected)
-    return False, "; ".join(objected), "\n".join(collected)
+    return [run_oracle(workdir, oracle) for oracle in MUTATION_TARGETS.get(filename, ())]
 
 
-def run_suite(workdir: Path) -> tuple[bool, str, str]:
-    return run_oracle(workdir, list(SUITE[1]))
+def run_suite(workdir: Path) -> OracleResult:
+    return run_oracle(workdir, SUITE)
 
 
-# A mutant has to fail *as a program the oracle could run*. `DF9` referred to a
-# name that no longer existed in the function it mutated, so every oracle died
-# of `NameError` before a single policy compared anything — and the harness
-# counted that as the provenance contract holding. One corpse turned out to be a
-# passer-by.
-#
-# These are the signatures of a mutant that was never a valid program. A kill
-# carrying one of them is reported as INVALID, not as evidence.
-INVALID_PROGRAM = (
-    "NameError",
-    "SyntaxError",
-    "IndentationError",
-    "ImportError",
-    "ModuleNotFoundError",
-    "unittest.loader._FailedTest",
-)
+def verdict_for(name: str, results: list[OracleResult], baseline_tests: int) -> tuple[str, str]:
+    """`(state, why)` for one mutant. The whole attribution rule, in one place.
 
-RAN_TESTS = re.compile(r"^Ran (\d+) tests?", re.M)
+    `DF9` referred to a name that no longer existed in the function it mutated,
+    so every oracle died before a single policy compared anything and the
+    harness counted it as the contract holding. One corpse was a passer-by, and
+    "210/210 killed" was arithmetically true and evidentially false.
+    """
+    if not results:
+        return "INVALID", "no oracle is declared for this target"
+    for result in results:
+        problem = result.incoherent(baseline_tests)
+        if problem is not None:
+            return "INVALID", f"{problem}; the mutant never ran as a program"
+    red = [result for result in results if not result.passed]
+    if not red:
+        return "SURVIVED", "every oracle stayed green"
+    expected = EXPECTED_KILL.get(name)
+    if expected is not None:
+        # In the failing oracle's own output, not in a concatenation of all of
+        # them: otherwise a test id can arrive from a run that passed.
+        if not any(expected in result.output for result in red):
+            return "MISATTRIBUTED", f"killed, but not by {expected}"
+    return "killed", "; ".join(f"{result.label}: {last_line(result.output)}" for result in red)
 
 
-def discovered(output: str) -> int | None:
-    found = RAN_TESTS.search(output)
-    return int(found.group(1)) if found else None
+def last_line(output: str) -> str:
+    lines = output.strip().splitlines()
+    return lines[-1] if lines else "(no output)"
 
 
 # Where a mutation's kill must be *attributed*, not merely counted. The value is
@@ -1229,12 +1363,18 @@ EXPECTED_KILL = {
         "test_an_empty_container_is_a_path_and_not_a_silence",
     "NP2 an unknown path is reported with the provider's own key in it":
         "test_the_refusal_names_the_shape_and_digests_the_key",
+    "NP6 a path is a string again, so a key can impersonate a structure":
+        "test_a_key_cannot_impersonate_a_structural_path",
+    "NP7 the projection asks whether a word is known anywhere":
+        "test_a_known_word_under_an_unknown_prefix_is_still_projected",
     # The positive control, not the assertion that shares its subject: a
     # coverage gate that reports nothing keeps `..._is_produced_by_a_real_run`
     # green by construction, so naming that test would have been naming the one
     # place this mutation cannot be caught. The expectation is what found that.
     "CV1 the coverage gate stops asking for the paths a run must produce":
         "test_the_coverage_gate_would_notice_a_policy_nothing_produces",
+    "CV4 coverage stops looking for a declaration that is simply false":
+        "test_the_coverage_gate_looks_in_both_directions",
     "TP12 the provenance pass stops rebuilding the line":
         "test_a_line_made_of_local_words_but_never_rendered_is_refused",
 }
@@ -1254,17 +1394,22 @@ def main() -> int:
         for name in sorted(unnamed):
             print(f"  {name}")
         return 2
+    unanchored = target_problems(MUTATION_TARGETS)
+    if unanchored:
+        for line in unanchored:
+            print(f"FAIL {line}")
+        return 2
     failures: list[str] = []
     with tempfile.TemporaryDirectory() as tmp:
         work = Path(tmp) / "provider-matrix"
         shutil.copytree(HERE, work, ignore=shutil.ignore_patterns("__pycache__"))
 
-        ok, verdict, output = run_suite(work)
-        print(f"baseline: {'GREEN' if ok else 'RED'} ({verdict})")
-        if not ok:
+        first = run_suite(work)
+        print(f"baseline: {'GREEN' if first.passed else 'RED'} ({last_line(first.output)})")
+        if not first.passed:
             print("baseline is red; nothing below means anything")
             return 2
-        baseline_tests = discovered(output)
+        baseline_tests = first.test_count
         if baseline_tests is None:
             print("baseline did not report how many tests it ran; "
                   "a mutant that breaks discovery could not be told from one that fails")
@@ -1301,29 +1446,17 @@ def main() -> int:
                 continue
             victim = work / filename
             victim.write_text(mutated, encoding="utf-8")
-            ok, verdict, output = run_gate(work, filename)
+            results = run_gate(work, filename)
             victim.write_text(source, encoding="utf-8")
-            if ok:
-                print(f"  SURVIVED {name}  <-- no oracle noticed ({verdict})")
+            state, why = verdict_for(name, results, baseline_tests)
+            if state == "killed":
+                print(f"  killed   {name}  ({why})")
+            elif state == "SURVIVED":
+                print(f"  SURVIVED {name}  <-- no oracle noticed ({why})")
                 failures.append(name)
-                continue
-            broken = [sign for sign in INVALID_PROGRAM if sign in output]
-            count = discovered(output)
-            if broken:
-                print(f"  INVALID  {name}: died of {broken[0]}, not of the contract it names")
+            else:
+                print(f"  {state} {name}: {why}")
                 failures.append(name)
-                continue
-            if count is not None and count != baseline_tests:
-                print(f"  INVALID  {name}: the oracle discovered {count} tests, "
-                      f"not the {baseline_tests} it discovers unmutated")
-                failures.append(name)
-                continue
-            expected = EXPECTED_KILL.get(name)
-            if expected is not None and expected not in output:
-                print(f"  MISATTRIBUTED {name}: killed, but not by {expected}")
-                failures.append(name)
-                continue
-            print(f"  killed   {name}  ({verdict})")
 
     print()
     if failures:
