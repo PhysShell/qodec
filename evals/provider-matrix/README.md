@@ -266,6 +266,19 @@ one of them derives from `http.client.HTTPException`, which is neither an
 them in `URLError`. So the base class is what both body reads catch, because the
 class is what "the provider broke the framing" means.
 
+And the family has one more member, found the same way one round later. urllib
+wraps a failure to *connect* in `URLError`; it does not wrap a failure that
+happens once the socket is already up. A peer that resets the connection while
+the status line is being read raises `ConnectionResetError` — a plain `OSError`
+— straight out of `open`. Both body reads had caught `OSError` since round nine;
+this boundary had not, so the one place the peer could still break the exchange
+without being named was the first line of its reply. The broad clause sits
+*below* `URLError`, which is itself an `OSError` and carries a `reason` this
+module reads: a wide catch above a narrow one swallows the narrow one in
+silence. The regression is a local listener that answers with half a status line
+and closes with `SO_LINGER 0`, which is what a peer dropping a connection
+actually does.
+
 What gets written down is never `str(exc)`: `BadStatusLine`'s message *is* the
 bytes the peer chose to send, and this string goes into a turn record and then
 into a receipt on disk. A failed exchange crosses as `reason` — a member of a
@@ -559,6 +572,14 @@ written reason for every deliberately unmutated check since round nine; the same
 rule belongs here, before somebody reaches for the hatch with a label reading
 "internal use".
 
+There was a second hatch, reachable by typo rather than by intent.
+`schemas=("proeb",)` put a policy in *neither* universe — demanded of no receipt
+kind, declared for no receipt kind — so both directions of the coverage proof
+went green by the policy simply vanishing from each. The vocabulary is a closed
+type now, `ReceiptKind`, and membership is checked at runtime rather than left
+to the annotation, which stands beside a program and offers moral support while
+it does as it pleases.
+
 ### 2. Every verdict
 
 Eighteen `receipt.update(classification=...)` calls became one writer:
@@ -655,13 +676,26 @@ the same immunity as the real one. And import aliases were resolved while plain
 assignment was not, so `launcher = os` walked past the check that caught
 `import os as launcher`; assignment chains are followed to a fixed point.
 
-Storing a launcher on an attribute or in a mapping — `holder.launcher = os`,
-`mapping["x"] = subprocess` — is itself a finding rather than a reason to prove
-where the value eventually flows. That proof is a points-to analysis, and a gate
-that grows into one quietly stops being a gate. What a static check cannot reach
-at all, `importlib.import_module("subprocess")` and a computed `getattr`, is
-listed in `mutations.py` with the other deliberately unmutated gaps rather than
-left implied: closing it needs a runtime audit hook, not a wider pattern.
+Then the same lesson arrived once more, and this time as a rule rather than a
+repair. Import aliases and plain assignment were resolved; tuple unpacking, a
+walrus and a parameter default were not, and an `if` for each would have been
+the next round's finding — `for launcher in [os]`, `run(os)`, `return os`,
+`box = [os]`, `yield subprocess`. The list of ways to move a value in Python is
+not a list anybody finishes.
+
+So the gate states what is **allowed**. Outside `process_boundary.py` a launcher
+may be imported, aliased by plain `name = name`, and inspected as an attribute.
+Every other movement is a finding on its own — not because the value is proven
+to reach a launch, but because it has left the grammar in which that could be
+proven. Storing one on an attribute or in a mapping, passing it as an argument,
+returning it, yielding it, putting it in a list: each is refused where it
+happens, and no points-to analysis is attempted, because a gate that grows into
+one quietly stops being a gate.
+
+What a static check cannot reach at all, `importlib.import_module("subprocess")`
+and a computed `getattr`, is listed in `mutations.py` with the other
+deliberately unmutated gaps rather than left implied: closing it needs a runtime
+audit hook, not a wider pattern.
 
 ### One malformed target costs one receipt
 
@@ -870,6 +904,32 @@ exists. A run that drifted on the first turn and was correct on the second folds
 to `drifted` — and a single overwritten scalar would have made its detail line
 read "requested X, provider reported X", losing the substituted model entirely.
 
+**Identity is one sum type, and every reader is a projection of it.**
+
+```python
+model_identity(requested, reported)
+    -> VerifiedModel | MissingModel | TextSubstitution | NonTextModel
+```
+
+Three readers used to answer that question separately and disagree.
+`model_evidence` called `model: {}` *present* and wrote no digest beside it;
+`model_status_of` called the same value *missing*; and the terminal-answer path
+assumed every entry that was present-and-not-verified carried a digest, so a
+provider putting an object in `model` raised `KeyError` and the crash was filed
+as `INTERNAL_ERROR` — a run the provider broke, blamed on this tool.
+
+`.get()` at the indexing site would have made the crash go away and left the
+disagreement in place. *Present* and *digest-bearing string substitution* are
+not the same fact, and the type is where that has to be said. The reducer now
+receives typed `substituted_digests` and `substituted_types` accumulated in the
+loop rather than reading the durable fold back — a consumer that owns its
+boundary does not learn its facts from its own artifact — and drift renders in
+three shapes: names only, non-names only, or both.
+
+An empty `model` is `MissingModel` throughout, where it used to be
+`present: True` from one function and `missing` from another at the same time.
+The provider sent a value; it establishes no identity; both readers now say so.
+
 ### A target is a provider × model pair
 
 `groq × gpt-oss-120b → PASS` and `groq × gpt-oss-20b → PROTOCOL_VIOLATION` are
@@ -1002,6 +1062,18 @@ renders, and a line that disagrees with its own template — and requires every
 one to be refused, plus a duplicated policy and a digest policy naming an
 undeclared domain to be reported against the table itself.
 
+**A specimen must stand on the contract, not on the interpreter.** `U4` removes
+the depth pre-scan from the one deliberately lenient parse, and its regression
+used to rely on a forty-thousand-level body raising `RecursionError`. CPython
+3.14 parses that body, so on a newer interpreter the mutation stopped changing
+the answer and survived — it had been dying of a platform accident rather than
+of the contract it names. The specimen now stands on the declared boundary:
+one level past `MAX_JSON_DEPTH` the body is not interpreted and the rejection is
+the ordinary one, one level inside it the same body is read and the cause is the
+specific one. The two classifications differ on any interpreter, and a second
+test asserts the specimen is *readable*, so it cannot quietly go back to testing
+the stack.
+
 Checks that no single mutation can reach are listed in that file as
 **deliberately unmutated**, each with its own reason: a second guard holds the
 same fact, the mutated behaviour is provably identical, or the difference only
@@ -1017,8 +1089,8 @@ the harness never runs would have been a certificate on a wall. Deleting an arm
 outright is the one thing no control can catch about itself, and it is listed
 with the others.
 
-The counts, from CI on the head this describes: **340 tests**, found identically
-by `python3 test_provider_matrix.py` and by `python3 -m unittest`; **228 of 228
+The counts, from CI on the head this describes: **356 tests**, found identically
+by `python3 test_provider_matrix.py` and by `python3 -m unittest`; **242 of 242
 mutations killed**, none of them invalid or misattributed; **120 durable-field
 policies** with **9 defective specimens refused** and no coverage gaps in either
 direction on either receipt kind; **49 JSON admission cases** against the live
