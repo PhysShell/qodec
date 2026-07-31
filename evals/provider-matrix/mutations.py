@@ -1080,9 +1080,16 @@ MUTATIONS = [
      "        missing=[],",
      "receipt_policy.py"),
 
+    # Follows the filter, which moved into `policies_for` when the coverage
+    # API's guard was given one site. A spec whose anchor stays where the code
+    # used to be is not a weaker proof — it is no proof, and the harness says
+    # so out loud rather than counting it as a kill.
     ("CV2 coverage is asked over the union of both receipt kinds",
-     "        if kind in policy.schemas and policy.coverage_required",
-     "        if policy.coverage_required",
+     "        policy for policy in (POLICIES if policies is None else policies)\n"
+     "        if kind in policy.schemas\n"
+     "    ]",
+     "        policy for policy in (POLICIES if policies is None else policies)\n"
+     "    ]",
      "receipt_policy.py"),
 
     ("CV3 every policy is excused from coverage by default",
