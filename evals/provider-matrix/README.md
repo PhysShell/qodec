@@ -481,6 +481,25 @@ and the caller's own claim about which receipt it asked for — never from the
 receipt. A context read out of the artifact under audit confirms whatever the
 artifact says, and every `Local` policy degrades to *this value equals itself*.
 
+**A path is structure, not notation.** While a path was a dotted string,
+`"turns[].detail"` was two different things at once: what the path
+`(Key("turns"), Each(), Key("detail"))` renders as, and what a single
+provider-chosen top-level key spelled `turns[].detail` renders as. The second
+therefore matched the policy written for the first and audited clean. Escaping
+`.` and `[]` would have been the third patch on a representation problem, so the
+representation changed instead:
+
+```python
+Path = tuple[Key | Each | BadKey, ...]
+```
+
+`Key` is one object member, `Each` is any array element, and `BadKey` is a
+dictionary key that is not a string — which `str(key)` would otherwise have
+laundered into something indistinguishable from a declared component. No policy
+can name a `BadKey`, so it always stops the gate, and its rendering carries the
+key's *type* and never its value. Strings appear when a finding is printed and
+nowhere else.
+
 **A container is a path, and a key is durable.** The first version of `flatten`
 yielded leaves only, and said so as a principle: an empty list or object *has*
 no leaves, so inventing one would report on something the artifact does not
@@ -499,7 +518,13 @@ the table describes the *shape* of the artifact rather than only its scalars.
 
 Following from the same counterexample: an unknown-path finding projects every
 component the table does not declare, because a gate that prints the key it is
-refusing to persist has moved the leak into the CI log.
+refusing to persist has moved the leak into the CI log. That projection walks
+the declared paths as a tree and is **prefix-sensitive**: it first asked only
+whether a component appeared *anywhere* in the table, so
+`provider_said.detail.name.ordinal` printed three provider-chosen keys verbatim
+— each of them a real component somewhere else in the tree, none of them
+declared there. A name known in another branch is not a name known here, and
+once a step is unrecognised every step below it is foreign too.
 
 **Coverage is asked of the table, not of the verdicts.** The first version
 asserted that the scenarios reached every classification and treated that as
@@ -518,6 +543,21 @@ order — the other order is a sixth reviewed-site repair in a new jacket. The
 gate found something on its first run too: five top-level identity paths were
 declared for both receipt kinds when only the probe can produce them, so each
 was passing on the other's evidence.
+
+**And it subtracts in both directions**, because one direction cannot see a
+declaration that is simply false. `required - reached` finds a policy no run
+exercises; `reached - declared` finds a path a real run *did* produce for a kind
+whose policy says that kind does not produce it. Marking a shared policy
+probe-only leaves qualification writing the field with nothing missing and the
+gate perfectly green — so `Coverage` reports `missing` and `wrong_schema`
+separately.
+
+`coverage_required=False` is the escape hatch from all of this, so it costs a
+sentence: a policy excused from coverage must carry a stated reason, and
+`policy_problems` refuses one that does not. `mutations.py` has required a
+written reason for every deliberately unmutated check since round nine; the same
+rule belongs here, before somebody reaches for the hatch with a label reading
+"internal use".
 
 ### 2. Every verdict
 
@@ -603,12 +643,25 @@ made it an assertion about a module name under a docstring claiming a property:
 start processes and all stayed green. A theorem quietly renamed after a
 counterexample is worth less than the counterexample, so the gate covers the
 direct standard-library launch surface — `subprocess.*`, the `os` exec/spawn/
-fork family, `asyncio.create_subprocess_*`, `multiprocessing`, `pty` — with
-alias resolution for both import spellings and a negative specimen per class.
-What a static check cannot reach, `importlib.import_module("subprocess")` and a
-computed `getattr`, is listed in `mutations.py` with the other deliberately
-unmutated gaps rather than left implied: closing it needs a runtime audit hook,
-not a wider pattern.
+fork family, `asyncio.create_subprocess_*`, `multiprocessing`, `pty` — with a
+negative specimen per class.
+
+Two more things were asserted of a package and true of a directory. The
+enumeration used `glob("*.py")` and never saw a nested module, so a future
+`helpers/runner.py` could have called `subprocess.run` with the gate green; it
+is recursive now, and exemptions are exact relative paths rather than bare
+filenames, because `path.name` would hand a nested file wearing an exempt name
+the same immunity as the real one. And import aliases were resolved while plain
+assignment was not, so `launcher = os` walked past the check that caught
+`import os as launcher`; assignment chains are followed to a fixed point.
+
+Storing a launcher on an attribute or in a mapping — `holder.launcher = os`,
+`mapping["x"] = subprocess` — is itself a finding rather than a reason to prove
+where the value eventually flows. That proof is a points-to analysis, and a gate
+that grows into one quietly stops being a gate. What a static check cannot reach
+at all, `importlib.import_module("subprocess")` and a computed `getattr`, is
+listed in `mutations.py` with the other deliberately unmutated gaps rather than
+left implied: closing it needs a runtime audit hook, not a wider pattern.
 
 ### One malformed target costs one receipt
 
@@ -902,17 +955,31 @@ oracle, chosen by nothing but which `if` its filename fell into.
 name that no longer existed in the function it mutated, so every oracle died of
 `NameError` before a single policy compared anything — and "210/210 mutations
 killed" was arithmetically true and evidentially false, with one corpse a
-passer-by. A mutant must now parse; must not die of `NameError`, `ImportError`
-or a discovery failure; and must leave the oracle discovering the same number of
-tests as the baseline. Any of those is reported as `INVALID`, not as a kill.
+passer-by.
+
+The first repair listed the exception names to refuse, which was the wrong
+shape: `NameError` was on the list because a mutation had died of one, and
+tomorrow's `RuntimeError` would have been the next neighbouring defect found one
+at a time. Coherence is structural now. An `OracleResult` carries its label,
+kind, output and discovered test count, and **a suite run that never says how
+many tests it found did not get far enough to run any**, whatever it died of.
+Anything incoherent is reported as `INVALID` rather than as a kill.
+
+The rule is asked of the suite alone, and by oracle *kind* rather than by
+scanning all the output together. Several gate mutations exist precisely to make
+a gate die of a traceback instead of printing a report, so demanding a verdict
+line from a gate would refuse the very kill that proves the contract. Every
+target must therefore name a suite oracle to anchor coherence on, which
+`target_problems` checks.
 
 **Where the claim is about ownership, the kill is attributed.** `EXPECTED_KILL`
-names, for each such mutation, a test that must appear in the killing oracle's
-output; anything else is `MISATTRIBUTED`. That check earned itself immediately:
-five mutations were killed by something other than the contract they name, one
-of them because a coverage gate that reports nothing keeps its own green
-assertion green — so the test that proves it is the positive control, not the
-assertion that shares its subject.
+names, for each such mutation, a test that must appear in **the failing
+oracle's own output** — not in a concatenation of every oracle's, where a test
+id can arrive from a run that passed. Anything else is `MISATTRIBUTED`. That
+check earned itself immediately: five mutations were killed by something other
+than the contract they name, one of them because a coverage gate that reports
+nothing keeps its own green assertion green — so the test that proves it is the
+positive control, not the assertion that shares its subject.
 
 Both positive controls were extended rather than left to depend on the old
 limit: the discovery check runs a module that prints exactly one newline, and the
@@ -950,13 +1017,13 @@ the harness never runs would have been a certificate on a wall. Deleting an arm
 outright is the one thing no control can catch about itself, and it is listed
 with the others.
 
-The counts, from CI on the head this describes: **330 tests**, found identically
-by `python3 test_provider_matrix.py` and by `python3 -m unittest`; **218 of 218
+The counts, from CI on the head this describes: **340 tests**, found identically
+by `python3 test_provider_matrix.py` and by `python3 -m unittest`; **228 of 228
 mutations killed**, none of them invalid or misattributed; **120 durable-field
-policies** with **9 defective specimens refused** and no coverage gaps on either
-receipt kind; **49 JSON admission cases** against the live `serde_json` oracle,
-one of them refused here on purpose; and a byte-clean checkout asserted by a
-check that proves it can say otherwise.
+policies** with **9 defective specimens refused** and no coverage gaps in either
+direction on either receipt kind; **49 JSON admission cases** against the live
+`serde_json` oracle, one of them refused here on purpose; and a byte-clean
+checkout asserted by a check that proves it can say otherwise.
 
 Every classification above except `NO_TERMINAL_ANSWER` is reached in one table
 in `test_every_classification_is_declared`, and that one has its own
