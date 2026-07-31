@@ -449,10 +449,10 @@ gate rather than a paragraph.
 
 ### 1. Every durable field
 
-`receipt_policy.py` names **109 policies**, one per leaf either receipt kind may
-contain. A leaf no policy names is a finding, not a skip — which is the whole
-difference between an inventory and a spot check, because it means a field added
-next round stops the gate on the commit that adds it.
+`receipt_policy.py` names **120 policies**, one per node and one per leaf either
+receipt kind may contain. A path no policy names is a finding, not a skip —
+which is the whole difference between an inventory and a spot check, because it
+means a field added next round stops the gate on the commit that adds it.
 
 | policy kind | what it admits |
 | --- | --- |
@@ -460,11 +460,9 @@ next round stops the gate on the commit that adds it.
 | `Enum(name, values)` | a member of a closed local vocabulary |
 | `BoundedInt(low, high)` | an integer, **both** ends bounded, `bool` refused |
 | `Digest(domain)` | 64 hex under a domain declared in `EVIDENCE_DOMAINS` |
+| `Shape(kind)` | a container — an object or an array, empty or not |
 | `Prose(max_bytes)` | a rendered line — as defence in depth; see §3 |
 
-The audit runs over receipts the canary really produces: one scenario per
-reachable classification on both the probe and qualification paths, plus the
-guarded crash receipt, and the coverage of that scenario set is itself asserted.
 Provider-chosen material crosses only as a typed projection, never as itself.
 
 Running it found three things five rounds of review had not:
@@ -482,6 +480,44 @@ The context the audit checks against is assembled from the plan, the registry
 and the caller's own claim about which receipt it asked for — never from the
 receipt. A context read out of the artifact under audit confirms whatever the
 artifact says, and every `Local` policy degrades to *this value equals itself*.
+
+**A container is a path, and a key is durable.** The first version of `flatten`
+yielded leaves only, and said so as a principle: an empty list or object *has*
+no leaves, so inventing one would report on something the artifact does not
+contain. That was wrong, and a reviewer produced the counterexample to the
+round's own theorem —
+
+```python
+receipt["provider_said"] = {"sk-live-secret": {}}
+```
+
+— which yielded nothing at all, so the closed-world audit answered `[]` for an
+artifact carrying a provider-chosen **key**. A JSON key is written to the file
+exactly as a JSON value is; calling it "not a leaf" removed it from the check
+and not from disk. Every container is now a node with a path and a policy, so
+the table describes the *shape* of the artifact rather than only its scalars.
+
+Following from the same counterexample: an unknown-path finding projects every
+component the table does not declare, because a gate that prints the key it is
+refusing to persist has moved the leak into the CI log.
+
+**Coverage is asked of the table, not of the verdicts.** The first version
+asserted that the scenarios reached every classification and treated that as
+coverage. It is not: a classification is a verdict and a policy is a place.
+Twelve of the then hundred and nine policies were never produced by any
+generated receipt — `reported_model_type`, the per-turn failure-class
+projection, two of the three usage counters — so weakening any of the twelve
+left every gate green. Each policy now declares which receipt kinds it applies
+to, and `coverage_gaps()` subtracts the paths a real run produced from the paths
+that kind must be able to produce. The suite requires the difference to be empty
+**per receipt kind**: a qualification-only path satisfied by a qualification
+scenario says nothing about the probe, and a union would hide exactly that.
+
+The scenarios were then added until the gate stopped listing gaps, in that
+order — the other order is a sixth reviewed-site repair in a new jacket. The
+gate found something on its first run too: five top-level identity paths were
+declared for both receipt kinds when only the probe can produce them, so each
+was passing on the other's evidence.
 
 ### 2. Every verdict
 
@@ -556,8 +592,23 @@ per-call policy: `decode_output` for a child whose output contract is UTF-8, so
 invalid bytes are a typed failure; `decode_path` for git, whose filenames are
 arbitrary bytes by design. Failures never repeat what caused them, because
 `UnicodeDecodeError`'s message contains the offending bytes and a child's stderr
-is whatever the child chose to write. All four gate consumers are migrated onto
-it, and an AST gate refuses a new caller anywhere else.
+is whatever the child chose to write. All four gate consumers and the mutation
+harness are migrated onto it; the test suite is the one stated exemption,
+because it runs the CLI end to end and patches `subprocess.run` to prove the
+gates report rather than raise.
+
+The AST gate that enforces this began by matching the word `subprocess`, which
+made it an assertion about a module name under a docstring claiming a property:
+`os.system`, `os.popen`, `asyncio.create_subprocess_exec` and `pty.spawn` all
+start processes and all stayed green. A theorem quietly renamed after a
+counterexample is worth less than the counterexample, so the gate covers the
+direct standard-library launch surface — `subprocess.*`, the `os` exec/spawn/
+fork family, `asyncio.create_subprocess_*`, `multiprocessing`, `pty` — with
+alias resolution for both import spellings and a negative specimen per class.
+What a static check cannot reach, `importlib.import_module("subprocess")` and a
+computed `getattr`, is listed in `mutations.py` with the other deliberately
+unmutated gaps rather than left implied: closing it needs a runtime audit hook,
+not a wider pattern.
 
 ### One malformed target costs one receipt
 
@@ -842,12 +893,26 @@ and only by it. That was disclosed as a known limit for five rounds, which is
 another way of saying it had become a design decision — and it cost real
 coverage, since a mutation to a gate that the suite would have caught was
 reported as killed by a control that never looked. `MUTATION_TARGETS` now maps
-each mutable file to the oracles that may object to it; a mutation is killed
-when **any** of them turns red, and the harness reports which one did, because
-"it died" and "it died where I expected" are different facts and only the second
-is evidence. `process_boundary.py` answers to both gate self-tests *and* the
-suite; before the table it had exactly one oracle, chosen by nothing but which
-`if` its filename fell into.
+each mutable file to the oracles that may object to it, **every** one of them is
+asked, and the harness reports which ones did. `process_boundary.py` answers to
+both gate self-tests *and* the suite; before the table it had exactly one
+oracle, chosen by nothing but which `if` its filename fell into.
+
+**A kill is evidence only if the mutant was a program.** `DF9` referred to a
+name that no longer existed in the function it mutated, so every oracle died of
+`NameError` before a single policy compared anything — and "210/210 mutations
+killed" was arithmetically true and evidentially false, with one corpse a
+passer-by. A mutant must now parse; must not die of `NameError`, `ImportError`
+or a discovery failure; and must leave the oracle discovering the same number of
+tests as the baseline. Any of those is reported as `INVALID`, not as a kill.
+
+**Where the claim is about ownership, the kill is attributed.** `EXPECTED_KILL`
+names, for each such mutation, a test that must appear in the killing oracle's
+output; anything else is `MISATTRIBUTED`. That check earned itself immediately:
+five mutations were killed by something other than the contract they name, one
+of them because a coverage gate that reports nothing keeps its own green
+assertion green — so the test that proves it is the positive control, not the
+assertion that shares its subject.
 
 Both positive controls were extended rather than left to depend on the old
 limit: the discovery check runs a module that prints exactly one newline, and the
@@ -885,12 +950,13 @@ the harness never runs would have been a certificate on a wall. Deleting an arm
 outright is the one thing no control can catch about itself, and it is listed
 with the others.
 
-The counts, from CI on the head this describes: **322 tests**, found identically
-by `python3 test_provider_matrix.py` and by `python3 -m unittest`; **210 of 210
-mutations killed**; **109 durable-field policies** with **9 defective specimens
-refused**; **49 JSON admission cases** against the live `serde_json` oracle, one
-of them refused here on purpose; and a byte-clean checkout asserted by a check
-that proves it can say otherwise.
+The counts, from CI on the head this describes: **330 tests**, found identically
+by `python3 test_provider_matrix.py` and by `python3 -m unittest`; **218 of 218
+mutations killed**, none of them invalid or misattributed; **120 durable-field
+policies** with **9 defective specimens refused** and no coverage gaps on either
+receipt kind; **49 JSON admission cases** against the live `serde_json` oracle,
+one of them refused here on purpose; and a byte-clean checkout asserted by a
+check that proves it can say otherwise.
 
 Every classification above except `NO_TERMINAL_ANSWER` is reached in one table
 in `test_every_classification_is_declared`, and that one has its own
