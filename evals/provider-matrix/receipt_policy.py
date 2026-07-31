@@ -1099,27 +1099,42 @@ def require_receipt_kind(value: object) -> ReceiptKind:
     return value
 
 
+def policies_for(
+    kind: ReceiptKind, policies: list[DurableFieldPolicy] | None = None
+) -> list[DurableFieldPolicy]:
+    """The rows a receipt kind names — and the one place the kind is checked.
+
+    The guard was first written at all four public queries, which sounds like
+    defence in depth and is not: `coverage` calls `applicable_paths`, and
+    `coverage_gaps` calls `coverage`, so three of the four checks could be
+    deleted one at a time without a single proof going red. A check no proof
+    can distinguish from its own absence is not a check — it is a comment with
+    a runtime cost, and the mutation table said so.
+
+    So selection is the door, and every query goes through it. Bypassing this
+    function is now the mutation, and it is one each query can be caught doing.
+    """
+    kind = require_receipt_kind(kind)
+    return [
+        policy for policy in (POLICIES if policies is None else policies)
+        if kind in policy.schemas
+    ]
+
+
 def declared_paths(
     kind: ReceiptKind, policies: list[DurableFieldPolicy] | None = None
 ) -> frozenset[FieldPath]:
     """Every path this receipt kind is *allowed* to contain."""
-    kind = require_receipt_kind(kind)
-    return frozenset(
-        policy.path
-        for policy in (POLICIES if policies is None else policies)
-        if kind in policy.schemas
-    )
+    return frozenset(policy.path for policy in policies_for(kind, policies))
 
 
 def applicable_paths(
     kind: ReceiptKind, policies: list[DurableFieldPolicy] | None = None
 ) -> frozenset[FieldPath]:
     """Every path a receipt of this kind must be able to produce."""
-    kind = require_receipt_kind(kind)
     return frozenset(
-        policy.path
-        for policy in (POLICIES if policies is None else policies)
-        if kind in policy.schemas and policy.coverage_required
+        policy.path for policy in policies_for(kind, policies)
+        if policy.coverage_required
     )
 
 
@@ -1149,7 +1164,9 @@ def coverage(
     kind: ReceiptKind, reached: set[FieldPath],
     policies: list[DurableFieldPolicy] | None = None
 ) -> Coverage:
-    kind = require_receipt_kind(kind)
+    # No guard of its own: both queries below select through `policies_for`,
+    # which is where the kind is checked. A second check here would be one
+    # nothing could tell from its own absence.
     table = POLICIES if policies is None else policies
     required = applicable_paths(kind, policies)
     declared = declared_paths(kind, policies)
@@ -1168,7 +1185,7 @@ def coverage_gaps(
     kind: ReceiptKind, reached: set[FieldPath],
     policies: list[DurableFieldPolicy] | None = None
 ) -> list[str]:
-    return coverage(require_receipt_kind(kind), reached, policies).problems()
+    return coverage(kind, reached, policies).problems()
 
 
 def reached_paths(receipt: dict[str, Any]) -> set[FieldPath]:

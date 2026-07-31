@@ -1,4 +1,5 @@
 import argparse
+import contextlib
 import hashlib
 import http.client
 import io
@@ -5068,6 +5069,43 @@ class UsageCeilingTests(unittest.TestCase):
         self.assertEqual(
             receipt_policy.BoundedInt(0, "usage_ceiling").problems(over, context), [])
 
+    def counter_policies(self):
+        """The shipped rows for the three counters, keyed by counter name.
+
+        Asserting against a `BoundedInt` built here would prove only that
+        `BoundedInt` works. The claim is about the *table*: which ceiling each
+        counter was actually declared with, everywhere it appears.
+        """
+        found = {}
+        for policy in receipt_policy.POLICIES:
+            leaf = policy.path[-1]
+            if isinstance(leaf, receipt_policy.Key) and leaf.value in pm.USAGE_COUNTERS:
+                found.setdefault(leaf.value, set()).add(policy.kind)
+        return found
+
+    def test_every_shipped_counter_names_its_own_ceiling(self):
+        wanted = {"prompt_tokens": "prompt_ceiling",
+                  "completion_tokens": "completion_ceiling",
+                  "total_tokens": "usage_ceiling"}
+        found = self.counter_policies()
+        self.assertEqual(set(found), set(wanted))
+        for counter, ceiling in wanted.items():
+            with self.subTest(counter=counter):
+                self.assertEqual({kind.high for kind in found[counter]}, {ceiling})
+
+    def test_the_shipped_completion_row_refuses_a_count_past_the_generation(self):
+        """The slack a shared ceiling would have granted, taken from the table.
+
+        `completion_tokens` above the `max_tokens` this module asked for is a
+        finding; under one shared `usage_ceiling` it would sit comfortably
+        inside the bound and be recorded as an ordinary count.
+        """
+        context = self.context(pm.QUALIFY_SCHEMA, pm.MAX_RESPONSE_BYTES)
+        over = pm.QUALIFY_MAX_TOKENS + 1
+        self.assertLess(over, context["usage_ceiling"])
+        for kind in self.counter_policies()["completion_tokens"]:
+            self.assertTrue(kind.problems(over, context), kind)
+
     def test_no_counter_is_bounded_by_the_response_limit(self):
         """The two limits describe different things and must not be confused."""
         wide = self.context(pm.QUALIFY_SCHEMA, 4096)
@@ -5086,7 +5124,16 @@ class CoverageApiTests(unittest.TestCase):
     """
 
     def test_a_plain_string_is_refused_by_every_query(self):
-        for query in (receipt_policy.declared_paths, receipt_policy.applicable_paths):
+        """Every door, including the selector they all share.
+
+        The check lives at `policies_for` alone. Written at each of the four
+        public queries it was untestable: any three could be deleted and the
+        fourth would still raise, because they call one another. Here the
+        claim is the one that matters — no entry point admits a string —
+        and each query bypassing the selector is a mutation this notices.
+        """
+        for query in (receipt_policy.policies_for, receipt_policy.declared_paths,
+                      receipt_policy.applicable_paths):
             with self.subTest(query=query.__name__):
                 with self.assertRaisesRegex(TypeError, "a receipt kind is a ReceiptKind"):
                     query("probe")
@@ -5146,20 +5193,45 @@ class MutationTableValidatorTests(unittest.TestCase):
 
 
 class ChildProcessLivenessTests(unittest.TestCase):
-    """A child that reads the terminal must get EOF, not the deadline."""
+    """A child that reads the terminal must get EOF, not the deadline.
+
+    The first version of this test ran the child with whatever stdin the test
+    runner happened to have, which under CI is already `/dev/null`. It passed
+    with `stdin=None` restored — proving the runner's environment, not the
+    policy. So the parent is given a descriptor that would genuinely block:
+    a pipe nobody ever writes to and nobody closes. Inherited, the child waits
+    for the deadline; `DEVNULL` is the difference between the two outcomes.
+    """
 
     def test_a_child_reading_stdin_is_not_left_waiting(self):
         import time
-        script = "import sys\nprint(len(sys.stdin.read()))\n"
-        with tempfile.TemporaryDirectory() as td:
-            path = Path(td) / "reader.py"
-            path.write_text(script, encoding="utf-8")
+        read_fd, write_fd = os.pipe()
+        try:
+            saved = os.dup(0)
+        except OSError:  # a runner with no stdin at all
+            saved = None
+        try:
+            os.dup2(read_fd, 0)
             started = time.monotonic()
             proc = process_boundary.run_bytes(
-                [sys.executable, str(path)], timeout=30)
+                [sys.executable, "-c",
+                 "import sys; sys.stdout.write(str(len(sys.stdin.read())))"],
+                timeout=8)
+            elapsed = time.monotonic() - started
+        except process_boundary.ProcessTimeout:
+            self.fail("the child inherited a blocking stdin and waited out its deadline")
+        finally:
+            if saved is None:
+                with open(os.devnull, "rb") as null:
+                    os.dup2(null.fileno(), 0)
+            else:
+                os.dup2(saved, 0)
+                os.close(saved)
+            os.close(read_fd)
+            os.close(write_fd)
         self.assertEqual(proc.returncode, 0)
         self.assertEqual(proc.stdout.strip(), b"0")
-        self.assertLess(time.monotonic() - started, 20)
+        self.assertLess(elapsed, 8)
 
 
 class CleanTreeIsolationTests(unittest.TestCase):
@@ -5217,6 +5289,60 @@ class CleanTreeIsolationTests(unittest.TestCase):
                 # decorative.
                 hijacked = gate.repo_root(start=judged)
                 self.assertEqual(hijacked.resolve(), decoy.resolve())
+
+    def test_the_gate_that_actually_reports_is_the_one_under_test(self):
+        """`main`, not its parts. The parts were already isolated; `main` was not.
+
+        A test that calls `repo_root(env=env)` and `dirt(root, env=env)` proves
+        those two accept isolation — which they did before this round, while the
+        one caller that produces the verdict passed neither. So the gate is
+        copied into a dirty repository of its own and *run*, with `GIT_DIR`
+        pointing at a clean decoy. Ambient, it prints OK about the decoy; under
+        its own isolation it reports the tree it was asked about.
+        """
+        import importlib.util
+        with tempfile.TemporaryDirectory() as td:
+            home = Path(td) / "home"
+            home.mkdir()
+            env = self.gate().isolated_env(home)
+
+            def seed(root):
+                root.mkdir()
+                self.gate().must_git("init", "-q", cwd=root, env=env)
+                for key, value in (("user.email", "t@example"), ("user.name", "t"),
+                                   ("commit.gpgsign", "false")):
+                    self.gate().must_git("config", key, value, cwd=root, env=env)
+                (root / "seed.txt").write_text("seed\n", encoding="utf-8")
+                self.gate().must_git("add", "seed.txt", cwd=root, env=env)
+                self.gate().must_git("commit", "-qm", "seed", cwd=root, env=env)
+
+            judged = Path(td) / "judged"
+            seed(judged)
+            decoy = Path(td) / "decoy"
+            seed(decoy)
+
+            # The gate lives inside the tree it judges, so a copy of it is the
+            # dirt: an untracked file in `judged`, and nothing in `decoy`.
+            source = Path(__file__).resolve().parent / "check_clean_tree.py"
+            copied = judged / "check_clean_tree.py"
+            copied.write_bytes(source.read_bytes())
+
+            spec = importlib.util.spec_from_file_location("clean_tree_copy", copied)
+            module = importlib.util.module_from_spec(spec)
+            spec.loader.exec_module(module)
+
+            hostile = dict(os.environ, GIT_DIR=str(decoy / ".git"),
+                           GIT_WORK_TREE=str(decoy))
+            with patch.dict("os.environ", hostile, clear=False):
+                # The gate prints its verdict; the exit code is what is asserted.
+                with contextlib.redirect_stdout(io.StringIO()) as printed:
+                    verdict = module.main([])
+                self.assertIn("check_clean_tree.py", printed.getvalue())
+                # And the hijack is real: ambient, the gate resolves to the
+                # decoy, which is clean and would have been reported as OK.
+                self.assertEqual(module.repo_root(start=judged).resolve(),
+                                 decoy.resolve())
+        self.assertEqual(verdict, 1)
 
     def test_a_global_excludes_file_cannot_hide_untracked_leftovers(self):
         gate = self.gate()

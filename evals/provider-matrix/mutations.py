@@ -1281,9 +1281,26 @@ MUTATIONS = [
      "    if False:\n        raise TypeError(",
      "receipt_policy.py"),
 
-    ("CK2 coverage_gaps stops checking what it was handed",
-     "    return coverage(require_receipt_kind(kind), reached, policies).problems()",
-     "    return coverage(kind, reached, policies).problems()",
+    # The guard was first written at all four public queries, where three of the
+    # four were undistinguishable from their own absence — the queries call one
+    # another. It now has one site, and bypassing it is what each query can be
+    # caught doing.
+
+    ("CK2 declared_paths selects without going through the checked door",
+     "    return frozenset(policy.path for policy in policies_for(kind, policies))",
+     "    return frozenset(\n"
+     "        policy.path for policy in (POLICIES if policies is None else policies)\n"
+     "        if kind in policy.schemas)",
+     "receipt_policy.py"),
+
+    ("CK3 applicable_paths selects without going through the checked door",
+     "    return frozenset(\n"
+     "        policy.path for policy in policies_for(kind, policies)\n"
+     "        if policy.coverage_required\n"
+     "    )",
+     "    return frozenset(\n"
+     "        policy.path for policy in (POLICIES if policies is None else policies)\n"
+     "        if kind in policy.schemas and policy.coverage_required)",
      "receipt_policy.py"),
 
     # -- HG: the real verdict is as isolated as its control -----------------
