@@ -318,6 +318,16 @@ passes `isinstance(x, int)` and equals `1`, with the confidence usually reserved
 for bad APIs. `status` must be an `int` in 100..599, `body` exactly `bytes`,
 `body_bytes_observed` a non-negative `int`, `request_id` a `str`.
 
+A `str` — and nothing about how long. The check also refused a `request_id`
+past the local evidence bound, which turned a provider's choice of identifier
+length into a crash on this side. Length is not a well-formedness property: the
+producer is entitled to send an identifier of any size, and what this module
+owes is a bounded record of it, which `opaque_text` already produces —
+`request_id_bytes` with `request_id_oversize` beside it. A validator that
+refuses what the contract can represent is not stricter, it is narrower, and
+the difference shows up as a target that cannot be qualified for a reason that
+has nothing to do with the protocol.
+
 `b""` is a **complete empty body**, not a lost one. Inferring the stage from
 "is there a status" alone promoted `(503, None)` to `completed`, so a billed
 after-headers loss was reported as retryable `UNAVAILABLE`.
@@ -414,6 +424,19 @@ constant that would eventually lead its own life. The allowance is `limit + 1`,
 because `read_bounded` reads one past the limit deliberately to prove overflow;
 past that, a count is not something this contract can produce. The refusal never
 repeats the number it refused.
+
+The three usage counters then wanted the opposite correction. One shared
+`usage_ceiling` was computed from `response_limit`, which is a fact about the
+*response*, while `usage_bounds` bounds the counters by the size of the
+**request** this module sent — so a caller passing a small response limit made
+the auditor refuse a `prompt_tokens` the producer had every reason to admit.
+The same shared bound was slack for the other two: `completion_tokens` cannot
+exceed the `max_tokens` this module asked for, and a bound that says only "some
+number under the total" throws that away. Each counter now carries the bound
+that produced it — `prompt_ceiling` from `MAX_REQUEST_BYTES`,
+`completion_ceiling` from the per-kind generation limit, `usage_ceiling` their
+sum — so the auditor's ceiling is the producer's ceiling rather than a second
+number that happens to be larger.
 
 `failure_class` was the third time a shape check was mistaken for a statement
 about origin. First the field held a class name and the argument was that a peer
@@ -580,6 +603,18 @@ type now, `ReceiptKind`, and membership is checked at runtime rather than left
 to the annotation, which stands beside a program and offers moral support while
 it does as it pleases.
 
+**The check has one site, and that is not a stylistic preference.** It was first
+written at all four public queries, which looks like defence in depth and is
+not: `coverage` calls `applicable_paths` and `coverage_gaps` calls `coverage`,
+so any three of the four could be deleted one at a time with nothing going red.
+The mutation table said so out loud — a mutation removing the guard from
+`coverage_gaps` survived, because the guard below it caught the same string. A
+check no proof can distinguish from its own absence is not a check; it is a
+comment with a runtime cost, and it makes the next reader believe a property is
+enforced in four places when it is enforced in one. Selection is the door now
+— `policies_for` — every query goes through it, and *bypassing* it is a
+mutation each query can be caught committing.
+
 ### 2. Every verdict
 
 Eighteen `receipt.update(classification=...)` calls became one writer:
@@ -653,7 +688,12 @@ per-call policy: `decode_output` for a child whose output contract is UTF-8, so
 invalid bytes are a typed failure; `decode_path` for git, whose filenames are
 arbitrary bytes by design. Failures never repeat what caused them, because
 `UnicodeDecodeError`'s message contains the offending bytes and a child's stderr
-is whatever the child chose to write. All four gate consumers and the mutation
+is whatever the child chose to write. Children also get `stdin=DEVNULL` rather
+than the parent's descriptor: a child that reads the terminal used to block
+until its deadline, so a harness with a ten-minute timeout waited ten minutes
+to learn nothing, and on a machine with no terminal it would have failed for a
+third, unrelated reason. `DEVNULL` gives it an immediate EOF, which is the
+honest answer to "was anything typed". All four gate consumers and the mutation
 harness are migrated onto it; the test suite is the one stated exemption,
 because it runs the CLI end to end and patches `subprocess.run` to prove the
 gates report rather than raise.
@@ -1041,6 +1081,44 @@ than the contract they name, one of them because a coverage gate that reports
 nothing keeps its own green assertion green — so the test that proves it is the
 positive control, not the assertion that shares its subject.
 
+**Five ways to prove the wrong thing, found in one round.** The nine repairs
+this round arrived with nine new proofs, and the mutation table killed only
+five of them on the first pass. The four survivors — plus one more on the
+second pass — were not weak tests. Each asserted something true, and each held
+for a reason other than the property it was named after:
+
+* *A freshly built object instead of the shipped table.* The usage-ceiling test
+  constructed a `BoundedInt(0, "completion_ceiling")` and asked it to refuse an
+  oversized count. It does. That proves `BoundedInt` works; it says nothing
+  about which ceiling `completion_tokens` was *declared* with, so collapsing
+  the three ceilings back into one changed nothing the test looked at.
+* *One guard smeared across several mutually covering places.* Described above:
+  four checks, three of them deletable one at a time in silence.
+* *The parts instead of the caller that produces the verdict.* The clean-tree
+  regression exercised `repo_root` and `dirt` with an isolated environment.
+  Both accepted isolation before this round — `main`, the one caller that
+  actually reports, did not, and that was the entire defect. A test aimed at
+  the pieces cannot see a caller that fails to use them.
+* *A liveness test the environment had already satisfied.* The child was run
+  with whatever stdin the runner had, which under CI is already `/dev/null`,
+  so it passed with the inherited descriptor restored. The parent now gets a
+  pipe nobody writes to and nobody closes, which makes `DEVNULL` the difference
+  between the two outcomes rather than a preference.
+* *A mutation spec pointing at where the code used to be.* Moving the coverage
+  filter into `policies_for` orphaned `CV2`'s anchor. This one the harness
+  caught by itself — `anchor matched 0 times, not 1`, reported as unaccounted
+  rather than counted as a kill.
+
+The last is the reason the anchor check exists, and it is worth being explicit
+about what it bought: the run could have reported 256 of 256 by quietly
+counting a substitution that never happened. Refusing to improve its own
+statistic is a low bar for a person and a reasonable one for a harness.
+
+No earlier, faster anchor check was added alongside it. It would read the same
+pristine source the run already reads, and could differ from its absence only
+in how long the answer takes — which is precisely the objection this round
+raised against the guard written four functions deep.
+
 Both positive controls were extended rather than left to depend on the old
 limit: the discovery check runs a module that prints exactly one newline, and the
 clean-tree check builds itself a HOME configured to break it — commit signing
@@ -1051,6 +1129,19 @@ one that fails. Every setup command in that self-test goes through `must_git`:
 a preparation that did not happen used to surface as "a freshly committed tree
 was reported dirty", which is the gate diagnosing its own failure as a defect in
 the property it was checking.
+
+And the **real** verdict runs under the same isolation the control builds for
+itself. It did not, and the asymmetry was the defect in miniature: the control
+proved the check survives a hostile machine, while the invocation that actually
+reports ran with ambient `os.environ`. An inherited `GIT_DIR` or `GIT_WORK_TREE`
+points both `rev-parse` and `status` at somebody else's repository, and a global
+`core.excludesFile` hides untracked leftovers — after which the gate prints `OK`
+about a tree it never looked at. A committed `.gitignore` still applies; it is
+part of the reviewed tree, which is exactly the difference. The regression for
+it copies the gate into a dirty repository of its own and *runs* it under a
+hostile `GIT_DIR`, asserting both that the verdict is about the right tree and
+that the hijack it survives is real — a control that only proves the first half
+cannot tell isolation from decoration.
 
 `receipt_policy.py --self-test` is the third control, and it exists for the same
 reason as the other two: a table that has never refused anything is a table
@@ -1089,9 +1180,9 @@ the harness never runs would have been a certificate on a wall. Deleting an arm
 outright is the one thing no control can catch about itself, and it is listed
 with the others.
 
-The counts, from CI on the head this describes: **356 tests**, found identically
-by `python3 test_provider_matrix.py` and by `python3 -m unittest`; **242 of 242
-mutations killed**, none of them invalid or misattributed; **120 durable-field
+The counts, from CI on the head this describes: **378 tests**, found identically
+by `python3 test_provider_matrix.py` and by `python3 -m unittest`; **256 of 256
+mutations killed**, none of them invalid, misattributed or unanchored; **120 durable-field
 policies** with **9 defective specimens refused** and no coverage gaps in either
 direction on either receipt kind; **49 JSON admission cases** against the live
 `serde_json` oracle, one of them refused here on purpose; and a byte-clean
