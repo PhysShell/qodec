@@ -2697,6 +2697,60 @@ class ProviderControlledFailureTests(unittest.TestCase):
         self.assertNotEqual(receipt["classification"], "INTERNAL_ERROR")
         self.assertEqual(receipt["classification"], "RATE_LIMITED")
 
+    def nested_rejection(self, depth: int) -> bytes:
+        """A 400 body that names `tool_choice`, wrapped `depth` levels deep.
+
+        Valid JSON at any depth, and readable by `json.loads` at the depths used
+        here — which is the point. The old regression relied on a 40,000-level
+        body raising `RecursionError`, and CPython 3.14 parses that happily, so
+        removing the depth pre-scan stopped changing the answer and `U4`
+        survived. The mutation had been dying of a platform accident rather than
+        of the contract it names.
+
+        `MAX_JSON_DEPTH` is a *declared* boundary, so the specimen stands on it:
+        one level past it must not be read, one level inside it must.
+        """
+        # `error` stays at the top level, where the reader looks for it; the
+        # depth is in a sibling it never reads. Burying the error object itself
+        # would prove only that the reader does not dig, which is not the
+        # contract under test.
+        return (b'{"error":{"param":"tool_choice","message":"unsupported"},"pad":'
+                + b"[" * depth + b"]" * depth + b"}")
+
+    def test_the_lenient_reader_stops_at_the_depth_the_module_declares(self):
+        """The contract, not the interpreter's stack.
+
+        One level past `MAX_JSON_DEPTH` the body is not interpreted, so the
+        provider's own word about the tools is never seen and the rejection is
+        the ordinary one. One level inside it, the same body is read and the
+        cause is the specific one. The two classifications differ, which is what
+        makes the pre-scan's removal detectable on any Python.
+        """
+        # The surrounding object is one level of its own, so `MAX_JSON_DEPTH`
+        # brackets put the body exactly one past the boundary.
+        too_deep = self.nested_rejection(pm.MAX_JSON_DEPTH)
+        self.assertEqual(pm.json_nesting_depth(too_deep.decode()), pm.MAX_JSON_DEPTH + 1)
+        self.assertFalse(pm.provider_named_the_tools(too_deep))
+        admitted = self.nested_rejection(pm.MAX_JSON_DEPTH - 1)
+        self.assertEqual(pm.json_nesting_depth(admitted.decode()), pm.MAX_JSON_DEPTH)
+        self.assertTrue(pm.provider_named_the_tools(admitted))
+
+        deep = pm.qualify_target(target(), surface(), 30.0, 6, scripted([(400, too_deep, "")]))
+        self.assertEqual(deep["classification"], "PROVIDER_REJECTED")
+        shallow = pm.qualify_target(target(), surface(), 30.0, 6, scripted([(400, admitted, "")]))
+        self.assertEqual(shallow["classification"], "TOOL_CHOICE_UNSUPPORTED")
+
+    def test_the_depth_specimen_does_not_depend_on_a_recursion_error(self):
+        """If the interpreter can read it, the *gate* is what refused it."""
+        import json as _json
+
+        too_deep = self.nested_rejection(pm.MAX_JSON_DEPTH)
+        try:
+            _json.loads(too_deep)
+        except RecursionError:  # pragma: no cover — depends on the interpreter
+            self.fail("the specimen must be readable, or it tests the stack again")
+        self.assertGreater(pm.json_nesting_depth(too_deep.decode()), pm.MAX_JSON_DEPTH)
+
     def test_a_lenient_read_still_recognises_a_normal_dialect_rejection(self):
         """Totality must not be bought by refusing to read anything."""
         body = b'{"error":{"param":"tool_choice","message":"unsupported"}}'
@@ -3712,6 +3766,30 @@ class DurableFieldInventoryTests(unittest.TestCase):
                 receipt_policy.P("x"), receipt_policy.Digest("invented"))])
         self.assertTrue(any("not declared in EVIDENCE_DOMAINS" in p for p in problems), problems)
 
+    def test_a_receipt_kind_the_table_does_not_know_stops_the_gate(self):
+        """`schemas=("proeb",)` put a policy in neither universe.
+
+        One transposition, and both directions of the coverage proof went green
+        by the policy vanishing from each of them: demanded of no kind, declared
+        for no kind. The vocabulary is a closed type now, and membership is
+        checked at runtime — an annotation stands beside a program and offers
+        moral support while it does as it pleases.
+        """
+        for bad in (("proeb",), ("probe", "qualifcation"), ("PROBE",), (None,), (1,)):
+            with self.subTest(schemas=bad):
+                problems = receipt_policy.policy_problems(
+                    [receipt_policy.DurableFieldPolicy(
+                        receipt_policy.P("x"), receipt_policy.Flag(), bad)])
+                self.assertTrue(any("is not a receipt kind" in p for p in problems), problems)
+        empty = receipt_policy.policy_problems(
+            [receipt_policy.DurableFieldPolicy(
+                receipt_policy.P("x"), receipt_policy.Flag(), ())])
+        self.assertTrue(any("applies to no receipt kind" in p for p in empty), empty)
+        # And every kind in the shipped table is a member of the closed type.
+        for policy in receipt_policy.POLICIES:
+            for kind in policy.schemas:
+                self.assertIsInstance(kind, receipt_policy.ReceiptKind, policy.named())
+
     def test_a_coverage_opt_out_without_a_reason_stops_the_gate(self):
         """An escape hatch from the closed world has to be argued for in writing."""
         excused = [receipt_policy.DurableFieldPolicy(
@@ -3995,15 +4073,25 @@ class ProcessBoundaryOwnershipTests(unittest.TestCase):
         "pty": frozenset({"spawn", "fork"}),
     }
 
-    def modules(self):
+    def modules(self, root=None):
         """Every module in the vertical, nested ones included.
 
         `glob("*.py")` saw only the top level, so a future
         `helpers/runner.py` could call `subprocess.run` with this gate green —
         the ownership claim would have been true of one directory and asserted
         of a package.
+
+        `root` is a parameter so the test that proves the enumeration reaches a
+        nested module can build one somewhere else. The first version wrote a
+        `nested_probe_dir` into the directory under test and removed it in a
+        `finally`: harmless alone, and not harmless at all beside the mutation
+        harness, which copies this tree while the suite may be running. A copy
+        taken mid-test carried a nested `import subprocess` and turned the
+        ownership gate red in a run that had nothing to do with it — a test that
+        can make an unrelated gate fail is a test whose failures get blamed on
+        the gate.
         """
-        here = Path(__file__).resolve().parent
+        here = Path(root) if root is not None else Path(__file__).resolve().parent
         return sorted(
             path for path in here.rglob("*.py")
             if "__pycache__" not in path.parts
@@ -4045,14 +4133,49 @@ class ProcessBoundaryOwnershipTests(unittest.TestCase):
                         changed = True
         return names
 
-    def subprocess_uses(self, path):
-        """Every direct standard-library process launch in one module.
+    def escapes_the_grammar(self, tree, modules):
+        """Every place a launcher leaves the shapes this gate can read.
 
-        Aliases are resolved rather than assumed away, including plain
-        assignment. Storing a launcher in an attribute or a subscript is itself
-        a finding: proving where such a value eventually flows is a points-to
-        analysis, and a gate that grows into one quietly stops being a gate.
+        The first version resolved `import x as y` and then `a = b`, and a
+        reviewer immediately produced three more spellings: tuple unpacking, a
+        walrus, a parameter default. Adding an `if` for each would have been the
+        next round's finding — `for launcher in [os]`, `run(os)`, `return os`,
+        `box = [os]`, `yield subprocess` — because the list of ways to move a
+        value in Python is not a list anybody finishes.
+
+        So the gate states what is *allowed* instead. Outside the boundary a
+        launcher may only be imported, aliased by plain `name = name`, and
+        inspected directly as an attribute. Every other movement is a finding on
+        its own — not because the value is proven to reach a launch, but because
+        it has left the grammar in which that could be proven, and a gate that
+        tries to follow it becomes a points-to analysis and stops being a gate.
         """
+        import ast
+        parents = {child: node
+                   for node in ast.walk(tree)
+                   for child in ast.iter_child_nodes(node)}
+        out = []
+        for node in ast.walk(tree):
+            if not (isinstance(node, ast.Name) and isinstance(node.ctx, ast.Load)):
+                continue
+            if node.id not in modules:
+                continue
+            parent = parents.get(node)
+            # Inspected directly: `os.fsdecode`, `subprocess.run`. Whether the
+            # attribute is a launch is the other rule's business.
+            if isinstance(parent, ast.Attribute):
+                continue
+            # The alias rule, and only in its plain form: every target a bare
+            # name, so `a, b = os, asyncio` is not it.
+            if (isinstance(parent, ast.Assign) and parent.value is node
+                    and all(isinstance(goal, ast.Name) for goal in parent.targets)):
+                continue
+            out.append(
+                f"a launcher leaves the inspected grammar at line {node.lineno}")
+        return out
+
+    def subprocess_uses(self, path):
+        """Every direct standard-library process launch in one module."""
         import ast
         tree = ast.parse(path.read_text(encoding="utf-8"))
         uses = []
@@ -4072,12 +4195,7 @@ class ProcessBoundaryOwnershipTests(unittest.TestCase):
                 module = modules.get(node.value.id, node.value.id)
                 if self.launches(module, node.attr):
                     uses.append(f"{module}.{node.attr} at line {node.lineno}")
-            # `holder.launcher = os` / `mapping["x"] = subprocess`
-            if isinstance(node, ast.Assign) and isinstance(node.value, ast.Name):
-                if modules.get(node.value.id) and any(
-                        isinstance(goal, (ast.Attribute, ast.Subscript)) for goal in node.targets):
-                    uses.append(
-                        f"a launcher stored out of reach at line {node.lineno}")
+        uses.extend(self.escapes_the_grammar(tree, modules))
         return uses
 
     def test_no_module_but_the_boundary_starts_a_process(self):
@@ -4090,18 +4208,18 @@ class ProcessBoundaryOwnershipTests(unittest.TestCase):
         found = self.modules()
         self.assertIn(here / "receipt_policy.py", found)
         self.assertNotIn(here / "process_boundary.py", found)
-        nested = here / "nested_probe_dir"
-        nested.mkdir(exist_ok=True)
-        try:
+        with tempfile.TemporaryDirectory() as td:
+            root = Path(td)
+            (root / "process_boundary.py").write_text("import subprocess\n", encoding="utf-8")
+            nested = root / "helpers"
+            nested.mkdir()
             (nested / "runner.py").write_text("import subprocess\n", encoding="utf-8")
-            self.assertIn(nested / "runner.py", self.modules())
-            # And a nested file wearing an exempt name is not exempt.
-            (nested / "test_provider_matrix.py").write_text("import os\n", encoding="utf-8")
-            self.assertIn(nested / "test_provider_matrix.py", self.modules())
-        finally:
-            for leftover in nested.glob("*"):
-                leftover.unlink()
-            nested.rmdir()
+            self.assertIn(nested / "runner.py", self.modules(root))
+            # The exemption is a relative path, so the real one is exempt...
+            self.assertNotIn(root / "process_boundary.py", self.modules(root))
+            # ...and a nested file wearing its name is not.
+            (nested / "process_boundary.py").write_text("import os\n", encoding="utf-8")
+            self.assertIn(nested / "process_boundary.py", self.modules(root))
 
     def test_the_gate_would_notice_every_class_of_new_caller(self):
         specimens = {
@@ -4122,9 +4240,20 @@ class ProcessBoundaryOwnershipTests(unittest.TestCase):
             "a rebound module": "import os\nlauncher = os\nlauncher.system('ls')\n",
             "a twice-rebound module":
                 "import os\nlauncher = os\nagain = launcher\nagain.system('ls')\n",
-            # stored out of static reach: a finding in itself
+            # left the inspected grammar: a finding in itself, because a gate
+            # that follows the value from here is a points-to analysis
             "stored on an attribute": "import os\nholder.launcher = os\n",
             "stored in a mapping": "import subprocess\nmapping['x'] = subprocess\n",
+            "tuple unpacking": "import os\nimport asyncio\na, b = os, asyncio\n",
+            "a parameter default": "import os\ndef run(launcher=os):\n    pass\n",
+            "a walrus": "import os\n(launcher := os).getcwd()\n",
+            "a for target": "import os\nfor launcher in [os]:\n    pass\n",
+            "a call argument": "import subprocess\nhelper(subprocess)\n",
+            "a return": "import os\ndef give():\n    return os\n",
+            "a yield": "import subprocess\ndef give():\n    yield subprocess\n",
+            "a container literal": "import os\nbox = [os]\n",
+            "a globals write": "import os\nglobals()['x'] = os\n",
+            "a launcher callable stored": "import os\nholder.launcher = os.system\n",
         }
         with tempfile.TemporaryDirectory() as td:
             for name, source in specimens.items():
@@ -4583,6 +4712,227 @@ class DetailProvenanceTests(unittest.TestCase):
         self.assertNotEqual(receipt["classification"], "PASS")
         probe = self.inventory()
         self.assertEqual(probe.audit(receipt, target(), probe.registry_entry()), [])
+
+
+class TransportTotalityTests(unittest.TestCase):
+    """Nothing the peer does to the socket may become an `INTERNAL_ERROR`.
+
+    Round nine caught `IncompleteRead` on the body reads. Round eleven caught
+    the rest of the `HTTPException` family at `open`. This is the third member
+    of the same family and it was found the same way — by a reviewer, not by the
+    list growing on its own: urllib wraps a failure to *connect* in `URLError`,
+    and does not wrap a failure that happens once the socket is already up. A
+    peer that resets while the status line is being read raises
+    `ConnectionResetError` straight out of `open`.
+    """
+
+    def rude_server(self, reply: bytes):
+        """A listener that answers with `reply` and then sends an RST."""
+        import socket
+        import struct
+        import threading
+
+        listener = socket.socket()
+        listener.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
+        listener.bind(("127.0.0.1", 0))
+        listener.listen(1)
+
+        def serve():
+            try:
+                conn, _ = listener.accept()
+            except OSError:  # pragma: no cover — the listener closed first
+                return
+            with conn:
+                conn.recv(65536)
+                if reply:
+                    conn.sendall(reply)
+                # SO_LINGER with a zero timeout makes `close` send RST rather
+                # than FIN, which is what a peer dropping a connection mid-reply
+                # actually does.
+                conn.setsockopt(socket.SOL_SOCKET, socket.SO_LINGER,
+                                struct.pack("ii", 1, 0))
+        thread = threading.Thread(target=serve, daemon=True)
+        thread.start()
+        self.addCleanup(listener.close)
+        self.addCleanup(thread.join, 5)
+        return listener.getsockname()[1]
+
+    def test_a_reset_while_the_status_line_is_read_never_escapes(self):
+        """The real socket, not a patched exception.
+
+        A partial status line followed by RST is what the defect needs, and a
+        stand-in cannot be trusted to reproduce it — the point of the finding
+        was that the exception arrives from a place nobody had modelled.
+
+        What is asserted is the contract, not the scheduler. Whether the reset
+        lands while urllib is still writing the request or already reading the
+        status line decides between `before-response` and `response-framing`,
+        and that is the kernel's timing rather than this module's rule. Both are
+        typed transport results with a local reason; neither is an exception out
+        of `send_json`. The exact stage mapping is pinned deterministically by
+        `test_the_broad_catch_sits_below_the_narrow_one`.
+        """
+        port = self.rude_server(b"HTTP/1.1 20")
+        sent = pm.send_json(
+            f"http://127.0.0.1:{port}/v1/chat/completions", b"{}", "k", 5.0)
+        self.assertIn(sent.stage, ("before-response", "response-framing"))
+        self.assertIn(sent.reason, pm.TRANSPORT_REASONS)
+        self.assertIn(sent.failure_kind, pm.TRANSPORT_FAILURE_KINDS)
+        self.assertIsNone(sent.status)
+        # Whatever it says about the failure is a class name, never the peer's.
+        self.assertEqual(pm.validate_send_result(sent), sent)
+
+    def test_a_reset_with_no_reply_at_all_is_still_a_transport_result(self):
+        port = self.rude_server(b"")
+        sent = pm.send_json(
+            f"http://127.0.0.1:{port}/v1/chat/completions", b"{}", "k", 5.0)
+        self.assertIn(sent.stage, ("before-response", "response-framing"))
+        self.assertIn(sent.reason, pm.TRANSPORT_REASONS)
+
+    def resetting_sender(self):
+        """A `send` that really opens a socket, against a peer that resets it.
+
+        The registry refuses a non-https origin, and rightly — so the local
+        listener is reached through the injected sender rather than by weakening
+        the rule that keeps the credential off plain HTTP. What is exercised is
+        still `send_json` itself, which is where the defect was.
+        """
+        port = self.rude_server(b"HTTP/1.1 20")
+
+        def send(_url, body, timeout):
+            return pm.send_json(
+                f"http://127.0.0.1:{port}/v1/chat/completions", body, "k", timeout)
+        return send
+
+    def test_the_probe_classifies_a_reset_rather_than_blaming_itself(self):
+        result = pm.guarded_receipt(
+            pm.PROBE_SCHEMA, probe_row({}),
+            lambda: pm.probe_target(probe_row({}), 5.0, self.resetting_sender(), registry()))
+        self.assertNotEqual(result["classification"], "INTERNAL_ERROR")
+        self.assertEqual(result["classification"], "RESPONSE_CAPTURE_FAILED")
+        self.assertEqual(result["transport_reason"], "http-framing-failure")
+
+    def test_the_qualification_classifies_a_reset_rather_than_blaming_itself(self):
+        receipt = pm.guarded_receipt(
+            pm.QUALIFY_SCHEMA, target(),
+            lambda: pm.qualify_target(
+                target(), surface(), 5.0, 6, self.resetting_sender()))
+        self.assertNotEqual(receipt["classification"], "INTERNAL_ERROR")
+        self.assertEqual(receipt["classification"], "RESPONSE_CAPTURE_FAILED")
+        self.assertEqual(receipt["turns"][0]["transport_reason"], "http-framing-failure")
+
+    def test_the_broad_catch_sits_below_the_narrow_one(self):
+        """`URLError` is an `OSError`, so order is the contract.
+
+        A broad clause above a narrow one swallows it silently, and `URLError`
+        carries a `reason` this module reads to tell a timeout from a refusal.
+        """
+        with patch.object(pm._OPENER, "open",
+                          side_effect=urllib.error.URLError(TimeoutError())):
+            sent = pm.send_json("https://x/v1/chat/completions", b"{}", "k", 1.0)
+        self.assertEqual(sent.reason, "timeout")
+        self.assertEqual(sent.stage, "before-response")
+        with patch.object(pm._OPENER, "open", side_effect=ConnectionResetError(104, "reset")):
+            sent = pm.send_json("https://x/v1/chat/completions", b"{}", "k", 1.0)
+        self.assertEqual(sent.reason, "http-framing-failure")
+
+    def test_the_failure_message_never_repeats_what_the_peer_sent(self):
+        secret = "sk-live-not-a-real-key"
+        with patch.object(pm._OPENER, "open",
+                          side_effect=ConnectionResetError(104, f"reset {secret}")):
+            sent = pm.send_json("https://x/v1/chat/completions", b"{}", "k", 1.0)
+        self.assertNotIn(secret, sent.detail)
+        self.assertEqual(sent.detail, "HTTP framing failure: ConnectionResetError")
+        self.assertEqual(sent.failure_class, "ConnectionResetError")
+
+
+class ModelIdentityTests(unittest.TestCase):
+    """`present` and `a digest-bearing string substitution` are different facts.
+
+    Three readers used to answer the identity question separately and disagree.
+    `model_evidence` called a non-string `model` present and wrote no digest;
+    `model_status_of` called the same value missing; and the terminal-answer
+    path assumed every present-and-not-verified entry carried a digest, so
+    `model: {}` raised `KeyError` and `guarded_receipt` filed a run the provider
+    broke as a defect in this tool.
+    """
+
+    def answer_run(self, first, second):
+        def reply(model, tool, arguments, call_id):
+            return (200, json.dumps({"model": model, "choices": [{"message": {
+                "role": "assistant", "content": None,
+                "tool_calls": [call(tool, arguments, call_id)]}}]}).encode(), "")
+
+        return pm.qualify_target(target(), surface(), 30.0, 6, scripted([
+            reply(first, "qodec_intersect", INTERSECT_ARGS, "call_op"),
+            reply(second, "qodec_answer", ANSWER_ARGS, "call_ans"),
+        ]))
+
+    def test_a_non_string_model_reaching_a_terminal_answer_is_a_substitution(self):
+        """Not `INTERNAL_ERROR`, not `MODEL_IDENTITY_MISSING`, and not `PASS`."""
+        for name, model in (("object", {}), ("nested object", {"name": "x"}),
+                            ("array", []), ("number", 17), ("boolean", True)):
+            with self.subTest(model=name):
+                receipt = self.answer_run(model, model)
+                self.assertEqual(receipt["classification"], "PROVIDER_SUBSTITUTED")
+                self.assertEqual(receipt["decision_reason"], "identity-substituted")
+                self.assertEqual(receipt["detail_template"], "identity-substituted-nontext")
+
+    def test_a_run_that_saw_both_kinds_of_drift_says_so(self):
+        receipt = self.answer_run("somebody-elses-model", {})
+        self.assertEqual(receipt["classification"], "PROVIDER_SUBSTITUTED")
+        self.assertEqual(receipt["detail_template"], "identity-substituted-mixed")
+        self.assertIn(pm.DigestRef.of(
+            pm.evidence_digest("model-name", "somebody-elses-model")).render(),
+            receipt["detail"])
+        self.assertIn("object", receipt["detail"])
+        self.assertNotIn("somebody-elses-model", json.dumps(receipt))
+
+    def test_a_text_only_drift_keeps_the_template_it_always_had(self):
+        receipt = self.answer_run("somebody-elses-model", "somebody-elses-model")
+        self.assertEqual(receipt["detail_template"], "identity-substituted")
+
+    def test_the_three_readers_of_identity_agree(self):
+        """One classifier, and the rest are projections of it.
+
+        The disagreement was the defect: `present: True` from one function and
+        `missing` from another described the same response.
+        """
+        for reported in ({}, [], 17, True, "other", "", None, "openai/gpt-oss-120b"):
+            with self.subTest(reported=repr(reported)):
+                identity = pm.model_identity("openai/gpt-oss-120b", reported)
+                evidence = pm.model_evidence("openai/gpt-oss-120b", reported)
+                status = pm.model_status_of("openai/gpt-oss-120b", reported)
+                self.assertEqual(status, pm.status_of_identity(identity))
+                present = evidence["reported_model_present"]
+                self.assertEqual(present, not isinstance(identity, pm.MissingModel))
+                # A digest is written exactly when the substitution is a name.
+                self.assertEqual("reported_model_sha256" in evidence,
+                                 isinstance(identity, pm.TextSubstitution))
+                # A JSON type is written exactly when it is not.
+                self.assertEqual("reported_model_type" in evidence,
+                                 isinstance(identity, pm.NonTextModel))
+
+    def test_an_empty_model_name_establishes_nothing_and_says_only_that(self):
+        """It used to be `present: True` and `missing` at the same time."""
+        self.assertIsInstance(pm.model_identity("m", ""), pm.MissingModel)
+        self.assertEqual(pm.model_evidence("m", ""),
+                         {"reported_model": None, "reported_model_present": False})
+        receipt = self.answer_run("", "")
+        self.assertEqual(receipt["classification"], "MODEL_IDENTITY_MISSING")
+
+    def test_the_probe_agrees_with_the_qualification_about_a_non_string_model(self):
+        body = json.dumps({"model": {"name": "x"},
+                           "choices": [{"message": {"content": "QODEC_PROBE_OK"}}]}).encode()
+        result = pm.probe_target(
+            probe_row({}), 1, scripted([(200, body, "", "completed")]), registry())
+        self.assertEqual(result["classification"], "PROVIDER_SUBSTITUTED")
+        self.assertEqual(result["model_status"], "drifted")
+        self.assertEqual(result["reported_model_type"], "object")
+
+    def test_the_same_other_model_twice_is_one_finding(self):
+        receipt = self.answer_run("somebody-elses-model", "somebody-elses-model")
+        self.assertEqual(receipt["detail"].count("the provider reported 1 other model(s)"), 1)
 
 
 if __name__ == "__main__":

@@ -229,6 +229,12 @@ class DigestRef:
             raise ValueError("a digest reference is built from a sha256 digest")
         return cls(digest[:16])
 
+    @classmethod
+    def of_reference(cls, reference: "OpaqueRef") -> "DigestRef":
+        """A reference already carries a shortened digest; borrow it rather
+        than shorten anything a second time."""
+        return cls(reference.digest16)
+
     def render(self) -> str:
         return self.digest16
 
@@ -412,6 +418,72 @@ def normalize_provider_usage(value: Any, bounds: dict[str, int]) -> dict[str, in
     return counts
 
 
+@dataclass(frozen=True)
+class VerifiedModel:
+    """The provider named the model that was asked for."""
+
+
+@dataclass(frozen=True)
+class MissingModel:
+    """The provider named nothing usable — an absent field, or an empty name."""
+
+
+@dataclass(frozen=True)
+class TextSubstitution:
+    """The provider named a *different* model.
+
+    The name is kept raw and ephemeral, exactly as `SendResult.failure_class`
+    is: the consumer projects it at the boundary, and nothing here reaches a
+    receipt without going through `opaque`.
+    """
+
+    name: str
+
+    def reference(self) -> OpaqueRef:
+        return opaque_ref("model-name", self.name)
+
+
+@dataclass(frozen=True)
+class NonTextModel:
+    """`model` carried an object, a list or a number. Not a name at all."""
+
+    json_type: str
+
+
+def model_identity(
+    requested: str, reported: Any
+) -> "VerifiedModel | MissingModel | TextSubstitution | NonTextModel":
+    """What the provider said about identity — as a sum type, once.
+
+    Three functions used to answer this question separately and disagree about
+    the answer. `model_evidence` reported `reported_model_present: True` for a
+    non-string `model` and wrote no digest beside it; `model_status_of` called
+    the same value `missing`; and the terminal-answer path assumed every entry
+    that was present-but-not-verified carried a digest, so `model: {}` raised
+    `KeyError` and `guarded_receipt` filed it as `INTERNAL_ERROR` — a run the
+    provider broke, blamed on this tool.
+
+    `.get()` at the indexing site would have made the crash go away and left the
+    disagreement in place: *present* and *digest-bearing string substitution*
+    are not the same fact, and the type is where that has to be said. Every
+    other reader is now a projection of this one.
+
+    An empty string is `MissingModel` rather than a substitution. It is a value
+    the provider sent, and it establishes no identity; the old pair said both
+    at once — `present: True` from one function and `missing` from the other.
+    """
+    if isinstance(reported, str):
+        if reported == requested:
+            return VerifiedModel()
+        return MissingModel() if not reported else TextSubstitution(reported)
+    if reported is None:
+        return MissingModel()
+    # An object or a list in `model` is not an identifier to hash — the
+    # contract says unrecognised structures do not cross, and hashing one
+    # would have been the boundary quietly making an exception for itself.
+    return NonTextModel(json_type_name(reported))
+
+
 def model_evidence(requested: str, reported: Any) -> dict[str, Any]:
     """The reported model, kept as text only when it is the one we asked for.
 
@@ -420,20 +492,18 @@ def model_evidence(requested: str, reported: Any) -> dict[str, Any]:
     choice — including, if it likes, the bearer token — and crosses as evidence.
     `model_status` beside it says which case this is.
     """
-    if isinstance(reported, str) and reported == requested:
+    identity = model_identity(requested, reported)
+    if isinstance(identity, VerifiedModel):
         return {"reported_model": requested, "reported_model_present": True}
-    if isinstance(reported, str):
-        return {"reported_model": None, **opaque("reported_model", "model-name", reported)}
-    if reported is None:
+    if isinstance(identity, TextSubstitution):
+        return {"reported_model": None, **opaque("reported_model", "model-name", identity.name)}
+    if isinstance(identity, MissingModel):
         return {"reported_model": None, "reported_model_present": False}
-    # An object or a list in `model` is not an identifier to hash — the
-    # contract says unrecognised structures do not cross, and hashing one
-    # would have been the boundary quietly making an exception for itself.
     # Its JSON type is a local word and is all that crosses.
     return {
         "reported_model": None,
         "reported_model_present": True,
-        "reported_model_type": json_type_name(reported),
+        "reported_model_type": identity.json_type,
     }
 
 
@@ -1503,7 +1573,11 @@ def capture_detail(prefix: str, exc: BaseException) -> str:
     fact about our own stack and says everything the reader needs; the malformed
     wire is the provider's choice and has no business being kept.
     """
-    if isinstance(exc, http.client.HTTPException):
+    # `OSError` joins it for the same reason at one remove: `strerror` is the
+    # platform's, but the exception is raised while reading what the peer sent,
+    # and a rule that keeps a class name for one framing failure and free text
+    # for the one beside it is a rule with an exception nobody wrote down.
+    if isinstance(exc, (http.client.HTTPException, OSError)):
         return f"{prefix}: {type(exc).__name__}"
     return str(exc)
 
@@ -1579,12 +1653,26 @@ def send_json(url: str, body: bytes, key: str, timeout: float, limit: int = MAX_
                 reason if isinstance(reason, BaseException) else exc,
             ),
         )
-    except http.client.HTTPException as exc:
+    except (OSError, http.client.HTTPException) as exc:
         # `BadStatusLine`, `LineTooLong` and the rest of the framing family
         # derive from `HTTPException`, not from `OSError`, and urllib re-raises
         # them rather than wrapping them in `URLError` — so they escaped every
         # handler here and `guarded_receipt` filed provider-controlled wire
         # corruption as `INTERNAL_ERROR`, a defect in this tool.
+        #
+        # `OSError` joins them for the same reason one field over, and it was
+        # found the same way — by a reviewer, not by this list growing on its
+        # own. A peer that resets the connection *while the status line is being
+        # read* raises `ConnectionResetError` straight out of `open`: urllib
+        # wraps a failure to *connect* in `URLError`, and does not wrap a
+        # failure that happens after the socket is already up. Both body reads
+        # had caught `OSError` since round nine; this boundary had not, so the
+        # one place the peer can still break the exchange without being named
+        # was the first line of its reply.
+        #
+        # After `URLError`, which is itself an `OSError`: a broad clause above a
+        # narrow one silently swallows the narrow one, and `URLError` carries a
+        # `reason` this module reads.
         return SendResult(
             None, None, capture_detail("HTTP framing failure", exc), "response-framing",
             reason="http-framing-failure", **failure_evidence("http-framing-error", exc),
@@ -1947,6 +2035,10 @@ def slot_problem(slot: str, value: Any) -> str | None:
     if slot == "digests":
         return (None if isinstance(value, tuple) and all(isinstance(v, DigestRef) for v in value)
                 else "is not a tuple of digest references")
+    if slot == "types":
+        known = tuple(name for _, name in JSON_TYPE_NAMES) + ("null", "unknown")
+        return (None if isinstance(value, tuple) and value and all(v in known for v in value)
+                else "is not a tuple of JSON type names")
     if slot == "type":
         return None if isinstance(value, TypeName) else "is not a type name"
     if slot == "discriminator":
@@ -1980,6 +2072,8 @@ def render_slot(slot: str, value: Any) -> str:
         return value.render()
     if slot in ("refs", "digests"):
         return ", ".join(item.render() for item in value)
+    if slot == "types":
+        return ", ".join(value)
     if slot == "details":
         return "; ".join(item.render() for item in value)
     if slot == "kinds":
@@ -2012,6 +2106,11 @@ DETAIL_TEMPLATES: dict[str, tuple[str, tuple[str, ...]]] = {
     # -- qualification outcome --
     "unmappable-completion": ("unmappable 2xx completion: {0}", ("enum:COMPLETION_PARSE_KINDS",)),
     "identity-substituted": ("the provider reported {0} other model(s): {1}", ("count", "digests")),
+    "identity-substituted-nontext": (
+        "the provider put {0} non-model value(s) in `model`: {1}", ("count", "types")),
+    "identity-substituted-mixed": (
+        "the provider reported {0} other model(s): {1}, and {2} non-model value(s): {3}",
+        ("count", "digests", "count", "types")),
     "identity-unestablished": (
         "no successful response named a model; the protocol held but the identity "
         "of what produced it is unestablished", ()),
@@ -2237,7 +2336,31 @@ class AnswerFacts:
 
     model_status: str
     canary_errors: tuple["LocalDetail", ...]
+    # Two tuples, because a substitution does not always carry a digest. The
+    # terminal-answer path used to assume it did — every entry that was present
+    # and not verified was indexed for `reported_model_sha256` — and a `model`
+    # holding an object raised `KeyError` into `INTERNAL_ERROR`. Presence and
+    # digest-bearing-string-substitution are different facts; the type is where
+    # that is said, rather than a `.get()` at the site that noticed.
     substituted_digests: tuple["DigestRef", ...]
+    substituted_types: tuple[str, ...] = ()
+
+
+def drift_detail(
+    digests: tuple["DigestRef", ...], types: tuple[str, ...]
+) -> "LocalDetail":
+    """What drifted, in whichever of the three shapes actually occurred.
+
+    A run can see a different model *name*, a non-name value in `model`, or
+    both across its turns. One template assuming digests could not say the
+    second, and `{}` in `model` is exactly how a provider produces it.
+    """
+    if digests and types:
+        return LocalDetail(
+            "identity-substituted-mixed", (len(digests), digests, len(types), types))
+    if types:
+        return LocalDetail("identity-substituted-nontext", (len(types), types))
+    return LocalDetail("identity-substituted", (len(digests), digests))
 
 
 def reduce_qualification(facts: AnswerFacts) -> Decision:
@@ -2250,8 +2373,7 @@ def reduce_qualification(facts: AnswerFacts) -> Decision:
     if facts.model_status == "drifted":
         return Decision(
             MODEL_STATUS_VERDICT["drifted"], "identity-substituted",
-            LocalDetail("identity-substituted",
-                        (len(facts.substituted_digests), facts.substituted_digests)),
+            drift_detail(facts.substituted_digests, facts.substituted_types),
         )
     if facts.model_status != "verified":
         return Decision(
@@ -2638,16 +2760,30 @@ CANARY_ANSWER_BYTES = b"alpha"
 MODEL_STATUS_SEVERITY = {"verified": 0, "missing": 1, "drifted": 2}
 
 
+def status_of_identity(identity: Any) -> str:
+    """The three-valued status, as a projection of the identity and not a
+    second opinion about it."""
+    if isinstance(identity, VerifiedModel):
+        return "verified"
+    if isinstance(identity, MissingModel):
+        return "missing"
+    return "drifted"
+
+
 def model_status_of(requested: str, reported: Any) -> str:
     """Three values, not two.
 
     A boolean "drifted" has to decide what to say when the provider named no
     model, and the convenient answer — "not drifted" — turns *we do not know*
     into *it matched*.
+
+    A non-string `model` is `drifted`, not `missing`: the provider put something
+    in the field, and it is not the model that was asked for. Calling that
+    "missing" contradicted `reported_model_present: True` written by the same
+    response, and two functions disagreeing about one fact is how the terminal
+    answer path came to index a key that was never written.
     """
-    if not isinstance(reported, str) or not reported:
-        return "missing"
-    return "verified" if reported == requested else "drifted"
+    return status_of_identity(model_identity(requested, reported))
 
 
 def fold_model_status(turns: list[dict[str, Any]]) -> str:
@@ -3219,6 +3355,12 @@ def qualify_target(
     awaiting_roundtrip = False
     roundtrip_seen = False
     observed = Observed()
+    # The identities this run saw, in order, kept as the typed values they were
+    # classified as. The terminal-answer path used to rebuild this by reading
+    # its own durable projection back and assuming every entry carried a digest
+    # — which is both the wrong direction for a consumer that owns its boundary
+    # and, for a non-string `model`, a `KeyError`.
+    identities: list[Any] = []
 
     messages = opening_messages()
     for turn in range(max_turns):
@@ -3325,7 +3467,9 @@ def qualify_target(
         receipt["tool_result_roundtrip"] = roundtrip_seen
 
         reported = payload.get("model")
-        record["model_status"] = model_status_of(target["model"], reported)
+        identity = model_identity(target["model"], reported)
+        identities.append(identity)
+        record["model_status"] = status_of_identity(identity)
         record.update(model_evidence(target["model"], reported))
         # Worst turn decides, exactly as the Rust side does: a cell is only as
         # identified as its least identified turn. Folded from the per-turn
@@ -3486,17 +3630,27 @@ def qualify_target(
             # Which model was substituted survives as a digest rather than a
             # name: a provider that returns the bearer token in `model` would
             # otherwise write it into the detail line of a committed receipt.
-            substituted = tuple(
-                DigestRef.of(entry["reported_model_sha256"])
-                for entry in receipt["reported_models"]
-                if entry.get("reported_model") is None and entry.get("reported_model_present")
-            )
+            # From the typed identities this run collected, not from the
+            # durable fold. Two tuples because a substitution need not carry a
+            # digest: `model: {}` is a drift with a JSON type and no name.
+            # De-duplicated in order, so two turns naming the same other model
+            # are one finding and the reader still sees which came first.
+            digests: list[DigestRef] = []
+            types: list[str] = []
+            for seen in identities:
+                if isinstance(seen, TextSubstitution):
+                    reference = DigestRef.of_reference(seen.reference())
+                    if reference not in digests:
+                        digests.append(reference)
+                elif isinstance(seen, NonTextModel) and seen.json_type not in types:
+                    types.append(seen.json_type)
             return apply_decision(
                 receipt,
                 reduce_qualification(AnswerFacts(
                     model_status=receipt["model_status"],
                     canary_errors=tuple(answer_errors),
-                    substituted_digests=substituted,
+                    substituted_digests=tuple(digests),
+                    substituted_types=tuple(types),
                 )),
                 turn_count=turn + 1,
             )

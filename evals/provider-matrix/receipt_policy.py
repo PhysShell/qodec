@@ -53,6 +53,7 @@ from __future__ import annotations
 import ast
 import re
 import sys
+import enum
 from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any, Callable, Iterator
@@ -486,8 +487,27 @@ class Prose(Kind):
 # "every policy is exercised" over the union is a weaker claim than it looks:
 # a qualification-only path is trivially satisfied by a qualification scenario
 # and says nothing about the probe, and vice versa.
-PROBE = "probe"
-QUALIFICATION = "qualification"
+#
+# An enum rather than two strings, and checked at runtime rather than trusted to
+# the annotation. `schemas=("proeb",)` — one transposition — put a policy in
+# neither universe: it was demanded of no kind and declared for no kind, so both
+# directions of the coverage proof went green by the policy simply vanishing.
+# That is the escape hatch `coverage_required=False` was made to require an
+# argument for, reachable by typo instead of by intent.
+class ReceiptKind(enum.Enum):
+    # `enum.Enum` spelled out, because this module already has a policy kind
+    # named `Enum` — and a class statement that silently picked the wrong base
+    # produced a `ReceiptKind` whose members were plain strings, which is
+    # exactly the confusion this type exists to remove.
+    PROBE = "probe"
+    QUALIFICATION = "qualification"
+
+    def __str__(self) -> str:
+        return self.value
+
+
+PROBE = ReceiptKind.PROBE
+QUALIFICATION = ReceiptKind.QUALIFICATION
 BOTH = (PROBE, QUALIFICATION)
 
 SCHEMA_KINDS = {pm.PROBE_SCHEMA: PROBE, pm.QUALIFY_SCHEMA: QUALIFICATION}
@@ -816,6 +836,9 @@ def slot_pattern(slot: str, context: dict[str, Any], depth: int = 0) -> str:
         return joined(DIGEST_PATTERN, ", ")
     if slot == "type":
         return alternation(pm.LOCAL_TYPE_NAMES)
+    if slot == "types":
+        return joined(alternation(
+            tuple(name for _, name in pm.JSON_TYPE_NAMES) + ("null", "unknown")), ", ")
     if slot == "discriminator":
         known = alternation(f"'{word}'" for word in
                             set(pm.MESSAGE_ROLES) | set(pm.TOOL_CALL_TYPES) | {pm.ENVELOPE_ENCODING})
@@ -939,6 +962,10 @@ def policy_problems(policies: list[DurableFieldPolicy]) -> list[str]:
             f"{policy.named()}: {issue}" for issue in policy.kind.declaration_problems())
         if not policy.schemas:
             problems.append(f"{policy.named()}: applies to no receipt kind")
+        for kind in policy.schemas:
+            if not isinstance(kind, ReceiptKind):
+                problems.append(
+                    f"{policy.named()}: {kind!r} is not a receipt kind")
         # An opt-out from the coverage gate is a hole in the closed world, so it
         # has to be argued for in writing. `mutations.py` has required a stated
         # reason for every deliberately unmutated check since round nine; the
@@ -1299,6 +1326,16 @@ def self_test() -> int:
     excused = [DurableFieldPolicy(P("x"), Flag(), coverage_required=False)]
     if not any("without a stated reason" in problem for problem in policy_problems(excused)):
         print("FAIL a policy excused from coverage without a reason was not reported")
+        return 1
+    # One transposition put a policy in neither universe, and both directions of
+    # the coverage proof went green by the policy simply vanishing.
+    mistyped = [DurableFieldPolicy(P("x"), Flag(), ("proeb",))]
+    if not any("is not a receipt kind" in problem for problem in policy_problems(mistyped)):
+        print("FAIL a policy declaring an unknown receipt kind was not reported")
+        return 1
+    if not any("applies to no receipt kind" in problem
+               for problem in policy_problems([DurableFieldPolicy(P("x"), Flag(), ())])):
+        print("FAIL a policy applying to no receipt kind was not reported")
         return 1
     if not any("not declared in EVIDENCE_DOMAINS" in problem for problem in
                policy_problems([DurableFieldPolicy(P("x"), Digest("no-such-domain"))])):

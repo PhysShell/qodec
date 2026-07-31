@@ -185,10 +185,8 @@ MUTATIONS = [
      "        record.update(model_evidence(target[\"model\"], reported))",
      "        pass"),
     ("D3 drift detail names the substituted model instead of digesting it",
-     "                for entry in receipt[\"reported_models\"]\n"
-     "                if entry.get(\"reported_model\") is None and entry.get(\"reported_model_present\")",
-     "                for entry in receipt[\"reported_models\"]\n"
-     "                if entry.get(\"reported_model_sha256\") is None"),
+     "                    reference = DigestRef.of_reference(seen.reference())",
+     "                    reference = DigestRef(seen.name[:16].ljust(16, \"0\"))"),
 
     # -- E: the trusted provider registry --
     ("E1 a catalog row's api_base and key_env regain authority",
@@ -503,8 +501,10 @@ MUTATIONS = [
      "                \"name\": c[\"name\"] if c[\"name\"] in known else None,",
      "                \"name\": c[\"name\"],"),
     ("DP11 a substituted model kept as the provider spelled it",
-     "    if isinstance(reported, str) and reported == requested:",
-     "    if isinstance(reported, str):"),
+     "    if isinstance(identity, TextSubstitution):\n"
+     "        return {\"reported_model\": None, **opaque(\"reported_model\", \"model-name\", identity.name)}",
+     "    if isinstance(identity, TextSubstitution):\n"
+     "        return {\"reported_model\": identity.name, \"reported_model_present\": True}"),
     ("DP12 the undeclared tool names spelled out in the detail",
      "                len(unknown), tuple(opaque_ref(\"tool-name\", name) for name in unknown)))",
      "                len(unknown), tuple(opaque_ref(\"json-value\", n) for n in sorted(unknown))))"),
@@ -555,8 +555,8 @@ MUTATIONS = [
      "    if result.failure_kind is not None and result.failure_kind not in TRANSPORT_FAILURE_KINDS:",
      "    if result.failure_kind is not None and not result.failure_kind.isidentifier():"),
     ("DP28 a non-string model hashed rather than typed",
-     "        \"reported_model_type\": json_type_name(reported),",
-     "        **opaque(\"reported_model\", \"model-name\", reported),"),
+     "        \"reported_model_type\": identity.json_type,",
+     "        **opaque(\"reported_model\", \"model-name\", identity.json_type),"),
     ("DP29 the response digest stops being domain-separated",
      "            evidence_digest(\"response-body\", raw) if raw is not None else None)",
      "            sha256_bytes(raw) if raw is not None else None)"),
@@ -633,7 +633,7 @@ MUTATIONS = [
 
     # -- Y: a provider that breaks HTTP framing is a provider, not a defect here --
     ("Y1 framing failures at open escape the transport",
-     "    except http.client.HTTPException as exc:\n        # `BadStatusLine`",
+     "    except (OSError, http.client.HTTPException) as exc:\n        # `BadStatusLine`",
      "    except NotImplementedError as exc:\n        # `BadStatusLine`"),
     ("Y2 a framing failure reported as a retryable transport failure",
      "            None, None, capture_detail(\"HTTP framing failure\", exc), \"response-framing\"",
@@ -650,8 +650,9 @@ MUTATIONS = [
      "        except (OSError, ValueError, http.client.HTTPException) as read_exc:",
      "        except (OSError, ValueError, http.client.IncompleteRead) as read_exc:"),
     ("Y6 the malformed status line is written into the receipt",
-     "    if isinstance(exc, http.client.HTTPException):\n        return f\"{prefix}: {type(exc).__name__}\"",
-     "    if False:\n        return f\"{prefix}: {type(exc).__name__}\""),
+     "    if isinstance(exc, (http.client.HTTPException, OSError)):\n"
+     "        return f\"{prefix}: {type(exc).__name__}\"\n    return str(exc)",
+     "    if False:\n        return f\"{prefix}: {type(exc).__name__}\"\n    return str(exc)"),
     ("Y7 the probe files a framing failure as an unreachable endpoint",
      "PROBE_STAGE_CAUSE = {\n    \"no-credential\": \"AUTH_FAILURE\",\n"
      "    \"response-framing\": \"RESPONSE_CAPTURE_FAILED\",",
@@ -1145,6 +1146,92 @@ MUTATIONS = [
      "            return \"MISATTRIBUTED\", f\"killed, but not by {expected}\"",
      "mutations.py"),
 
+    # -- TT: the transport is total over what a peer can do to a socket ----
+
+    ("TT1 a reset while the status line is read escapes as an internal error",
+     "    except (OSError, http.client.HTTPException) as exc:",
+     "    except http.client.HTTPException as exc:"),
+
+    ("TT2 the broad framing catch is hoisted above the narrow URLError one",
+     "    except TimeoutError as exc:\n"
+     "        return SendResult(None, None, \"timeout\", \"before-response\",",
+     "    except (OSError, http.client.HTTPException) as exc:\n"
+     "        return SendResult(\n"
+     "            None, None, capture_detail(\"HTTP framing failure\", exc), \"response-framing\",\n"
+     "            reason=\"http-framing-failure\", **failure_evidence(\"http-framing-error\", exc),\n"
+     "        )\n"
+     "    except TimeoutError as exc:\n"
+     "        return SendResult(None, None, \"timeout\", \"before-response\","),
+
+    ("TT3 an OSError framing failure repeats the message it was raised with",
+     "    if isinstance(exc, (http.client.HTTPException, OSError)):",
+     "    if isinstance(exc, (http.client.HTTPException, InterruptedError)):"),
+
+    # -- MI: identity is one sum type, and every reader projects it ---------
+
+    ("MI1 a non-string model is called missing again",
+     "    if reported is None:\n        return MissingModel()",
+     "    if reported is None or not isinstance(reported, (str, bytes)):\n"
+     "        return MissingModel()"),
+
+    ("MI2 the terminal answer assumes every substitution carries a digest",
+     "                if isinstance(seen, TextSubstitution):\n"
+     "                    reference = DigestRef.of_reference(seen.reference())",
+     "                if isinstance(seen, (TextSubstitution, NonTextModel)):\n"
+     "                    reference = DigestRef.of_reference(\n"
+     "                        opaque_ref(\"model-name\", getattr(seen, \"name\", \"\")))"),
+
+    ("MI3 a non-text drift is rendered with the text-only template",
+     "    if types:\n        return LocalDetail(\"identity-substituted-nontext\", (len(types), types))",
+     "    if False:\n        return LocalDetail(\"identity-substituted-nontext\", (len(types), types))"),
+
+    ("MI4 a mixed drift reports only its digests",
+     "    if digests and types:",
+     "    if False:"),
+
+    ("MI5 model_evidence stops agreeing with the identity it projects",
+     "    if isinstance(identity, MissingModel):\n"
+     "        return {\"reported_model\": None, \"reported_model_present\": False}",
+     "    if isinstance(identity, MissingModel):\n"
+     "        return {\"reported_model\": None, \"reported_model_present\": True}"),
+
+    ("MI6 the status stops being a projection of the identity",
+     "    return status_of_identity(model_identity(requested, reported))",
+     "    return \"missing\" if not isinstance(reported, str) or not reported else (\n"
+     "        \"verified\" if reported == requested else \"drifted\")"),
+
+    ("MI7 two turns naming the same other model become two findings",
+     "                    if reference not in digests:\n                        digests.append(reference)",
+     "                    if True:\n                        digests.append(reference)"),
+
+    # -- RK: the receipt-kind vocabulary is closed -------------------------
+
+    ("RK1 an unknown receipt kind is swallowed by the coverage proof",
+     "        for kind in policy.schemas:\n"
+     "            if not isinstance(kind, ReceiptKind):",
+     "        for kind in policy.schemas:\n            if False:",
+     "receipt_policy.py"),
+
+    ("RK2 a policy applying to no receipt kind stops being reported",
+     "        if not policy.schemas:\n"
+     "            problems.append(f\"{policy.named()}: applies to no receipt kind\")",
+     "        if False:\n"
+     "            problems.append(f\"{policy.named()}: applies to no receipt kind\")",
+     "receipt_policy.py"),
+
+    # -- FG: a launcher may not leave the inspected grammar -----------------
+
+    ("FG1 a launcher may leave the grammar unremarked",
+     "        uses.extend(self.escapes_the_grammar(tree, modules))",
+     "        pass",
+     "test_provider_matrix.py"),
+
+    ("FG2 the alias rule widens to any assignment target",
+     "            if (isinstance(parent, ast.Assign) and parent.value is node\n"
+     "                    and all(isinstance(goal, ast.Name) for goal in parent.targets)):",
+     "            if isinstance(parent, ast.Assign) and parent.value is node:",
+     "test_provider_matrix.py"),
+
     ("MH5 the expected killer is no longer required at all",
      "    if expected is not None:\n"
      "        # In the failing oracle's own output",
@@ -1377,6 +1464,27 @@ EXPECTED_KILL = {
         "test_the_coverage_gate_looks_in_both_directions",
     "TP12 the provenance pass stops rebuilding the line":
         "test_a_line_made_of_local_words_but_never_rendered_is_refused",
+    "TT1 a reset while the status line is read escapes as an internal error":
+        "test_the_probe_classifies_a_reset_rather_than_blaming_itself",
+    "TT2 the broad framing catch is hoisted above the narrow URLError one":
+        "test_the_broad_catch_sits_below_the_narrow_one",
+    "MI1 a non-string model is called missing again":
+        "test_a_non_string_model_reaching_a_terminal_answer_is_a_substitution",
+    # The accumulation site, not the three-readers test that shares its subject:
+    # `model_evidence` and `model_status_of` are unchanged by this mutation, so
+    # naming their test would have named a place it cannot be caught.
+    "MI2 the terminal answer assumes every substitution carries a digest":
+        "test_a_non_string_model_reaching_a_terminal_answer_is_a_substitution",
+    "MI5 model_evidence stops agreeing with the identity it projects":
+        "test_the_three_readers_of_identity_agree",
+    "RK1 an unknown receipt kind is swallowed by the coverage proof":
+        "test_a_receipt_kind_the_table_does_not_know_stops_the_gate",
+    "FG1 a launcher may leave the grammar unremarked":
+        "test_the_gate_would_notice_every_class_of_new_caller",
+    "FG2 the alias rule widens to any assignment target":
+        "test_the_gate_would_notice_every_class_of_new_caller",
+    "U4 the lenient reader loses its depth pre-scan":
+        "test_the_lenient_reader_stops_at_the_depth_the_module_declares",
 }
 
 
