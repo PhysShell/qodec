@@ -100,6 +100,13 @@ def run_bytes(
         proc = subprocess.run(
             list(argv), cwd=cwd, env=env, timeout=timeout,
             capture_output=True, text=False,
+            # No inherited stdin. A child that reads from the terminal blocks
+            # until the deadline, so a mutation harness with a ten-minute
+            # timeout waits ten minutes to learn nothing — and on a machine with
+            # no terminal it would fail for a third, unrelated reason. `DEVNULL`
+            # gives it an immediate EOF, which is the honest answer to "was
+            # anything typed".
+            stdin=subprocess.DEVNULL,
         )
     except subprocess.TimeoutExpired:
         raise ProcessTimeout(f"`{described(argv)}` exceeded {timeout}s") from None

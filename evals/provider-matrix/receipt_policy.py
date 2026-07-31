@@ -103,19 +103,19 @@ EACH = Each()
 # meant for a different place entirely. Escaping `.` and `[]` would have been
 # the third patch on a representation problem; the representation is the
 # problem. Strings appear when a finding is printed and nowhere else.
-Path = tuple
+FieldPath = tuple
 
 
-def P(*parts: str | Each) -> Path:
+def P(*parts: str | Each) -> FieldPath:
     """Build a path from named steps. `P("turns", EACH, "detail")`."""
     return tuple(part if isinstance(part, Each) else Key(part) for part in parts)
 
 
-def extend(prefix: Path, *parts: str | Each) -> Path:
+def extend(prefix: FieldPath, *parts: str | Each) -> FieldPath:
     return prefix + P(*parts)
 
 
-def suffixed(prefix: Path, name: str) -> Path:
+def suffixed(prefix: FieldPath, name: str) -> FieldPath:
     """`prefix` with `name` appended as a member. The only place names join."""
     return prefix + (Key(name),)
 
@@ -153,7 +153,7 @@ ARRAY_NODE = Node("array")
 EMPTY_ARRAY = Node("array", empty=True)
 
 
-def flatten(value: Any, prefix: Path = ()) -> Iterator[tuple[Path, Any]]:
+def flatten(value: Any, prefix: FieldPath = ()) -> Iterator[tuple[FieldPath, Any]]:
     """Every node and every leaf of a receipt, as `(path, value)`.
 
     The root is not yielded: it is the receipt itself, and its existence is not
@@ -525,7 +525,7 @@ class DurableFieldPolicy:
     weakening any of them left the suite green.
     """
 
-    path: Path
+    path: FieldPath
     kind: Kind
     schemas: tuple[str, ...] = BOTH
     nullable: bool = False
@@ -547,7 +547,7 @@ DETAIL_MAX_BYTES = 4096
 # function rather than by hand because it appears eleven times and eleven
 # hand-copies is eleven chances for one of them to differ silently.
 def opaque_policies(
-    prefix: Path, name: str, domain: str, schemas: tuple[str, ...] = BOTH
+    prefix: FieldPath, name: str, domain: str, schemas: tuple[str, ...] = BOTH
 ) -> list[DurableFieldPolicy]:
     """The evidence quartet `opaque_text` writes, wherever it writes it."""
     return [
@@ -561,7 +561,7 @@ def opaque_policies(
 
 
 def model_evidence_policies(
-    prefix: Path, schemas: tuple[str, ...] = BOTH, fields: tuple[str, ...] | None = None
+    prefix: FieldPath, schemas: tuple[str, ...] = BOTH, fields: tuple[str, ...] | None = None
 ) -> list[DurableFieldPolicy]:
     """The projected identity of a reported model, wherever it appears.
 
@@ -592,14 +592,29 @@ def model_evidence_policies(
     return [everything[name] for name in wanted]
 
 
-def usage_policies(prefix: Path, schemas: tuple[str, ...]) -> list[DurableFieldPolicy]:
+def usage_policies(prefix: FieldPath, schemas: tuple[str, ...]) -> list[DurableFieldPolicy]:
+    """One ceiling per counter, each derived from the bound the producer applies.
+
+    A single `usage_ceiling` was computed from `response_limit`, which is a
+    fact about the *response* — and `usage_bounds` bounds the counters by the
+    size of the **request** this module sent. A caller passing a small response
+    limit therefore made the auditor refuse a `prompt_tokens` the producer had
+    every reason to admit. One shared ceiling would also have been slack for the
+    other two: `completion_tokens` cannot exceed the `max_tokens` asked for, and
+    saying only "some number under a shared bound" throws that away.
+    """
+    ceilings = {
+        "prompt_tokens": "prompt_ceiling",
+        "completion_tokens": "completion_ceiling",
+        "total_tokens": "usage_ceiling",
+    }
     return [
-        DurableFieldPolicy(suffixed(prefix, counter), BoundedInt(0, "usage_ceiling"), schemas)
+        DurableFieldPolicy(suffixed(prefix, counter), BoundedInt(0, ceilings[counter]), schemas)
         for counter in pm.USAGE_COUNTERS
     ]
 
 
-def transport_policies(prefix: Path, schemas: tuple[str, ...]) -> list[DurableFieldPolicy]:
+def transport_policies(prefix: FieldPath, schemas: tuple[str, ...]) -> list[DurableFieldPolicy]:
     return [
         DurableFieldPolicy(
             suffixed(prefix, "transport_reason"),
@@ -619,7 +634,7 @@ def build_policies() -> list[DurableFieldPolicy]:
     provider-chosen key with an empty object under it a finding rather than a
     silence.
     """
-    root: Path = ()
+    root: FieldPath = ()
     turn = P("turns", EACH)
     reported = P("reported_models", EACH)
     call = P("turns", EACH, "tool_calls", EACH)
@@ -955,7 +970,7 @@ def policy_problems(policies: list[DurableFieldPolicy]) -> list[str]:
     exists to make impossible.
     """
     problems: list[str] = []
-    seen: dict[Path, int] = {}
+    seen: dict[FieldPath, int] = {}
     for policy in policies:
         seen[policy.path] = seen.get(policy.path, 0) + 1
         problems.extend(
@@ -999,7 +1014,7 @@ def render_step(step: Any) -> str:
     return step.value
 
 
-def render_path(path: Path) -> str:
+def render_path(path: FieldPath) -> str:
     """A declared path as a line. Diagnostics only — never used for matching."""
     out: list[str] = []
     for step in path:
@@ -1010,7 +1025,7 @@ def render_path(path: Path) -> str:
     return ".".join(out)
 
 
-def projected_path(path: Path, policies: list[DurableFieldPolicy]) -> str:
+def projected_path(path: FieldPath, policies: list[DurableFieldPolicy]) -> str:
     """A path, with every step the table does not declare **in that position**
     turned into a reference.
 
@@ -1052,7 +1067,7 @@ def projected_path(path: Path, policies: list[DurableFieldPolicy]) -> str:
 
 
 def exactly_one_policy_for(
-    path: Path, policies: list[DurableFieldPolicy] | None = None
+    path: FieldPath, policies: list[DurableFieldPolicy] | None = None
 ) -> DurableFieldPolicy:
     """The single policy for a path, or an error naming which rule was broken."""
     table = POLICIES if policies is None else policies
@@ -1065,10 +1080,30 @@ def exactly_one_policy_for(
     return matches[0]
 
 
+def require_receipt_kind(value: object) -> ReceiptKind:
+    """The coverage API's own door, checked at runtime.
+
+    `ReceiptKind` closed the *table* and left the queries annotated `kind: str`,
+    which Python does not enforce — an annotation stands beside a program and
+    offers moral support while it does as it pleases. `coverage("probe", ...)`
+    therefore matched no policy at all, so `declared` and `applicable` were both
+    empty and both directions of the proof reported nothing wrong. A green
+    answer produced by asking about a universe that does not exist is the same
+    defect `schemas=("proeb",)` was, moved from the declaration to the query.
+    """
+    if not isinstance(value, ReceiptKind):
+        raise TypeError(
+            f"a receipt kind is a ReceiptKind, not {type(value).__name__}; "
+            f"got {value!r}"
+        )
+    return value
+
+
 def declared_paths(
-    kind: str, policies: list[DurableFieldPolicy] | None = None
-) -> frozenset[Path]:
+    kind: ReceiptKind, policies: list[DurableFieldPolicy] | None = None
+) -> frozenset[FieldPath]:
     """Every path this receipt kind is *allowed* to contain."""
+    kind = require_receipt_kind(kind)
     return frozenset(
         policy.path
         for policy in (POLICIES if policies is None else policies)
@@ -1077,9 +1112,10 @@ def declared_paths(
 
 
 def applicable_paths(
-    kind: str, policies: list[DurableFieldPolicy] | None = None
-) -> frozenset[Path]:
+    kind: ReceiptKind, policies: list[DurableFieldPolicy] | None = None
+) -> frozenset[FieldPath]:
     """Every path a receipt of this kind must be able to produce."""
+    kind = require_receipt_kind(kind)
     return frozenset(
         policy.path
         for policy in (POLICIES if policies is None else policies)
@@ -1110,8 +1146,10 @@ class Coverage:
 
 
 def coverage(
-    kind: str, reached: set[Path], policies: list[DurableFieldPolicy] | None = None
+    kind: ReceiptKind, reached: set[FieldPath],
+    policies: list[DurableFieldPolicy] | None = None
 ) -> Coverage:
+    kind = require_receipt_kind(kind)
     table = POLICIES if policies is None else policies
     required = applicable_paths(kind, policies)
     declared = declared_paths(kind, policies)
@@ -1127,12 +1165,13 @@ def coverage(
 
 
 def coverage_gaps(
-    kind: str, reached: set[Path], policies: list[DurableFieldPolicy] | None = None
+    kind: ReceiptKind, reached: set[FieldPath],
+    policies: list[DurableFieldPolicy] | None = None
 ) -> list[str]:
-    return coverage(kind, reached, policies).problems()
+    return coverage(require_receipt_kind(kind), reached, policies).problems()
 
 
-def reached_paths(receipt: dict[str, Any]) -> set[Path]:
+def reached_paths(receipt: dict[str, Any]) -> set[FieldPath]:
     return {path for path, _ in flatten(receipt)}
 
 
@@ -1180,6 +1219,7 @@ def context_for(
     about *which* receipt it asked for, which is why it is a parameter and not a
     lookup.
     """
+    kind = SCHEMA_KINDS.get(schema)
     return {
         "schema": schema,
         "target_id": target["target_id"],
@@ -1198,7 +1238,14 @@ def context_for(
         # one past the limit is the largest count the transport can produce.
         "observed_ceiling": response_limit + 1,
         "request_ceiling": pm.MAX_REQUEST_BYTES,
-        "usage_ceiling": response_limit + pm.QUALIFY_MAX_TOKENS,
+        # From the request bound and the generation ceiling, which is what
+        # `usage_bounds` uses — never from `response_limit`, which describes
+        # something else entirely and made a legitimate count a finding.
+        "prompt_ceiling": pm.MAX_REQUEST_BYTES,
+        "completion_ceiling": (
+            pm.PROBE_MAX_TOKENS if kind is PROBE else pm.QUALIFY_MAX_TOKENS),
+        "usage_ceiling": pm.MAX_REQUEST_BYTES + (
+            pm.PROBE_MAX_TOKENS if kind is PROBE else pm.QUALIFY_MAX_TOKENS),
         "max_turns": max_turns,
         "error_ceiling": 1024,
         "call_ceiling": 1024,

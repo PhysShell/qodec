@@ -688,12 +688,16 @@ MUTATIONS = [
      ["    env[\"GIT_CONFIG_GLOBAL\"] = str(home / \".gitconfig\")",
       ""],
      "check_clean_tree.py"),
+    # `del proc` was the first spelling, and it was `DF9` in a different coat:
+    # the mutant read `proc.returncode` two lines later and died of
+    # `UnboundLocalError` before the control reached the property it names.
+    # Neutralising the branch is what "a failed setup command stops being an
+    # error" actually means. The mirrored form — `== 0` — is no better: it would
+    # raise on every *successful* setup command and produce a kill just as
+    # accidental, only pointing the other way.
     ("W4 a failed setup command stops being an error",
-     "        raise GitUnavailable(\n"
-     "            f\"self-test setup: `{described(['git', *args])}` exited \"",
-     "        del proc\n"
-     "        _unused = (\n"
-     "            f\"self-test setup: `{described(['git', *args])}` exited \"",
+     "    proc = git(*args, cwd=cwd, env=env)\n    if proc.returncode != 0:",
+     "    proc = git(*args, cwd=cwd, env=env)\n    if False:",
      "check_clean_tree.py"),
     ("W5 the setup failure stops naming the command that failed",
      "            f\"self-test setup: `{described(['git', *args])}` exited \"",
@@ -828,8 +832,12 @@ MUTATIONS = [
     # name — so every oracle died of `NameError` before a single policy compared
     # anything, and the harness counted an invalid program as evidence for the
     # contract it names. `EXPECTED_KILL` now requires this one to be killed by
-    # the test that forges a receipt field, and the harness refuses `NameError`
-    # kills outright.
+    # the test that forges a receipt field. The harness does not refuse a kill
+    # by inspecting its exception class — enumerating exception names was the
+    # first repair and the wrong shape — it refuses a *suite* run that never
+    # reported how many tests it discovered, or reported a different number
+    # from the baseline. A mutant that cannot be imported never gets that far,
+    # whatever it dies of.
     ("DF9 the local facts are taken from the artifact being audited",
      "    findings: list[str] = []\n    for path, value in flatten(receipt):",
      "    context = {**context, \"requested_model\": receipt.get(\"requested_model\"),\n"
@@ -1232,6 +1240,94 @@ MUTATIONS = [
      "            if isinstance(parent, ast.Assign) and parent.value is node:",
      "test_provider_matrix.py"),
 
+    # -- RM: a peer's metadata is content, not a broken internal contract --
+
+    ("RM1 an oversized request id is refused instead of projected",
+     "        if not isinstance(result.request_id, str):\n"
+     "            raise ValueError(f\"request_id must be a string, got {type(result.request_id).__name__}\")",
+     "        if not isinstance(result.request_id, str):\n"
+     "            raise ValueError(f\"request_id must be a string, got {type(result.request_id).__name__}\")\n"
+     "        if len(result.request_id.encode(\"utf-8\", \"surrogatepass\")) > EVIDENCE_MAX_BYTES[\"request-id\"]:\n"
+     "            raise ValueError(\"request_id is longer than the local bound\")"),
+
+    ("RM2 a producer handing over the wrong type stops being refused",
+     "        if not isinstance(result.request_id, str):\n"
+     "            raise ValueError(f\"request_id must be a string, got {type(result.request_id).__name__}\")",
+     "        if False:\n"
+     "            raise ValueError(f\"request_id must be a string, got {type(result.request_id).__name__}\")"),
+
+    # -- UC: each counter carries the bound that produced it ----------------
+
+    ("UC1 the usage ceilings come from the response limit again",
+     "        \"prompt_ceiling\": pm.MAX_REQUEST_BYTES,",
+     "        \"prompt_ceiling\": response_limit,",
+     "receipt_policy.py"),
+
+    ("UC2 the three counters share one slack ceiling",
+     "        \"completion_tokens\": \"completion_ceiling\",",
+     "        \"completion_tokens\": \"usage_ceiling\",",
+     "receipt_policy.py"),
+
+    ("UC3 the completion ceiling stops following the generation asked for",
+     "        \"completion_ceiling\": (\n"
+     "            pm.PROBE_MAX_TOKENS if kind is PROBE else pm.QUALIFY_MAX_TOKENS),",
+     "        \"completion_ceiling\": pm.QUALIFY_MAX_TOKENS,",
+     "receipt_policy.py"),
+
+    # -- CK: the coverage API has a door too --------------------------------
+
+    ("CK1 a plain string reaches the coverage queries again",
+     "    if not isinstance(value, ReceiptKind):\n        raise TypeError(",
+     "    if False:\n        raise TypeError(",
+     "receipt_policy.py"),
+
+    ("CK2 coverage_gaps stops checking what it was handed",
+     "    return coverage(require_receipt_kind(kind), reached, policies).problems()",
+     "    return coverage(kind, reached, policies).problems()",
+     "receipt_policy.py"),
+
+    # -- HG: the real verdict is as isolated as its control -----------------
+
+    ("HG1 the real clean-tree verdict runs with the ambient environment",
+     "            lines = dirt(repo_root(env=env), env=env)",
+     "            lines = dirt(repo_root())",
+     "check_clean_tree.py"),
+
+    ("HG2 repo_root stops accepting the isolation it is given",
+     "    top = git(\"rev-parse\", \"--show-toplevel\", cwd=here, env=env)",
+     "    top = git(\"rev-parse\", \"--show-toplevel\", cwd=here)",
+     "check_clean_tree.py"),
+
+    # -- LV: a child gets EOF, not the deadline -----------------------------
+
+    ("LV1 a child inherits the terminal again",
+     "            stdin=subprocess.DEVNULL,",
+     "            stdin=None,",
+     "process_boundary.py"),
+
+    # -- VT: the mutation table's validator is itself checked ---------------
+
+    ("VT1 zip truncates a lopsided multi-anchor spec in silence",
+     "            if len(old) != len(new):\n"
+     "                problems.append(",
+     "            if False:\n"
+     "                problems.append(",
+     "mutations.py"),
+
+    ("VT2 a half-list spec stops being refused",
+     "        if isinstance(old, list) != isinstance(new, list):\n"
+     "            problems.append(f\"{name}: one half of a multi-anchor edit",
+     "        if False:\n"
+     "            problems.append(f\"{name}: one half of a multi-anchor edit",
+     "mutations.py"),
+
+    ("VT3 an orphaned expectation stops being reported",
+     "    for orphan in sorted(set(expectations or {}) - declared):\n"
+     "        problems.append(",
+     "    for orphan in sorted(set() - declared):\n"
+     "        problems.append(",
+     "mutations.py"),
+
     ("MH5 the expected killer is no longer required at all",
      "    if expected is not None:\n"
      "        # In the failing oracle's own output",
@@ -1256,7 +1352,7 @@ def target_problems(targets: dict) -> list[str]:
     return problems
 
 
-def spec_problems(specs: list) -> list[str]:
+def spec_problems(specs: list, expectations: dict | None = None) -> list[str]:
     """Refuse a mutation list that flatters itself.
 
     `E7` and `N2` carried different names, the same anchor and the same
@@ -1271,6 +1367,19 @@ def spec_problems(specs: list) -> list[str]:
         name, old, new = spec[0], spec[1], spec[2]
         target = spec[3] if len(spec) > 3 else DEFAULT_TARGET
         by_name[name] = by_name.get(name, 0) + 1
+        if isinstance(old, list) != isinstance(new, list):
+            problems.append(f"{name}: one half of a multi-anchor edit is a list and the other is not")
+            continue
+        if isinstance(old, list):
+            # `zip` truncates in silence, so a spec removing three guards and
+            # supplying two replacements would apply two of them, report a kill,
+            # and leave the third guard in place — the harness counting a
+            # contract it never broke.
+            if len(old) != len(new):
+                problems.append(
+                    f"{name}: {len(old)} anchors and {len(new)} replacements; "
+                    "`zip` would discard the difference without saying so")
+                continue
         edits = tuple(zip(old, new)) if isinstance(old, list) else ((old, new),)
         by_edit.setdefault((target, edits), []).append(name)
     for name, count in by_name.items():
@@ -1279,6 +1388,16 @@ def spec_problems(specs: list) -> list[str]:
     for names in by_edit.values():
         if len(names) > 1:
             problems.append(f"identical anchor and replacement: {', '.join(names)}")
+    # An expectation keyed to a name nothing carries stops being asked, without
+    # anything going red. Renaming a mutation is exactly how that happens, and
+    # the attribution it was carrying disappears with it.
+    #
+    # Supplied rather than reached for, because this function is also called on
+    # small hand-built lists in the suite, and against one of those every real
+    # expectation would look orphaned. `main` passes the shipped table.
+    declared = {spec[0] for spec in specs}
+    for orphan in sorted(set(expectations or {}) - declared):
+        problems.append(f"EXPECTED_KILL names {orphan!r}, which no mutation declares")
     return problems
 
 
@@ -1464,6 +1583,22 @@ EXPECTED_KILL = {
         "test_the_coverage_gate_looks_in_both_directions",
     "TP12 the provenance pass stops rebuilding the line":
         "test_a_line_made_of_local_words_but_never_rendered_is_refused",
+    "W4 a failed setup command stops being an error":
+        "test_a_failed_seed_commit_is_reported_as_a_failed_setup",
+    "RM1 an oversized request id is refused instead of projected":
+        "test_the_probe_keeps_its_classification_and_projects_the_header",
+    "RM2 a producer handing over the wrong type stops being refused":
+        "test_a_producer_handing_over_the_wrong_type_is_still_refused",
+    "UC1 the usage ceilings come from the response limit again":
+        "test_no_counter_is_bounded_by_the_response_limit",
+    "CK1 a plain string reaches the coverage queries again":
+        "test_a_plain_string_is_refused_by_every_query",
+    "LV1 a child inherits the terminal again":
+        "test_a_child_reading_stdin_is_not_left_waiting",
+    "VT1 zip truncates a lopsided multi-anchor spec in silence":
+        "test_a_multi_anchor_spec_with_unequal_halves_is_refused",
+    "VT3 an orphaned expectation stops being reported":
+        "test_an_orphaned_expectation_is_refused",
     "TT1 a reset while the status line is read escapes as an internal error":
         "test_the_probe_classifies_a_reset_rather_than_blaming_itself",
     "TT2 the broad framing catch is hoisted above the narrow URLError one":
@@ -1490,7 +1625,7 @@ EXPECTED_KILL = {
 
 def main() -> int:
     original = SRC.read_text(encoding="utf-8")
-    problems = spec_problems(MUTATIONS)
+    problems = spec_problems(MUTATIONS, EXPECTED_KILL)
     if problems:
         print("FAIL the mutation list is not honest about its own size:")
         for line in problems:

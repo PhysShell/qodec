@@ -205,7 +205,7 @@ def isolated_env(home: Path) -> dict[str, str]:
     return env
 
 
-def repo_root(start: Path | None = None) -> Path:
+def repo_root(start: Path | None = None, env: dict[str, str] | None = None) -> Path:
     """The checkout root, asked of git rather than counted in `..`s.
 
     The scope is part of the contract: a guard that claims the repository is
@@ -214,7 +214,7 @@ def repo_root(start: Path | None = None) -> Path:
     copy the mutation harness runs in.
     """
     here = (start or Path(__file__).resolve().parent)
-    top = git("rev-parse", "--show-toplevel", cwd=here)
+    top = git("rev-parse", "--show-toplevel", cwd=here, env=env)
     if top.returncode != 0:
         raise GitUnavailable(f"{here} is not inside a git checkout")
     # `os.fsdecode`, not a locale-driven decode: a checkout may live under a
@@ -313,7 +313,18 @@ def main(argv: list[str]) -> int:
     try:
         if "--self-test" in argv:
             return self_test()
-        lines = dirt(repo_root())
+        # The *real* verdict runs under the same isolation the self-test builds
+        # for itself. It did not, and the asymmetry was the defect: the control
+        # proved the check survives a hostile machine while the check that
+        # actually reports ran with ambient `os.environ`. An inherited `GIT_DIR`
+        # or `GIT_WORK_TREE` points both `rev-parse` and `status` at somebody
+        # else's repository, and a global `core.excludesFile` hides untracked
+        # leftovers — after which this prints `OK` about a tree it never looked
+        # at. A committed `.gitignore` still applies; it is part of the reviewed
+        # tree, which is exactly the difference.
+        with tempfile.TemporaryDirectory() as scratch:
+            env = isolated_env(Path(scratch))
+            lines = dirt(repo_root(env=env), env=env)
     except GitUnavailable as exc:
         print(f"FAIL {exc}")
         return 1

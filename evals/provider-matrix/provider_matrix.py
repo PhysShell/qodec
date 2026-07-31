@@ -1503,10 +1503,21 @@ def validate_send_result(result: SendResult, response_limit: int = MAX_RESPONSE_
             )
         if not isinstance(result.request_id, str):
             raise ValueError(f"request_id must be a string, got {type(result.request_id).__name__}")
-        # A length is a number the provider picks. `body_bytes_observed` was
-        # bounded and this was not, which is the same channel one field over.
-        if len(result.request_id.encode("utf-8", "surrogatepass")) > EVIDENCE_MAX_BYTES["request-id"]:
-            raise ValueError("request_id is longer than the local bound")
+        # Its *length* is not checked here, and that is the repair rather than
+        # the omission. A header longer than the local bound used to raise, and
+        # `as_send_result` runs on the real transport's own output — so a peer
+        # answering with a 257-byte `x-request-id` turned a perfectly
+        # classifiable 200 into `INTERNAL_ERROR` on both paths. That is the
+        # distinction this whole boundary is built on, applied to itself:
+        #
+        #   a producer handing over the wrong *type*      — a broken contract
+        #   a peer sending an arbitrarily long *value*    — ordinary content
+        #
+        # The first is a defect in this tool and still raises. The second is
+        # what `opaque_text` exists for: the digest crosses at fixed width, the
+        # length is clamped to the declared bound, and `request_id_oversize`
+        # says the clamp fired. Refusing it instead let the provider choose the
+        # classification, which is exactly what the projection denies it.
     return result
 
 

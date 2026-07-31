@@ -4,6 +4,7 @@ import http.client
 import io
 import sys
 import json
+import os
 import tempfile
 import unittest
 import urllib.error
@@ -4933,6 +4934,309 @@ class ModelIdentityTests(unittest.TestCase):
     def test_the_same_other_model_twice_is_one_finding(self):
         receipt = self.answer_run("somebody-elses-model", "somebody-elses-model")
         self.assertEqual(receipt["detail"].count("the provider reported 1 other model(s)"), 1)
+
+
+class ProviderMetadataIsContentTests(unittest.TestCase):
+    """A peer's oversized header is content, not a broken internal contract.
+
+    `validate_send_result` refused a `request_id` longer than the local bound,
+    and `as_send_result` runs on the *real* transport's own output — so a peer
+    answering with a 257-byte `x-request-id` turned a perfectly classifiable
+    200 into `INTERNAL_ERROR` on both paths. The provider chose the
+    classification, which is the one thing the projection exists to deny it.
+    """
+
+    OVERSIZE = "r" * (pm.EVIDENCE_MAX_BYTES["request-id"] + 1)
+
+    def serving(self, request_id: str, body: bytes):
+        """A listener that answers 200 with the given header and body."""
+        import socket
+        import threading
+
+        listener = socket.socket()
+        listener.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
+        listener.bind(("127.0.0.1", 0))
+        listener.listen(1)
+
+        def serve():
+            try:
+                conn, _ = listener.accept()
+            except OSError:  # pragma: no cover — the listener closed first
+                return
+            with conn:
+                conn.recv(65536)
+                conn.sendall(
+                    b"HTTP/1.1 200 OK\r\nContent-Type: application/json\r\n"
+                    + f"x-request-id: {request_id}\r\n".encode()
+                    + f"Content-Length: {len(body)}\r\n\r\n".encode() + body)
+        thread = threading.Thread(target=serve, daemon=True)
+        thread.start()
+        self.addCleanup(listener.close)
+        self.addCleanup(thread.join, 5)
+        return listener.getsockname()[1]
+
+    PROBE_BODY = json.dumps(
+        {"model": "m", "choices": [{"message": {"content": "QODEC_PROBE_OK"}}]}).encode()
+
+    def test_send_json_keeps_an_oversized_header_and_the_result_validates(self):
+        port = self.serving(self.OVERSIZE, self.PROBE_BODY)
+        sent = pm.send_json(f"http://127.0.0.1:{port}/v1/chat/completions", b"{}", "k", 5.0)
+        self.assertEqual(sent.status, 200)
+        self.assertEqual(len(sent.request_id), len(self.OVERSIZE))
+        # The internal contract holds: this is a well-formed observation.
+        self.assertEqual(pm.as_send_result(sent), sent)
+
+    def test_the_probe_keeps_its_classification_and_projects_the_header(self):
+        def send(_url, body, timeout):
+            port = self.serving(self.OVERSIZE, self.PROBE_BODY)
+            return pm.send_json(
+                f"http://127.0.0.1:{port}/v1/chat/completions", body, "k", timeout)
+
+        result = pm.guarded_receipt(
+            pm.PROBE_SCHEMA, probe_row({}),
+            lambda: pm.probe_target(probe_row({}), 5.0, send, registry()))
+        self.assertEqual(result["classification"], "PASS")
+        self.assertEqual(result["request_id_bytes"], pm.EVIDENCE_MAX_BYTES["request-id"])
+        self.assertTrue(result["request_id_oversize"])
+        self.assertNotIn(self.OVERSIZE, json.dumps(result))
+
+    def test_the_qualification_keeps_its_classification_too(self):
+        answer = json.dumps({"model": "openai/gpt-oss-120b", "choices": [{"message": {
+            "role": "assistant", "content": None,
+            "tool_calls": [call("qodec_answer", ANSWER_ARGS, "call_ans")]}}]}).encode()
+        operation = json.dumps({"model": "openai/gpt-oss-120b", "choices": [{"message": {
+            "role": "assistant", "content": None,
+            "tool_calls": [call("qodec_intersect", INTERSECT_ARGS, "call_op")]}}]}).encode()
+        bodies = iter((operation, answer))
+
+        def send(_url, body, timeout):
+            port = self.serving(self.OVERSIZE, next(bodies))
+            return pm.send_json(
+                f"http://127.0.0.1:{port}/v1/chat/completions", body, "k", timeout)
+
+        receipt = pm.guarded_receipt(
+            pm.QUALIFY_SCHEMA, target(),
+            lambda: pm.qualify_target(target(), surface(), 5.0, 6, send))
+        self.assertEqual(receipt["classification"], "PASS")
+        self.assertTrue(receipt["turns"][0]["request_id_oversize"])
+        self.assertNotIn(self.OVERSIZE, json.dumps(receipt))
+
+    def test_a_producer_handing_over_the_wrong_type_is_still_refused(self):
+        """The distinction the repair rests on, asserted from both sides."""
+        with self.assertRaisesRegex(ValueError, "request_id must be a string"):
+            pm.validate_send_result(pm.SendResult(200, b"{}", "", "completed", 2, 12345))
+        long_but_a_string = pm.SendResult(200, b"{}", "", "completed", 2, self.OVERSIZE)
+        self.assertEqual(pm.validate_send_result(long_but_a_string), long_but_a_string)
+
+
+class UsageCeilingTests(unittest.TestCase):
+    """The auditor's bound comes from the bound the producer applies.
+
+    A single `usage_ceiling` was computed from `response_limit` — a fact about
+    the response — while `usage_bounds` bounds the counters by the size of the
+    *request*. A caller passing a small response limit therefore made the
+    auditor refuse a `prompt_tokens` the producer had every reason to admit.
+    """
+
+    def context(self, schema, response_limit):
+        return receipt_policy.context_for(
+            schema, target(), pm.load_registry()["providers"]["groq"],
+            response_limit=response_limit)
+
+    def test_a_legitimate_prompt_count_is_not_a_finding(self):
+        context = self.context(pm.QUALIFY_SCHEMA, 4096)
+        admitted = pm.usage_bounds(200_000, pm.QUALIFY_MAX_TOKENS)["prompt_tokens"]
+        self.assertEqual(
+            receipt_policy.BoundedInt(0, "prompt_ceiling").problems(admitted, context), [])
+
+    def test_each_counter_carries_the_bound_that_produced_it(self):
+        for schema, generation in ((pm.PROBE_SCHEMA, pm.PROBE_MAX_TOKENS),
+                                   (pm.QUALIFY_SCHEMA, pm.QUALIFY_MAX_TOKENS)):
+            with self.subTest(schema=schema):
+                context = self.context(schema, pm.MAX_RESPONSE_BYTES)
+                self.assertEqual(context["prompt_ceiling"], pm.MAX_REQUEST_BYTES)
+                self.assertEqual(context["completion_ceiling"], generation)
+                self.assertEqual(context["usage_ceiling"],
+                                 pm.MAX_REQUEST_BYTES + generation)
+
+    def test_a_completion_count_past_the_generation_ceiling_is_still_refused(self):
+        """One shared bound would have been safe and slack; three are neither."""
+        context = self.context(pm.QUALIFY_SCHEMA, pm.MAX_RESPONSE_BYTES)
+        over = pm.QUALIFY_MAX_TOKENS + 1
+        self.assertTrue(
+            receipt_policy.BoundedInt(0, "completion_ceiling").problems(over, context))
+        self.assertEqual(
+            receipt_policy.BoundedInt(0, "usage_ceiling").problems(over, context), [])
+
+    def test_no_counter_is_bounded_by_the_response_limit(self):
+        """The two limits describe different things and must not be confused."""
+        wide = self.context(pm.QUALIFY_SCHEMA, 4096)
+        narrow = self.context(pm.QUALIFY_SCHEMA, pm.MAX_RESPONSE_BYTES)
+        for ceiling in ("prompt_ceiling", "completion_ceiling", "usage_ceiling"):
+            with self.subTest(ceiling=ceiling):
+                self.assertEqual(wide[ceiling], narrow[ceiling])
+
+
+class CoverageApiTests(unittest.TestCase):
+    """`ReceiptKind` closed the table and left the queries taking strings.
+
+    `coverage("probe", ...)` matched no policy, so `declared` and `applicable`
+    were both empty and both directions of the proof reported nothing wrong — a
+    green answer produced by asking about a universe that does not exist.
+    """
+
+    def test_a_plain_string_is_refused_by_every_query(self):
+        for query in (receipt_policy.declared_paths, receipt_policy.applicable_paths):
+            with self.subTest(query=query.__name__):
+                with self.assertRaisesRegex(TypeError, "a receipt kind is a ReceiptKind"):
+                    query("probe")
+        with self.assertRaisesRegex(TypeError, "a receipt kind is a ReceiptKind"):
+            receipt_policy.coverage("probe", set())
+        with self.assertRaisesRegex(TypeError, "a receipt kind is a ReceiptKind"):
+            receipt_policy.coverage_gaps("probe", set())
+
+    def test_the_real_kinds_still_answer(self):
+        for kind in receipt_policy.ReceiptKind:
+            with self.subTest(kind=kind):
+                self.assertTrue(receipt_policy.declared_paths(kind))
+                self.assertTrue(receipt_policy.applicable_paths(kind))
+
+    def test_a_wrong_kind_object_cannot_sneak_through(self):
+        for hostile in (None, 1, ("probe",), object(), "PROBE"):
+            with self.subTest(value=repr(hostile)):
+                with self.assertRaises(TypeError):
+                    receipt_policy.coverage(hostile, set())
+
+
+class MutationTableValidatorTests(unittest.TestCase):
+    """The validator of the mutation table needs its own positive controls.
+
+    Otherwise it is a check nobody checks — an architecture this vertical has
+    now learned about eight times, apparently without a durable receipt.
+    """
+
+    def test_a_multi_anchor_spec_with_unequal_halves_is_refused(self):
+        """`zip` truncates in silence, so two of three guards would be removed
+        and the harness would report a kill for a contract it left standing."""
+        lopsided = [("A", ["x", "y", "z"], ["1", "2"])]
+        problems = mutations.spec_problems(lopsided)
+        self.assertTrue(any("3 anchors and 2 replacements" in p for p in problems), problems)
+        self.assertTrue(any("discard the difference" in p for p in problems), problems)
+
+    def test_a_half_list_spec_is_refused(self):
+        self.assertTrue(any("one half of a multi-anchor edit" in p
+                            for p in mutations.spec_problems([("A", ["x"], "1")])))
+
+    def test_an_orphaned_expectation_is_refused(self):
+        """Renaming a mutation silently retires the attribution it carried."""
+        problems = mutations.spec_problems([("B", "x", "y")], {"A": "test_something"})
+        self.assertTrue(any("'A'" in p and "no mutation declares" in p for p in problems),
+                        problems)
+
+    def test_the_shipped_table_carries_no_orphan(self):
+        self.assertEqual(
+            mutations.spec_problems(mutations.MUTATIONS, mutations.EXPECTED_KILL), [])
+        self.assertEqual(
+            set(mutations.EXPECTED_KILL) - {spec[0] for spec in mutations.MUTATIONS}, set())
+
+    def test_the_negative_control_for_a_failed_setup_names_its_killer(self):
+        """`W4` used to die of `UnboundLocalError` before reaching the property."""
+        self.assertIn("W4 a failed setup command stops being an error",
+                      mutations.EXPECTED_KILL)
+
+
+class ChildProcessLivenessTests(unittest.TestCase):
+    """A child that reads the terminal must get EOF, not the deadline."""
+
+    def test_a_child_reading_stdin_is_not_left_waiting(self):
+        import time
+        script = "import sys\nprint(len(sys.stdin.read()))\n"
+        with tempfile.TemporaryDirectory() as td:
+            path = Path(td) / "reader.py"
+            path.write_text(script, encoding="utf-8")
+            started = time.monotonic()
+            proc = process_boundary.run_bytes(
+                [sys.executable, str(path)], timeout=30)
+        self.assertEqual(proc.returncode, 0)
+        self.assertEqual(proc.stdout.strip(), b"0")
+        self.assertLess(time.monotonic() - started, 20)
+
+
+class CleanTreeIsolationTests(unittest.TestCase):
+    """The real verdict runs under the isolation the self-test builds.
+
+    It did not, and the asymmetry was the defect: the control proved the check
+    survives a hostile machine while the check that actually reports ran with
+    ambient `os.environ`. An inherited `GIT_DIR` points both `rev-parse` and
+    `status` at another repository, after which this prints `OK` about a tree it
+    never looked at.
+    """
+
+    def gate(self):
+        import importlib.util
+        path = Path(__file__).resolve().parent / "check_clean_tree.py"
+        spec = importlib.util.spec_from_file_location("check_clean_tree", path)
+        module = importlib.util.module_from_spec(spec)
+        spec.loader.exec_module(module)
+        return module
+
+    def test_an_inherited_git_dir_cannot_redirect_the_real_verdict(self):
+        """Two repositories: the one being judged, and a clean decoy.
+
+        The test builds both rather than assuming it runs inside a checkout —
+        the mutation harness copies this tree into a temp directory that is not
+        one, and a regression that assumes its surroundings is the defect it
+        exists to catch, one layer out.
+        """
+        gate = self.gate()
+        with tempfile.TemporaryDirectory() as td:
+            home = Path(td) / "home"
+            home.mkdir()
+            env = gate.isolated_env(home)
+
+            judged = Path(td) / "judged"
+            judged.mkdir()
+            gate.must_git("init", "-q", cwd=judged, env=env)
+            (judged / "leftover.txt").write_text("x", encoding="utf-8")
+
+            decoy = Path(td) / "decoy"
+            decoy.mkdir()
+            gate.must_git("init", "-q", cwd=decoy, env=env)
+
+            hostile = dict(os.environ, GIT_DIR=str(decoy / ".git"),
+                           GIT_WORK_TREE=str(decoy))
+            with patch.dict("os.environ", hostile, clear=False):
+                # Under isolation the verdict is about `judged`, leftover and
+                # all. The decoy is empty, so a redirected gate would say OK.
+                root = gate.repo_root(start=judged, env=env)
+                self.assertEqual(root.resolve(), judged.resolve())
+                self.assertTrue(any("leftover.txt" in line
+                                    for line in gate.dirt(root, env=env)))
+                # And the ambient environment really would redirect it: this is
+                # the half that makes the isolation load-bearing rather than
+                # decorative.
+                hijacked = gate.repo_root(start=judged)
+                self.assertEqual(hijacked.resolve(), decoy.resolve())
+
+    def test_a_global_excludes_file_cannot_hide_untracked_leftovers(self):
+        gate = self.gate()
+        with tempfile.TemporaryDirectory() as td:
+            home = Path(td) / "home"
+            home.mkdir()
+            root = Path(td) / "repo"
+            root.mkdir()
+            env = gate.isolated_env(home)
+            gate.must_git("init", "-q", cwd=root, env=env)
+            (root / "leftover.tmp").write_text("x", encoding="utf-8")
+            # A global excludes file that would hide it, if the gate read one.
+            (home / "excludes").write_text("*.tmp\n", encoding="utf-8")
+            hostile = dict(os.environ, HOME=str(home))
+            with patch.dict("os.environ", hostile, clear=False):
+                gate.must_git("config", "--global", "core.excludesFile",
+                              str(home / "excludes"), cwd=root,
+                              env=dict(os.environ, HOME=str(home)))
+                found = gate.dirt(root, env=gate.isolated_env(home))
+        self.assertTrue(any("leftover.tmp" in line for line in found), found)
 
 
 if __name__ == "__main__":
