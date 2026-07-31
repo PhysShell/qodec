@@ -67,19 +67,58 @@ HERE = Path(__file__).resolve().parent
 # ---------------------------------------------------------------------------
 
 
+@dataclass(frozen=True)
+class Node:
+    """A container in the artifact, as a value the inventory can be handed.
+
+    The first version of `flatten` yielded leaves only, and said so as a
+    principle: an empty list or object *has* no leaves, so inventing one would
+    report on something the artifact does not contain. That was wrong twice
+    over, and a reviewer produced the counterexample to the round's own theorem:
+
+        receipt["provider_said"] = {"sk-live-secret": {}}
+
+    yielded nothing at all, so the closed-world audit answered `[]` for an
+    artifact carrying a provider-chosen **key**. A JSON key is as durable as a
+    JSON value — it is written to the file either way — and calling it "not a
+    leaf" removes it from the check without removing it from disk.
+
+    So every container is a node with a path, and the table describes the shape
+    of the artifact rather than only its scalars.
+    """
+
+    kind: str  # object | array
+
+    def __str__(self) -> str:
+        return f"an empty {self.kind}" if self.empty else f"an {self.kind}"
+
+    empty: bool = False
+
+
+OBJECT_NODE = Node("object")
+EMPTY_OBJECT = Node("object", empty=True)
+ARRAY_NODE = Node("array")
+EMPTY_ARRAY = Node("array", empty=True)
+
+
 def flatten(value: Any, prefix: str = "") -> Iterator[tuple[str, Any]]:
-    """Every leaf of a receipt, as `(path, value)`.
+    """Every node and every leaf of a receipt, as `(path, value)`.
 
     List indices collapse to `[]`, because a policy is about a *kind* of place
-    and `turns[3]` is not a different kind of place from `turns[0]`. An empty
-    list or object yields nothing: it has no leaves, and inventing one would
-    make the inventory report on something the artifact does not contain.
+    and `turns[3]` is not a different kind of place from `turns[0]`.
+
+    The root is not yielded: it is the receipt itself, and its existence is not
+    the question. Everything below it is, including containers, including empty
+    ones — see `Node`.
     """
     if isinstance(value, dict):
+        if prefix:
+            yield prefix, (EMPTY_OBJECT if not value else OBJECT_NODE)
         for key in value:
             child = f"{prefix}.{key}" if prefix else str(key)
             yield from flatten(value[key], child)
     elif isinstance(value, list):
+        yield prefix, (EMPTY_ARRAY if not value else ARRAY_NODE)
         for item in value:
             yield from flatten(item, f"{prefix}[]")
     else:
@@ -308,6 +347,32 @@ class Flag(Kind):
 
 
 @dataclass(frozen=True)
+class Shape(Kind):
+    """A container this artifact is allowed to have, and whether it may be empty.
+
+    A node policy is not decoration. Without one, a writer that adds a key whose
+    value is `{}` adds a durable path the inventory never sees — and if the key
+    is provider-chosen, a provider-chosen string reaches the file with the
+    closed-world gate reporting nothing.
+    """
+
+    kind: str  # object | array
+    may_be_empty: bool = True
+
+    def problems(self, value: Any, context: dict[str, Any]) -> list[str]:
+        if not isinstance(value, Node):
+            return [f"{type(value).__name__} is not a container"]
+        if value.kind != self.kind:
+            return [f"an {value.kind} where an {self.kind} belongs"]
+        if value.empty and not self.may_be_empty:
+            return [f"an empty {self.kind} where this path always carries entries"]
+        return []
+
+    def describe(self) -> str:
+        return f"{self.kind}{'' if self.may_be_empty else ' (non-empty)'}"
+
+
+@dataclass(frozen=True)
 class Prose(Kind):
     """A lexical defence in depth over a rendered line. **Not the provenance proof.**
 
@@ -368,13 +433,34 @@ class Prose(Kind):
 # ---------------------------------------------------------------------------
 
 
+# Which receipt kind a path can appear in. Coverage is asked per kind, because
+# "every policy is exercised" over the union is a weaker claim than it looks:
+# a qualification-only path is trivially satisfied by a qualification scenario
+# and says nothing about the probe, and vice versa.
+PROBE = "probe"
+QUALIFICATION = "qualification"
+BOTH = (PROBE, QUALIFICATION)
+
+SCHEMA_KINDS = {pm.PROBE_SCHEMA: PROBE, pm.QUALIFY_SCHEMA: QUALIFICATION}
+
+
 @dataclass(frozen=True)
 class DurableFieldPolicy:
-    """One place a value may reach a receipt, and the only shape it may take."""
+    """One place a value may reach a receipt, and the only shape it may take.
+
+    `schemas` says which receipt kinds the path can occur in, and
+    `coverage_required` says whether a real pipeline run must be able to produce
+    it. Both exist because the first version of this table asserted coverage
+    over *classifications* and called it coverage of the table — so twelve of a
+    hundred and nine policies were never exercised by any generated receipt, and
+    weakening any of them left the suite green.
+    """
 
     path: str
     kind: Kind
+    schemas: tuple[str, ...] = BOTH
     nullable: bool = False
+    coverage_required: bool = True
     why: str = ""
 
     def validate(self, value: Any, context: dict[str, Any]) -> list[str]:
@@ -388,47 +474,72 @@ DETAIL_MAX_BYTES = 4096
 # The evidence quartet `opaque_text` writes, as four policies. Written by a
 # function rather than by hand because it appears eleven times and eleven
 # hand-copies is eleven chances for one of them to differ silently.
-def opaque_policies(path: str, domain: str) -> list[DurableFieldPolicy]:
+def opaque_policies(path: str, domain: str, schemas: tuple[str, ...] = BOTH) -> list[DurableFieldPolicy]:
     return [
-        DurableFieldPolicy(f"{path}_present", Flag()),
-        DurableFieldPolicy(f"{path}_sha256", Digest(domain)),
-        DurableFieldPolicy(f"{path}_bytes", BoundedInt(0, pm.EVIDENCE_MAX_BYTES[domain])),
-        DurableFieldPolicy(f"{path}_oversize", Flag()),
+        DurableFieldPolicy(f"{path}_present", Flag(), schemas),
+        DurableFieldPolicy(f"{path}_sha256", Digest(domain), schemas),
+        DurableFieldPolicy(f"{path}_bytes", BoundedInt(0, pm.EVIDENCE_MAX_BYTES[domain]), schemas),
+        DurableFieldPolicy(f"{path}_oversize", Flag(), schemas),
     ]
 
 
-def model_evidence_policies(path: str) -> list[DurableFieldPolicy]:
-    """The projected identity of a reported model, wherever it appears."""
-    return [
-        DurableFieldPolicy(
-            f"{path}reported_model", Local("requested_model"), nullable=True,
+def model_evidence_policies(
+    path: str, schemas: tuple[str, ...] = BOTH, fields: tuple[str, ...] | None = None
+) -> list[DurableFieldPolicy]:
+    """The projected identity of a reported model, wherever it appears.
+
+    `fields` exists because `fold_reported_models` copies a *subset*:
+    `MODEL_EVIDENCE_FIELDS` carries the name, its presence, its digest and its
+    length, and deliberately not `_oversize` or `_type`. Generating the full
+    quartet there declared two policies for paths nothing can produce — dead
+    entries that the coverage gate would have to be told to ignore. A policy for
+    a path that cannot exist is not caution, it is noise that looks like rigour.
+    """
+    everything = {
+        "reported_model": DurableFieldPolicy(
+            f"{path}reported_model", Local("requested_model"), schemas, nullable=True,
             why="text only when it equalled the model we asked for",
         ),
-        *opaque_policies(f"{path}reported_model", "model-name"),
-        DurableFieldPolicy(
+        "reported_model_present": None, "reported_model_sha256": None,
+        "reported_model_bytes": None, "reported_model_oversize": None,
+        "reported_model_type": DurableFieldPolicy(
             f"{path}reported_model_type",
             Enum("JSON type names", tuple(name for _, name in pm.JSON_TYPE_NAMES) + ("null", "unknown")),
+            schemas,
             why="an object or a list in `model` crosses as its type and nothing else",
         ),
-    ]
+    }
+    for policy in opaque_policies(f"{path}reported_model", "model-name", schemas):
+        everything[policy.path[len(path):]] = policy
+    wanted = fields if fields is not None else tuple(everything)
+    return [everything[name] for name in wanted]
 
 
-def usage_policies(path: str) -> list[DurableFieldPolicy]:
+def usage_policies(path: str, schemas: tuple[str, ...]) -> list[DurableFieldPolicy]:
     return [
-        DurableFieldPolicy(f"{path}.{counter}", BoundedInt(0, "usage_ceiling"))
+        DurableFieldPolicy(f"{path}.{counter}", BoundedInt(0, "usage_ceiling"), schemas)
         for counter in pm.USAGE_COUNTERS
     ]
 
 
-TRANSPORT_POLICIES: Callable[[str], list[DurableFieldPolicy]] = lambda path: [
-    DurableFieldPolicy(f"{path}transport_reason", Enum("TRANSPORT_REASONS", pm.TRANSPORT_REASONS)),
-    DurableFieldPolicy(f"{path}failure_kind", Enum("TRANSPORT_FAILURE_KINDS", pm.TRANSPORT_FAILURE_KINDS)),
-    *opaque_policies(f"{path}failure_class", "failure-class"),
-]
+def transport_policies(path: str, schemas: tuple[str, ...]) -> list[DurableFieldPolicy]:
+    return [
+        DurableFieldPolicy(
+            f"{path}transport_reason", Enum("TRANSPORT_REASONS", pm.TRANSPORT_REASONS), schemas),
+        DurableFieldPolicy(
+            f"{path}failure_kind", Enum("TRANSPORT_FAILURE_KINDS", pm.TRANSPORT_FAILURE_KINDS), schemas),
+        *opaque_policies(f"{path}failure_class", "failure-class", schemas),
+    ]
 
 
 def build_policies() -> list[DurableFieldPolicy]:
-    """Every leaf of both receipt kinds. The closed world itself."""
+    """Every node and every leaf of both receipt kinds. The closed world itself.
+
+    Container nodes are named too, so the table describes the *shape* of the
+    artifact rather than only its scalars — which is what makes a
+    provider-chosen key with an empty object under it a finding rather than a
+    silence.
+    """
     shared = [
         DurableFieldPolicy("schema", Local("schema")),
         DurableFieldPolicy("target_id", Local("target_id")),
@@ -449,74 +560,119 @@ def build_policies() -> list[DurableFieldPolicy]:
         # entries would be two owners of one field — the state `policy_problems`
         # exists to refuse.
         DurableFieldPolicy("model_status", Enum("model statuses", tuple(pm.MODEL_STATUS_SEVERITY))),
-        *model_evidence_policies(""),
+        # `reported_model` is the one identity field both receipt kinds write at
+        # the top level. The projected companions beside it are the probe's
+        # alone: qualification folds identity into `reported_models[]` and keeps
+        # only the single agreed name up here. The coverage gate found that —
+        # the table had claimed all five for both kinds, and five paths one
+        # receipt kind cannot produce were passing on the other one's evidence.
+        *model_evidence_policies("", BOTH, ("reported_model",)),
     ]
 
     probe = [
-        DurableFieldPolicy("request_sha256", Digest()),
-        DurableFieldPolicy("endpoint", Local("endpoint")),
-        DurableFieldPolicy("latency_ms", BoundedInt(0, pm.LATENCY_MAX_MS)),
-        DurableFieldPolicy("http_status", BoundedInt(100, 599)),
-        DurableFieldPolicy("response_sha256", Digest("response-body", sized=False)),
-        DurableFieldPolicy("response_bytes", BoundedInt(0, "response_limit")),
-        DurableFieldPolicy("body_bytes_observed", BoundedInt(0, "observed_ceiling")),
+        DurableFieldPolicy("request_sha256", Digest(), (PROBE,)),
+        DurableFieldPolicy("endpoint", Local("endpoint"), (PROBE,)),
+        DurableFieldPolicy("latency_ms", BoundedInt(0, pm.LATENCY_MAX_MS), (PROBE,)),
+        DurableFieldPolicy("http_status", BoundedInt(100, 599), (PROBE,)),
+        DurableFieldPolicy("response_sha256", Digest("response-body", sized=False), (PROBE,)),
+        DurableFieldPolicy("response_bytes", BoundedInt(0, "response_limit"), (PROBE,)),
+        DurableFieldPolicy("body_bytes_observed", BoundedInt(0, "observed_ceiling"), (PROBE,)),
         DurableFieldPolicy(
-            "completion_parse_kind", Enum("COMPLETION_PARSE_KINDS", pm.COMPLETION_PARSE_KINDS)),
-        *opaque_policies("request_id", "request-id"),
-        *TRANSPORT_POLICIES(""),
-        *usage_policies("provider_usage"),
+            "completion_parse_kind",
+            Enum("COMPLETION_PARSE_KINDS", pm.COMPLETION_PARSE_KINDS), (PROBE,)),
+        *opaque_policies("request_id", "request-id", (PROBE,)),
+        *model_evidence_policies("", (PROBE,), (
+            "reported_model_present", "reported_model_sha256",
+            "reported_model_bytes", "reported_model_oversize", "reported_model_type")),
+        *transport_policies("", (PROBE,)),
+        DurableFieldPolicy("provider_usage", Shape("object"), (PROBE,)),
+        *usage_policies("provider_usage", (PROBE,)),
     ]
 
     qualification = [
-        DurableFieldPolicy("turn_count", BoundedInt(0, "max_turns")),
-        DurableFieldPolicy("tool_result_roundtrip", Flag()),
-        DurableFieldPolicy("transport_target.api_style", Local("api_style"), nullable=True),
-        DurableFieldPolicy("transport_target.endpoint", Local("api_base"), nullable=True),
-        DurableFieldPolicy("transport_target.path", Local("completions_path")),
-        DurableFieldPolicy("transport_target.content_type", Local("content_type")),
-        DurableFieldPolicy("transport_target.timeout_secs", BoundedNumber(0, pm.TIMEOUT_MAX_SECS)),
-        DurableFieldPolicy("transport_target.redirects_allowed", BoundedInt(0, 0)),
-        DurableFieldPolicy("transport_target.max_response_bytes", BoundedInt(0, "response_limit")),
-        *model_evidence_policies("reported_models[]."),
+        DurableFieldPolicy("turn_count", BoundedInt(0, "max_turns"), (QUALIFICATION,)),
+        DurableFieldPolicy("tool_result_roundtrip", Flag(), (QUALIFICATION,)),
+        DurableFieldPolicy(
+            "transport_target", Shape("object", may_be_empty=False), (QUALIFICATION,)),
+        DurableFieldPolicy("transport_target.api_style", Local("api_style"), (QUALIFICATION,), nullable=True),
+        DurableFieldPolicy("transport_target.endpoint", Local("api_base"), (QUALIFICATION,), nullable=True),
+        DurableFieldPolicy("transport_target.path", Local("completions_path"), (QUALIFICATION,)),
+        DurableFieldPolicy("transport_target.content_type", Local("content_type"), (QUALIFICATION,)),
+        DurableFieldPolicy(
+            "transport_target.timeout_secs", BoundedNumber(0, pm.TIMEOUT_MAX_SECS), (QUALIFICATION,)),
+        DurableFieldPolicy("transport_target.redirects_allowed", BoundedInt(0, 0), (QUALIFICATION,)),
+        DurableFieldPolicy(
+            "transport_target.max_response_bytes", BoundedInt(0, "response_limit"), (QUALIFICATION,)),
+        DurableFieldPolicy("reported_models", Shape("array"), (QUALIFICATION,)),
+        DurableFieldPolicy(
+            "reported_models[]", Shape("object", may_be_empty=False), (QUALIFICATION,)),
+        # Exactly the fields `fold_reported_models` copies — `MODEL_EVIDENCE_FIELDS`
+        # and no more. Declaring the rest would be declaring paths nothing can
+        # produce.
+        *model_evidence_policies("reported_models[].", (QUALIFICATION,), pm.MODEL_EVIDENCE_FIELDS),
         # -- one turn --
-        DurableFieldPolicy("turns[].ordinal", BoundedInt(0, "max_turns")),
-        DurableFieldPolicy("turns[].request_sha256", Digest()),
-        DurableFieldPolicy("turns[].request_bytes", BoundedInt(0, "request_ceiling")),
-        DurableFieldPolicy("turns[].carried_tool_results", Flag()),
-        DurableFieldPolicy("turns[].response_sha256", Digest("response-body", sized=False), nullable=True),
-        DurableFieldPolicy("turns[].response_bytes", BoundedInt(0, "response_limit"), nullable=True),
-        DurableFieldPolicy("turns[].http_status", BoundedInt(100, 599)),
-        DurableFieldPolicy("turns[].body_bytes_observed", BoundedInt(0, "observed_ceiling")),
-        DurableFieldPolicy("turns[].key_env", Local("key_env")),
-        DurableFieldPolicy("turns[].outcome", Enum("turn outcomes", TURN_OUTCOMES)),
-        DurableFieldPolicy("turns[].detail", Prose(DETAIL_MAX_BYTES)),
+        DurableFieldPolicy("turns", Shape("array"), (QUALIFICATION,)),
+        DurableFieldPolicy("turns[]", Shape("object", may_be_empty=False), (QUALIFICATION,)),
+        DurableFieldPolicy("turns[].ordinal", BoundedInt(0, "max_turns"), (QUALIFICATION,)),
+        DurableFieldPolicy("turns[].request_sha256", Digest(), (QUALIFICATION,)),
+        DurableFieldPolicy("turns[].request_bytes", BoundedInt(0, "request_ceiling"), (QUALIFICATION,)),
+        DurableFieldPolicy("turns[].carried_tool_results", Flag(), (QUALIFICATION,)),
         DurableFieldPolicy(
-            "turns[].detail_template", Enum("DETAIL_TEMPLATES", tuple(pm.DETAIL_TEMPLATES))),
+            "turns[].response_sha256", Digest("response-body", sized=False), (QUALIFICATION,), nullable=True),
         DurableFieldPolicy(
-            "turns[].completion_parse_kind", Enum("COMPLETION_PARSE_KINDS", pm.COMPLETION_PARSE_KINDS)),
-        DurableFieldPolicy("turns[].model_status", Enum("model statuses", tuple(pm.MODEL_STATUS_SEVERITY))),
-        DurableFieldPolicy("turns[].tool_result_roundtrip", Flag()),
-        DurableFieldPolicy("turns[].arguments_valid", Flag()),
-        DurableFieldPolicy("turns[].terminal_answer_valid", Flag()),
-        DurableFieldPolicy("turns[].canary_answer_matches", Flag()),
-        DurableFieldPolicy("turns[].canary_answer_errors[]", Prose(DETAIL_MAX_BYTES)),
+            "turns[].response_bytes", BoundedInt(0, "response_limit"), (QUALIFICATION,), nullable=True),
+        DurableFieldPolicy("turns[].http_status", BoundedInt(100, 599), (QUALIFICATION,)),
+        DurableFieldPolicy(
+            "turns[].body_bytes_observed", BoundedInt(0, "observed_ceiling"), (QUALIFICATION,)),
+        DurableFieldPolicy("turns[].key_env", Local("key_env"), (QUALIFICATION,)),
+        DurableFieldPolicy("turns[].outcome", Enum("turn outcomes", TURN_OUTCOMES), (QUALIFICATION,)),
+        DurableFieldPolicy("turns[].detail", Prose(DETAIL_MAX_BYTES), (QUALIFICATION,)),
+        DurableFieldPolicy(
+            "turns[].detail_template",
+            Enum("DETAIL_TEMPLATES", tuple(pm.DETAIL_TEMPLATES)), (QUALIFICATION,)),
+        DurableFieldPolicy(
+            "turns[].completion_parse_kind",
+            Enum("COMPLETION_PARSE_KINDS", pm.COMPLETION_PARSE_KINDS), (QUALIFICATION,)),
+        DurableFieldPolicy(
+            "turns[].model_status",
+            Enum("model statuses", tuple(pm.MODEL_STATUS_SEVERITY)), (QUALIFICATION,)),
+        DurableFieldPolicy("turns[].tool_result_roundtrip", Flag(), (QUALIFICATION,)),
+        DurableFieldPolicy("turns[].arguments_valid", Flag(), (QUALIFICATION,)),
+        DurableFieldPolicy("turns[].terminal_answer_valid", Flag(), (QUALIFICATION,)),
+        DurableFieldPolicy("turns[].canary_answer_matches", Flag(), (QUALIFICATION,)),
+        DurableFieldPolicy(
+            "turns[].canary_answer_errors", Shape("array", may_be_empty=False), (QUALIFICATION,)),
+        DurableFieldPolicy(
+            "turns[].canary_answer_errors[]", Prose(DETAIL_MAX_BYTES), (QUALIFICATION,)),
+        DurableFieldPolicy(
+            "turns[].canary_answer_error_templates", Shape("array", may_be_empty=False), (QUALIFICATION,)),
         DurableFieldPolicy(
             "turns[].canary_answer_error_templates[]",
-            Enum("DETAIL_TEMPLATES", tuple(pm.DETAIL_TEMPLATES))),
-        DurableFieldPolicy("turns[].argument_errors_count", BoundedInt(0, "error_ceiling")),
+            Enum("DETAIL_TEMPLATES", tuple(pm.DETAIL_TEMPLATES)), (QUALIFICATION,)),
+        DurableFieldPolicy(
+            "turns[].argument_errors_count", BoundedInt(0, "error_ceiling"), (QUALIFICATION,)),
+        DurableFieldPolicy("turns[].argument_errors_kinds", Shape("array"), (QUALIFICATION,)),
         DurableFieldPolicy(
             "turns[].argument_errors_kinds[]",
-            Enum("argument error kinds", tuple(k for _, k in pm.ARGUMENT_ERROR_KINDS) + ("other",))),
-        DurableFieldPolicy("turns[].argument_errors_sha256", Digest("argument-errors", sized=False)),
-        DurableFieldPolicy("turns[].tool_names[]", Local("declared_tools")),
-        DurableFieldPolicy("turns[].tool_calls[].ordinal", BoundedInt(0, "call_ceiling")),
-        DurableFieldPolicy("turns[].tool_calls[].name", Local("declared_tools"), nullable=True),
-        *opaque_policies("turns[].tool_calls[].name", "tool-name"),
-        *opaque_policies("turns[].tool_calls[].call_id", "tool-call-id"),
-        *opaque_policies("turns[].request_id", "request-id"),
-        *model_evidence_policies("turns[]."),
-        *TRANSPORT_POLICIES("turns[]."),
-        *usage_policies("turns[].reported_usage"),
+            Enum("argument error kinds", tuple(k for _, k in pm.ARGUMENT_ERROR_KINDS) + ("other",)),
+            (QUALIFICATION,)),
+        DurableFieldPolicy(
+            "turns[].argument_errors_sha256", Digest("argument-errors", sized=False), (QUALIFICATION,)),
+        DurableFieldPolicy("turns[].tool_names", Shape("array"), (QUALIFICATION,)),
+        DurableFieldPolicy("turns[].tool_names[]", Local("declared_tools"), (QUALIFICATION,)),
+        DurableFieldPolicy("turns[].tool_calls", Shape("array"), (QUALIFICATION,)),
+        DurableFieldPolicy(
+            "turns[].tool_calls[]", Shape("object", may_be_empty=False), (QUALIFICATION,)),
+        DurableFieldPolicy("turns[].tool_calls[].ordinal", BoundedInt(0, "call_ceiling"), (QUALIFICATION,)),
+        DurableFieldPolicy(
+            "turns[].tool_calls[].name", Local("declared_tools"), (QUALIFICATION,), nullable=True),
+        *opaque_policies("turns[].tool_calls[].name", "tool-name", (QUALIFICATION,)),
+        *opaque_policies("turns[].tool_calls[].call_id", "tool-call-id", (QUALIFICATION,)),
+        *opaque_policies("turns[].request_id", "request-id", (QUALIFICATION,)),
+        *model_evidence_policies("turns[].", (QUALIFICATION,)),
+        *transport_policies("turns[].", (QUALIFICATION,)),
+        DurableFieldPolicy("turns[].reported_usage", Shape("object"), (QUALIFICATION,)),
+        *usage_policies("turns[].reported_usage", (QUALIFICATION,)),
     ]
     return shared + probe + qualification
 
@@ -667,9 +823,21 @@ def detail_provenance_problems(receipt: dict[str, Any], context: dict[str, Any])
 
 
 def detail_bearing_nodes(receipt: dict[str, Any]):
+    """The places a rendered line can land, over an artifact of any shape.
+
+    Defensive about `turns` on purpose. This walks an artifact that may be
+    malformed — that is the whole point of an auditor — and `for turn in
+    receipt["turns"]` raised `TypeError` the first time a test handed it a
+    scalar. A gate that dies on the input it exists to refuse reports nothing,
+    which is the failure mode round eleven closed everywhere except here.
+    """
     yield "receipt", receipt
-    for index, turn in enumerate(receipt.get("turns", []) or []):
-        yield f"turns[{index}]", turn
+    turns = receipt.get("turns")
+    if not isinstance(turns, list):
+        return
+    for index, turn in enumerate(turns):
+        if isinstance(turn, dict):
+            yield f"turns[{index}]", turn
 
 
 def policy_problems(policies: list[DurableFieldPolicy]) -> list[str]:
@@ -690,16 +858,77 @@ def policy_problems(policies: list[DurableFieldPolicy]) -> list[str]:
     return problems
 
 
+def known_components(policies: list[DurableFieldPolicy]) -> frozenset[str]:
+    """Every path component this table declares. Local words, by construction."""
+    return frozenset(
+        part.replace("[]", "")
+        for policy in policies
+        for part in policy.path.split(".")
+    )
+
+
+def projected_path(path: str, policies: list[DurableFieldPolicy]) -> str:
+    """A path, with any component this table does not declare turned into a reference.
+
+    An unknown path is reported, and a JSON key can be provider-chosen — a
+    gateway that writes `{"sk-live-…": {}}` into a response the loop copies
+    would otherwise have the *gate* print the secret into a CI log while
+    refusing it. The refusal names the shape and digests the rest, exactly as
+    every other finding about foreign material does.
+    """
+    known = known_components(policies)
+    rendered = []
+    for part in path.split("."):
+        bare = part.replace("[]", "")
+        if bare in known:
+            rendered.append(part)
+        else:
+            suffix = "[]" if part.endswith("[]") else ""
+            rendered.append(pm.opaque_ref("json-value", bare).render() + suffix)
+    return ".".join(rendered)
+
+
 def exactly_one_policy_for(
     path: str, policies: list[DurableFieldPolicy] | None = None
 ) -> DurableFieldPolicy:
     """The single policy for a path, or an error naming which rule was broken."""
-    matches = [policy for policy in (POLICIES if policies is None else policies) if policy.path == path]
+    table = POLICIES if policies is None else policies
+    matches = [policy for policy in table if policy.path == path]
     if not matches:
-        raise KeyError(f"no policy names the durable field {path!r}")
+        raise KeyError(f"no policy names the durable field {projected_path(path, table)}")
     if len(matches) > 1:
         raise KeyError(f"{len(matches)} policies name the durable field {path!r}")
     return matches[0]
+
+
+def applicable_paths(
+    kind: str, policies: list[DurableFieldPolicy] | None = None
+) -> frozenset[str]:
+    """Every path a receipt of this kind must be able to produce."""
+    return frozenset(
+        policy.path
+        for policy in (POLICIES if policies is None else policies)
+        if kind in policy.schemas and policy.coverage_required
+    )
+
+
+def coverage_gaps(
+    kind: str, reached: set[str], policies: list[DurableFieldPolicy] | None = None
+) -> list[str]:
+    """Policies of this receipt kind that no real pipeline run produced.
+
+    The first version of this module asserted that the scenarios reached every
+    *classification* and treated that as coverage of the table. It is not: a
+    classification is a verdict, and a policy is a place. Twelve of a hundred
+    and nine policies were never produced by any generated receipt, so weakening
+    any of the twelve left every gate green. A policy nothing exercises is a
+    policy nothing defends.
+    """
+    return sorted(applicable_paths(kind, policies) - reached)
+
+
+def reached_paths(receipt: dict[str, Any]) -> set[str]:
+    return {path for path, _ in flatten(receipt)}
 
 
 def audit(

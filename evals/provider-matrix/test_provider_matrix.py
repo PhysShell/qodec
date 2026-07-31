@@ -3348,6 +3348,23 @@ class DurableFieldInventoryTests(unittest.TestCase):
             "tool_calls": [call("qodec_answer", ANSWER_ARGS, "call_n")]}}]}).encode(), "")
         operations = (200, completion(
             [call("qodec_intersect", INTERSECT_ARGS, "call_op")], usage={"prompt_tokens": 11}), "")
+        # Every counter, so the bounded-integer policies for all three are
+        # exercised by something the loop really produced rather than by a unit
+        # test of `normalize_provider_usage` standing in for the wiring.
+        counted = (200, completion(
+            [call("qodec_intersect", INTERSECT_ARGS, "call_c")],
+            usage={"prompt_tokens": 11, "completion_tokens": 7, "total_tokens": 18}), "")
+        # A `model` that is an object: it crosses as its JSON type and nothing
+        # else, which is the only way `reported_model_type` is ever written.
+        typed_model = (200, json.dumps({
+            "model": {"name": "not-a-string"},
+            "choices": [{"message": {
+                "role": "assistant", "content": None,
+                "tool_calls": [call("qodec_intersect", INTERSECT_ARGS, "call_t")]}}]}).encode(), "")
+        # A transport failure that names its class, so the failure-class
+        # projection in a turn record is produced rather than assumed.
+        classed = pm.SendResult(None, None, "boom", "before-response", None, None,
+                                "connection-failed", "url-error", "URLError")
 
         scenarios = {
             "endpoint-rejected": ([], dict(target(), api_base="https://steal.example/v1")),
@@ -3383,6 +3400,9 @@ class DurableFieldInventoryTests(unittest.TestCase):
             "identity-substituted": (OPERATION_THEN(substituted), None),
             "identity-unestablished": (OPERATION_THEN(no_model), None),
             "no-terminal-answer": ([operations, operations], None),
+            "usage-counters": ([counted, counted], None),
+            "object-model": ([typed_model, typed_model], None),
+            "classed-transport-failure": ([classed], None),
             "pass": (OPERATION_THEN(ANSWER_REPLY), None),
         }
         for name, (replies, edited) in scenarios.items():
@@ -3393,11 +3413,18 @@ class DurableFieldInventoryTests(unittest.TestCase):
     def probe_receipts(self):
         ok = json.dumps({"model": "m", "choices": [{"message": {"content": "QODEC_PROBE_OK"}}],
                          "usage": {"prompt_tokens": 9}}).encode()
+        counted = json.dumps({"model": "m", "choices": [{"message": {"content": "QODEC_PROBE_OK"}}],
+                              "usage": {"prompt_tokens": 9, "completion_tokens": 5,
+                                        "total_tokens": 14}}).encode()
+        typed_model = json.dumps({"model": {"name": "not-a-string"},
+                                  "choices": [{"message": {"content": "QODEC_PROBE_OK"}}]}).encode()
         drifted = json.dumps({"model": "other", "choices": [{"message": {"content": "QODEC_PROBE_OK"}}]}).encode()
         silent = json.dumps({"choices": [{"message": {"content": "QODEC_PROBE_OK"}}]}).encode()
         wrong = json.dumps({"model": "m", "choices": [{"message": {"content": "no"}}]}).encode()
         scenarios = {
             "pass": ([(200, ok, "", "completed")], None),
+            "usage-counters": ([(200, counted, "", "completed")], None),
+            "object-model": ([(200, typed_model, "", "completed")], None),
             "substituted": ([(200, drifted, "", "completed")], None),
             "identity-missing": ([(200, silent, "", "completed")], None),
             "token-mismatch": ([(200, wrong, "", "completed")], None),
@@ -3452,6 +3479,50 @@ class DurableFieldInventoryTests(unittest.TestCase):
                 receipt = pm.guarded_receipt(schema, target(), explode)
                 self.assertEqual(self.audit(receipt, target(), self.registry_entry(), schema), [])
 
+    def reached(self, generator, schema):
+        """Every path the real pipeline produced, for one receipt kind."""
+        def explode():
+            raise ValueError("Bearer sk-SECRET")
+
+        paths = set()
+        for _, receipt in generator():
+            paths |= receipt_policy.reached_paths(receipt)
+        paths |= receipt_policy.reached_paths(
+            pm.guarded_receipt(schema, target(), explode))
+        return paths
+
+    def test_every_applicable_policy_is_produced_by_a_real_run(self):
+        """Coverage of the *table*, not of the classification vocabulary.
+
+        Asserting that the scenarios reach every classification is a claim about
+        verdicts, and the table is a claim about places. Twelve of a hundred and
+        nine policies turned out never to be produced by any generated receipt —
+        `reported_model_type`, the per-turn failure-class projection, two of the
+        three usage counters — so weakening any of the twelve left every gate
+        green. A reviewer found the first of them; this finds the rest, and the
+        next one, without anybody having to look.
+
+        Asked per receipt kind on purpose: a qualification-only path satisfied
+        by a qualification scenario says nothing about the probe, and a union
+        would hide exactly that.
+        """
+        for kind, generator, schema in (
+            (receipt_policy.QUALIFICATION, self.qualification_receipts, pm.QUALIFY_SCHEMA),
+            (receipt_policy.PROBE, self.probe_receipts, pm.PROBE_SCHEMA),
+        ):
+            with self.subTest(receipt=kind):
+                gaps = receipt_policy.coverage_gaps(kind, self.reached(generator, schema))
+                self.assertEqual(gaps, [], f"{len(gaps)} {kind} policies no run produces")
+
+    def test_the_coverage_gate_would_notice_a_policy_nothing_produces(self):
+        """A gate that has never reported a gap is a gate nobody has tested."""
+        invented = receipt_policy.POLICIES + [
+            receipt_policy.DurableFieldPolicy(
+                "nobody_writes_this", receipt_policy.Flag(), (receipt_policy.PROBE,))]
+        gaps = receipt_policy.coverage_gaps(
+            receipt_policy.PROBE, self.reached(self.probe_receipts, pm.PROBE_SCHEMA), invented)
+        self.assertEqual(gaps, ["nobody_writes_this"])
+
     def test_the_scenarios_reach_every_classification_the_module_declares(self):
         """An inventory over three receipts would prove almost nothing.
 
@@ -3482,6 +3553,65 @@ class DurableFieldInventoryTests(unittest.TestCase):
         receipt = self.specimen()
         receipt["provider_said"] = "anything at all"
         self.assert_refused(receipt, "no policy names")
+
+    def test_an_empty_container_is_a_path_and_not_a_silence(self):
+        """The counterexample to the round's own theorem, closed.
+
+        `flatten` used to yield nothing for `{}` and `[]` on the grounds that an
+        empty container has no leaves. That removed the path from the check
+        without removing it from the file — and a provider-chosen **key** with an
+        empty object under it passed the closed-world audit reporting nothing at
+        all. A JSON key is as durable as a JSON value.
+        """
+        for hostile in ({}, [], {"sk-live-secret": {}}, [[]]):
+            with self.subTest(value=repr(hostile)):
+                receipt = self.specimen()
+                receipt["provider_said"] = hostile
+                self.assert_refused(receipt, "no policy names")
+
+    def test_the_refusal_names_the_shape_and_digests_the_key(self):
+        """The gate must not print into CI what it is refusing to write to disk."""
+        secret = "sk-live-not-a-real-key"
+        receipt = self.specimen()
+        receipt["provider_said"] = {secret: {}}
+        findings = self.audit(receipt, target(), self.registry_entry())
+        joined = " ".join(findings)
+        self.assertNotIn(secret, joined)
+        self.assertIn(pm.opaque_ref("json-value", secret).render(), joined)
+        # The components the table does declare stay readable: a finding nobody
+        # can read is a finding nobody acts on.
+        self.assertIn("turns", receipt_policy.projected_path(
+            "turns[].sk", receipt_policy.POLICIES))
+
+    def test_every_container_in_a_real_receipt_is_named(self):
+        """The table describes the artifact's shape, not only its scalars."""
+        receipt = self.specimen()
+        nodes = [path for path, value in receipt_policy.flatten(receipt)
+                 if isinstance(value, receipt_policy.Node)]
+        self.assertIn("turns", nodes)
+        self.assertIn("turns[]", nodes)
+        self.assertIn("transport_target", nodes)
+        for path in nodes:
+            with self.subTest(node=path):
+                policy = receipt_policy.exactly_one_policy_for(path)
+                self.assertIsInstance(policy.kind, receipt_policy.Shape)
+
+    def test_a_container_where_a_scalar_belongs_stops_the_gate(self):
+        receipt = self.specimen()
+        receipt["turn_count"] = {}
+        self.assert_refused(receipt, "is not an integer")
+        other = self.specimen()
+        other["turns"] = {}
+        self.assert_refused(other, "an object where an array belongs")
+        # And the reverse: a scalar where a container belongs. A `Shape` policy
+        # that shrugs at a non-container is a policy that stops describing the
+        # artifact's shape the moment the shape is wrong.
+        scalar = self.specimen()
+        scalar["transport_target"] = "https://api.groq.com/openai/v1"
+        self.assert_refused(scalar, "is not a container")
+        listed = self.specimen()
+        listed["turns"] = 5
+        self.assert_refused(listed, "is not a container")
 
     def test_an_unbounded_integer_stops_the_gate(self):
         receipt = self.specimen()
@@ -3750,42 +3880,110 @@ class ProcessBoundaryOwnershipTests(unittest.TestCase):
     # rather than raise. It writes no receipts and ships to nobody.
     EXEMPT = {"process_boundary.py", "test_provider_matrix.py"}
 
+    # The standard library's direct process-launch surface. The first version of
+    # this gate matched only the word `subprocess`, which made the test an
+    # assertion about a module name while its own name and docstring claimed
+    # something else: `os.system`, `os.popen` and
+    # `asyncio.create_subprocess_exec` all start processes and all stayed green.
+    #
+    # A theorem quietly renamed after a counterexample is worth less than the
+    # counterexample, so the surface is widened rather than the claim narrowed.
+    # What a static check *cannot* cover is stated in `mutations.py` with the
+    # other deliberately unmutated gaps: `importlib.import_module("subprocess")`
+    # and a computed `getattr` are not reachable from the AST, and closing them
+    # needs a runtime audit hook rather than a wider pattern.
+    LAUNCHERS = {
+        # every attribute, because the module exists to start processes
+        "subprocess": None,
+        "os": frozenset({
+            "system", "popen", "fork", "forkpty", "posix_spawn", "posix_spawnp",
+            "execl", "execle", "execlp", "execlpe", "execv", "execve", "execvp",
+            "execvpe", "spawnl", "spawnle", "spawnlp", "spawnlpe", "spawnv",
+            "spawnve", "spawnvp", "spawnvpe",
+        }),
+        "asyncio": frozenset({"create_subprocess_exec", "create_subprocess_shell"}),
+        "multiprocessing": frozenset({"Process", "Pool", "get_context", "spawn"}),
+        "pty": frozenset({"spawn", "fork"}),
+    }
+
     def modules(self):
         here = Path(__file__).resolve().parent
         return sorted(path for path in here.glob("*.py") if path.name not in self.EXEMPT)
 
+    def launches(self, module: str, attr: str) -> bool:
+        allowed = self.LAUNCHERS.get(module, ())
+        return module in self.LAUNCHERS and (allowed is None or attr in allowed)
+
     def subprocess_uses(self, path):
+        """Every direct standard-library process launch in one module.
+
+        Aliases are resolved rather than assumed away: `import subprocess as sp`
+        and `from os import system as sh` are the two spellings a future edit is
+        most likely to reach for, and neither contains the word the first
+        version of this gate was looking for.
+        """
         import ast
         tree = ast.parse(path.read_text(encoding="utf-8"))
         uses = []
+        modules = {}      # local name -> module it refers to
         for node in ast.walk(tree):
             if isinstance(node, ast.Import):
-                uses.extend(f"import {a.name}" for a in node.names if a.name.startswith("subprocess"))
-            if isinstance(node, ast.ImportFrom) and (node.module or "").startswith("subprocess"):
-                uses.append(f"from {node.module} import ...")
-            if (isinstance(node, ast.Attribute) and isinstance(node.value, ast.Name)
-                    and node.value.id == "subprocess"):
-                uses.append(f"subprocess.{node.attr} at line {node.lineno}")
+                for alias in node.names:
+                    root = alias.name.split(".")[0]
+                    if root in self.LAUNCHERS:
+                        modules[alias.asname or alias.name] = root
+                        if root == "subprocess":
+                            uses.append(f"import {alias.name} at line {node.lineno}")
+            if isinstance(node, ast.ImportFrom):
+                root = (node.module or "").split(".")[0]
+                for alias in node.names:
+                    if self.launches(root, alias.name):
+                        uses.append(f"from {node.module} import {alias.name} at line {node.lineno}")
+        for node in ast.walk(tree):
+            if (isinstance(node, ast.Attribute) and isinstance(node.value, ast.Name)):
+                module = modules.get(node.value.id, node.value.id)
+                if self.launches(module, node.attr):
+                    uses.append(f"{module}.{node.attr} at line {node.lineno}")
         return uses
 
     def test_no_module_but_the_boundary_starts_a_process(self):
-        offenders = {}
-        for path in self.modules():
-            if path.name == "mutations.py":
-                # The harness copies the tree and runs oracles in it, which is
-                # starting processes for a living. It is checked separately
-                # below: what matters there is that every oracle is enumerated.
-                continue
-            uses = self.subprocess_uses(path)
-            if uses:
-                offenders[path.name] = uses
-        self.assertEqual(offenders, {})
+        offenders = {path.name: self.subprocess_uses(path) for path in self.modules()}
+        self.assertEqual({name: uses for name, uses in offenders.items() if uses}, {})
 
-    def test_the_gate_would_notice_a_new_caller(self):
+    def test_the_gate_would_notice_every_class_of_new_caller(self):
+        specimens = {
+            "subprocess.run": "import subprocess\nsubprocess.run(['ls'])\n",
+            "an aliased subprocess": "import subprocess as sp\nsp.run(['ls'])\n",
+            "a named import": "from subprocess import run\nrun(['ls'])\n",
+            "os.system": "import os\nos.system('ls')\n",
+            "os.popen": "import os\nos.popen('ls')\n",
+            "os.execv": "import os\nos.execv('/bin/ls', ['ls'])\n",
+            "an aliased os": "import os as oh\noh.spawnv(0, '/bin/ls', ['ls'])\n",
+            "from os import system": "from os import system\nsystem('ls')\n",
+            "asyncio": "import asyncio\nasyncio.create_subprocess_exec('ls')\n",
+            "multiprocessing": "import multiprocessing\nmultiprocessing.Process()\n",
+            "pty.spawn": "import pty\npty.spawn('ls')\n",
+        }
         with tempfile.TemporaryDirectory() as td:
-            offender = Path(td) / "sneaky.py"
-            offender.write_text("import subprocess\nsubprocess.run(['ls'])\n", encoding="utf-8")
-            self.assertTrue(self.subprocess_uses(offender))
+            for name, source in specimens.items():
+                with self.subTest(specimen=name):
+                    offender = Path(td) / "sneaky.py"
+                    offender.write_text(source, encoding="utf-8")
+                    self.assertTrue(self.subprocess_uses(offender), name)
+
+    def test_an_innocent_use_of_a_launcher_module_is_not_flagged(self):
+        """`os.fsdecode` and `os.environ` are not process creation.
+
+        A gate that refuses every use of `os` would be refused by the codebase
+        within a week, and a gate that gets turned off protects nothing.
+        """
+        with tempfile.TemporaryDirectory() as td:
+            innocent = Path(td) / "fine.py"
+            innocent.write_text(
+                "import os\nfrom pathlib import Path\n"
+                "x = os.fsdecode(b'a')\ny = os.environ.get('HOME')\n",
+                encoding="utf-8")
+            self.assertEqual(self.subprocess_uses(innocent), [])
 
     def test_the_boundary_returns_bytes_and_decodes_by_declared_policy(self):
         self.assertEqual(process_boundary.decode_output(b"ok"), "ok")
@@ -4042,6 +4240,21 @@ class DetailProvenanceTests(unittest.TestCase):
         receipt["detail"] = "0123456789abcdef"
         findings = probe.audit(receipt, target(), probe.registry_entry())
         self.assertTrue(any("does not match what template" in f for f in findings), findings)
+
+    def test_the_auditor_survives_an_artifact_of_any_shape(self):
+        """It exists to refuse malformed artifacts, so it may not die on one.
+
+        `for turn in receipt["turns"]` raised `TypeError` the first time a
+        hostile shape reached it — the failure mode round eleven closed
+        everywhere except inside the auditor itself.
+        """
+        probe = self.inventory()
+        for hostile in (5, "turns", {}, [1, 2], [None], {"a": 1}):
+            with self.subTest(turns=repr(hostile)):
+                receipt = probe.specimen()
+                receipt["turns"] = hostile
+                findings = probe.audit(receipt, target(), probe.registry_entry())
+                self.assertTrue(findings)
 
     def test_a_detail_with_no_template_is_refused(self):
         probe = self.inventory()

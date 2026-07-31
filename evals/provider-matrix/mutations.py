@@ -26,14 +26,22 @@ like deliberate work; copying removes the failure mode instead of apologising
 for it. The tree is therefore byte-clean by construction, and CI still runs
 `git diff --exit-code` afterwards to say so out loud.
 """
+import ast
 import os
+import re
 import shutil
-import subprocess
 import sys
 import tempfile
 from pathlib import Path
 
 HERE = Path(__file__).resolve().parent
+sys.path.insert(0, str(HERE))
+from process_boundary import (  # noqa: E402
+    ProcessFailure,
+    decode_path,
+    printable,
+    run_bytes,
+)
 SRC = HERE / "provider_matrix.py"
 # A spec may carry a fourth element naming the file to mutate. The gates are
 # code too, and "this check can fail" is a claim like any other.
@@ -596,9 +604,11 @@ MUTATIONS = [
     # The gate now declares a decoding *policy* instead of owning a decode, so
     # the mutations move with it: one that swaps the policy, one that swaps the
     # verdict, and the boundary's own are in the PB series below.
-    ("DG1 the gate declares the wrong decoding policy for a test run",
+    # Both streams, because "the output of a test run" is both: unittest names
+    # the tests it ran on stderr and prints its verdict there too.
+    ("DG1 the gate reads only one of the child's two streams",
      "    return decode_output(stdout + stderr)",
-     "    return decode_path(stdout + stderr)",
+     "    return decode_output(stdout)",
      "check_test_discovery.py"),
     ("DG2 undecodable output is silently replaced",
      "from process_boundary import (\n    ProcessFailure,\n    UndecodableOutput,\n    decode_output,",
@@ -810,9 +820,20 @@ MUTATIONS = [
 
     # The context is what "local" is checked against. Read out of the artifact
     # under audit, every `Local` policy degrades to "this value equals itself".
-    ("DF9 the local facts are read out of the artifact being audited",
-     "        \"requested_model\": target[\"model\"],",
-     "        \"requested_model\": receipt.get(\"requested_model\"),",
+    #
+    # Mutated inside `audit`, not inside `context_for`. The first version of
+    # this spec put `receipt.get(...)` into `context_for`, which has no such
+    # name — so every oracle died of `NameError` before a single policy compared
+    # anything, and the harness counted an invalid program as evidence for the
+    # contract it names. `EXPECTED_KILL` now requires this one to be killed by
+    # the test that forges a receipt field, and the harness refuses `NameError`
+    # kills outright.
+    ("DF9 the local facts are taken from the artifact being audited",
+     "    findings: list[str] = []\n    for path, value in flatten(receipt):",
+     "    context = {**context, \"requested_model\": receipt.get(\"requested_model\"),\n"
+     "               \"provider\": receipt.get(\"provider\"),\n"
+     "               \"target_id\": receipt.get(\"target_id\")}\n"
+     "    findings: list[str] = []\n    for path, value in flatten(receipt):",
      "receipt_policy.py"),
 
     ("DF10 a local field accepts a value that is not the local one",
@@ -1005,6 +1026,59 @@ MUTATIONS = [
      "            elif not re.fullmatch(template_pattern(name, context), line):",
      "            elif False:",
      "receipt_policy.py"),
+
+    # -- NP: a container is a path, and a key is durable -------------------
+    #
+    # A reviewer produced the counterexample to this round's own theorem:
+    # `{"provider_said": {"sk-live-secret": {}}}` yielded no leaves, so the
+    # closed-world audit answered `[]` for an artifact carrying a
+    # provider-chosen key. These are that hole, and the projection of the
+    # refusal that follows from it.
+
+    ("NP1 an empty container disappears from the inventory",
+     "        if prefix:\n            yield prefix, (EMPTY_OBJECT if not value else OBJECT_NODE)",
+     "        if prefix and value:\n            yield prefix, OBJECT_NODE",
+     "receipt_policy.py"),
+
+    ("NP2 an unknown path is reported with the provider's own key in it",
+     "        raise KeyError(f\"no policy names the durable field {projected_path(path, table)}\")",
+     "        raise KeyError(f\"no policy names the durable field {path!r}\")",
+     "receipt_policy.py"),
+
+    ("NP3 an array node stops being a path of its own",
+     "        yield prefix, (EMPTY_ARRAY if not value else ARRAY_NODE)",
+     "        _unused = (EMPTY_ARRAY if not value else ARRAY_NODE)",
+     "receipt_policy.py"),
+
+    ("NP4 a container is admitted wherever a scalar belongs",
+     "        if not isinstance(value, Node):\n"
+     "            return [f\"{type(value).__name__} is not a container\"]",
+     "        if not isinstance(value, Node):\n            return []",
+     "receipt_policy.py"),
+
+    ("NP5 an object is admitted where an array belongs",
+     "        if value.kind != self.kind:\n"
+     "            return [f\"an {value.kind} where an {self.kind} belongs\"]",
+     "        if False:\n"
+     "            return [f\"an {value.kind} where an {self.kind} belongs\"]",
+     "receipt_policy.py"),
+
+    # -- CV: the table is covered by runs, not by classifications ----------
+
+    ("CV1 the coverage gate stops asking for the paths a run must produce",
+     "    return sorted(applicable_paths(kind, policies) - reached)",
+     "    return []",
+     "receipt_policy.py"),
+
+    ("CV2 coverage is asked over the union of both receipt kinds",
+     "        if kind in policy.schemas and policy.coverage_required",
+     "        if policy.coverage_required",
+     "receipt_policy.py"),
+
+    ("CV3 every policy is excused from coverage by default",
+     "    coverage_required: bool = True",
+     "    coverage_required: bool = False",
+     "receipt_policy.py"),
 ]
 
 
@@ -1066,35 +1140,104 @@ MUTATION_TARGETS: dict[str, tuple[tuple[str, list[str]], ...]] = {
 }
 
 
-def run_oracle(workdir: Path, argv: list[str]) -> tuple[bool, str]:
+# A mutated program is an arbitrary program, so its output is arbitrary bytes.
+# Through the one boundary that starts processes, decoded the way arbitrary
+# bytes are decoded, and rendered safe before anything is printed — the harness
+# itself used to be the last direct `subprocess` caller outside the boundary,
+# which made "one module starts processes" true only if you did not count this
+# one.
+def run_oracle(workdir: Path, argv: list[str]) -> tuple[bool, str, str]:
     env = dict(os.environ, PYTHONPATH=str(CORPUS_TOOLS), PYTHONDONTWRITEBYTECODE="1")
     try:
-        proc = subprocess.run(
-            [sys.executable, *argv], cwd=workdir, capture_output=True, text=True,
-            env=env, timeout=SUITE_TIMEOUT,
-        )
-    except subprocess.TimeoutExpired:
+        proc = run_bytes(
+            [sys.executable, *argv], cwd=workdir, env=env, timeout=SUITE_TIMEOUT)
+    except ProcessFailure as exc:
         # A mutation that makes an oracle loop is not green, and a harness that
         # blocks on it reports nothing at all. Not-green is the honest reading.
-        return False, f"timed out after {SUITE_TIMEOUT}s"
-    tail = (proc.stdout + proc.stderr).strip().splitlines()
-    return proc.returncode == 0, tail[-1] if tail else "(no output)"
+        return False, str(exc), ""
+    output = printable(decode_path(proc.stdout + proc.stderr))
+    tail = output.strip().splitlines()
+    return proc.returncode == 0, (tail[-1] if tail else "(no output)"), output
 
 
-def run_gate(workdir: Path, filename: str) -> tuple[bool, str]:
-    """Ask every oracle this target names, stopping at the first red one."""
+def run_gate(workdir: Path, filename: str) -> tuple[bool, str, str]:
+    """Ask **every** oracle this target names, and say which ones objected.
+
+    Stopping at the first red one was cheaper and quietly weaker: for a file
+    whose oracles are ordered `(policy gate, suite)`, a mutation that reddens
+    the first is never shown to the second, so "killed" carried no information
+    about which contract failed. `EXPECTED_KILL` needs the whole answer, and so
+    does a reader deciding whether a kill means what its name says.
+    """
     oracles = MUTATION_TARGETS.get(filename)
     if oracles is None:
-        return True, f"no oracle is declared for {filename}"
+        return True, f"no oracle is declared for {filename}", ""
+    objected: list[str] = []
+    collected: list[str] = []
     for label, argv in oracles:
-        ok, verdict = run_oracle(workdir, argv)
+        ok, verdict, output = run_oracle(workdir, argv)
+        collected.append(output)
         if not ok:
-            return False, f"{label}: {verdict}"
-    return True, "every oracle stayed green"
+            objected.append(f"{label}: {verdict}")
+    if not objected:
+        return True, "every oracle stayed green", "\n".join(collected)
+    return False, "; ".join(objected), "\n".join(collected)
 
 
-def run_suite(workdir: Path) -> tuple[bool, str]:
+def run_suite(workdir: Path) -> tuple[bool, str, str]:
     return run_oracle(workdir, list(SUITE[1]))
+
+
+# A mutant has to fail *as a program the oracle could run*. `DF9` referred to a
+# name that no longer existed in the function it mutated, so every oracle died
+# of `NameError` before a single policy compared anything — and the harness
+# counted that as the provenance contract holding. One corpse turned out to be a
+# passer-by.
+#
+# These are the signatures of a mutant that was never a valid program. A kill
+# carrying one of them is reported as INVALID, not as evidence.
+INVALID_PROGRAM = (
+    "NameError",
+    "SyntaxError",
+    "IndentationError",
+    "ImportError",
+    "ModuleNotFoundError",
+    "unittest.loader._FailedTest",
+)
+
+RAN_TESTS = re.compile(r"^Ran (\d+) tests?", re.M)
+
+
+def discovered(output: str) -> int | None:
+    found = RAN_TESTS.search(output)
+    return int(found.group(1)) if found else None
+
+
+# Where a mutation's kill must be *attributed*, not merely counted. The value is
+# a substring the killing oracle's output has to contain — a test id for the
+# contract the mutation is named after. Not every mutation needs one; the ones
+# that carry a provenance or ownership claim do, because those are exactly the
+# claims a spurious kill would silently support.
+EXPECTED_KILL = {
+    "DF9 the local facts are taken from the artifact being audited":
+        "test_a_receipt_that_disagrees_with_the_plan_stops_the_gate",
+    "DF10 a local field accepts a value that is not the local one":
+        "test_a_receipt_that_disagrees_with_the_plan_stops_the_gate",
+    "DF1 audit skips a leaf no policy names":
+        "test_an_unnamed_leaf_stops_the_gate",
+    "NP1 an empty container disappears from the inventory":
+        "test_an_empty_container_is_a_path_and_not_a_silence",
+    "NP2 an unknown path is reported with the provider's own key in it":
+        "test_the_refusal_names_the_shape_and_digests_the_key",
+    # The positive control, not the assertion that shares its subject: a
+    # coverage gate that reports nothing keeps `..._is_produced_by_a_real_run`
+    # green by construction, so naming that test would have been naming the one
+    # place this mutation cannot be caught. The expectation is what found that.
+    "CV1 the coverage gate stops asking for the paths a run must produce":
+        "test_the_coverage_gate_would_notice_a_policy_nothing_produces",
+    "TP12 the provenance pass stops rebuilding the line":
+        "test_a_line_made_of_local_words_but_never_rendered_is_refused",
+}
 
 
 def main() -> int:
@@ -1116,11 +1259,17 @@ def main() -> int:
         work = Path(tmp) / "provider-matrix"
         shutil.copytree(HERE, work, ignore=shutil.ignore_patterns("__pycache__"))
 
-        ok, verdict = run_suite(work)
+        ok, verdict, output = run_suite(work)
         print(f"baseline: {'GREEN' if ok else 'RED'} ({verdict})")
         if not ok:
             print("baseline is red; nothing below means anything")
             return 2
+        baseline_tests = discovered(output)
+        if baseline_tests is None:
+            print("baseline did not report how many tests it ran; "
+                  "a mutant that breaks discovery could not be told from one that fails")
+            return 2
+        print(f"baseline: {baseline_tests} tests discovered")
 
         for spec in MUTATIONS:
             name, old, new = spec[0], spec[1], spec[2]
@@ -1143,15 +1292,38 @@ def main() -> int:
                 print(f"  SKIPPED  {name}: {bad}")
                 failures.append(name)
                 continue
+            try:
+                ast.parse(mutated)
+            except SyntaxError:
+                # Not a mutation of the contract, a mutation of the language.
+                print(f"  INVALID  {name}: the mutant is not a valid program")
+                failures.append(name)
+                continue
             victim = work / filename
             victim.write_text(mutated, encoding="utf-8")
-            ok, verdict = run_gate(work, filename)
+            ok, verdict, output = run_gate(work, filename)
             victim.write_text(source, encoding="utf-8")
             if ok:
-                print(f"  SURVIVED {name}  <-- the suite did not notice ({verdict})")
+                print(f"  SURVIVED {name}  <-- no oracle noticed ({verdict})")
                 failures.append(name)
-            else:
-                print(f"  killed   {name}  ({verdict})")
+                continue
+            broken = [sign for sign in INVALID_PROGRAM if sign in output]
+            count = discovered(output)
+            if broken:
+                print(f"  INVALID  {name}: died of {broken[0]}, not of the contract it names")
+                failures.append(name)
+                continue
+            if count is not None and count != baseline_tests:
+                print(f"  INVALID  {name}: the oracle discovered {count} tests, "
+                      f"not the {baseline_tests} it discovers unmutated")
+                failures.append(name)
+                continue
+            expected = EXPECTED_KILL.get(name)
+            if expected is not None and expected not in output:
+                print(f"  MISATTRIBUTED {name}: killed, but not by {expected}")
+                failures.append(name)
+                continue
+            print(f"  killed   {name}  ({verdict})")
 
     print()
     if failures:
