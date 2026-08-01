@@ -913,6 +913,20 @@ MAX_CALL_ORDINAL = MAX_TOOL_CALLS - 1
 # instead of the turn being refused.
 MAX_ARGUMENT_ERRORS = 1024
 
+# How many canary findings one terminal answer may contribute. Same shape as
+# the argument errors and for the same reason: `cited` is a provider-supplied
+# array, so one entry per unsupported citation is a multiplicity the provider
+# chooses. A hundred validly shaped citations fit inside every byte limit and
+# produced a nine-kilobyte `detail`, past the `Prose` bound the policy states —
+# the third field where a ceiling existed and the producer had not been told.
+MAX_CANARY_ERRORS = 64
+
+# The status codes a receipt will record, which is the range the wire can
+# carry rather than the registry of assigned codes. `http.client` parses any
+# three-digit status line, so a hostile peer can put one here.
+HTTP_STATUS_MIN = 100
+HTTP_STATUS_MAX = 999
+
 REGISTRY_SCHEMA = "qodec-provider-registry-v1"
 REGISTRY_PATH = Path(__file__).resolve().parent / "trusted-providers.json"
 AUTHORITY_FIELDS = ("api_base", "key_env", "api_style")
@@ -969,6 +983,11 @@ ENDPOINT_REJECTION_REASONS = (
     "userinfo-present",
     "query-present",
     "fragment-present",
+    # The catalog picks the model id, and the model id goes into every request
+    # body. A row long enough to push the body past `MAX_REQUEST_BYTES` is a
+    # row this transport will not send a key with — the same kind of refusal as
+    # a host it does not trust, and refused in the same place, before `send`.
+    "request-too-large",
 )
 
 
@@ -986,6 +1005,33 @@ class EndpointRejected(ValueError):
             raise ValueError(f"unknown endpoint rejection reason {reason!r}")
         super().__init__(message)
         self.reason = reason
+
+
+def bounded_request(body: bytes) -> bytes:
+    """The one gate a request body crosses before a credential is attached.
+
+    Both callers compose a body containing the catalog's model id, and only one
+    of them checked its size. The probe did not, so a single oversized discovery
+    row made this tool transmit an arbitrarily large **authenticated** request —
+    the credential crossing the wire in service of a body the tool had already
+    declared it would never compose.
+
+    The qualification path did check, and called the overrun "a defect in this
+    tool", raising it as `INTERNAL_ERROR`. That was the round-nine mistake in a
+    new field: the model id comes from the untrusted source, so an oversized
+    body is something a catalog row can *cause*, and filing it as our own crash
+    blames the matrix for bytes it did not choose.
+
+    So it is an endpoint rejection, decided before `send` is reached, with a
+    reason from the closed vocabulary. The message names the local bound and
+    the size class, never the model id and never the body.
+    """
+    if len(body) > MAX_REQUEST_BYTES:
+        raise EndpointRejected(
+            "request-too-large",
+            f"the composed request exceeds the local bound of {MAX_REQUEST_BYTES} bytes",
+        )
+    return body
 
 
 # ---------------------------------------------------------------------------
@@ -1513,8 +1559,16 @@ def is_http_status(value: Any) -> bool:
     Python's `bool` subclasses `int`, so `isinstance(True, int)` is true and
     `True == 1`. A `SendResult(True, ...)` would then compare, hash and format
     like an HTTP status all the way into a receipt.
+
+    The range is the wire's, not the registry of assigned codes. `http.client`
+    parses any three-digit status line, so `HTTP/1.1 600 Nope` from a hostile
+    peer reaches this check — and refusing it here raised out of the transport
+    and was filed as `INTERNAL_ERROR`, the matrix blamed for a status somebody
+    else wrote. A code nobody has assigned is still an observation; what it is
+    not is a *success*, and `classify_http` already files anything it does not
+    recognise as `HTTP_FAILURE`.
     """
-    return type(value) is int and 100 <= value <= 599
+    return type(value) is int and HTTP_STATUS_MIN <= value <= HTTP_STATUS_MAX
 
 
 def validate_send_result(result: SendResult, response_limit: int = MAX_RESPONSE_BYTES) -> SendResult:
@@ -2242,7 +2296,10 @@ DETAIL_TEMPLATES: dict[str, tuple[str, tuple[str, ...]]] = {
     "identity-unestablished": (
         "no successful response named a model; the protocol held but the identity "
         "of what produced it is unestablished", ()),
-    "canary-mismatch": ("{0}", ("details",)),
+    "canary-mismatch": (
+        "the terminal answer failed {0} canary check(s)", ("count",)),
+    "canary-mismatch-truncated": (
+        "the terminal answer failed at least {0} canary check(s)", ("count",)),
     "qualified": ("the protocol held and the identity was verified", ()),
     "no-terminal-answer": ("no terminal answer within {0} turns", ("count",)),
     "internal-exception": ("provider-matrix raised an internal exception", ()),
@@ -2511,10 +2568,22 @@ def reduce_qualification(facts: AnswerFacts) -> Decision:
             "identity-unestablished", LocalDetail("identity-unestablished"),
         )
     if facts.canary_errors:
-        return Decision(
-            "CANARY_ANSWER_MISMATCH", "canary-answer-mismatched",
-            LocalDetail("canary-mismatch", (facts.canary_errors,)),
-        )
+        # A count, not the findings. Joining them here put the provider's chosen
+        # multiplicity across the durable boundary a second time — once as the
+        # turn's bounded list, once as a `detail` that grew with it — and the
+        # second crossing is the one that broke the `Prose` bound. The findings
+        # are in `turns[].canary_answer_errors`, where they are bounded and
+        # where a reader looking for them will be.
+        # Two literal call sites rather than one with a computed name: the gate
+        # that checks every `LocalDetail` names a registered template reads the
+        # AST, so a template chosen by an expression is a template it cannot
+        # see. It said so the first time this was written the other way.
+        kept = len(facts.canary_errors[:MAX_CANARY_ERRORS])
+        if len(facts.canary_errors) > MAX_CANARY_ERRORS:
+            why = LocalDetail("canary-mismatch-truncated", (kept,))
+        else:
+            why = LocalDetail("canary-mismatch", (kept,))
+        return Decision("CANARY_ANSWER_MISMATCH", "canary-answer-mismatched", why)
     return Decision("PASS", "protocol-and-identity-verified", LocalDetail("qualified"))
 
 
@@ -2584,20 +2653,29 @@ def probe_target(
 ) -> dict[str, Any]:
     registry = normalize_registry(registry) if registry is not None else load_registry()
     started = time.time()
-    request_body = canonical_bytes({
-        "model": target["model"],
-        "messages": [{"role": "user", "content": "Return exactly: QODEC_PROBE_OK"}],
-        "temperature": 0,
-        "max_tokens": PROBE_MAX_TOKENS,
-    })
     result: dict[str, Any] = {
         "schema": PROBE_SCHEMA,
         "target_id": target["target_id"],
         "provider": target["provider"],
         "requested_model": target["model"],
-        "request_sha256": sha256_bytes(request_body),
     }
     try:
+        # Inside the handler, not above it. Composed outside, an oversized body
+        # left this function as an exception and `guarded_receipt` filed it as
+        # `INTERNAL_ERROR` — the matrix blamed for a model id the catalog chose.
+        # It is a refusal to send, so it is classified like every other one.
+        request_body = bounded_request(canonical_bytes({
+            "model": target["model"],
+            "messages": [{"role": "user", "content": "Return exactly: QODEC_PROBE_OK"}],
+            "temperature": 0,
+            "max_tokens": PROBE_MAX_TOKENS,
+        }))
+        result["request_sha256"] = sha256_bytes(request_body)
+        # Recorded for the same reason the qualification path records it, and
+        # missing for the same reason the bound was: nobody had asked the probe
+        # to answer for its own request. An oversized body never reaches this
+        # line, so the count is admissible by construction.
+        result["request_bytes"] = len(request_body)
         verify_against_registry(target, registry)
         # From the registry, not from the row. The row agreeing with the
         # registry is what `verify_against_registry` just established; taking
@@ -3402,6 +3480,29 @@ def canary_answer_errors(args: dict[str, Any], observed: Observed) -> list[Local
     return errors
 
 
+def canary_evidence(errors: list[LocalDetail]) -> dict[str, Any]:
+    """The canary's findings as bounded evidence, in the shape the audit admits.
+
+    One rendered line per finding, and `cited` is a provider-supplied array, so
+    the *number* of findings is a quantity the provider chooses. A hundred
+    validly shaped unsupported citations fit inside every byte limit and wrote a
+    nine-kilobyte `detail` — past the `Prose` bound the policy declares, so this
+    module emitted a receipt its own `audit()` refused.
+
+    Every field below describes the same kept prefix, and `_truncated` says when
+    that is what it is. The count is honest in both cases: with `_truncated`
+    false it is the number of findings, with it true it is the number recorded
+    and therefore a lower bound on how many there were.
+    """
+    kept = errors[:MAX_CANARY_ERRORS]
+    return {
+        "canary_answer_errors": [why.render() for why in kept],
+        "canary_answer_error_templates": [why.template for why in kept],
+        "canary_answer_errors_count": len(kept),
+        "canary_answer_errors_truncated": len(errors) > MAX_CANARY_ERRORS,
+    }
+
+
 def canned_result_for(name: str) -> dict[str, Any]:
     return CANNED_RECORDS if name == "qodec_materialize" else CANNED_RESULT
 
@@ -3504,12 +3605,21 @@ def qualify_target(
 
     messages = opening_messages()
     for turn in range(max_turns):
-        body = canonical_bytes(canonical_request(surface, target["model"], messages))
-        if len(body) > MAX_REQUEST_BYTES:
-            # A defect in this tool, not in the provider, so it is raised and
-            # `guarded_receipt` files it as `INTERNAL_ERROR` — the one
-            # classification reserved for us.
-            raise ValueError("the composed request exceeded the local request bound")
+        try:
+            body = bounded_request(
+                canonical_bytes(canonical_request(surface, target["model"], messages)))
+        except EndpointRejected as exc:
+            # Classified here rather than raised, for the same reason the setup
+            # rejection above is. The model id comes from the catalog and the
+            # message history grows with the exchange, so an oversized body is
+            # something the run can reach — and a run that reached it has a
+            # verdict about the target, not a crash about the tool.
+            return apply_decision(
+                receipt,
+                Decision("ENDPOINT_REJECTED", "endpoint-rejected",
+                         endpoint_rejected_detail(exc.reason)),
+                turn_count=turn,
+            )
         record: dict[str, Any] = {
             "ordinal": turn,
             "request_sha256": sha256_bytes(body),
@@ -3756,8 +3866,7 @@ def qualify_target(
             record["terminal_answer_valid"] = True
             record["canary_answer_matches"] = not answer_errors
             if answer_errors:
-                record["canary_answer_errors"] = [why.render() for why in answer_errors]
-                record["canary_answer_error_templates"] = [why.template for why in answer_errors]
+                record.update(canary_evidence(answer_errors))
             receipt["turns"].append(record)
             # Three verdicts used to be written here in sequence, each
             # overwriting the last: `PASS`, then maybe the canary's, then maybe

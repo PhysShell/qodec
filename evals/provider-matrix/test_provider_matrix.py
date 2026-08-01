@@ -735,10 +735,15 @@ class CanaryAnswerTests(unittest.TestCase):
             "cited": [{"store": pm.CANNED_HANDLE, "section": "attempt_1", "ordinal": 0}],
         })
         self.assertEqual(receipt["classification"], "CANARY_ANSWER_MISMATCH")
+        # The findings live in the turn, where they are bounded. The top-level
+        # detail carries a count, because the provider chooses how many there
+        # are and that multiplicity must cross the boundary once.
+        found = " ".join(receipt["turns"][1]["canary_answer_errors"])
         # The wrong answer is named by digest: those bytes are the provider's.
-        self.assertNotIn("beta", receipt["detail"])
-        self.assertIn(pm.evidence_digest("answer-bytes", b"beta")[:16], receipt["detail"])
-        self.assertIn("not in any result this run returned", receipt["detail"])
+        self.assertNotIn("beta", found)
+        self.assertIn(pm.evidence_digest("answer-bytes", b"beta")[:16], found)
+        self.assertIn("not in any result this run returned", found)
+        self.assertIn("canary check(s)", receipt["detail"])
         self.assertFalse(receipt["turns"][1]["canary_answer_matches"])
         # The protocol still held, and the receipt says so.
         self.assertEqual(receipt["turns"][1]["outcome"], "terminal-answer")
@@ -751,7 +756,7 @@ class CanaryAnswerTests(unittest.TestCase):
             "cited": [{"store": pm.CANNED_HANDLE, "section": "attempt_1", "ordinal": 0}],
         })
         self.assertEqual(receipt["classification"], "CANARY_ANSWER_MISMATCH")
-        self.assertIn("never returned", receipt["detail"])
+        self.assertIn("never returned", " ".join(receipt["turns"][1]["canary_answer_errors"]))
 
     def test_a_citation_outside_the_support_is_a_mismatch(self):
         receipt = self.run_qualify({
@@ -760,7 +765,7 @@ class CanaryAnswerTests(unittest.TestCase):
             "cited": [{"store": pm.CANNED_HANDLE, "section": "attempt_9", "ordinal": 0}],
         })
         self.assertEqual(receipt["classification"], "CANARY_ANSWER_MISMATCH")
-        self.assertIn("support", receipt["detail"])
+        self.assertIn("support", " ".join(receipt["turns"][1]["canary_answer_errors"]))
 
     def test_the_expected_answer_matches(self):
         observed = pm.Observed()
@@ -1356,7 +1361,8 @@ class ObservedResultTests(unittest.TestCase):
         )
         self.assertNotEqual(receipt["classification"], "PASS")
         self.assertEqual(receipt["classification"], "CANARY_ANSWER_MISMATCH")
-        self.assertIn("no operation in this run returned a handle", receipt["detail"])
+        self.assertIn("no operation in this run returned a handle",
+                      " ".join(receipt["turns"][-1]["canary_answer_errors"]))
 
     def test_an_operation_that_returns_a_handle_makes_the_answer_citable(self):
         receipt = pm.qualify_target(
@@ -2406,9 +2412,23 @@ class SendResultTypeTests(unittest.TestCase):
             pm.as_send_result((True, b"{}", "", "completed"))
 
     def test_a_status_outside_the_http_range_is_refused(self):
-        for status in (0, 99, 600, 1000, -200):
+        for status in (0, 99, 1000, -200):
             with self.assertRaises(ValueError, msg=status):
                 pm.as_send_result((status, b"{}", "", "completed"))
+
+    def test_a_three_digit_status_nobody_assigned_is_an_observation(self):
+        """Refusing it raised out of the transport and became `INTERNAL_ERROR`.
+
+        `http.client` parses any three-digit status line, so `HTTP/1.1 600 Nope`
+        reaches this module — and the matrix was blamed for a status somebody
+        else wrote. An unassigned code is still something that happened; what it
+        is not is a success, and `classify_http` files it as `HTTP_FAILURE`.
+        """
+        for status in (600, 799, pm.HTTP_STATUS_MAX):
+            with self.subTest(status=status):
+                self.assertEqual(
+                    pm.as_send_result((status, b"{}", "", "completed")).status, status)
+                self.assertEqual(pm.classify_http(status), "HTTP_FAILURE")
 
     def test_a_non_bytes_body_is_refused(self):
         for body in ("not bytes", bytearray(b"{}"), memoryview(b"{}"), ["{}"]):
@@ -4709,7 +4729,7 @@ class DetailProvenanceTests(unittest.TestCase):
             "a raw string where a reference belongs": ("duplicate-call-id", ("call_op",)),
             "a raw string where a count belongs": ("multiple-answers", ("two",)),
             "a number past the prose bound": ("multiple-answers", (10_000_000,)),
-            "a status that is not one": ("http", (700, pm.LocalDetail("qualified"))),
+            "a status that is not one": ("http", (1000, pm.LocalDetail("qualified"))),
             "a reason from another vocabulary": ("transport", ("internal-error",)),
             "a digest tuple of strings": ("identity-substituted", (1, ("ab" * 8,))),
             "the wrong number of arguments": ("multiple-answers", ()),
@@ -5282,6 +5302,407 @@ class HttpRequestReadingTests(unittest.TestCase):
         sock = self.Chunked([raw])
         self.assertEqual(read_http_request(sock), raw)
         self.assertEqual(sock.reads, 1)
+
+
+class BoundClosureTests(unittest.TestCase):
+    """Every bound the auditor states is applied, and demonstrated at its edge.
+
+    Round eighteen closed two fields where the policy declared a ceiling and the
+    producer had never been told about it. Round nineteen found a third the same
+    way a reviewer had found the first two — which is the signal that repairing
+    the sites somebody points at is still the method in use, three rounds after
+    it was supposedly retired.
+
+    So the class is closed instead. `BOUND_ENFORCEMENT` names a producer-side
+    strategy for every bounded policy, `enforcement_problems` refuses any
+    mismatch in either direction, and this file supplies the third set: a
+    *witness* for every field whose strategy is `Refuse` or `Project`, run at
+    the bound and one past it.
+
+    `Derive` carries no witness, and that is deliberate rather than convenient:
+    its claim is that the value cannot exceed the bound by construction, so
+    there is no past-bound case to build. What it costs instead is a sentence
+    naming what does the bounding, and `enforcement_problems` refuses one
+    without it. The risk that somebody mislabels a `Refuse` as a `Derive` to
+    skip writing a witness is real and is not closed here; it is stated.
+    """
+
+    LIMIT = 4096
+
+    def entry(self):
+        return pm.load_registry()["providers"]["groq"]
+
+    def audit(self, receipt, row, entry, schema=None, response_limit=None):
+        """Audited against the row the receipt was produced from.
+
+        Never against `target()` when the witness used another: the context is
+        the caller's claim about what it asked for, and handing the auditor a
+        different claim would make every witness fail for a reason unrelated to
+        the bound it is about.
+        """
+        context = receipt_policy.context_for(
+            schema or pm.QUALIFY_SCHEMA, row, entry,
+            response_limit=self.LIMIT if response_limit is None else response_limit,
+            max_turns=6, declared_tools={op["name"] for op in surface()["operations"]})
+        return receipt_policy.audit(receipt, context)
+
+    def values_at(self, receipt, wanted):
+        """Every value the receipt carries at one structural path."""
+        return [value for path, value in receipt_policy.flatten(receipt) if path == wanted]
+
+    # -- the witnesses ----------------------------------------------------
+    #
+    # Each returns `(receipt, row, entry)`: the artifact, the target it was
+    # produced for, and the registry entry that target is bound to. The audit
+    # takes all three, because a context built from a different row would make
+    # every witness fail for a reason unrelated to the bound it is about.
+
+    def qualify(self, replies, row=None, limit=None):
+        row = row or target()
+        return (pm.qualify_target(row, surface(), 30.0, 6, scripted(replies),
+                                  response_limit=limit or self.LIMIT),
+                row, pm.load_registry()["providers"]["groq"])
+
+    def guarded_qualify(self, replies, row=None, limit=None):
+        row = row or target()
+        return (pm.guarded_receipt(pm.QUALIFY_SCHEMA, row, lambda: pm.qualify_target(
+                    row, surface(), 30.0, 6, scripted(replies),
+                    response_limit=limit or self.LIMIT)),
+                row, pm.load_registry()["providers"]["groq"])
+
+    def probe(self, replies, row=None, limit=None):
+        row = row or probe_row({})
+        return (pm.guarded_receipt(pm.PROBE_SCHEMA, row, lambda: pm.probe_target(
+                    row, 5.0, scripted(replies), registry(),
+                    response_limit=limit or self.LIMIT)),
+                row, registry()["providers"][row["provider"]])
+
+    def sent(self, **kw):
+        base = dict(status=200, body=completion([call("qodec_intersect", INTERSECT_ARGS, "c1")]),
+                    detail="", stage="completed", body_bytes_observed=None, request_id=None,
+                    reason=None, failure_kind=None, failure_class=None)
+        base.update(kw)
+        return pm.SendResult(base["status"], base["body"], base["detail"], base["stage"],
+                             base["body_bytes_observed"], base["request_id"], base["reason"],
+                             base["failure_kind"], base["failure_class"])
+
+    PROBE_OK = json.dumps(
+        {"model": "m", "choices": [{"message": {"content": "QODEC_PROBE_OK"}}]}).encode()
+
+    def probe_body(self, **extra):
+        payload = {"model": "m", "choices": [{"message": {"content": "QODEC_PROBE_OK"}}]}
+        payload.update(extra)
+        return json.dumps(payload).encode()
+
+    def sized(self, domain, over):
+        return pm.EVIDENCE_MAX_BYTES[domain] + (1 if over else 0)
+
+    # probe-side
+
+    def w_probe_request_id(self, over):
+        return self.probe([self.sent(status=200, body=self.PROBE_OK, stage="completed",
+                                     request_id="r" * self.sized("request-id", over))])
+
+    def w_probe_model_name(self, over):
+        size = self.sized("model-name", over)
+        return self.probe([(200, self.probe_body(model="m" * size), "", "completed")])
+
+    def w_probe_failure_class(self, over):
+        size = pm.FAILURE_CLASS_MAX_BYTES + (1 if over else 0)
+        return self.probe([self.sent(status=None, body=None, detail="x",
+                                     stage="before-response", reason="connection-failed",
+                                     failure_kind="url-error", failure_class="F" * size)])
+
+    def w_probe_http_status(self, over):
+        status = pm.HTTP_STATUS_MAX + (1 if over else 0)
+        return self.probe([self.sent(status=status, body=b"{}", stage="completed")])
+
+    def w_probe_observed(self, over):
+        count = self.LIMIT + 1 + (1 if over else 0)
+        return self.probe([self.sent(status=503, body=None, detail="lost",
+                                     stage="after-headers", body_bytes_observed=count)])
+
+    def probe_request_body(self, model):
+        return pm.canonical_bytes({
+            "model": model,
+            "messages": [{"role": "user", "content": "Return exactly: QODEC_PROBE_OK"}],
+            "temperature": 0, "max_tokens": pm.PROBE_MAX_TOKENS})
+
+    def w_probe_usage(self, over):
+        """At the bound the *producer* applies, which is stricter than the policy's.
+
+        `normalize_provider_usage` bounds a counter by the request it actually
+        composed; the policy ceiling is `MAX_REQUEST_BYTES`, which that request
+        is far below. The bound to demonstrate is the one that decides.
+        """
+        bounds = pm.usage_bounds(len(self.probe_request_body(probe_row({})["model"])),
+                                 pm.PROBE_MAX_TOKENS)
+        usage = {name: bounds[name] + (1 if over else 0) for name in pm.USAGE_COUNTERS}
+        return self.probe([(200, self.probe_body(usage=usage), "", "completed")])
+
+    def w_probe_request_bytes(self, over):
+        overhead = len(self.probe_request_body(""))
+        row = dict(probe_row({}),
+                   model="m" * (pm.MAX_REQUEST_BYTES - overhead + (1 if over else 0)))
+        return self.probe([(200, self.PROBE_OK, "", "completed")], row=row)
+
+    # qualification-side
+
+    def w_request_id(self, over):
+        return self.qualify([self.sent(request_id="r" * self.sized("request-id", over))])
+
+    def w_model_name(self, over):
+        size = self.sized("model-name", over)
+        body = completion([call("qodec_intersect", INTERSECT_ARGS, "c1")], model="m" * size)
+        return self.qualify([(200, body, "")])
+
+    def w_tool_name(self, over):
+        size = self.sized("tool-name", over)
+        return self.qualify([(200, completion([call("n" * size, "{}", "c1")]), "")])
+
+    def w_call_id(self, over):
+        size = self.sized("tool-call-id", over)
+        return self.qualify([(200, completion(
+            [call("qodec_intersect", INTERSECT_ARGS, "c" * size)]), "")])
+
+    def w_failure_class(self, over):
+        size = pm.FAILURE_CLASS_MAX_BYTES + (1 if over else 0)
+        return self.guarded_qualify([self.sent(
+            status=None, body=None, detail="x", stage="before-response",
+            reason="connection-failed", failure_kind="url-error", failure_class="F" * size)])
+
+    def w_internal_class(self, over):
+        size = self.sized("failure-class", over)
+
+        def explode():
+            raise type("E" * size, (Exception,), {})("boom")
+
+        return (pm.guarded_receipt(pm.QUALIFY_SCHEMA, target(), explode), target(),
+                pm.load_registry()["providers"]["groq"])
+
+    def w_http_status(self, over):
+        status = pm.HTTP_STATUS_MAX + (1 if over else 0)
+        return self.guarded_qualify([self.sent(status=status, body=b"{}")])
+
+    def w_observed(self, over):
+        count = self.LIMIT + 1 + (1 if over else 0)
+        return self.guarded_qualify([self.sent(
+            status=503, body=None, detail="lost", stage="after-headers",
+            body_bytes_observed=count)])
+
+    def qualify_request_body(self, model):
+        return pm.canonical_bytes(pm.canonical_request(surface(), model, pm.opening_messages()))
+
+    def w_usage(self, over):
+        bounds = pm.usage_bounds(len(self.qualify_request_body(target()["model"])),
+                                 pm.QUALIFY_MAX_TOKENS)
+        usage = {name: bounds[name] + (1 if over else 0) for name in pm.USAGE_COUNTERS}
+        body = completion([call("qodec_intersect", INTERSECT_ARGS, "c1")], usage=usage)
+        return self.qualify([(200, body, "")])
+
+    def w_request_bytes(self, over):
+        overhead = len(self.qualify_request_body(""))
+        row = dict(target(),
+                   model="m" * (pm.MAX_REQUEST_BYTES - overhead + (1 if over else 0)))
+        # One turn, and one that ends the run: a second turn composes a longer
+        # body, so the at-bound witness would trip the bound on the *next*
+        # request and `guarded_receipt` would discard the turn this is about.
+        return self.guarded_qualify([ANSWER_REPLY], row=row)
+
+    def w_argument_errors(self, over):
+        args = json.dumps({"index": "i",
+                           "sections": [0] * (pm.MAX_ARGUMENT_ERRORS + (1 if over else 0))})
+        return self.qualify([(200, completion([call("qodec_intersect", args, "c1")]), "")],
+                            limit=pm.MAX_RESPONSE_BYTES)
+
+    def w_canary(self, over):
+        cited = [{"store": pm.CANNED_HANDLE, "section": f"absent_{n}", "ordinal": 0}
+                 for n in range(pm.MAX_CANARY_ERRORS + (1 if over else 0))]
+        answer = json.dumps({"handle": pm.CANNED_HANDLE, "cited": cited,
+                             "answer": {"encoding": "base64url-nopad", "data": "YWxwaGE"}})
+        return self.qualify(
+            OPERATION_THEN((200, completion([call("qodec_answer", answer, "c_ans")]), "")),
+            limit=pm.MAX_RESPONSE_BYTES)
+
+    def w_call_ordinal(self, over):
+        calls = [call("qodec_intersect", INTERSECT_ARGS, f"c{n}")
+                 for n in range(pm.MAX_TOOL_CALLS + (1 if over else 0))]
+        return self.qualify([(200, completion(calls), "")], limit=pm.MAX_RESPONSE_BYTES)
+
+    def witnesses(self):
+        return {
+            "probe-request-id": self.w_probe_request_id,
+            "probe-model-name": self.w_probe_model_name,
+            "probe-failure-class": self.w_probe_failure_class,
+            "probe-http-status": self.w_probe_http_status,
+            "probe-observed": self.w_probe_observed,
+            "probe-usage": self.w_probe_usage,
+            "probe-request-bytes": self.w_probe_request_bytes,
+            "request-id": self.w_request_id,
+            "model-name": self.w_model_name,
+            "tool-name": self.w_tool_name,
+            "call-id": self.w_call_id,
+            "failure-class": self.w_failure_class,
+            "internal-class": self.w_internal_class,
+            "http-status": self.w_http_status,
+            "observed-bytes": self.w_observed,
+            "usage": self.w_usage,
+            "request-bytes": self.w_request_bytes,
+            "argument-errors": self.w_argument_errors,
+            "canary-errors": self.w_canary,
+            "call-ordinal": self.w_call_ordinal,
+        }
+
+    def named(self):
+        """Which witness demonstrates which bounded path."""
+        P, suffixed, extend = receipt_policy.P, receipt_policy.suffixed, receipt_policy.extend
+        EACH = receipt_policy.EACH
+        turn = P("turns", EACH)
+        call_path = extend(turn, "tool_calls", EACH)
+        return {
+            P("request_id_bytes"): "probe-request-id",
+            P("reported_model_bytes"): "probe-model-name",
+            P("failure_class_bytes"): "probe-failure-class",
+            P("http_status"): "probe-http-status",
+            P("body_bytes_observed"): "probe-observed",
+            P("provider_usage", "prompt_tokens"): "probe-usage",
+            P("provider_usage", "completion_tokens"): "probe-usage",
+            P("provider_usage", "total_tokens"): "probe-usage",
+            P("request_bytes"): "probe-request-bytes",
+            P("internal_failure_class_bytes"): "internal-class",
+            P("reported_models", EACH, "reported_model_bytes"): "model-name",
+            suffixed(turn, "request_id_bytes"): "request-id",
+            suffixed(turn, "reported_model_bytes"): "model-name",
+            suffixed(call_path, "name_bytes"): "tool-name",
+            suffixed(call_path, "call_id_bytes"): "call-id",
+            suffixed(turn, "failure_class_bytes"): "failure-class",
+            suffixed(turn, "http_status"): "http-status",
+            suffixed(turn, "body_bytes_observed"): "observed-bytes",
+            extend(turn, "reported_usage", "prompt_tokens"): "usage",
+            extend(turn, "reported_usage", "completion_tokens"): "usage",
+            extend(turn, "reported_usage", "total_tokens"): "usage",
+            suffixed(turn, "request_bytes"): "request-bytes",
+            suffixed(turn, "argument_errors_count"): "argument-errors",
+            extend(turn, "canary_answer_errors", EACH): "canary-errors",
+            suffixed(turn, "canary_answer_errors_count"): "canary-errors",
+            suffixed(call_path, "ordinal"): "call-ordinal",
+        }
+
+    # -- the gate ---------------------------------------------------------
+
+    def demonstrable(self):
+        return {path for path, strategy in receipt_policy.BOUND_ENFORCEMENT.items()
+                if not isinstance(strategy, receipt_policy.Derive)}
+
+    def test_the_bounded_field_inventory_is_closed(self):
+        self.assertEqual(receipt_policy.enforcement_problems(), [])
+
+    def test_every_demonstrable_bound_names_a_witness_and_back(self):
+        """Set equality, the third of the three the round is about."""
+        self.assertEqual(set(self.named()), self.demonstrable())
+        self.assertEqual(set(self.named().values()) - set(self.witnesses()), set())
+        self.assertEqual(set(self.witnesses()) - set(self.named().values()), set())
+
+    def test_a_strategy_without_an_argument_is_reported(self):
+        """The closure's own positive control for the reason requirement.
+
+        A `Derive` that names nothing is the entry that rots quietly, so the
+        table refusing it is the load-bearing part — and a check that has never
+        refused anything is a check nobody has tested.
+        """
+        blank = {**receipt_policy.BOUND_ENFORCEMENT,
+                 receipt_policy.P("http_status"): receipt_policy.Derive("  ")}
+        self.assertTrue(any("without a stated reason" in problem for problem in
+                            receipt_policy.enforcement_problems(None, blank)))
+
+    def test_the_probe_records_the_size_of_what_it_actually_sent(self):
+        """Presence is not the property; the number is."""
+        receipt, row, _ = self.w_probe_request_bytes(False)
+        self.assertEqual(receipt["request_bytes"], pm.MAX_REQUEST_BYTES)
+        smaller, _, _ = self.probe([(200, self.PROBE_OK, "", "completed")])
+        self.assertEqual(smaller["request_bytes"],
+                         len(self.probe_request_body(probe_row({})["model"])))
+
+    def test_the_canary_evidence_says_when_it_kept_only_a_prefix(self):
+        at_bound, _, _ = self.w_canary(False)
+        past, _, _ = self.w_canary(True)
+        for receipt, truncated in ((at_bound, False), (past, True)):
+            turn = receipt["turns"][-1]
+            with self.subTest(truncated=truncated):
+                self.assertEqual(turn["canary_answer_errors_count"], pm.MAX_CANARY_ERRORS)
+                self.assertEqual(len(turn["canary_answer_errors"]), pm.MAX_CANARY_ERRORS)
+                self.assertIs(turn["canary_answer_errors_truncated"], truncated)
+
+    def test_the_top_level_detail_counts_what_was_kept_and_says_which(self):
+        """The multiplicity crosses the boundary once, and honestly.
+
+        Joining the findings into `detail` put the provider's chosen count
+        across a second time, and that second crossing is what broke the
+        `Prose` bound. What crosses now is a number — and under truncation it
+        is announced as a lower bound rather than passed off as exact.
+        """
+        at_bound, _, _ = self.w_canary(False)
+        past, _, _ = self.w_canary(True)
+        self.assertEqual(at_bound["detail_template"], "canary-mismatch")
+        self.assertEqual(past["detail_template"], "canary-mismatch-truncated")
+        self.assertIn("at least", past["detail"])
+        self.assertNotIn("at least", at_bound["detail"])
+        for receipt in (at_bound, past):
+            self.assertIn(str(pm.MAX_CANARY_ERRORS), receipt["detail"])
+            self.assertNotIn(str(pm.MAX_CANARY_ERRORS + 1), receipt["detail"])
+
+    def test_every_derive_entry_states_what_bounds_it(self):
+        for path, strategy in receipt_policy.BOUND_ENFORCEMENT.items():
+            if isinstance(strategy, receipt_policy.Derive):
+                with self.subTest(path=receipt_policy.render_path(path)):
+                    self.assertTrue(strategy.why.strip(), "a Derive claim with no argument")
+
+    WIDE = ("argument-errors", "canary-errors", "call-ordinal")
+
+    def run_witness(self, name, over):
+        receipt, row, entry = self.witnesses()[name](over)
+        limit = pm.MAX_RESPONSE_BYTES if name in self.WIDE else self.LIMIT
+        return receipt, self.audit(receipt, row, entry, receipt["schema"], limit)
+
+    def refuse(self, findings):
+        """A finding can carry a four-megabyte value, so it is summarised here."""
+        return "" if not findings else f"{len(findings)} findings, first: {findings[0][:160]}"
+
+    def ordered(self):
+        return sorted(self.named().items(),
+                      key=lambda entry: receipt_policy.render_path(entry[0]))
+
+    def test_each_witness_reaches_its_bound_and_audits_clean(self):
+        """The at-bound half. A witness that never reaches the bound proves nothing."""
+        for path, name in self.ordered():
+            with self.subTest(path=receipt_policy.render_path(path), witness=name):
+                receipt, findings = self.run_witness(name, False)
+                self.assertFalse(findings, self.refuse(findings))
+                self.assertTrue(self.values_at(receipt, path),
+                                "the witness never produced this field")
+
+    def test_each_witness_survives_one_past_its_bound(self):
+        """The half that matters: past the bound, and still an artifact we own."""
+        for path, name in self.ordered():
+            strategy = receipt_policy.BOUND_ENFORCEMENT[path]
+            with self.subTest(path=receipt_policy.render_path(path), witness=name):
+                receipt, findings = self.run_witness(name, True)
+                self.assertFalse(findings, "the producer emitted a receipt its own "
+                                           f"audit refuses: {self.refuse(findings)}")
+                if isinstance(strategy, receipt_policy.Refuse):
+                    self.assertEqual(
+                        self.values_at(receipt, path), [],
+                        "a Refuse strategy still wrote the field it was meant to refuse")
+                    # Absence is not enough. `INTERNAL_ERROR` also leaves the
+                    # field out, and it says the matrix broke. For a quantity a
+                    # provider can choose that is the wrong answer, and this
+                    # assertion found two of them the moment it was written:
+                    # the probe's oversized request, and a three-digit status
+                    # nobody has assigned.
+                    if strategy.source == "provider":
+                        self.assertNotEqual(
+                            receipt["classification"], "INTERNAL_ERROR",
+                            "a provider-chosen overrun was filed as our own crash")
 
 
 class ProducerBoundTests(unittest.TestCase):

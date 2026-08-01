@@ -415,11 +415,13 @@ MUTATIONS = [
     ("Q1 a non-integer status accepted",
      "    if result.status is not None and not is_http_status(result.status):",
      "    if False:"),
+    # Both follow `is_http_status`, whose range moved from the registry of
+    # assigned codes to the three digits the wire can carry.
     ("Q2 bool accepted as a status",
-     "    return type(value) is int and 100 <= value <= 599",
+     "    return type(value) is int and HTTP_STATUS_MIN <= value <= HTTP_STATUS_MAX",
      "    return isinstance(value, int)"),
     ("Q3 a status outside the HTTP range accepted",
-     "    return type(value) is int and 100 <= value <= 599",
+     "    return type(value) is int and HTTP_STATUS_MIN <= value <= HTTP_STATUS_MAX",
      "    return type(value) is int"),
     ("Q4 a non-bytes body accepted",
      "    if result.body is not None and type(result.body) is not bytes:",
@@ -1469,6 +1471,80 @@ MUTATIONS = [
      "            if wanted < 0 or wanted > MAX_TEST_REQUEST_BYTES:",
      "            if False:",
      "test_provider_matrix.py"),
+
+    # -- BC: the bounded-field closure ---------------------------------------
+
+    ("BC1 a bounded field may again be enforced by nobody",
+     "    problems = [\n"
+     "        f\"{render_path(path)}: bounded by the table and enforced by nobody\"\n"
+     "        for path in sorted(bounded - set(table), key=render_path)\n"
+     "    ]",
+     "    problems = []",
+     "receipt_policy.py"),
+
+    ("BC2 an enforcement entry may name a field with no bound",
+     "    problems.extend(\n"
+     "        f\"{render_path(path)}: an enforcement entry for a field with no bound\"\n"
+     "        for path in sorted(set(table) - bounded, key=render_path)\n"
+     "    )",
+     "    problems.extend([])",
+     "receipt_policy.py"),
+
+    ("BC3 a strategy may be declared without an argument",
+     "        if not strategy.why.strip()",
+     "        if False",
+     "receipt_policy.py"),
+
+    ("BC4 Prose stops counting as a stated quantity",
+     "    return isinstance(kind, (BoundedInt, BoundedNumber, Prose))",
+     "    return isinstance(kind, (BoundedInt, BoundedNumber))",
+     "receipt_policy.py"),
+
+    # -- CN: the canary diagnostics are bounded evidence ----------------------
+
+    ("CN1 the canary findings are unbounded again",
+     "    kept = errors[:MAX_CANARY_ERRORS]",
+     "    kept = errors"),
+
+    ("CN2 truncation of the canary findings stops being reported",
+     "        \"canary_answer_errors_truncated\": len(errors) > MAX_CANARY_ERRORS,",
+     "        \"canary_answer_errors_truncated\": False,"),
+
+    ("CN3 the count and the kept lines describe different things",
+     "        \"canary_answer_errors_count\": len(kept),",
+     "        \"canary_answer_errors_count\": len(errors),"),
+
+    # Aimed at the truncated branch, which is the only one where the two
+    # numbers differ: on the other, `kept` *is* the total, so the substitution
+    # is equivalent and would survive — the same lesson `PBD7` taught a round
+    # earlier, applied before the run rather than after it.
+    ("CN4 the truncated detail reports the provider's count rather than the kept one",
+     "            why = LocalDetail(\"canary-mismatch-truncated\", (kept,))",
+     "            why = LocalDetail(\"canary-mismatch-truncated\", (len(facts.canary_errors),))"),
+
+    # -- RQ: one request-size boundary, and it is reached before the key ------
+
+    ("RQ1 the probe stops checking the size of what it is about to send",
+     "        request_body = bounded_request(canonical_bytes({",
+     "        request_body = (canonical_bytes({"),
+
+    ("RQ2 the qualification loop stops checking it",
+     "            body = bounded_request(\n"
+     "                canonical_bytes(canonical_request(surface, target[\"model\"], messages)))",
+     "            body = (\n"
+     "                canonical_bytes(canonical_request(surface, target[\"model\"], messages)))"),
+
+    ("RQ3 an oversized body is admitted rather than refused",
+     "    if len(body) > MAX_REQUEST_BYTES:",
+     "    if False:"),
+
+    ("RQ4 the probe stops recording the request it sent",
+     "        result[\"request_bytes\"] = len(request_body)",
+     "        result[\"request_bytes\"] = 0"),
+
+    ("RQ5 a three-digit status nobody assigned is refused again",
+     "    return type(value) is int and HTTP_STATUS_MIN <= value <= HTTP_STATUS_MAX",
+     "    return type(value) is int and HTTP_STATUS_MIN <= value <= 599"),
 
     ("MH5 the expected killer is no longer required at all",
      "    if expected is not None:\n"

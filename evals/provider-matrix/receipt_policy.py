@@ -670,9 +670,12 @@ def build_policies() -> list[DurableFieldPolicy]:
 
     probe = [
         DurableFieldPolicy(P("request_sha256"), Digest(), (PROBE,)),
+        DurableFieldPolicy(P("request_bytes"), BoundedInt(0, "request_ceiling"), (PROBE,)),
         DurableFieldPolicy(P("endpoint"), Local("endpoint"), (PROBE,)),
         DurableFieldPolicy(P("latency_ms"), BoundedInt(0, pm.LATENCY_MAX_MS), (PROBE,)),
-        DurableFieldPolicy(P("http_status"), BoundedInt(100, 599), (PROBE,)),
+        DurableFieldPolicy(P("http_status"),
+                           BoundedInt(pm.HTTP_STATUS_MIN, pm.HTTP_STATUS_MAX),
+                           (PROBE,)),
         DurableFieldPolicy(
             P("response_sha256"), Digest("response-body", sized=False), (PROBE,)),
         DurableFieldPolicy(P("response_bytes"), BoundedInt(0, "response_limit"), (PROBE,)),
@@ -731,7 +734,9 @@ def build_policies() -> list[DurableFieldPolicy]:
         DurableFieldPolicy(
             suffixed(turn, "response_bytes"), BoundedInt(0, "response_limit"),
             (QUALIFICATION,), nullable=True),
-        DurableFieldPolicy(suffixed(turn, "http_status"), BoundedInt(100, 599), (QUALIFICATION,)),
+        DurableFieldPolicy(suffixed(turn, "http_status"),
+                           BoundedInt(pm.HTTP_STATUS_MIN, pm.HTTP_STATUS_MAX),
+                           (QUALIFICATION,)),
         DurableFieldPolicy(
             suffixed(turn, "body_bytes_observed"),
             BoundedInt(0, "observed_ceiling"), (QUALIFICATION,)),
@@ -764,6 +769,11 @@ def build_policies() -> list[DurableFieldPolicy]:
         DurableFieldPolicy(
             extend(turn, "canary_answer_error_templates", EACH),
             Enum("DETAIL_TEMPLATES", tuple(pm.DETAIL_TEMPLATES)), (QUALIFICATION,)),
+        DurableFieldPolicy(
+            suffixed(turn, "canary_answer_errors_count"),
+            BoundedInt(0, "canary_ceiling"), (QUALIFICATION,)),
+        DurableFieldPolicy(
+            suffixed(turn, "canary_answer_errors_truncated"), Flag(), (QUALIFICATION,)),
         DurableFieldPolicy(
             suffixed(turn, "argument_errors_count"),
             BoundedInt(0, "error_ceiling"), (QUALIFICATION,)),
@@ -818,7 +828,198 @@ TURN_OUTCOMES = (
 )
 
 
+# ---------------------------------------------------------------------------
+# Who applies each bound
+# ---------------------------------------------------------------------------
+#
+# A ceiling written here and nowhere else is not a bound; it is an opinion the
+# producer has never been told about. That was found three times — the tool-call
+# ordinal, the argument-error count, and the canary diagnostics — and each was
+# closed where a reviewer pointed. Three instances of one class, repaired one at
+# a time, is the method this vertical spent five rounds retiring.
+#
+# So the class is closed instead. Every policy that states a *quantity* — a byte
+# bound, an integer ceiling, a bounded number — names a producer-side strategy,
+# and `policy_problems` refuses a bounded policy that names none. There are
+# exactly three strategies, and the difference between them is what happens when
+# a provider goes past the bound:
+#
+#   Refuse   the overrun changes the verdict; the ordinary artifact is not built
+#   Project  bounded evidence is kept, with an explicit truncation or overflow
+#            flag, and every neighbouring field describes that same kept part
+#   Derive   the value cannot exceed the bound, because this module computes it
+#            from something already bounded
+#
+# `Derive` is the one that can rot quietly, so it costs a sentence naming *what*
+# bounds it. "It is local" is not an answer — round fourteen retired that
+# argument for `request_bytes`, which this module also composed.
+
+
+@dataclass(frozen=True)
+class Refuse:
+    """Past the bound, the run gets a different verdict rather than a big field.
+
+    `source` names who can push the value past the bound, and it decides what a
+    correct refusal looks like. A quantity a *provider* can choose must end in a
+    classification about the exchange: filing it as `INTERNAL_ERROR` says this
+    tool broke, which is the round-nine mistake in a new field. A quantity only
+    an injected *sender* can produce is a broken caller, and `INTERNAL_ERROR` is
+    then the honest answer — the contract it violated is ours.
+    """
+
+    why: str
+    source: str = "sender"
+
+
+@dataclass(frozen=True)
+class Project:
+    """Past the bound, a bounded prefix is kept and says that it is one."""
+
+    why: str
+
+
+@dataclass(frozen=True)
+class Derive:
+    """The value is computed from something already bounded. `why` names it."""
+
+    why: str
+
+
+BoundStrategy = Refuse | Project | Derive
+
+
+def bounded_kinds(kind: Kind) -> bool:
+    """Whether a policy states a quantity a provider could try to exceed."""
+    return isinstance(kind, (BoundedInt, BoundedNumber, Prose))
+
+
+def bounded_paths(policies: list[DurableFieldPolicy] | None = None) -> frozenset[FieldPath]:
+    return frozenset(
+        policy.path for policy in (POLICIES if policies is None else policies)
+        if bounded_kinds(policy.kind))
+
+
 POLICIES = build_policies()
+
+
+def _bound_enforcement() -> dict[FieldPath, BoundStrategy]:
+    """One entry per bounded policy, naming who keeps the value inside it.
+
+    Written out rather than generated, because a table generated from the thing
+    it checks agrees with it by construction and proves nothing.
+    """
+    turn = P("turns", EACH)
+    call = extend(turn, "tool_calls", EACH)
+    projected = Project("`opaque_text` keeps a bounded length and sets `_oversize`")
+    counted = Refuse(
+        "`normalize_provider_usage` drops a counter outside the bounds the "
+        "request produced; a receipt never carries an out-of-range one",
+        source="provider")
+    status = Refuse(
+        "`validate_send_result` refuses a status outside the three digits the "
+        "wire can carry. Past the bound is a *sender*, not a peer: "
+        "`http.client._read_status` raises `BadStatusLine` for anything outside "
+        "100..999, so a four-digit status arrives as a framing failure and never "
+        "as a status. Inside the bound is the provider's, and an unassigned code "
+        "is classified by `classify_http` rather than refused — which it was not "
+        "until this table asked who could reach 600")
+    observed = Refuse(
+        "`validate_send_result` refuses a count past `response_limit + 1`, "
+        "which is the largest `read_bounded` can produce")
+    read = Derive("`read_bounded` stops at `response_limit + 1`")
+    sender_class = Refuse(
+        "`validate_send_result` refuses a `failure_class` past "
+        "`FAILURE_CLASS_MAX_BYTES` — unlike a provider header, this one is the "
+        "sender's, and the real sender derives it from a local exception class")
+    request = Refuse(
+        "`bounded_request` refuses a body past `MAX_REQUEST_BYTES` before it "
+        "is sent, so an oversized body never becomes a durable count",
+        source="provider")
+    return {
+        # -- the top-level receipt --
+        P("detail"): Derive(
+            "every durable line is a `LocalDetail` rendered from a registered "
+            "template whose slots are themselves bounded — no template joins an "
+            "unbounded collection, which `template_problems` enforces"),
+        P("latency_ms"): Derive("`latency_ms_since` clamps to `LATENCY_MAX_MS`"),
+        P("turn_count"): Derive("the loop runs `bounded_turns(max_turns)` times"),
+        P("http_status"): status,
+        P("response_bytes"): read,
+        P("body_bytes_observed"): observed,
+        P("request_bytes"): request,
+        P("internal_failure_class_bytes"): projected,
+        P("request_id_bytes"): projected,
+        P("reported_model_bytes"): projected,
+        P("failure_class_bytes"): sender_class,
+        P("reported_models", EACH, "reported_model_bytes"): projected,
+        P("provider_usage", "prompt_tokens"): counted,
+        P("provider_usage", "completion_tokens"): counted,
+        P("provider_usage", "total_tokens"): counted,
+        P("transport_target", "redirects_allowed"): Derive(
+            "a local constant; this module never follows a redirect"),
+        P("transport_target", "max_response_bytes"): Derive(
+            "the caller's `response_limit`, which is the bound itself"),
+        P("transport_target", "timeout_secs"): Derive(
+            "`bounded_timeout` refuses anything past `TIMEOUT_MAX_SECS`"),
+        # -- one turn --
+        suffixed(turn, "ordinal"): Derive("the loop index, under `bounded_turns`"),
+        suffixed(turn, "detail"): Derive("a rendered `LocalDetail`, as above"),
+        suffixed(turn, "http_status"): status,
+        suffixed(turn, "response_bytes"): read,
+        suffixed(turn, "body_bytes_observed"): observed,
+        suffixed(turn, "request_bytes"): request,
+        suffixed(turn, "request_id_bytes"): projected,
+        suffixed(turn, "reported_model_bytes"): projected,
+        suffixed(turn, "failure_class_bytes"): sender_class,
+        suffixed(turn, "argument_errors_count"): Project(
+            "`error_evidence` keeps `MAX_ARGUMENT_ERRORS` and sets "
+            "`argument_errors_truncated`"),
+        extend(turn, "canary_answer_errors", EACH): Project(
+            "`canary_evidence` keeps `MAX_CANARY_ERRORS` lines and sets "
+            "`canary_answer_errors_truncated`"),
+        suffixed(turn, "canary_answer_errors_count"): Project(
+            "the length of the kept prefix `canary_evidence` recorded, with "
+            "`canary_answer_errors_truncated` beside it"),
+        extend(turn, "reported_usage", "prompt_tokens"): counted,
+        extend(turn, "reported_usage", "completion_tokens"): counted,
+        extend(turn, "reported_usage", "total_tokens"): counted,
+        suffixed(call, "ordinal"): Refuse(
+            "`parse_tool_calls` refuses a response carrying more than "
+            "`MAX_TOOL_CALLS`, before an ordinal is assigned", source="provider"),
+        suffixed(call, "name_bytes"): projected,
+        suffixed(call, "call_id_bytes"): projected,
+    }
+
+
+BOUND_ENFORCEMENT: dict[FieldPath, BoundStrategy] = _bound_enforcement()
+
+
+def enforcement_problems(
+    policies: list[DurableFieldPolicy] | None = None,
+    enforcement: dict[FieldPath, BoundStrategy] | None = None,
+) -> list[str]:
+    """Every bounded field names a producer strategy, and every strategy a field.
+
+    Set equality in both directions, for the reason coverage is asked in both:
+    a bound nobody applies is the defect this exists for, and a strategy naming
+    no bounded field is a claim about a place that no longer has a ceiling.
+    """
+    table = BOUND_ENFORCEMENT if enforcement is None else enforcement
+    bounded = bounded_paths(policies)
+    problems = [
+        f"{render_path(path)}: bounded by the table and enforced by nobody"
+        for path in sorted(bounded - set(table), key=render_path)
+    ]
+    problems.extend(
+        f"{render_path(path)}: an enforcement entry for a field with no bound"
+        for path in sorted(set(table) - bounded, key=render_path)
+    )
+    problems.extend(
+        f"{render_path(path)}: {type(strategy).__name__} without a stated reason"
+        for path, strategy in sorted(table.items(), key=lambda e: render_path(e[0]))
+        if not strategy.why.strip()
+    )
+    return problems
 
 
 # ---------------------------------------------------------------------------
@@ -1272,6 +1473,7 @@ def context_for(
         # the module that wrote it. The bound belongs where it is enforced;
         # this is the reader of it.
         "error_ceiling": pm.MAX_ARGUMENT_ERRORS,
+        "canary_ceiling": pm.MAX_CANARY_ERRORS,
         # An ordinal, not a cardinality. `call_ceiling: 1024` admitted ordinals
         # 0..1024 — one more call than the producer's bound allows — and the
         # name is what hid the difference.
@@ -1376,6 +1578,13 @@ def self_test() -> int:
             print(f"  {problem}")
         return 1
 
+    unowned = enforcement_problems()
+    if unowned:
+        print("FAIL a bound is stated here and applied by nobody")
+        for problem in unowned[:20]:
+            print(f"  {problem}")
+        return 1
+
     findings = audit(sound_specimen(), SPECIMEN_CONTEXT)
     if findings:
         print("FAIL a receipt this module produces was refused by its own policy")
@@ -1416,8 +1625,22 @@ def self_test() -> int:
         print("FAIL a digest policy naming an undeclared domain was not reported")
         return 1
 
+    # The closure's own positive control: a bounded policy nobody enforces must
+    # be reported, or the set equality above is a check that cannot fail.
+    orphan = POLICIES + [DurableFieldPolicy(P("unowned_count"), BoundedInt(0, 5))]
+    if not any("enforced by nobody" in problem
+               for problem in enforcement_problems(orphan)):
+        print("FAIL a bounded policy with no enforcement entry was not reported")
+        return 1
+    if not any("no bound" in problem for problem in
+               enforcement_problems(POLICIES, {**BOUND_ENFORCEMENT,
+                                               P("not_bounded"): Derive("nothing")})):
+        print("FAIL an enforcement entry for an unbounded field was not reported")
+        return 1
+
     print(f"OK {len(POLICIES)} durable-field policies, "
           f"{len(defective_specimens())} defective specimens refused, "
+          f"{len(BOUND_ENFORCEMENT)} bounds owned by the producer, "
           "duplicate and undeclared-domain policies reported")
     return 0
 
