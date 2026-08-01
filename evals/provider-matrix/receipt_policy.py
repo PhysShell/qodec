@@ -321,7 +321,10 @@ class BoundedInt(Kind):
         if type(value) is not int:
             return [f"{type(value).__name__} is not an integer"]
         top = self.ceiling(context)
-        if top is None:
+        # A context carrying a *string* where a ceiling belongs is a caller
+        # defect, and comparing against it raised `TypeError` out of the
+        # auditor. The bound is read as a number or reported as absent.
+        if not isinstance(top, (int, float)) or isinstance(top, bool):
             return [f"no local bound named {self.high!r} was supplied"]
         if not self.low <= value <= top:
             return [f"integer outside {self.low}..{top}"]
@@ -465,7 +468,13 @@ class Prose(Kind):
         if not PROSE_ALPHABET.match(residue):
             outside = sorted({ch for ch in residue if not PROSE_ALPHABET.match(ch)})
             found.append(f"characters outside the local alphabet: {outside!r}")
-        allowed = LOCAL_WORDS | set(context.get("local_words", ()))
+        # Read as a collection of words, not taken on trust: `local_words: 0`
+        # made `set()` raise out of the auditor, and a context is a caller's
+        # claim like any other.
+        extra = context.get("local_words") if isinstance(context, dict) else None
+        allowed = LOCAL_WORDS | {
+            word for word in (extra if isinstance(extra, (set, frozenset, tuple, list)) else ())
+            if isinstance(word, str)}
         for token in TOKEN.findall(residue):
             if token.isdigit():
                 if int(token) > PROSE_MAX_NUMBER:
@@ -1084,7 +1093,12 @@ def slot_pattern(slot: str, context: dict[str, Any], depth: int = 0) -> str:
     if slot == "key-env":
         # From the registry by way of the caller. A receipt naming any other
         # environment variable is a receipt that did not come from this plan.
-        return re.escape(context["key_env"])
+        # A context with no `key_env` is the caller's defect, and it is reported
+        # as one: a pattern that matches nothing turns every line carrying the
+        # slot into a finding, where substituting an empty string would have
+        # made the neighbours prove a context nobody supplied.
+        supplied = context_str(context, "key_env")
+        return r"(?!)" if supplied is None else re.escape(supplied)
     if slot == "count":
         return r"\d{1,7}"
     if slot == "status":
@@ -1137,32 +1151,117 @@ def detail_provenance_problems(receipt: dict[str, Any], context: dict[str, Any])
     """
     problems: list[str] = []
     for where, node in detail_bearing_nodes(receipt):
-        template = node.get("detail_template")
-        text = node.get("detail")
+        template = node.get("detail_template") if isinstance(node, dict) else None
+        text = node.get("detail") if isinstance(node, dict) else None
         if template is None:
             if text:
                 problems.append(f"{where}: a detail with no template to rebuild it from")
             continue
-        if template not in pm.DETAIL_TEMPLATES:
+        # Read as a string before it is looked up: `detail_template: []` is a
+        # receipt somebody can write, and `[] in {...}` raises rather than
+        # answering no.
+        if read_str(template) is None or template not in pm.DETAIL_TEMPLATES:
             problems.append(f"{where}: {template!r} is not a registered detail template")
             continue
         if not isinstance(text, str) or not re.fullmatch(template_pattern(template, context), text):
             problems.append(
                 f"{where}: the detail does not match what template {template!r} renders")
     for where, node in detail_bearing_nodes(receipt):
-        templates = node.get("canary_answer_error_templates")
-        lines = node.get("canary_answer_errors")
-        if templates is None and lines is None:
+        if not isinstance(node, dict) or (
+                "canary_answer_error_templates" not in node
+                and "canary_answer_errors" not in node):
             continue
+        templates = read_list(node, "canary_answer_error_templates")
+        lines = read_list(node, "canary_answer_errors")
+        # Read as lists before either is counted. `len()` on whatever the
+        # artifact happened to carry raised `TypeError` out of the auditor, and
+        # `canary_answer_error_templates: 5` is a receipt somebody can write.
         if templates is None or lines is None or len(templates) != len(lines):
             problems.append(f"{where}: canary answer lines and their templates do not correspond")
             continue
         for index, (name, line) in enumerate(zip(templates, lines)):
+            text = read_str(line)
             if name not in pm.DETAIL_TEMPLATES:
                 problems.append(f"{where}: canary line {index} names an unregistered template")
-            elif not re.fullmatch(template_pattern(name, context), line):
+            elif text is None or not re.fullmatch(template_pattern(name, context), text):
                 problems.append(f"{where}: canary line {index} is not what {name!r} renders")
     return problems
+
+
+# ---------------------------------------------------------------------------
+# What the auditor will read, and what it does with what it cannot
+# ---------------------------------------------------------------------------
+#
+# An auditor walks artifacts that may be malformed — that is the whole job — so
+# dying on one is the failure mode, not an edge case. Two of them were found on
+# the head that shipped the bounded-field closure: `len()` on a value taken
+# straight from the receipt, and `context["key_env"]` on a context that need not
+# carry it. Both raise out of `audit()` and a gate that raises reports nothing.
+#
+# Wrapping the whole thing in `except Exception` would make it total the way
+# unplugging a server makes it secure: every programming error becomes an
+# indistinguishable finding. So totality is built rather than caught.
+#
+#   1. An admission boundary. "Any JSON" includes trees that end in
+#      `RecursionError` before the auditor gets an opinion, so depth and node
+#      count are bounded and going past them is a finding.
+#   2. Typed readers. Nothing calls `len`, `zip`, `re`, `in` or `[...]` on a
+#      value that has not been read as the type it is supposed to be.
+#   3. A malformed corpus, generated rather than listed, run by the shipped
+#      self-test as a subprocess so a traceback is a red build.
+#
+# One malformed leaf must not stop the rest: an early return would swap a crash
+# for a silence, which is tidier and proves the same amount.
+
+AUDIT_MAX_DEPTH = 64
+AUDIT_MAX_NODES = 100_000
+
+
+def admissible(receipt: Any) -> str | None:
+    """Whether this artifact is one the auditor can walk to a verdict.
+
+    Bounded rather than trusted: a receipt is written by this module, but
+    `audit` is also handed hostile and hand-edited ones, and "it fits in
+    memory" is not a contract anybody stated.
+    """
+    nodes = 0
+    stack = [(receipt, 0)]
+    while stack:
+        value, depth = stack.pop()
+        nodes += 1
+        if nodes > AUDIT_MAX_NODES:
+            return f"the receipt carries more than {AUDIT_MAX_NODES} nodes"
+        if depth > AUDIT_MAX_DEPTH:
+            return f"the receipt nests deeper than {AUDIT_MAX_DEPTH}"
+        if isinstance(value, dict):
+            stack.extend((item, depth + 1) for item in value.values())
+        elif isinstance(value, list):
+            stack.extend((item, depth + 1) for item in value)
+    return None
+
+
+MISSING = object()
+
+
+def read_list(node: Any, key: str) -> list | None:
+    """A member that must be a list, or `None` for absent-or-not-a-list."""
+    value = node.get(key) if isinstance(node, dict) else None
+    return value if isinstance(value, list) else None
+
+
+def read_str(value: Any) -> str | None:
+    return value if isinstance(value, str) else None
+
+
+def context_str(context: dict[str, Any], key: str) -> str | None:
+    """A local fact the caller was supposed to supply, or `None`.
+
+    `None` is the honest answer and the callers act on it. Substituting an
+    empty string would make the neighbouring checks prove a context nobody
+    supplied, which is worse than the `KeyError` it replaces.
+    """
+    value = context.get(key) if isinstance(context, dict) else None
+    return value if isinstance(value, str) else None
 
 
 def detail_bearing_nodes(receipt: dict[str, Any]):
@@ -1425,6 +1524,14 @@ def audit(
     policy stops the gate on the commit that adds it, rather than on the review
     round that eventually notices it.
     """
+    if not isinstance(receipt, dict):
+        return [f"a receipt is an object, not {pm.json_type_name(receipt)}"]
+    inadmissible = admissible(receipt)
+    if inadmissible is not None:
+        # Refused rather than walked. "Any JSON" includes trees that end in a
+        # `RecursionError` before this function has an opinion, and a bound
+        # nobody stated is a bound nobody keeps.
+        return [inadmissible]
     findings: list[str] = []
     for path, value in flatten(receipt):
         try:
@@ -1521,6 +1628,91 @@ SPECIMEN_CONTEXT = {
     "observed_ceiling": 4097,
     "local_words": set(),
 }
+
+
+# The JSON values a field can be replaced by. Not a list of the two malformed
+# shapes a review happened to find — a generator, so the corpus grows with the
+# artifact instead of with the review history.
+HOSTILE_VALUES: tuple[Any, ...] = (
+    None, True, 0, -1, 3.5, "", "text", [], {}, [[]], {"k": {}}, [{"k": []}],
+)
+
+
+def malformed_specimens(receipt: dict[str, Any]):
+    """One receipt per way a single place in it can be the wrong thing.
+
+    Every member of the receipt and of each turn, deleted and then replaced by
+    every other JSON shape; every member of a list replaced in place. What the
+    auditor must do with each is the same: return findings, deterministically,
+    without raising.
+    """
+    import copy
+
+    def variants(node: dict[str, Any], where: str):
+        for key in list(node):
+            without = copy.deepcopy(receipt)
+            target = without if where == "receipt" else without["turns"][0]
+            del target[key]
+            yield f"{where}.{key} absent", without
+            for value in HOSTILE_VALUES:
+                swapped = copy.deepcopy(receipt)
+                target = swapped if where == "receipt" else swapped["turns"][0]
+                target[key] = copy.deepcopy(value)
+                yield f"{where}.{key} = {value!r}", swapped
+
+    yield from variants(receipt, "receipt")
+    turns = receipt.get("turns")
+    if isinstance(turns, list) and turns and isinstance(turns[0], dict):
+        yield from variants(turns[0], "turns[0]")
+    # And the shapes a walker meets rather than a field: a key that is not a
+    # string, a list where an object belongs, a receipt that is not one at all.
+    import copy as _copy
+    hostile_key = _copy.deepcopy(receipt)
+    hostile_key[7] = "an integer key"
+    yield "a key that is not a string", hostile_key
+    for value in HOSTILE_VALUES:
+        yield f"the receipt itself is {value!r}", value
+
+
+def hostile_contexts(context: dict[str, Any]):
+    """The context, with each local fact missing and each of the wrong type."""
+    import copy
+    for key in list(context):
+        without = copy.deepcopy(context)
+        del without[key]
+        yield f"context.{key} absent", without
+        for value in (None, 0, "", [], {}):
+            swapped = copy.deepcopy(context)
+            swapped[key] = copy.deepcopy(value)
+            yield f"context.{key} = {value!r}", swapped
+
+
+def totality_problems(auditor: Callable[..., list[str]] | None = None) -> list[str]:
+    """Run the whole malformed corpus and report anything that is not a verdict.
+
+    A raise here is the finding. So is a non-deterministic answer: an auditor
+    that reports different things about the same artifact is one nobody can act
+    on, and dict ordering is exactly the kind of thing that makes that happen
+    without anybody noticing.
+    """
+    check = audit if auditor is None else auditor
+    problems: list[str] = []
+    specimens = list(malformed_specimens(sound_specimen()))
+    contexts = list(hostile_contexts(SPECIMEN_CONTEXT))
+    cases = ([(name, receipt, SPECIMEN_CONTEXT) for name, receipt in specimens]
+             + [(name, sound_specimen(), context) for name, context in contexts])
+    for name, receipt, context in cases:
+        try:
+            first = check(receipt, context)
+            second = check(receipt, context)
+        except Exception as exc:  # noqa: BLE001 — the raise *is* the finding
+            problems.append(f"{name}: audit raised {type(exc).__name__}")
+            continue
+        if not isinstance(first, list) or not all(isinstance(x, str) for x in first):
+            problems.append(f"{name}: audit did not return a list of findings")
+        elif first != second:
+            problems.append(f"{name}: audit is not deterministic")
+    return problems
 
 
 def sound_specimen() -> dict[str, Any]:
@@ -1643,6 +1835,37 @@ def self_test() -> int:
         print("FAIL a digest policy naming an undeclared domain was not reported")
         return 1
 
+    # Totality, run here rather than only in the suite. A unit test can check a
+    # helper while the shipped path dies on the formatter next to it — the
+    # clean-tree and discovery gates each performed that trick once, and this
+    # module is now a critical program in its own right.
+    fragile = totality_problems()
+    if fragile:
+        print("FAIL the auditor did not survive its own malformed corpus")
+        for problem in fragile[:20]:
+            print(f"  {problem}")
+        return 1
+    # And the corpus's own positive control: an auditor that cannot raise is an
+    # auditor nobody has driven off the road.
+    # The corpus's own positive controls: the runner is handed an auditor that
+    # raises, and one that answers differently each time, and must report both.
+    # An earlier version of this control raised and formatted the line itself,
+    # which exercised nothing — a check that fakes its own subject.
+    def fragile(_receipt, _context):
+        raise TypeError("a deliberately fragile checker")
+
+    answers = iter(range(1000))
+
+    def unstable(_receipt, _context):
+        return [f"finding {next(answers)}"]
+
+    if not any("raised TypeError" in problem for problem in totality_problems(fragile)):
+        print("FAIL the totality corpus cannot detect an auditor that raises")
+        return 1
+    if not any("not deterministic" in problem for problem in totality_problems(unstable)):
+        print("FAIL the totality corpus cannot detect an auditor that wanders")
+        return 1
+
     # The closure's own positive control: a bounded policy nobody enforces must
     # be reported, or the set equality above is a check that cannot fail.
     orphan = POLICIES + [DurableFieldPolicy(P("unowned_count"), BoundedInt(0, 5))]
@@ -1659,6 +1882,8 @@ def self_test() -> int:
     print(f"OK {len(POLICIES)} durable-field policies, "
           f"{len(defective_specimens())} defective specimens refused, "
           f"{len(BOUND_ENFORCEMENT)} bounds owned by the producer, "
+          f"{len(list(malformed_specimens(sound_specimen()))) + len(list(hostile_contexts(SPECIMEN_CONTEXT)))} "
+          "malformed specimens survived, "
           "duplicate and undeclared-domain policies reported")
     return 0
 
