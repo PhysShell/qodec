@@ -6143,5 +6143,97 @@ class CleanTreeIsolationTests(unittest.TestCase):
         self.assertTrue(any("leftover.tmp" in line for line in found), found)
 
 
+class NestedCorpusTests(unittest.TestCase):
+    """The malformed corpus walks structural paths, not member names.
+
+    The self-test runs the whole corpus as a subprocess and is the gate. These
+    are the properties that make its number mean something, asked directly so a
+    mutation has an oracle that names the defect rather than a count that moved.
+    """
+
+    def test_the_walk_unions_over_every_element_not_the_first(self):
+        # The canary fields exist only on the turn that ends the exchange, so a
+        # walk that stopped at `turns[0]` reported that no fixture contains
+        # them — and the coverage gate would have believed it.
+        receipt = {"turns": [{"a": 1}, {"b": [{"c": 2}]}]}
+        found = receipt_policy.fixture_paths(receipt)
+        self.assertIn(receipt_policy.P("turns", receipt_policy.EACH, "b",
+                                       receipt_policy.EACH, "c"), found)
+
+    def test_an_array_and_its_members_are_different_places(self):
+        found = receipt_policy.fixture_paths({"xs": [1, 2]})
+        self.assertIn(receipt_policy.P("xs"), found)
+        self.assertIn(receipt_policy.P("xs", receipt_policy.EACH), found)
+
+    def test_indices_collapse_but_keys_do_not(self):
+        found = receipt_policy.fixture_paths({"xs": [{"k": 1}, {"j": 2}]})
+        rendered = {receipt_policy.render_path(path) for path in found}
+        self.assertEqual(rendered, {"xs", "xs[]", "xs[].k", "xs[].j"})
+
+    def test_locate_finds_a_path_that_only_a_later_element_carries(self):
+        receipt = {"turns": [{"a": 1}, {"late": "here"}]}
+        found = receipt_policy.locate(
+            receipt, receipt_policy.P("turns", receipt_policy.EACH, "late"))
+        self.assertIsNotNone(found)
+        container, step = found
+        self.assertIs(container, receipt["turns"][1])
+        self.assertEqual(step, "late")
+
+    def test_locate_answers_none_rather_than_raising_on_a_wrong_shape(self):
+        for receipt in ({"turns": 5}, {"turns": []}, {}, []):
+            self.assertIsNone(receipt_policy.locate(
+                receipt, receipt_policy.P("turns", receipt_policy.EACH, "x")))
+
+    def test_a_path_the_locator_cannot_reach_is_not_counted_as_reached(self):
+        # Discovery and addressing are two walks, and the tally answers for the
+        # second. Counting the first would let the report speak for specimens
+        # nobody produced.
+        tally = receipt_policy.Reached()
+        with patch.object(receipt_policy, "locate", return_value=None):
+            list(receipt_policy.malformed_specimens({"schema": "s"}, tally))
+        self.assertEqual(tally.paths, set())
+
+    def test_every_required_place_is_one_some_policy_reads(self):
+        declared = receipt_policy.declared_places()
+        unread = [receipt_policy.render_path(path)
+                  for path in receipt_policy.WITNESS_REQUIRED if path not in declared]
+        self.assertEqual(unread, [])
+
+    def test_the_containers_walked_through_count_as_declared_places(self):
+        declared = receipt_policy.declared_places()
+        self.assertIn(receipt_policy.P("turns", receipt_policy.EACH, "tool_calls",
+                                       receipt_policy.EACH), declared)
+
+    def test_a_hollow_nested_list_is_reported_by_its_element_path(self):
+        import copy
+        hollow = []
+        for name, receipt, context in receipt_policy.fixtures():
+            pruned = copy.deepcopy(receipt)
+            for turn in pruned.get("turns", []):
+                if isinstance(turn.get("tool_calls"), list):
+                    turn["tool_calls"] = []
+            hollow.append((name, pruned, context))
+        _problems, tally = receipt_policy.totality_problems(corpus=hollow)
+        gaps = receipt_policy.coverage_problems(tally)
+        self.assertTrue(any("turns[].tool_calls[] never received" in line for line in gaps), gaps)
+
+    def test_a_missing_terminal_turn_is_reported_by_the_paths_it_took_away(self):
+        corpus = [row for row in receipt_policy.fixtures() if "canary" not in row[0]]
+        _problems, tally = receipt_policy.totality_problems(corpus=corpus)
+        gaps = receipt_policy.coverage_problems(tally)
+        self.assertTrue(
+            any("turns[].canary_answer_errors[] never received" in line for line in gaps), gaps)
+
+    def test_a_canary_template_that_is_not_a_string_is_a_finding_not_a_raise(self):
+        import copy
+        _name, receipt, context = receipt_policy.fixtures()[2]
+        bad = copy.deepcopy(receipt)
+        for turn in bad["turns"]:
+            if "canary_answer_error_templates" in turn:
+                turn["canary_answer_error_templates"] = [[]]
+        findings = receipt_policy.audit(bad, context)
+        self.assertTrue(any("unregistered template" in line for line in findings), findings)
+
+
 if __name__ == "__main__":
     unittest.main()

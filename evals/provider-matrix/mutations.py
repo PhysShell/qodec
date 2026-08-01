@@ -215,9 +215,16 @@ MUTATIONS = [
     ("E8 unknown fields allowed on a registry entry",
      "        extra = sorted(set(entry) - set(AUTHORITY_FIELDS))\n        if extra:",
      "        extra = []\n        if extra:"),
+    # R20.1 gave the check a second half. Each half is its own observable
+    # difference, so each gets its own spec rather than one spec deleting both
+    # and reporting a single kill for two contracts.
     ("E9 an implausible key_env accepted",
-     "        if not KEY_ENV_PATTERN.match(entry[\"key_env\"]):",
-     "        if False:"),
+     "        if (not KEY_ENV_PATTERN.match(entry[\"key_env\"])",
+     "        if (False"),
+
+    ("E9b a key_env longer than the bound the certificate adds up",
+     "                or len(entry[\"key_env\"].encode(\"utf-8\")) > KEY_ENV_MAX_BYTES):",
+     "                or False):"),
     ("E10 a non-lowercase provider name accepted",
      "        if not isinstance(name, str) or name != name.strip().lower() or not name:",
      "        if False:"),
@@ -517,8 +524,8 @@ MUTATIONS = [
      "    if isinstance(identity, TextSubstitution):\n"
      "        return {\"reported_model\": identity.name, \"reported_model_present\": True}"),
     ("DP12 the undeclared tool names spelled out in the detail",
-     "                len(unknown), tuple(opaque_ref(\"tool-name\", name) for name in unknown)))",
-     "                len(unknown), tuple(opaque_ref(\"json-value\", n) for n in sorted(unknown))))"),
+     "                len(unknown), shown_refs(\"undeclared-tools\", \"tool-name\", unknown)))",
+     "                len(unknown), shown_refs(\"undeclared-tools\", \"json-value\", unknown)))"),
     ("DP13 the schema validator's text written to the receipt",
      "                record.update(evidence)",
      "                record[\"argument_errors\"] = errors"),
@@ -1039,12 +1046,12 @@ MUTATIONS = [
      "receipt_policy.py"),
 
     ("TP15 the trusted key_env in a line is no longer checked against the registry",
-     "        return re.escape(context[\"key_env\"])",
-     "        return r\"[A-Z_]+\"",
+     "        return r\"(?!)\" if supplied is None else re.escape(supplied)",
+     "        return r\"(?!)\" if supplied is None else r\"[A-Z_]+\"",
      "receipt_policy.py"),
 
     ("TP16 the canary's lines stop being rebuilt from their templates",
-     "            elif not re.fullmatch(template_pattern(name, context), line):",
+     "            elif text is None or not re.fullmatch(template_pattern(registered, context), text):",
      "            elif False:",
      "receipt_policy.py"),
 
@@ -1208,8 +1215,8 @@ MUTATIONS = [
      "                        opaque_ref(\"model-name\", getattr(seen, \"name\", \"\")))"),
 
     ("MI3 a non-text drift is rendered with the text-only template",
-     "    if types:\n        return LocalDetail(\"identity-substituted-nontext\", (len(types), types))",
-     "    if False:\n        return LocalDetail(\"identity-substituted-nontext\", (len(types), types))"),
+     "    if types:\n        return LocalDetail(\"identity-substituted-nontext\", (len(types), few_types))",
+     "    if False:\n        return LocalDetail(\"identity-substituted-nontext\", (len(types), few_types))"),
 
     ("MI4 a mixed drift reports only its digests",
      "    if digests and types:",
@@ -1545,6 +1552,82 @@ MUTATIONS = [
     ("RQ5 a three-digit status nobody assigned is refused again",
      "    return type(value) is int and HTTP_STATUS_MIN <= value <= HTTP_STATUS_MAX",
      "    return type(value) is int and HTTP_STATUS_MIN <= value <= 599"),
+
+    # -- DB: the certificate's own inputs are enforced where they are built ---
+    #
+    # `slot_max_bytes` adds `DISCRIMINATOR_MAX_BYTES` into every template that
+    # carries a discriminator. R20.1 shipped the number and the constructor that
+    # applies it, and anchored neither: the certificate was arithmetic over a
+    # bound no proof asked about.
+
+    ("DB1 a discriminator's word is no longer bounded where it is built",
+     "        if self.known is not None and len(repr(self.known).encode(\"utf-8\")) > DISCRIMINATOR_MAX_BYTES:",
+     "        if False:"),
+
+    # -- NP: the totality corpus reaches nested places, not top-level names ---
+    #
+    # Every one of these leaves the auditor untouched and narrows the *corpus*.
+    # A mutation that survives here would mean the coverage report is decorative
+    # — which is what it was two heads ago, when it counted member names and a
+    # tool call's `ordinal` was covered by a claim about a turn's.
+
+    ("NP1 the corpus walk stops at the first element of an array",
+     "    elif isinstance(node, list):\n"
+     "        for element in node:\n"
+     "            found |= fixture_paths(element, prefix + (EACH,))",
+     "    elif isinstance(node, list) and node:\n"
+     "        found |= fixture_paths(node[0], prefix + (EACH,))",
+     "receipt_policy.py"),
+
+    ("NP2 the corpus walk stops descending into objects",
+     "        for key, value in node.items():\n"
+     "            if isinstance(key, str):\n"
+     "                found |= fixture_paths(value, prefix + (Key(key),))",
+     "        for key, value in node.items():\n"
+     "            if isinstance(key, str):\n"
+     "                found.add(prefix + (Key(key),))",
+     "receipt_policy.py"),
+
+    ("NP3 the tally stops recording which places were reached",
+     "        tally.paths.add(path)",
+     "        pass",
+     "receipt_policy.py"),
+
+    ("NP4 a required place may go without a hostile value",
+     "    unwitnessed = sorted(set(required) - tally.paths, key=render_path)",
+     "    unwitnessed = []",
+     "receipt_policy.py"),
+
+    ("NP5 a required place need not be one any policy reads",
+     "    fictional = sorted(set(required) - declared, key=render_path)",
+     "    fictional = []",
+     "receipt_policy.py"),
+
+    ("NP6 the declared places stop including the containers walked through",
+     "        for stop in range(1, len(policy.path) + 1):\n"
+     "            places.add(policy.path[:stop])",
+     "        places.add(policy.path)",
+     "receipt_policy.py"),
+
+    ("NP7 only the first occurrence of an array is addressable, and it is the wrong one",
+     "        for index, element in enumerate(node):\n"
+     "            if not rest:\n"
+     "                return node, index\n"
+     "            found = locate(element, rest)\n"
+     "            if found is not None:\n"
+     "                return found\n"
+     "        return None",
+     "        if not node:\n"
+     "            return None\n"
+     "        return (node, 0) if not rest else locate(node[0], rest)",
+     "receipt_policy.py"),
+
+    ("NP8 a canary template is looked up without being read as a string",
+     "            registered = read_str(name)\n"
+     "            if registered is None or registered not in pm.DETAIL_TEMPLATES:",
+     "            registered = name\n"
+     "            if registered not in pm.DETAIL_TEMPLATES:",
+     "receipt_policy.py"),
 
     ("MH5 the expected killer is no longer required at all",
      "    if expected is not None:\n"

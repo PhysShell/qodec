@@ -1182,10 +1182,16 @@ def detail_provenance_problems(receipt: dict[str, Any], context: dict[str, Any])
             continue
         for index, (name, line) in enumerate(zip(templates, lines)):
             text = read_str(line)
-            if name not in pm.DETAIL_TEMPLATES:
+            # The *element*, not just the list. Twelve lines up the same lookup
+            # reads its value first and says why; here the list was read and its
+            # members were not, so `["", []] in {...}` raised straight out of
+            # the auditor. Reading the container is not reading what is in it.
+            registered = read_str(name)
+            if registered is None or registered not in pm.DETAIL_TEMPLATES:
                 problems.append(f"{where}: canary line {index} names an unregistered template")
-            elif text is None or not re.fullmatch(template_pattern(name, context), text):
-                problems.append(f"{where}: canary line {index} is not what {name!r} renders")
+            elif text is None or not re.fullmatch(template_pattern(registered, context), text):
+                problems.append(
+                    f"{where}: canary line {index} is not what {registered!r} renders")
     return problems
 
 
@@ -1713,39 +1719,139 @@ def fixtures() -> list[tuple[str, dict[str, Any], dict[str, Any]]]:
     ]
 
 
-@dataclass
-class Coverage2:
-    """What the corpus actually mutated, as opposed to what it can mutate."""
+# The places the corpus commits to reaching, as structural paths rather than as
+# bare member names. Written out rather than derived from the fixtures: derived,
+# deleting a fixture would delete the requirement along with the coverage it
+# stopped providing, and the gate would stay green while the reach shrank —
+# which is the illusion this round keeps finding in new clothes. Every entry is
+# checked below against the policy table, so the list cannot name a place the
+# auditor has no opinion about either.
+WITNESS_REQUIRED: tuple[FieldPath, ...] = (
+    P("schema"),
+    P("target_id"),
+    P("provider"),
+    P("classification"),
+    P("detail"),
+    P("detail_template"),
+    P("provider_usage"),
+    P("transport_target"),
+    P("reported_models"),
+    P("reported_models", EACH),
+    P("reported_models", EACH, "reported_model"),
+    P("reported_models", EACH, "reported_model_present"),
+    P("turns"),
+    P("turns", EACH),
+    P("turns", EACH, "ordinal"),
+    P("turns", EACH, "outcome"),
+    P("turns", EACH, "tool_calls"),
+    P("turns", EACH, "tool_calls", EACH),
+    P("turns", EACH, "tool_calls", EACH, "ordinal"),
+    P("turns", EACH, "tool_calls", EACH, "name"),
+    P("turns", EACH, "tool_calls", EACH, "call_id_sha256"),
+    P("turns", EACH, "tool_names"),
+    P("turns", EACH, "tool_names", EACH),
+    P("turns", EACH, "canary_answer_errors"),
+    P("turns", EACH, "canary_answer_errors", EACH),
+    P("turns", EACH, "canary_answer_error_templates"),
+    P("turns", EACH, "canary_answer_error_templates", EACH),
+)
 
-    receipt_fields: set = field(default_factory=set)
-    turn_fields: set = field(default_factory=set)
+
+@dataclass
+class Reached:
+    """What the corpus actually mutated, as opposed to what it can mutate.
+
+    Paths, not names. `ordinal` appears three times in a qualification receipt —
+    on the receipt's turns, on each turn's tool calls, and nowhere the two mean
+    the same thing — so a tally keyed by the bare word said "ordinal covered"
+    after mutating exactly one of them.
+    """
+
+    paths: set = field(default_factory=set)
     context_keys: set = field(default_factory=set)
     root_shapes: int = 0
     specimens: int = 0
 
 
-def malformed_specimens(receipt: dict[str, Any], seen: "Coverage2 | None" = None):
-    """One receipt per way a single place in it can be the wrong thing."""
+def fixture_paths(node: Any, prefix: FieldPath = ()) -> set:
+    """Every normalized structural path a value contains.
+
+    Arrays collapse: `turns[3]` is not a different *kind* of place than
+    `turns[0]`, and the auditor does not treat it as one. But the union runs
+    over every element, not over the first — the canary fields exist only on the
+    turn that ends the exchange, so a walk that stopped at `turns[0]` reported
+    that no fixture contains them and would have been believed.
+    """
+    found = {prefix} if prefix else set()
+    if isinstance(node, dict):
+        for key, value in node.items():
+            if isinstance(key, str):
+                found |= fixture_paths(value, prefix + (Key(key),))
+    elif isinstance(node, list):
+        for element in node:
+            found |= fixture_paths(element, prefix + (EACH,))
+    return found
+
+
+def locate(node: Any, path: FieldPath):
+    """The container and last step of a path's first occurrence.
+
+    Returns `(container, step)` where `step` is a dict key or a list index, or
+    `None` when the path is nowhere in the value. One occurrence is enough: the
+    corpus is a statement about kinds of places, and a receipt whose *second*
+    tool call is a string is the same question as one whose first is.
+    """
+    if not path:
+        return None
+    step, rest = path[0], path[1:]
+    if isinstance(step, Each):
+        if not isinstance(node, list):
+            return None
+        for index, element in enumerate(node):
+            if not rest:
+                return node, index
+            found = locate(element, rest)
+            if found is not None:
+                return found
+        return None
+    if not isinstance(node, dict) or step.value not in node:
+        return None
+    if not rest:
+        return node, step.value
+    return locate(node[step.value], rest)
+
+
+def malformed_specimens(receipt: dict[str, Any], seen: "Reached | None" = None):
+    """One receipt per way a single place in it can be the wrong thing.
+
+    Recursive over normalized paths. The first version walked the receipt's own
+    members and `turns[0]`'s, which stopped exactly where the nesting starts: a
+    tool call's `ordinal`, a canary error's string, a reported model's flag were
+    all beyond it, and those are the shapes a provider's own values reach.
+    """
     import copy
 
-    def variants(node: dict[str, Any], where: str, record: set):
-        for key in list(node):
-            record.add(key)
-            without = copy.deepcopy(receipt)
-            target = without if where == "receipt" else without["turns"][0]
-            del target[key]
-            yield f"{where}.{key} absent", without
-            for value in HOSTILE_VALUES:
-                swapped = copy.deepcopy(receipt)
-                target = swapped if where == "receipt" else swapped["turns"][0]
-                target[key] = copy.deepcopy(value)
-                yield f"{where}.{key} = {value!r}", swapped
-
-    tally = Coverage2() if seen is None else seen
-    yield from variants(receipt, "receipt", tally.receipt_fields)
-    turns = receipt.get("turns")
-    if isinstance(turns, list) and turns and isinstance(turns[0], dict):
-        yield from variants(turns[0], "turns[0]", tally.turn_fields)
+    tally = Reached() if seen is None else seen
+    for path in sorted(fixture_paths(receipt), key=render_path):
+        where = render_path(path)
+        without = copy.deepcopy(receipt)
+        found = locate(without, path)
+        if found is None:
+            # The path was discovered by the walk and cannot be addressed by
+            # the locator: the two disagree, and recording it as reached would
+            # let the coverage report answer for specimens nobody produced.
+            continue
+        tally.paths.add(path)
+        container, step = found
+        # `del` reads the same on a member and on an element; the container
+        # decides what the step means.
+        del container[step]
+        yield f"{where} absent", without
+        for value in HOSTILE_VALUES:
+            swapped = copy.deepcopy(receipt)
+            container, step = locate(swapped, path)
+            container[step] = copy.deepcopy(value)
+            yield f"{where} = {value!r}", swapped
     hostile_key = copy.deepcopy(receipt)
     hostile_key[7] = "an integer key"
     yield "a key that is not a string", hostile_key
@@ -1754,10 +1860,10 @@ def malformed_specimens(receipt: dict[str, Any], seen: "Coverage2 | None" = None
         yield f"the receipt itself is {value!r}", value
 
 
-def hostile_contexts(context: dict[str, Any], seen: "Coverage2 | None" = None):
+def hostile_contexts(context: dict[str, Any], seen: "Reached | None" = None):
     """The context, with each local fact missing and each of the wrong type."""
     import copy
-    tally = Coverage2() if seen is None else seen
+    tally = Reached() if seen is None else seen
     for key in list(context):
         tally.context_keys.add(key)
         without = copy.deepcopy(context)
@@ -1770,7 +1876,8 @@ def hostile_contexts(context: dict[str, Any], seen: "Coverage2 | None" = None):
 
 
 def totality_problems(auditor: Callable[..., list[str]] | None = None,
-                      cases: list | None = None) -> tuple[list[str], Coverage2]:
+                      cases: list | None = None,
+                      corpus: list | None = None) -> tuple[list[str], Reached]:
     """Run the whole malformed corpus and report anything that is not a verdict.
 
     A raise here is the finding. So is a non-deterministic answer: an auditor
@@ -1779,10 +1886,10 @@ def totality_problems(auditor: Callable[..., list[str]] | None = None,
     without anybody noticing.
     """
     check = audit if auditor is None else auditor
-    tally = Coverage2()
+    tally = Reached()
     if cases is None:
         cases = []
-        for _name, receipt, context in fixtures():
+        for _name, receipt, context in (fixtures() if corpus is None else corpus):
             cases.extend((why, bad, context)
                          for why, bad in malformed_specimens(receipt, tally))
             cases.extend((why, receipt, bad)
@@ -1803,21 +1910,53 @@ def totality_problems(auditor: Callable[..., list[str]] | None = None,
     return problems, tally
 
 
-def coverage_problems(tally: Coverage2) -> list[str]:
+def declared_places(policies: list[DurableFieldPolicy] | None = None) -> set:
+    """Every path the policy table names, together with its containers.
+
+    `turns[].tool_calls[]` is not a leaf any policy declares, but it is a place
+    the auditor descends through, and a corpus that never puts a hostile value
+    *there* has never asked what happens when a tool call is a string.
+    """
+    places = set()
+    for policy in (POLICIES if policies is None else policies):
+        for stop in range(1, len(policy.path) + 1):
+            places.add(policy.path[:stop])
+    return places
+
+
+def coverage_problems(tally: Reached, required: tuple = WITNESS_REQUIRED) -> list[str]:
     """What the corpus claims to reach, checked against what it reached.
 
-    The first version said "every member of the receipt and of each turn" and
-    mutated no turn at all, because the only fixture it was handed had none. A
-    branch that exists and never runs is the defect this round is about, so the
-    reaching is counted rather than described.
+    Two closures, in both directions. Every required path must be one the policy
+    table actually reads — otherwise the requirement is a sentence about a place
+    that does not exist — and every one of them must have received a hostile
+    value from the real generator over the real fixtures.
+
+    A third check was written here and taken out again: "no production fixture
+    contains this path". `tally.paths` is filled *from* `fixture_paths`, so on
+    the shipped corpus that set is the same set, the message could only ever
+    duplicate the one below it, and it would have been a check indistinguishable
+    from its own absence — added, in this very function, by the round whose
+    subject is that defect.
+
+    The first version of the tally said "every member of the receipt and of each
+    turn" and mutated no turn at all, because the only fixture it was handed had
+    none. The second reached turns and stopped: `turns[].tool_calls[].ordinal`
+    was covered by a claim about `turns[0]` and by nothing else.
     """
     problems = []
-    if not tally.turn_fields:
-        problems.append("no turn field was ever mutated")
-    if not tally.receipt_fields:
-        problems.append("no receipt field was ever mutated")
     if not tally.root_shapes:
         problems.append("the receipt was never replaced wholesale")
+
+    declared = declared_places()
+    fictional = sorted(set(required) - declared, key=render_path)
+    problems.extend(f"{render_path(path)} is required of the corpus but no "
+                    f"policy reads it" for path in fictional)
+
+    unwitnessed = sorted(set(required) - tally.paths, key=render_path)
+    problems.extend(f"{render_path(path)} never received a hostile value"
+                    for path in unwitnessed)
+
     wanted = set()
     for _name, _receipt, context in fixtures():
         wanted |= set(context)
@@ -1988,17 +2127,64 @@ def self_test() -> int:
         for problem in unreached[:20]:
             print(f"  {problem}")
         return 1
-    # And the two controls that matter more than another raising auditor: a
-    # corpus with no turn left, and one with a context fact never poisoned.
-    flat = Coverage2(receipt_fields={"schema"}, root_shapes=1,
-                     context_keys={key for _n, _r, ctx in fixtures() for key in ctx})
-    if not any("no turn field" in problem for problem in coverage_problems(flat)):
-        print("FAIL the coverage gate does not notice an unexercised turn")
+    # And the controls that matter more than another raising auditor. Each one
+    # runs the real generator over a real corpus that has been narrowed in one
+    # way, and the gate has to name the exact structural path that narrowing
+    # took away — not report "coverage dropped".
+    #
+    # (1) The terminal-answer turn removed. Everything the canary produces lives
+    # only on that turn, so a corpus without it is silent about the fields that
+    # decide whether a provider answered the question at all.
+    without_canary = [row for row in fixtures()
+                      if "canary" not in row[0]]
+    _problems, narrowed = totality_problems(corpus=without_canary)
+    gaps = coverage_problems(narrowed)
+    if not any("turns[].canary_answer_errors[] never received" in problem
+               for problem in gaps):
+        print("FAIL the coverage gate does not notice a missing canary turn")
+        for problem in gaps[:10]:
+            print(f"  {problem}")
         return 1
-    partial = Coverage2(receipt_fields={"schema"}, turn_fields={"ordinal"}, root_shapes=1,
-                        context_keys={key for _n, _r, ctx in fixtures() for key in ctx}
-                        - {"key_env"})
-    if not any("key_env" in problem for problem in coverage_problems(partial)):
+
+    # (2) One nested list emptied, everything else intact. This is the shape the
+    # previous corpus could not see: `turns[]` was reached, so the tally said
+    # turns were covered, while every element *inside* a turn's arrays was
+    # untouched. The gate must name the element path, not the array.
+    import copy
+    hollow = []
+    for name, receipt, context in fixtures():
+        pruned = copy.deepcopy(receipt)
+        for turn in pruned.get("turns", []):
+            if isinstance(turn, dict) and isinstance(turn.get("tool_calls"), list):
+                turn["tool_calls"] = []
+        hollow.append((name, pruned, context))
+    _problems, shallow = totality_problems(corpus=hollow)
+    gaps = coverage_problems(shallow)
+    if not any("turns[].tool_calls[] never received" in problem
+               for problem in gaps):
+        print("FAIL the coverage gate does not notice an unexercised list element")
+        for problem in gaps[:10]:
+            print(f"  {problem}")
+        return 1
+    if not any("turns[].tool_calls[].ordinal never received" in problem
+               for problem in gaps):
+        print("FAIL the coverage gate stops at the element and not at its members")
+        return 1
+
+    # (3) A required path naming a place no policy reads. Without this arm the
+    # requirement list could drift into fiction: entries that no auditor code
+    # consults would be satisfied by the generator and prove nothing.
+    invented = WITNESS_REQUIRED + (P("turns", EACH, "tool_calls", EACH, "provider_said"),)
+    if not any("no policy reads it" in problem
+               for problem in coverage_problems(reach, invented)):
+        print("FAIL the coverage gate accepts a requirement nothing reads")
+        return 1
+
+    # (4) A context fact never poisoned, by the same route: the tally is the
+    # real one, with one key withheld.
+    starved = Reached(paths=set(WITNESS_REQUIRED), root_shapes=1,
+                      context_keys=reach.context_keys - {"key_env"})
+    if not any("key_env" in problem for problem in coverage_problems(starved)):
         print("FAIL the coverage gate does not notice an uncovered context fact")
         return 1
 
@@ -2019,8 +2205,8 @@ def self_test() -> int:
           f"{len(defective_specimens())} defective specimens refused, "
           f"{len(BOUND_ENFORCEMENT)} bounds owned by the producer, "
           f"{reach.specimens} malformed specimens survived "
-          f"({len(reach.receipt_fields)} receipt fields, {len(reach.turn_fields)} turn "
-          f"fields, {len(reach.context_keys)} context facts), "
+          f"({len(reach.paths)} structural paths, {len(WITNESS_REQUIRED)} of them "
+          f"required, {len(reach.context_keys)} context facts), "
           "duplicate and undeclared-domain policies reported")
     return 0
 
