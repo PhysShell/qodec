@@ -348,6 +348,13 @@ class Discriminator:
     ref: OpaqueRef | None = None
     json_type: str | None = None
 
+    def __post_init__(self) -> None:
+        # Bounded where it is built. `known` is a word from a local vocabulary,
+        # so this never fires in practice — which is the point: the certificate
+        # that adds slot sizes needs a number it can rely on, not a habit.
+        if self.known is not None and len(repr(self.known).encode("utf-8")) > DISCRIMINATOR_MAX_BYTES:
+            raise ValueError("a discriminator's known word is longer than the local bound")
+
     def render(self) -> str:
         if self.known is not None:
             return repr(self.known)
@@ -965,6 +972,9 @@ def authority_matches(field: str, claimed: str, trusted: str) -> bool:
         return claimed.strip().rstrip("/") == trusted.rstrip("/")
     return claimed == trusted
 KEY_ENV_PATTERN = re.compile(r"[A-Z][A-Z0-9_]*\Z")
+# Bounded as well as shaped: `key_env` is interpolated into a detail line,
+# and the certificate that adds slot sizes needs an upper bound for it.
+KEY_ENV_MAX_BYTES = 128
 
 # Headers providers use to name the generation. Kept because it is the only
 # handle support has when a body is lost after the headers arrived.
@@ -1282,7 +1292,8 @@ def normalize_registry(raw: Any) -> dict[str, Any]:
                 raise ValueError(f"trusted provider {name!r} is missing {field}")
         if entry["api_style"] != "openai-chat":
             raise ValueError(f"trusted provider {name!r} has unsupported api_style {entry['api_style']!r}")
-        if not KEY_ENV_PATTERN.match(entry["key_env"]):
+        if (not KEY_ENV_PATTERN.match(entry["key_env"])
+                or len(entry["key_env"].encode("utf-8")) > KEY_ENV_MAX_BYTES):
             raise ValueError(f"trusted provider {name!r} has an implausible key_env {entry['key_env']!r}")
         completions_url(entry["api_base"])
         normalized[name] = {
@@ -2185,6 +2196,17 @@ def apply_decision(receipt: dict[str, Any], decision: Decision, **extra: Any) ->
 # The largest number a rendered line may state, for the same reason every
 # durable integer is bounded: an unbounded number is an unbounded channel, and
 # a sentence is where nobody looks for one.
+# The longest line this module will put in a durable `detail`. Owned here
+# because this is where lines are built: a bound the auditor states and the
+# producer has never heard of is the defect rounds eighteen to twenty spent
+# closing, and `receipt_policy` reads this constant rather than repeating it.
+DETAIL_MAX_BYTES = 4096
+
+# A discriminator renders a local word, a reference, or a JSON type name. The
+# word comes from a vocabulary a call site passes in, so it is bounded where it
+# is built rather than assumed to be short.
+DISCRIMINATOR_MAX_BYTES = 64
+
 DETAIL_MAX_COUNT = 9_999_999
 
 # The vocabularies a slot may draw on, by name. Resolved when a value is
@@ -2205,6 +2227,166 @@ def vocabulary(name: str) -> tuple[str, ...]:
     if name not in DETAIL_VOCABULARIES:
         raise ValueError(f"{name!r} is not a vocabulary a detail slot may name")
     return globals()[name]
+
+
+# ---------------------------------------------------------------------------
+# How long a line can get, computed rather than argued
+# ---------------------------------------------------------------------------
+#
+# `detail` is bounded by the policy at `DETAIL_MAX_BYTES`, and the producer's
+# claim to respect it was a sentence: *no template joins an unbounded
+# collection*. The sentence was written, passed the gate, and was false —
+# `undeclared-tools` joins one reference per undeclared call, and the identity
+# lines join one digest per distinct substituted model. A reviewer found the
+# first; the second was still there afterwards.
+#
+# A claim about a length is a claim arithmetic can settle, so it is settled
+# here. Every slot kind has a maximum rendered size, every sequence slot has a
+# declared cardinality the producer enforces, and `template_max_bytes` adds
+# them up. A template whose sequence slot has no declared limit has no bound,
+# and a field carrying it cannot be `Derive` — the gate says so rather than
+# taking the sentence's word for it.
+
+# Sequence slot -> (the slot kind of one element, the separator).
+SEQUENCE_SLOTS: dict[str, tuple[str, str]] = {
+    "refs": ("ref", ", "),
+    "digests": ("digest", ", "),
+    "types": ("type-name", ", "),
+    "kinds": ("kind", ", "),
+    "details": ("detail", "; "),
+}
+
+# How many elements each sequence-bearing template may carry. Enforced by
+# `LocalDetail.__post_init__`, so a producer that hands over more is refused
+# where it happens rather than discovered at audit time. A template with a
+# sequence slot and no entry here is *uncertified*, which is a finding.
+TEMPLATE_SEQUENCE_LIMITS: dict[str, int] = {
+    "identity-substituted": 8,
+    "identity-substituted-nontext": 8,
+    "identity-substituted-mixed": 8,
+    "arguments-schema-violation": len(ARGUMENT_ERROR_KINDS) + 1,
+    "undeclared-tools": 8,
+}
+
+
+def widest(values: tuple[str, ...]) -> int:
+    return max((len(v.encode("utf-8")) for v in values), default=0)
+
+
+def slot_max_bytes(slot: str) -> int | None:
+    """The largest a single slot value can render to, or `None` if unbounded.
+
+    Computed from the same vocabularies the checker uses, so the number cannot
+    drift from the words it is about.
+    """
+    if slot == "ref":
+        # Measured by rendering the worst case, not by re-spelling the format.
+        # A second copy of `<{domain} sha256:{digest} {n}B>` here would be the
+        # constant leading a separate life — and the gate that allows exactly
+        # one place to spell a reference said so the first time this was
+        # written the other way.
+        widest_domain = max(EVIDENCE_DOMAINS, key=lambda name: len(name.encode("utf-8")))
+        worst = OpaqueRef(widest_domain, "f" * 16,
+                          max(EVIDENCE_MAX_BYTES.values()), oversize=True)
+        return len(worst.render().encode("utf-8"))
+    if slot == "digest":
+        return 16
+    if slot in ("type-name", "type"):
+        return widest(LOCAL_TYPE_NAMES)
+    if slot == "kind":
+        return widest(tuple(kind for _, kind in ARGUMENT_ERROR_KINDS) + ("other",))
+    if slot == "discriminator":
+        return DISCRIMINATOR_MAX_BYTES
+    if slot == "label":
+        return max(widest(ENVELOPE_LABELS), slot_max_bytes("ref") or 0)
+    if slot == "key-env":
+        return KEY_ENV_MAX_BYTES
+    if slot == "count":
+        return len(str(DETAIL_MAX_COUNT))
+    if slot == "status":
+        return len(str(HTTP_STATUS_MAX))
+    if slot.startswith("enum:"):
+        return widest(vocabulary(slot[5:]))
+    if slot == "detail":
+        return None  # resolved by the caller, which knows the nesting
+    return None
+
+
+def nested_max_bytes(seen: frozenset[str]) -> int | None:
+    """The widest template that may nest inside one already on the path.
+
+    Templates already being expanded are excluded rather than counted as
+    unbounded: `http` carries a `detail` slot, so expanding it reaches itself,
+    and treating that as \"no bound\" made the one wrapper in the table
+    uncertifiable for a cycle it cannot actually take.
+    """
+    widest_nested = 0
+    for other in DETAIL_TEMPLATES:
+        if other in seen:
+            continue
+        bound = template_max_bytes(other, seen)
+        if bound is None:
+            return None
+        widest_nested = max(widest_nested, bound)
+    return widest_nested
+
+
+def template_max_bytes(name: str, seen: frozenset[str] = frozenset()) -> int | None:
+    """The longest line this template can render, or `None` if it has no bound.
+
+    `None` is the answer that matters: it means the template can grow with
+    something a provider chose, and no amount of prose about locality changes
+    that.
+    """
+    if name in seen:
+        return None  # a template that can nest into itself has no bound
+    text, slots = DETAIL_TEMPLATES[name]
+    total = len(re.sub(r"\{\d+\}", "", text).encode("utf-8"))
+    limit = TEMPLATE_SEQUENCE_LIMITS.get(name)
+    for slot in slots:
+        if slot in SEQUENCE_SLOTS:
+            if limit is None:
+                return None
+            element, separator = SEQUENCE_SLOTS[slot]
+            if element == "detail":
+                widest_element = nested_max_bytes(seen | {name})
+                if widest_element is None:
+                    return None
+            else:
+                widest_element = slot_max_bytes(element)
+                if widest_element is None:
+                    return None
+            total += limit * widest_element + (limit - 1) * len(separator)
+            continue
+        if slot == "detail":
+            nested = nested_max_bytes(seen | {name})
+            if nested is None:
+                return None
+            total += nested
+            continue
+        one = slot_max_bytes(slot)
+        if one is None:
+            return None
+        total += one
+    return total
+
+
+def unbounded_templates() -> list[str]:
+    """Templates that cannot be certified, with the reason folded into the name.
+
+    A template lands here when a sequence slot has no declared cardinality, or
+    when its longest rendering is past the bound a `Prose` policy states. Both
+    are the same defect from the auditor's side: a line the producer can emit
+    and the audit will refuse.
+    """
+    problems = []
+    for name in sorted(DETAIL_TEMPLATES):
+        bound = template_max_bytes(name)
+        if bound is None:
+            problems.append(f"{name}: joins a collection with no declared limit")
+        elif bound > DETAIL_MAX_BYTES:
+            problems.append(f"{name}: renders up to {bound} bytes, past {DETAIL_MAX_BYTES}")
+    return problems
 
 
 def slot_problem(slot: str, value: Any) -> str | None:
@@ -2389,6 +2571,19 @@ class LocalDetail:
             problem = slot_problem(slot, value)
             if problem is not None:
                 raise ValueError(f"{self.template}: the {slot} argument {problem}")
+            # The declared cardinality, applied where the line is built. Without
+            # this the certificate in `template_max_bytes` would be arithmetic
+            # about a number nobody keeps — which is precisely the shape of the
+            # defect it exists to retire.
+            if slot in SEQUENCE_SLOTS:
+                limit = TEMPLATE_SEQUENCE_LIMITS.get(self.template)
+                if limit is None:
+                    raise ValueError(
+                        f"{self.template} joins a collection and declares no limit")
+                if len(value) > limit:
+                    raise ValueError(
+                        f"{self.template}: the {slot} argument carries {len(value)} "
+                        f"items, past the declared {limit}")
 
     def render(self) -> str:
         text, slots = DETAIL_TEMPLATES[self.template]
@@ -2533,6 +2728,20 @@ class AnswerFacts:
     substituted_types: tuple[str, ...] = ()
 
 
+def shown(template: str, values: tuple) -> tuple:
+    """The prefix of a sequence that the template's declared limit admits.
+
+    One place, because truncating at each call site is how two of them end up
+    with different limits and the third with none.
+    """
+    return tuple(values[:TEMPLATE_SEQUENCE_LIMITS[template]])
+
+
+def shown_refs(template: str, domain: str, names: list) -> tuple:
+    return tuple(opaque_ref(domain, name)
+                 for name in names[:TEMPLATE_SEQUENCE_LIMITS[template]])
+
+
 def drift_detail(
     digests: tuple["DigestRef", ...], types: tuple[str, ...]
 ) -> "LocalDetail":
@@ -2542,12 +2751,20 @@ def drift_detail(
     both across its turns. One template assuming digests could not say the
     second, and `{}` in `model` is exactly how a provider produces it.
     """
+    # Counts exact, sequences a prefix — for the same reason and with the same
+    # safety as the undeclared-tool line: every model this run saw is already in
+    # `reported_models[]`, whose length is bounded by the turn budget, so the
+    # line showing the first few loses nothing that is not recorded elsewhere.
+    few_digests = shown("identity-substituted-mixed" if types else "identity-substituted",
+                        digests)
+    few_types = shown("identity-substituted-mixed" if digests else
+                      "identity-substituted-nontext", types)
     if digests and types:
         return LocalDetail(
-            "identity-substituted-mixed", (len(digests), digests, len(types), types))
+            "identity-substituted-mixed", (len(digests), few_digests, len(types), few_types))
     if types:
-        return LocalDetail("identity-substituted-nontext", (len(types), types))
-    return LocalDetail("identity-substituted", (len(digests), digests))
+        return LocalDetail("identity-substituted-nontext", (len(types), few_types))
+    return LocalDetail("identity-substituted", (len(digests), few_digests))
 
 
 def reduce_qualification(facts: AnswerFacts) -> Decision:
@@ -3773,8 +3990,15 @@ def qualify_target(
 
         unknown = [c["name"] for c in calls if c["name"] not in known]
         if unknown:
+            # The count is exact; the references are a prefix. Nothing is lost
+            # by that: every undeclared name is already in `tool_calls[]` as its
+            # own reference, and that array is bounded by `MAX_TOOL_CALLS`. What
+            # the line must not do is grow with a number the provider chose —
+            # two hundred calls rendered eight kilobytes into a field the policy
+            # bounds at four, so this module wrote a receipt its own audit
+            # refused.
             why = LocalDetail("undeclared-tools", (
-                len(unknown), tuple(opaque_ref("tool-name", name) for name in unknown)))
+                len(unknown), shown_refs("undeclared-tools", "tool-name", unknown)))
             record["outcome"] = "protocol-violation"
             record_detail(record, why)
             receipt["turns"].append(record)

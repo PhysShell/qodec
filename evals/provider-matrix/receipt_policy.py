@@ -541,7 +541,9 @@ class DurableFieldPolicy:
         return [f"{self.named()}: {problem}" for problem in self.kind.problems(value, context)]
 
 
-DETAIL_MAX_BYTES = 4096
+# Read from the producer rather than restated. Two literals agree only until
+# somebody edits one of them, which is the whole of rounds eighteen to twenty.
+DETAIL_MAX_BYTES = pm.DETAIL_MAX_BYTES
 
 # The evidence quartet `opaque_text` writes, as four policies. Written by a
 # function rather than by hand because it appears eleven times and eleven
@@ -938,9 +940,10 @@ def _bound_enforcement() -> dict[FieldPath, BoundStrategy]:
     return {
         # -- the top-level receipt --
         P("detail"): Derive(
-            "every durable line is a `LocalDetail` rendered from a registered "
-            "template whose slots are themselves bounded — no template joins an "
-            "unbounded collection, which `template_problems` enforces"),
+            "`pm.unbounded_templates()` computes the longest line every "
+            "registered template can render and requires it under "
+            "`pm.DETAIL_MAX_BYTES`; the sentence that used to stand here said "
+            "the same thing and was false"),
         P("latency_ms"): Derive("`latency_ms_since` clamps to `LATENCY_MAX_MS`"),
         P("turn_count"): Derive("the loop runs `bounded_turns(max_turns)` times"),
         P("http_status"): status,
@@ -963,7 +966,7 @@ def _bound_enforcement() -> dict[FieldPath, BoundStrategy]:
             "`bounded_timeout` refuses anything past `TIMEOUT_MAX_SECS`"),
         # -- one turn --
         suffixed(turn, "ordinal"): Derive("the loop index, under `bounded_turns`"),
-        suffixed(turn, "detail"): Derive("a rendered `LocalDetail`, as above"),
+        suffixed(turn, "detail"): Derive("the same computed certificate as `detail`"),
         suffixed(turn, "http_status"): status,
         suffixed(turn, "response_bytes"): read,
         suffixed(turn, "body_bytes_observed"): observed,
@@ -1019,6 +1022,21 @@ def enforcement_problems(
         for path, strategy in sorted(table.items(), key=lambda e: render_path(e[0]))
         if not strategy.why.strip()
     )
+    # A `Derive` on a `Prose` field is a claim about how long a line can get,
+    # and that is a claim arithmetic settles. The nineteenth round wrote the
+    # claim as a sentence, the sentence passed this gate, and it was false: two
+    # templates joined a collection whose size a provider chooses. So the
+    # sentence no longer counts as evidence — the certificate does, and a field
+    # whose lines cannot be certified may not be `Derive` at all.
+    uncertified = pm.unbounded_templates()
+    if uncertified:
+        kinds = {policy.path: policy.kind for policy in (POLICIES if policies is None else policies)}
+        for path, strategy in sorted(table.items(), key=lambda e: render_path(e[0])):
+            if isinstance(strategy, Derive) and isinstance(kinds.get(path), Prose):
+                problems.append(
+                    f"{render_path(path)}: Derive on a Prose field, but "
+                    f"{len(uncertified)} template(s) have no certificate")
+        problems.extend(f"detail template {line}" for line in uncertified)
     return problems
 
 
