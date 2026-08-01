@@ -503,7 +503,7 @@ gate rather than a paragraph.
 
 ### 1. Every durable field
 
-`receipt_policy.py` names **120 policies**, one per node and one per leaf either
+`receipt_policy.py` names **121 policies**, one per node and one per leaf either
 receipt kind may contain. A path no policy names is a finding, not a skip —
 which is the whole difference between an inventory and a spot check, because it
 means a field added next round stops the gate on the commit that adds it.
@@ -802,6 +802,71 @@ three-valued model status, classification, and provider usage when present. A
 different reported model is `PROVIDER_SUBSTITUTED`; **no** reported model is
 `MODEL_IDENTITY_MISSING`. Neither is a pass — the exact text plus an unnamed
 model is still a response whose origin was never established.
+
+### The producer applies the bounds the auditor checks
+
+A ceiling declared in `receipt_policy.py` and nowhere else is not a bound; it
+is an opinion the producer has never been told about. Two of them were exactly
+that, and both were reachable with an unremarkable response — 1,026 well-formed
+tool calls, or arguments violating 1,025 schema rules in three kilobytes, sit
+inside every byte limit this module applies. The result was a receipt written
+to disk that its own `audit()` then reported a finding against. An artifact
+that fails the audit of the module that wrote it means there are two contracts,
+and the one on disk is the one that loses.
+
+The numbers live where enforcement happens, and the policy context reads them:
+
+```text
+MAX_TOOL_CALLS       the producer's cardinality bound
+MAX_CALL_ORDINAL     MAX_TOOL_CALLS - 1
+MAX_ARGUMENT_ERRORS  how many violations one turn may record
+```
+
+The second name exists because the two are **not the same number**.
+`call_ceiling: 1024` bounded an *ordinal*, and ordinals start at zero, so it
+admitted 1,025 calls — one more than the producer's own limit. Both numbers
+were defensible in isolation and incompatible together, which is what a shared
+name hides.
+
+The two overruns are treated differently, because they are different kinds of
+fact. **Too many tool calls is a protocol failure**, refused before a single
+ordinal is assigned: enumerating first and discovering at audit time is the
+defect, not the diagnosis. **Too many argument errors is not** — the arguments
+are malformed whether there are twenty or eleven hundred, and the count is
+description rather than verdict.
+
+That second one is why `min(len(errors), MAX)` was the one repair unavailable:
+the field would have kept the name `count` and stopped being one. So the
+evidence describes a *prefix*, and every neighbouring field describes the same
+prefix:
+
+| field | with `truncated: false` | with `truncated: true` |
+| --- | --- | --- |
+| `argument_errors_count` | the number of violations | how many are recorded — a lower bound on how many there were |
+| `argument_errors_kinds` | the kinds among them | the kinds among the recorded ones |
+| `argument_errors_sha256` | a digest of them | a digest of the recorded ones |
+
+A reader acting on a truncated receipt is told the arguments were malformed,
+given a lower bound, and told it is a lower bound. What they are never given is
+a number that looks exact and is not.
+
+The invariant the round is about is asserted directly, at each boundary and one
+past it:
+
+```text
+for every reachable provider response:
+    audit(produce(response)) == clean
+```
+
+**One mutation was written, survived, and was right to.** Replacing
+`pm.MAX_ARGUMENT_ERRORS` in the policy context with the literal `1024` changed
+nothing observable, because it equals that constant today. The contract is that
+the two numbers *agree*, so the mutation now makes them disagree. Worth being
+explicit about what that does and does not cover: writing the literal back is
+still invisible to the mutation table, and what catches it is the **test**,
+which compares against `pm.MAX_ARGUMENT_ERRORS` rather than against 1024 — so
+the day the constant changes, a stale literal fails. The coupling is enforced;
+it is just not the mutation that enforces it.
 
 ### A receipt's file name is derived from an untrusted string
 
@@ -1173,6 +1238,22 @@ pristine source the run already reads, and could differ from its absence only
 in how long the answer takes — which is precisely the objection this round
 raised against the guard written four functions deep.
 
+**A test can also be green because of how the kernel sliced a stream.** The
+listener several transport regressions run against called `conn.recv(65536)`
+once, which reads whatever has arrived rather than the request. Qualification
+bodies carry the whole tool surface and run to kilobytes, so a split between
+headers and body is ordinary; answering with unread bytes still queued can
+provoke an RST on close, and the client then reports a transport failure where
+the test asserts a 200. Nothing was wrong on any particular day, which is the
+problem — the outcome depended on segmentation rather than on the contract.
+
+`read_http_request` reads to the end of the headers, parses `Content-Length`,
+and reads exactly that many bytes, failing closed on a peer that stops early, a
+length that is not a number, and a length past a local bound. It is driven
+through a socket that fragments on purpose, at three different points, because
+a regression that waits for the real network to misbehave is a regression that
+tests the network.
+
 Both positive controls were extended rather than left to depend on the old
 limit: the discovery check runs a module that prints exactly one newline, and the
 clean-tree check builds itself a HOME configured to break it — commit signing
@@ -1262,9 +1343,9 @@ changed instead is how a run is started — every anchor is verified once before
 a twenty-minute run rather than after it, which is a fix to the procedure, not
 to the check.
 
-The counts, from CI on the head this describes: **387 tests**, found identically
-by `python3 test_provider_matrix.py` and by `python3 -m unittest`; **263 of 263
-mutations killed**, none of them invalid, misattributed or unanchored; **120 durable-field
+The counts, from CI on the head this describes: **403 tests**, found identically
+by `python3 test_provider_matrix.py` and by `python3 -m unittest`; **275 of 275
+mutations killed**, none of them invalid, misattributed or unanchored; **121 durable-field
 policies** with **9 defective specimens refused** and no coverage gaps in either
 direction on either receipt kind; **49 JSON admission cases** against the live
 `serde_json` oracle, one of them refused here on purpose; and a byte-clean
