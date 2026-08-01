@@ -6204,25 +6204,35 @@ class NestedCorpusTests(unittest.TestCase):
         self.assertIn(receipt_policy.P("turns", receipt_policy.EACH, "tool_calls",
                                        receipt_policy.EACH), declared)
 
-    def test_a_hollow_nested_list_is_reported_by_its_element_path(self):
-        import copy
-        hollow = []
-        for name, receipt, context in receipt_policy.fixtures():
-            pruned = copy.deepcopy(receipt)
-            for turn in pruned.get("turns", []):
-                if isinstance(turn.get("tool_calls"), list):
-                    turn["tool_calls"] = []
-            hollow.append((name, pruned, context))
-        _problems, tally = receipt_policy.totality_problems(corpus=hollow)
+    # The two narrowed-corpus controls — a missing terminal turn, a hollow
+    # nested list — are not repeated here. They live in `receipt_policy.py`'s
+    # self-test, which this suite runs as a subprocess and asserts the exit code
+    # of, so they are enforced on every run of this file already. Asserting the
+    # same thing twice cost a full corpus pass each (~22s), and the mutation
+    # harness runs this suite once per mutation: the duplicate was two hours of
+    # machine time buying no proof that was not already bought.
+    #
+    # A tally check is not the same thing as a coverage check, so the cheap
+    # direction — that `coverage_problems` reports the path it was denied — is
+    # asked here without building a corpus for it.
+
+    def test_the_gap_is_named_by_its_path_not_by_a_count(self):
+        tally = receipt_policy.Reached(
+            paths=set(receipt_policy.WITNESS_REQUIRED)
+            - {receipt_policy.P("turns", receipt_policy.EACH, "tool_calls",
+                                receipt_policy.EACH)},
+            root_shapes=1,
+            context_keys={key for _n, _r, ctx in receipt_policy.fixtures() for key in ctx})
         gaps = receipt_policy.coverage_problems(tally)
         self.assertTrue(any("turns[].tool_calls[] never received" in line for line in gaps), gaps)
 
-    def test_a_missing_terminal_turn_is_reported_by_the_paths_it_took_away(self):
-        corpus = [row for row in receipt_policy.fixtures() if "canary" not in row[0]]
-        _problems, tally = receipt_policy.totality_problems(corpus=corpus)
-        gaps = receipt_policy.coverage_problems(tally)
-        self.assertTrue(
-            any("turns[].canary_answer_errors[] never received" in line for line in gaps), gaps)
+    def test_a_required_place_no_policy_reads_is_refused(self):
+        invented = receipt_policy.WITNESS_REQUIRED + (receipt_policy.P("invented_leaf"),)
+        tally = receipt_policy.Reached(
+            paths=set(invented), root_shapes=1,
+            context_keys={key for _n, _r, ctx in receipt_policy.fixtures() for key in ctx})
+        gaps = receipt_policy.coverage_problems(tally, invented)
+        self.assertTrue(any("no policy reads it" in line for line in gaps), gaps)
 
     def test_a_canary_template_that_is_not_a_string_is_a_finding_not_a_raise(self):
         import copy
