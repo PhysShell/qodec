@@ -503,7 +503,7 @@ gate rather than a paragraph.
 
 ### 1. Every durable field
 
-`receipt_policy.py` names **121 policies**, one per node and one per leaf either
+`receipt_policy.py` names **124 policies**, one per node and one per leaf either
 receipt kind may contain. A path no policy names is a finding, not a skip —
 which is the whole difference between an inventory and a spot check, because it
 means a field added next round stops the gate on the commit that adds it.
@@ -802,6 +802,92 @@ three-valued model status, classification, and provider usage when present. A
 different reported model is `PROVIDER_SUBSTITUTED`; **no** reported model is
 `MODEL_IDENTITY_MISSING`. Neither is a pass — the exact text plus an unnamed
 model is still a response whose origin was never established.
+
+### The bounded fields are a closed set, not a list of repaired ones
+
+Round eighteen closed two fields where the policy stated a ceiling the producer
+had never been told about. The next review found a third the same way it had
+found the first two — which is not bad luck. It is the signal that repairing
+the sites somebody points at was still the method in use, three rounds after
+that method was supposedly retired.
+
+So the class is closed rather than its third instance. Four claims, each
+machine-checked:
+
+**1. The set is closed in both directions.** `BOUND_ENFORCEMENT` names a
+producer-side strategy for every policy that states a quantity — a byte bound,
+an integer ceiling, a bounded number — and `enforcement_problems` reports a
+bounded policy with no entry *and* an entry for a field that no longer has a
+bound. One direction alone would let a ceiling be added without an owner, or an
+owner outlive the ceiling it was written for. There are exactly three
+strategies:
+
+| | past the bound |
+| --- | --- |
+| `Refuse` | the verdict changes; the ordinary artifact is not built |
+| `Project` | a bounded prefix is kept, with an explicit truncation flag |
+| `Derive` | there is no past-the-bound case; the entry says what prevents it |
+
+`Refuse` also carries a `source`, because who can reach the overrun decides
+what a correct refusal looks like. A quantity a **provider** chooses must end in
+a classification about the exchange; filing it as `INTERNAL_ERROR` says this
+tool broke, which is the round-nine mistake in a new field. A quantity only an
+injected **sender** can produce is a broken caller, and `INTERNAL_ERROR` is then
+the honest answer.
+
+**2. `Refuse` and `Project` carry witnesses, at the bound and one past it.**
+Each is run through the real pipeline; the receipt must audit clean in both
+cases, and a `Refuse` must actually have refused — the field absent *and* the
+classification something other than our own crash. The second half of that
+assertion found two defects the moment it was written.
+
+**3. `Derive` carries no witness, and that is a stated gap rather than a
+convenience.** Its claim is that no past-the-bound case exists, so there is
+nothing to build. What it costs instead is a sentence naming what does the
+bounding — "it is local" is not an answer, since round fourteen retired that
+argument for `request_bytes`, which this module also composed. The risk that
+somebody relabels a `Refuse` as a `Derive` to avoid writing a witness is real
+and is **not** closed here. It is named, in the code and here, because a gap
+that is written down is a gap somebody can find.
+
+**4. The closure is a shipped gate, not a test.** `receipt_policy.py
+--self-test` runs it, with positive controls for all three refusals, so a
+quantitative bound with no owner turns CI red rather than waiting to be
+noticed.
+
+The gate found five things while it was being built, which is the argument for
+building it rather than patching the third instance:
+
+* **One request-size boundary, before the credential.** Only the qualification
+  path checked the size of the body it was about to send, so a single oversized
+  discovery row made the probe transmit an arbitrarily large *authenticated*
+  request. Both paths compose through `bounded_request` now, and the refusal
+  happens before `send` is reached.
+* **An oversized request is an endpoint refusal, not our crash.** The
+  qualification path called it "a defect in this tool" and raised it as
+  `INTERNAL_ERROR`. The model id comes from the untrusted catalog, so an
+  oversized body is something a row can *cause*; filing it as our own crash
+  blames the matrix for bytes it did not choose. It is `ENDPOINT_REJECTED` with
+  a reason from the closed vocabulary, in both paths, and inside the loop as
+  well as before it.
+* **The probe records the request it sent.** It had neither the bound nor the
+  evidence — the asymmetry ran both ways.
+* **A three-digit status is an observation.** `is_http_status` refused anything
+  past 599, and `http.client` parses any three-digit status line, so
+  `HTTP/1.1 600 Nope` from a hostile peer raised out of the transport and became
+  `INTERNAL_ERROR`. An unassigned code is still something that happened; what it
+  is not is a success, and `classify_http` files it as `HTTP_FAILURE`. Past
+  three digits is a *sender* rather than a peer — `_read_status` raises
+  `BadStatusLine` — and the entry says so as a premise that can be checked.
+* **The canary diagnostics are a bounded projection.** The finding that opened
+  the round: one rendered line per unsupported citation, joined whole into
+  `detail`, so a hundred validly shaped citations produced a nine-kilobyte line
+  past the `Prose` bound. The evidence is a prefix now, the kinds and the digest
+  describe that same prefix, and `detail` carries a count instead of the
+  findings — the provider's chosen multiplicity was crossing the durable
+  boundary twice, and the second crossing is the one that broke the bound. Under
+  truncation the line says **at least**, because a lower bound must not be
+  mistakeable for an exact one.
 
 ### The producer applies the bounds the auditor checks
 
@@ -1343,10 +1429,11 @@ changed instead is how a run is started — every anchor is verified once before
 a twenty-minute run rather than after it, which is a fix to the procedure, not
 to the check.
 
-The counts, from CI on the head this describes: **403 tests**, found identically
-by `python3 test_provider_matrix.py` and by `python3 -m unittest`; **275 of 275
-mutations killed**, none of them invalid, misattributed or unanchored; **121 durable-field
-policies** with **9 defective specimens refused** and no coverage gaps in either
+The counts, from CI on the head this describes: **413 tests**, found identically
+by `python3 test_provider_matrix.py` and by `python3 -m unittest`; **288 of 288
+mutations killed**, none of them invalid, misattributed or unanchored; **124 durable-field
+policies**, of which **36 state a quantity and every one names the producer that
+applies it** with **9 defective specimens refused** and no coverage gaps in either
 direction on either receipt kind; **49 JSON admission cases** against the live
 `serde_json` oracle, one of them refused here on purpose; and a byte-clean
 checkout asserted by a check that proves it can say otherwise.
