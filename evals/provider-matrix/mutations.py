@@ -199,7 +199,7 @@ MUTATIONS = [
 
     # -- E: the trusted provider registry --
     ("E1 a catalog row's api_base and key_env regain authority",
-     "        if claimed.strip().rstrip(\"/\") != entry[field].rstrip(\"/\"):",
+     "        if not authority_matches(field, claimed, entry[field]):",
      "        if False:"),
     ("E5 a non-string authority claim is ignored instead of refused",
      "        if not isinstance(claimed, str):",
