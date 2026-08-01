@@ -20,6 +20,54 @@ import provider_matrix as pm
 import receipt_policy
 
 
+MAX_TEST_REQUEST_BYTES = 8 * 1024 * 1024
+
+
+class TruncatedRequest(RuntimeError):
+    """A client stopped before the request it announced was complete."""
+
+
+def read_http_request(conn, chunk: int = 65536) -> bytes:
+    """Read one whole HTTP request from a socket, headers and declared body.
+
+    A single `conn.recv(65536)` returns whatever has arrived, not the request.
+    The qualification bodies carry the entire tool surface and run to several
+    kilobytes, so a split between headers and body is ordinary; answering and
+    closing with unread bytes still queued makes some platforms send RST, and
+    the client then reports a transport failure instead of the 200 the test
+    asserts. That is a test which is green because of how the kernel happened
+    to segment a stream today.
+
+    Fail-closed on every way this can go wrong — a peer that stops early, a
+    `Content-Length` that is not a number, and a length past a local bound —
+    because a listener that guesses is the same defect one layer down.
+    """
+    buffered = b""
+    while b"\r\n\r\n" not in buffered:
+        piece = conn.recv(chunk)
+        if not piece:
+            raise TruncatedRequest("the peer closed before the headers ended")
+        buffered += piece
+    head, _, body = buffered.partition(b"\r\n\r\n")
+    wanted = 0
+    for line in head.split(b"\r\n"):
+        name, sep, value = line.partition(b":")
+        if sep and name.strip().lower() == b"content-length":
+            try:
+                wanted = int(value.strip())
+            except ValueError:
+                raise TruncatedRequest("Content-Length is not a number") from None
+            if wanted < 0 or wanted > MAX_TEST_REQUEST_BYTES:
+                raise TruncatedRequest(f"Content-Length {wanted} is outside the local bound")
+    while len(body) < wanted:
+        piece = conn.recv(chunk)
+        if not piece:
+            raise TruncatedRequest(
+                f"the peer closed after {len(body)} of {wanted} declared bytes")
+        body += piece
+    return head + b"\r\n\r\n" + body
+
+
 def registry(providers=None) -> dict:
     """A stand-in trusted registry.
 
@@ -3539,6 +3587,16 @@ class DurableFieldInventoryTests(unittest.TestCase):
         # projection in a turn record is produced rather than assumed.
         classed = pm.SendResult(None, None, "boom", "before-response", None, None,
                                 "connection-failed", "url-error", "URLError")
+        # Arguments that violate more rules than the producer will record, so
+        # `argument_errors_truncated` is written by the real loop rather than
+        # declared reachable and never reached. One error per wrongly typed
+        # array item, and the whole body is about three kilobytes — which is
+        # what made the unbounded count a defect rather than a curiosity: the
+        # response is unremarkable and the count was not.
+        flooded = (200, completion([call(
+            "qodec_intersect",
+            json.dumps({"index": "i", "sections": [0] * (pm.MAX_ARGUMENT_ERRORS + 1)}),
+            "call_flood")]), "")
 
         scenarios = {
             "endpoint-rejected": ([], dict(target(), api_base="https://steal.example/v1")),
@@ -3567,6 +3625,7 @@ class DurableFieldInventoryTests(unittest.TestCase):
             "undeclared-tool": ([undeclared], None),
             "unparseable-arguments": ([unparseable], None),
             "schema-violation": ([schema_bad], None),
+            "schema-violations-truncated": ([flooded], None),
             "two-answers": (OPERATION_THEN(two_answers), None),
             "answer-with-operation": (OPERATION_THEN(answer_and_op), None),
             "answer-before-roundtrip": ([ANSWER_REPLY], None),
@@ -5083,7 +5142,7 @@ class ProviderMetadataIsContentTests(unittest.TestCase):
             except OSError:  # pragma: no cover — the listener closed first
                 return
             with conn:
-                conn.recv(65536)
+                read_http_request(conn)
                 conn.sendall(
                     b"HTTP/1.1 200 OK\r\nContent-Type: application/json\r\n"
                     + f"x-request-id: {request_id}\r\n".encode()
@@ -5146,6 +5205,186 @@ class ProviderMetadataIsContentTests(unittest.TestCase):
             pm.validate_send_result(pm.SendResult(200, b"{}", "", "completed", 2, 12345))
         long_but_a_string = pm.SendResult(200, b"{}", "", "completed", 2, self.OVERSIZE)
         self.assertEqual(pm.validate_send_result(long_but_a_string), long_but_a_string)
+
+
+class HttpRequestReadingTests(unittest.TestCase):
+    """The listener the transport tests rely on must not depend on segmentation.
+
+    `conn.recv(65536)` once is not "read the request"; it is "read whatever
+    arrived". A listener that answers with unread bytes queued can provoke an
+    RST on close, and the client then reports a transport failure where the
+    test asserts a 200 — a test that is green because of how the kernel sliced
+    a stream today. Driven here through a fake socket that hands the bytes over
+    in pieces, so the property is asserted rather than hoped for.
+    """
+
+    class Chunked:
+        """A socket whose `recv` returns the caller's data one piece at a time."""
+
+        def __init__(self, pieces):
+            self.pieces = list(pieces)
+            self.reads = 0
+
+        def recv(self, _size):
+            self.reads += 1
+            return self.pieces.pop(0) if self.pieces else b""
+
+    def request(self, body: bytes, header_extra: bytes = b"") -> bytes:
+        return (b"POST /v1/chat/completions HTTP/1.1\r\nHost: x\r\n"
+                + header_extra
+                + f"Content-Length: {len(body)}\r\n\r\n".encode() + body)
+
+    def test_a_request_split_between_headers_and_body_is_read_whole(self):
+        body = json.dumps({"messages": ["x" * 4096]}).encode()
+        whole = self.request(body)
+        head, _, rest = whole.partition(b"\r\n\r\n")
+        sock = self.Chunked([head + b"\r\n\r\n", rest[:100], rest[100:]])
+        self.assertEqual(read_http_request(sock), whole)
+        self.assertGreater(sock.reads, 1, "the fake socket did not fragment")
+
+    def test_a_request_split_inside_the_headers_is_read_whole(self):
+        whole = self.request(b"{}")
+        sock = self.Chunked([whole[:12], whole[12:30], whole[30:]])
+        self.assertEqual(read_http_request(sock), whole)
+
+    def test_a_peer_that_stops_mid_body_is_a_failure_not_a_short_read(self):
+        body = b"x" * 100
+        whole = self.request(body)
+        sock = self.Chunked([whole[:-40]])
+        with self.assertRaisesRegex(TruncatedRequest, "of 100 declared bytes"):
+            read_http_request(sock)
+
+    def test_a_peer_that_stops_mid_headers_is_a_failure(self):
+        with self.assertRaisesRegex(TruncatedRequest, "before the headers ended"):
+            read_http_request(self.Chunked([b"POST / HTTP/1.1\r\nHost:"]))
+
+    def test_a_content_length_that_is_not_a_number_is_refused(self):
+        sock = self.Chunked([b"POST / HTTP/1.1\r\nContent-Length: many\r\n\r\n"])
+        with self.assertRaisesRegex(TruncatedRequest, "not a number"):
+            read_http_request(sock)
+
+    def test_a_content_length_past_the_local_bound_is_refused(self):
+        """Otherwise a hostile length makes the listener wait for bytes forever."""
+        for declared in (-1, MAX_TEST_REQUEST_BYTES + 1):
+            with self.subTest(length=declared):
+                sock = self.Chunked([
+                    b"POST / HTTP/1.1\r\nContent-Length: " + str(declared).encode() + b"\r\n\r\n"])
+                with self.assertRaisesRegex(TruncatedRequest, "outside the local bound"):
+                    read_http_request(sock)
+
+    def test_a_header_name_is_matched_case_insensitively(self):
+        body = b"abc"
+        raw = (b"POST / HTTP/1.1\r\nCONTENT-LENGTH: 3\r\n\r\n" + body)
+        self.assertEqual(read_http_request(self.Chunked([raw[:-3], body])), raw)
+
+    def test_a_request_with_no_body_needs_no_second_read(self):
+        raw = b"GET / HTTP/1.1\r\nHost: x\r\n\r\n"
+        sock = self.Chunked([raw])
+        self.assertEqual(read_http_request(sock), raw)
+        self.assertEqual(sock.reads, 1)
+
+
+class ProducerBoundTests(unittest.TestCase):
+    """A receipt this module writes must pass the audit this module runs.
+
+    Two ceilings lived only in `receipt_policy.py`, as literals the producer had
+    never been told about. Both were reachable with an unremarkable response:
+    1,026 well-formed tool calls, or arguments violating 1,100 schema rules, sit
+    inside every byte limit. The result was an artifact written to disk that its
+    own inventory then reported a finding against — two contracts, and the one
+    on disk losing.
+
+    The invariant asserted here is the whole round:
+
+        for every reachable provider response:
+            audit(produce(response)) == clean
+    """
+
+    # The real ceiling, because the point is cardinality rather than size: a
+    # thousand well-formed tool calls are a large body but not an oversized one,
+    # and a test that hit the byte limit first would prove the wrong bound.
+    LIMIT = pm.MAX_RESPONSE_BYTES
+
+    def entry(self):
+        return pm.load_registry()["providers"]["groq"]
+
+    def audit(self, receipt):
+        return receipt_policy.audit(receipt, receipt_policy.context_for(
+            pm.QUALIFY_SCHEMA, target(), self.entry(), response_limit=self.LIMIT,
+            max_turns=6,
+            declared_tools={op["name"] for op in surface()["operations"]}))
+
+    def run_with(self, replies):
+        return pm.qualify_target(target(), surface(), 30.0, 6, scripted(replies),
+                                 response_limit=self.LIMIT)
+
+    def calls(self, count):
+        return [call("qodec_intersect", INTERSECT_ARGS, f"call_{n}") for n in range(count)]
+
+    def test_the_two_bounds_are_the_producer_s_and_the_policy_reads_them(self):
+        """One number, one owner. Two literals agree until somebody edits one."""
+        context = receipt_policy.context_for(
+            pm.QUALIFY_SCHEMA, target(), self.entry(), response_limit=self.LIMIT,
+            max_turns=6, declared_tools=())
+        self.assertEqual(context["error_ceiling"], pm.MAX_ARGUMENT_ERRORS)
+        self.assertEqual(context["max_call_ordinal"], pm.MAX_CALL_ORDINAL)
+
+    def test_an_ordinal_is_one_less_than_a_cardinality(self):
+        """`call_ceiling: 1024` admitted ordinals 0..1024 — 1,025 calls."""
+        self.assertEqual(pm.MAX_CALL_ORDINAL, pm.MAX_TOOL_CALLS - 1)
+
+    def test_the_largest_admissible_response_still_audits_clean(self):
+        """The boundary case, from the producer's side rather than the table's."""
+        receipt = self.run_with([(200, completion(self.calls(pm.MAX_TOOL_CALLS)), "")])
+        ordinals = [c["ordinal"] for c in receipt["turns"][0]["tool_calls"]]
+        self.assertEqual(max(ordinals), pm.MAX_CALL_ORDINAL)
+        self.assertEqual(self.audit(receipt), [])
+
+    def test_one_call_past_the_bound_is_refused_before_any_ordinal_exists(self):
+        receipt = self.run_with([(200, completion(self.calls(pm.MAX_TOOL_CALLS + 1)), "")])
+        self.assertEqual(receipt["classification"], "PROTOCOL_VIOLATION")
+        self.assertEqual(receipt["detail_template"], "too-many-tool-calls")
+        self.assertNotIn("tool_calls", receipt["turns"][0])
+        self.assertEqual(self.audit(receipt), [])
+
+    def test_the_refusal_names_the_local_bound_and_nothing_of_the_provider_s(self):
+        receipt = self.run_with([(200, completion(self.calls(pm.MAX_TOOL_CALLS + 1)), "")])
+        self.assertIn(str(pm.MAX_TOOL_CALLS), receipt["detail"])
+        # Not the number the provider actually sent: that is a count it chose.
+        self.assertNotIn(str(pm.MAX_TOOL_CALLS + 1), receipt["detail"])
+
+    def flood(self, errors):
+        args = json.dumps({"index": "i", "sections": [0] * errors})
+        return self.run_with([(200, completion([call("qodec_intersect", args, "c1")]), "")])
+
+    def test_the_largest_admissible_error_count_still_audits_clean(self):
+        receipt = self.flood(pm.MAX_ARGUMENT_ERRORS)
+        turn = receipt["turns"][0]
+        self.assertEqual(turn["argument_errors_count"], pm.MAX_ARGUMENT_ERRORS)
+        self.assertIs(turn["argument_errors_truncated"], False)
+        self.assertEqual(self.audit(receipt), [])
+
+    def test_one_error_past_the_bound_truncates_and_says_so(self):
+        """`min(len(errors), MAX)` was the one repair not available.
+
+        The field would have kept the name `count` and stopped being one. It
+        counts what the receipt carries, and a separate flag reports that there
+        were more — the same shape `opaque_text` already uses for a length.
+        """
+        receipt = self.flood(pm.MAX_ARGUMENT_ERRORS + 1)
+        turn = receipt["turns"][0]
+        self.assertEqual(turn["argument_errors_count"], pm.MAX_ARGUMENT_ERRORS)
+        self.assertIs(turn["argument_errors_truncated"], True)
+        self.assertEqual(turn["outcome"], "malformed-arguments")
+        self.assertEqual(self.audit(receipt), [])
+
+    def test_the_truncated_digest_describes_what_was_kept(self):
+        """Every field of the evidence refers to the same list, or none do."""
+        kept = pm.error_evidence("argument_errors", [f"e{n}" for n in range(pm.MAX_ARGUMENT_ERRORS)])
+        more = pm.error_evidence("argument_errors", [f"e{n}" for n in range(pm.MAX_ARGUMENT_ERRORS + 5)])
+        self.assertEqual(kept["argument_errors_sha256"], more["argument_errors_sha256"])
+        self.assertEqual(kept["argument_errors_count"], more["argument_errors_count"])
+        self.assertIs(more["argument_errors_truncated"], True)
 
 
 class UsageCeilingTests(unittest.TestCase):

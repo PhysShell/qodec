@@ -768,6 +768,8 @@ def build_policies() -> list[DurableFieldPolicy]:
             suffixed(turn, "argument_errors_count"),
             BoundedInt(0, "error_ceiling"), (QUALIFICATION,)),
         DurableFieldPolicy(
+            suffixed(turn, "argument_errors_truncated"), Flag(), (QUALIFICATION,)),
+        DurableFieldPolicy(
             suffixed(turn, "argument_errors_kinds"), Shape("array"), (QUALIFICATION,)),
         DurableFieldPolicy(
             extend(turn, "argument_errors_kinds", EACH),
@@ -782,7 +784,7 @@ def build_policies() -> list[DurableFieldPolicy]:
         DurableFieldPolicy(suffixed(turn, "tool_calls"), Shape("array"), (QUALIFICATION,)),
         DurableFieldPolicy(call, Shape("object", may_be_empty=False), (QUALIFICATION,)),
         DurableFieldPolicy(
-            suffixed(call, "ordinal"), BoundedInt(0, "call_ceiling"), (QUALIFICATION,)),
+            suffixed(call, "ordinal"), BoundedInt(0, "max_call_ordinal"), (QUALIFICATION,)),
         DurableFieldPolicy(
             suffixed(call, "name"), Local("declared_tools"), (QUALIFICATION,), nullable=True),
         *opaque_policies(call, "name", "tool-name", (QUALIFICATION,)),
@@ -1264,8 +1266,16 @@ def context_for(
         "usage_ceiling": pm.MAX_REQUEST_BYTES + (
             pm.PROBE_MAX_TOKENS if kind is PROBE else pm.QUALIFY_MAX_TOKENS),
         "max_turns": max_turns,
-        "error_ceiling": 1024,
-        "call_ceiling": 1024,
+        # Derived, not declared. Both were literal `1024`s here and nowhere
+        # else, so the producer had never heard of them and could compose a
+        # receipt this table then refused — an artifact failing the audit of
+        # the module that wrote it. The bound belongs where it is enforced;
+        # this is the reader of it.
+        "error_ceiling": pm.MAX_ARGUMENT_ERRORS,
+        # An ordinal, not a cardinality. `call_ceiling: 1024` admitted ordinals
+        # 0..1024 — one more call than the producer's bound allows — and the
+        # name is what hid the difference.
+        "max_call_ordinal": pm.MAX_CALL_ORDINAL,
         # Words that are local to *this run* rather than to the module: the
         # environment variable name the registry chose. The model id is
         # deliberately absent — no detail line names it any more.

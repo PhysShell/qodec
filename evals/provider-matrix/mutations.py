@@ -1405,6 +1405,71 @@ MUTATIONS = [
      "    if False:\n"
      "        print(f\"provider-matrix: {len(problems)} receipt(s) were not written; \""),
 
+    # -- PB(ounds): the producer applies what the auditor bounds --------------
+
+    ("PBD1 a response may carry more tool calls than the producer admits",
+     "    if len(raw) > MAX_TOOL_CALLS:",
+     "    if False:"),
+
+    ("PBD2 the cardinality bound is read as an ordinal again",
+     "    if len(raw) > MAX_TOOL_CALLS:",
+     "    if len(raw) > MAX_CALL_ORDINAL + 2:"),
+
+    ("PBD3 the ordinal ceiling stops following the producer's bound",
+     "MAX_CALL_ORDINAL = MAX_TOOL_CALLS - 1",
+     "MAX_CALL_ORDINAL = MAX_TOOL_CALLS"),
+
+    ("PBD4 the error evidence is unbounded again",
+     "    kept = errors[:MAX_ARGUMENT_ERRORS]",
+     "    kept = errors"),
+
+    ("PBD5 truncation stops being reported",
+     "        f\"{prefix}_truncated\": len(errors) > MAX_ARGUMENT_ERRORS,",
+     "        f\"{prefix}_truncated\": False,"),
+
+    ("PBD6 the digest describes more than the count does",
+     "        f\"{prefix}_sha256\": evidence_digest(\"argument-errors\", \"\\n\".join(kept)),",
+     "        f\"{prefix}_sha256\": evidence_digest(\"argument-errors\", \"\\n\".join(errors)),"),
+
+    # A literal `1024` here was the first attempt, and it survived: it equals
+    # `MAX_ARGUMENT_ERRORS` today, so the edit changed nothing to observe. The
+    # observable contract is that the two numbers *agree*, so the mutation that
+    # tests it has to make them disagree. A stale literal that agrees today and
+    # diverges tomorrow is caught by the test, which compares against the
+    # producer's constant rather than against 1024.
+    ("PBD7 the auditor's error ceiling stops agreeing with the producer's bound",
+     "        \"error_ceiling\": pm.MAX_ARGUMENT_ERRORS,",
+     "        \"error_ceiling\": 4096,",
+     "receipt_policy.py"),
+
+    ("PBD8 the policy declares its own ordinal ceiling again",
+     "        \"max_call_ordinal\": pm.MAX_CALL_ORDINAL,",
+     "        \"max_call_ordinal\": 1024,",
+     "receipt_policy.py"),
+
+    # -- HR: the listener reads the request it was sent ----------------------
+
+    ("HR1 the listener answers before the body has arrived",
+     "    while len(body) < wanted:",
+     "    while False:",
+     "test_provider_matrix.py"),
+
+    ("HR2 a short read of the headers is taken for the whole request",
+     "    while b\"\\r\\n\\r\\n\" not in buffered:",
+     "    while False:",
+     "test_provider_matrix.py"),
+
+    ("HR3 a peer that stops mid-body is a short read rather than a failure",
+     "            raise TruncatedRequest(\n"
+     "                f\"the peer closed after {len(body)} of {wanted} declared bytes\")",
+     "            break",
+     "test_provider_matrix.py"),
+
+    ("HR4 an unusable Content-Length is taken on trust",
+     "            if wanted < 0 or wanted > MAX_TEST_REQUEST_BYTES:",
+     "            if False:",
+     "test_provider_matrix.py"),
+
     ("MH5 the expected killer is no longer required at all",
      "    if expected is not None:\n"
      "        # In the failing oracle's own output",

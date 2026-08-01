@@ -560,16 +560,26 @@ def error_evidence(prefix: str, errors: list[str]) -> dict[str, Any]:
     offending instance, so the free text cannot cross. What crosses is what a
     reader actually acts on: how many rules failed, which rules, and a digest
     that makes two runs comparable without either of them being readable.
+
+    A bound is applied here rather than at the call site, because the count is
+    a durable integer and the auditor bounds it. Silently writing
+    `min(len(errors), MAX)` was the one repair not available: the field would
+    keep the name `count` and stop being one. So the evidence describes a
+    *prefix* of the failures, and `_truncated` says that is what it is —
+    everything below refers to the same kept list, so no field describes a
+    different object from its neighbours.
     """
+    kept = errors[:MAX_ARGUMENT_ERRORS]
     kinds: list[str] = []
-    for message in errors:
+    for message in kept:
         kind = argument_error_kind(message)
         if kind not in kinds:
             kinds.append(kind)
     return {
-        f"{prefix}_count": len(errors),
+        f"{prefix}_count": len(kept),
+        f"{prefix}_truncated": len(errors) > MAX_ARGUMENT_ERRORS,
         f"{prefix}_kinds": sorted(kinds),
-        f"{prefix}_sha256": evidence_digest("argument-errors", "\n".join(errors)),
+        f"{prefix}_sha256": evidence_digest("argument-errors", "\n".join(kept)),
     }
 
 
@@ -874,6 +884,34 @@ MAX_RESPONSE_BYTES = 4 * 1024 * 1024
 # multi-turn loop that grew one without limit would put an unbounded number in
 # a receipt with an impeccable pedigree.
 MAX_REQUEST_BYTES = 4 * 1024 * 1024
+
+# Two cardinality bounds, owned by the producer and derived from by the auditor.
+#
+# They existed before this round, but only in `receipt_policy.py`, as literal
+# ceilings the producer had never been told about. A response carrying 1,026
+# well-formed tool calls, or arguments violating 1,100 schema rules, is inside
+# every byte limit — so this module composed a receipt, wrote it to disk, and
+# its own `audit()` then reported a finding against it. A producer that can
+# emit an artifact its own inventory refuses has two contracts, and the one on
+# disk is the one that loses.
+#
+# So the number lives here, where enforcement happens, and the policy context
+# reads it. Two literal `1024`s in two files agree only until somebody edits
+# one of them.
+MAX_TOOL_CALLS = 1024
+
+# Named for the quantity it bounds, which is *not* the same quantity. The
+# policy field is an ordinal, and ordinals start at zero: a `call_ceiling` of
+# 1024 admitted ordinals 0..1024, which is 1,025 calls. One of those two
+# numbers had to be wrong and the ambiguity is what chose which.
+MAX_CALL_ORDINAL = MAX_TOOL_CALLS - 1
+
+# How many schema violations one tool call's arguments may contribute to a
+# receipt. Unlike the tool calls, exceeding this is not itself a protocol
+# failure — the arguments are malformed either way, and the count is
+# description rather than verdict — so the evidence is truncated and says so
+# instead of the turn being refused.
+MAX_ARGUMENT_ERRORS = 1024
 
 REGISTRY_SCHEMA = "qodec-provider-registry-v1"
 REGISTRY_PATH = Path(__file__).resolve().parent / "trusted-providers.json"
@@ -2217,6 +2255,8 @@ DETAIL_TEMPLATES: dict[str, tuple[str, tuple[str, ...]]] = {
     "no-tool-calls": ("assistant message carried no tool_calls", ()),
     "tool-calls-not-array": ("tool_calls was {0}, not an array", ("type",)),
     "empty-tool-calls": ("assistant message carried an empty tool_calls array", ()),
+    "too-many-tool-calls": (
+        "the response carried more than {0} tool calls", ("count",)),
     "call-not-object": ("a tool call was not an object", ()),
     "call-type-not-function": ("tool call type was {0}, not 'function'", ("discriminator",)),
     "call-id-missing": ("a tool call lacked a non-empty string id", ()),
@@ -3148,6 +3188,16 @@ def parse_tool_calls(message: dict[str, Any]) -> ParsedAssistant:
     if not raw:
         return ParsedAssistant(
             [], content, ("NO_TERMINAL_ANSWER", LocalDetail("empty-tool-calls")),
+        )
+    if len(raw) > MAX_TOOL_CALLS:
+        # Refused before a single ordinal is assigned, which is the whole point:
+        # the alternative is to enumerate and then discover, at audit time, that
+        # the artifact carries an ordinal the inventory does not admit. The
+        # number is the producer's own bound, so it is a local value.
+        return ParsedAssistant(
+            [], content,
+            ("PROTOCOL_VIOLATION",
+             LocalDetail("too-many-tool-calls", (MAX_TOOL_CALLS,))),
         )
 
     calls: list[dict[str, Any]] = []
