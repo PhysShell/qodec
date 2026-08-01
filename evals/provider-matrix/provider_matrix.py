@@ -102,6 +102,22 @@ EVIDENCE_DOMAINS = {
     "failure-class": b"qodec-provider-failure-class-v1\0",
 }
 
+# A receipt's file name is not evidence, so it is not in the table above — but
+# it is derived from an untrusted id and must not collide, so it gets its own
+# separated domain rather than borrowing one that means something else.
+RECEIPT_FILENAME_DOMAIN = b"qodec-provider-receipt-filename-v1\0"
+
+# The characters a receipt file name may contain. Everything else is escaped,
+# so this set is the whole rule — no list of dangerous characters to keep up to
+# date. `%` is deliberately absent: it introduces an escape.
+FILENAME_ALPHABET = frozenset(
+    bytes([b]) for b in b"ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789._-"
+)
+
+# Bounded well under the 255-byte limit every filesystem this runs on shares,
+# with room for the digest, the separator and the suffix.
+RECEIPT_STEM_MAX_CHARS = 120
+
 
 def evidence_bytes(value: Any) -> bytes:
     """The bytes a provider-chosen value is hashed as, canonically.
@@ -862,6 +878,40 @@ MAX_REQUEST_BYTES = 4 * 1024 * 1024
 REGISTRY_SCHEMA = "qodec-provider-registry-v1"
 REGISTRY_PATH = Path(__file__).resolve().parent / "trusted-providers.json"
 AUTHORITY_FIELDS = ("api_base", "key_env", "api_style")
+
+# How a claimed authority value is compared to the trusted one — per field,
+# because the three are not the same kind of string.
+#
+# One rule was applied to all of them: `claimed.strip().rstrip("/")`. For a URL
+# a trailing slash is not part of the identity, so that is right for `api_base`
+# and wrong for the other two. `key_env` is the *name of an environment
+# variable*: `GROQ_API_KEY/` is a different name, and the run that follows looks
+# up the name the plan supplied. So an edited plan claiming `GROQ_API_KEY/`
+# compared equal to the registry, was admitted as agreeing, and then read a
+# variable the registry never named — the check reporting agreement about a
+# string it had altered before looking.
+#
+# The generous reading is that trailing punctuation is a typo. That reading
+# belongs to whoever writes the file, not to the gate that verifies it: a gate
+# that repairs its input has stopped comparing the input.
+AUTHORITY_COMPARISON = {
+    "api_base": "url",     # a trailing "/" is not part of a URL's identity
+    "key_env": "exact",    # the name of an environment variable, character for character
+    "api_style": "exact",  # a member of a closed local vocabulary
+}
+
+
+def authority_matches(field: str, claimed: str, trusted: str) -> bool:
+    """Whether a claimed authority value agrees with the trusted one.
+
+    `AUTHORITY_COMPARISON` is indexed rather than `.get()`-ed: a field added to
+    `AUTHORITY_FIELDS` without a stated comparison must stop the program here,
+    not silently inherit whichever rule happens to be first.
+    """
+    rule = AUTHORITY_COMPARISON[field]
+    if rule == "url":
+        return claimed.strip().rstrip("/") == trusted.rstrip("/")
+    return claimed == trusted
 KEY_ENV_PATTERN = re.compile(r"[A-Z][A-Z0-9_]*\Z")
 
 # Headers providers use to name the generation. Kept because it is the only
@@ -1200,7 +1250,7 @@ def bind_to_registry(row: dict[str, Any], provider: str, model: str, registry: d
                 f"{provider}/{model}: catalog {field} is a {type(claimed).__name__}, not a string; "
                 "a value that cannot be compared to the registry cannot be accepted"
             )
-        if claimed.strip().rstrip("/") != entry[field].rstrip("/"):
+        if not authority_matches(field, claimed, entry[field]):
             raise EndpointRejected(
                 "authority-mismatch",
                 f"{provider}/{model}: catalog claims {field}={claimed.strip()!r}, "
@@ -1217,11 +1267,16 @@ def verify_against_registry(target: dict[str, Any], registry: dict[str, Any]) ->
     provider name at somebody else's host.
     """
     entry = trusted_entry(registry, target["provider"])
-    for field in ("api_base", "key_env", "api_style"):
-        if str(target.get(field, "")).rstrip("/") != entry[field].rstrip("/"):
+    for field in AUTHORITY_FIELDS:
+        claimed = target.get(field)
+        # `str(claimed)` was here, which turns a plan's `{"key_env": None}` into
+        # the string `"None"` and compares *that*. A value that is not a string
+        # is not a value that disagrees; it is a value that cannot be compared,
+        # and intake already refuses one for exactly that reason.
+        if not isinstance(claimed, str) or not authority_matches(field, claimed, entry[field]):
             raise EndpointRejected(
                 "authority-mismatch",
-                f"{target['target_id']}: {field}={target.get(field)!r} does not match the "
+                f"{target['target_id']}: {field}={claimed!r} does not match the "
                 f"trusted registry ({entry[field]!r})"
             )
 
@@ -1832,15 +1887,39 @@ def build_plan(catalog: dict[str, Any], args: argparse.Namespace) -> dict[str, A
 
 
 def receipt_filename(target_id: str) -> str:
-    """A file name derived from a target id, kept a file name.
+    """A file name derived from a target id, and a file name for *every* id.
 
-    Model ids routinely carry a slash — `openai/gpt-oss-120b` — and writing
-    `out_dir / f"{target_id}.json"` turns that into a directory. The receipt
-    then no longer lives where its id says, and two targets differing only in
-    where the slash falls can land on the same path. Escaped rather than
-    stripped, so the mapping stays reversible by eye.
+    The first version escaped three characters — `%`, `/`, `\\` — because model
+    ids routinely carry a slash and `out_dir / f"{target_id}.json"` turns that
+    into a directory. Three is the wrong number for the same reason a list of
+    exception names was: it is the set somebody thought of. A model id arrives
+    from the discovery source, which this vertical treats as hostile, and
+
+        "model": "a\\u0000b"          → ValueError: embedded null byte
+        "model": "a" * 300            → OSError: File name too long
+
+    both raise *outside* every receipt boundary, so one row in a catalog ends
+    the whole run and denies every later target its evidence. That is the same
+    defect `guarded_receipt` exists to prevent, met one step further along.
+
+    So the mapping is total by construction rather than by enumeration. Every
+    byte outside a declared local alphabet is percent-escaped — `%` included,
+    being the introducer — which leaves a name made only of characters this
+    module chose. The stem is then bounded, and a domain-separated digest of
+    the **whole** id is appended, so truncation cannot make two ids share a
+    path. Readable for an ordinary id, valid for any.
     """
-    return target_id.replace("%", "%25").replace("/", "%2F").replace("\\", "%5C") + ".json"
+    raw = target_id.encode("utf-8", "surrogatepass")
+    stem = "".join(
+        chr(byte) if bytes([byte]) in FILENAME_ALPHABET else f"%{byte:02X}"
+        for byte in raw
+    )
+    # The whole digest. Shortening one is a rule this module states in exactly
+    # one place, and a file name is not evidence — it has no budget to spend and
+    # therefore no reason to acquire a second rule about how many hex characters
+    # are enough. A gate said so before this function could become the exception.
+    digest = hashlib.sha256(RECEIPT_FILENAME_DOMAIN + raw).hexdigest()
+    return f"{stem[:RECEIPT_STEM_MAX_CHARS]}-{digest}.json"
 
 
 def classify_http(status: int) -> str:
@@ -3751,6 +3830,44 @@ def guarded_receipt(schema: str, target: dict[str, Any], run: Any) -> dict[str, 
         )
 
 
+def emit_receipt(out_dir: Path, index: int, total: int, target_id: str,
+                 receipt: dict[str, Any]) -> str | None:
+    """Write one receipt. A write that fails costs that target and no other.
+
+    `guarded_receipt` says it exists so that "one target's failure must not cost
+    every later target its receipt", and it was placed around the run but not
+    around the write — so the property held for everything a target could do
+    except the last thing done with it. A full disk, a read-only directory or a
+    name the filesystem will not take ended the loop from outside the boundary
+    meant to contain it.
+
+    The problem line names the position and the exception class. Not the path:
+    it contains the target id, which contains a model name the discovery source
+    chose, and this string is printed. The receipt already carries that id
+    through the projection that exists for it.
+    """
+    try:
+        write_json(out_dir / receipt_filename(target_id), receipt)
+    except OSError as exc:
+        return f"receipt {index + 1} of {total} could not be written: {type(exc).__name__}"
+    return None
+
+
+def report_write_problems(problems: list[str]) -> int:
+    """The run continued; it did not succeed. Both halves have to be said.
+
+    Returning 0 would present a partial matrix as a complete one, and raising
+    would have been the defect this exists to fix, arriving one layer up.
+    """
+    for line in problems:
+        print(f"provider-matrix: {line}", file=sys.stderr)
+    if problems:
+        print(f"provider-matrix: {len(problems)} receipt(s) were not written; "
+              "the matrix is incomplete", file=sys.stderr)
+        return 2
+    return 0
+
+
 def parser() -> argparse.ArgumentParser:
     p = argparse.ArgumentParser()
     sub = p.add_subparsers(dest="command", required=True)
@@ -3793,12 +3910,17 @@ def main() -> int:
                 raise ValueError(f"expected {PLAN_SCHEMA}")
             registry = load_registry(args.registry)
             args.out_dir.mkdir(parents=True, exist_ok=True)
-            for target in plan["selected"]:
-                write_json(
-                    args.out_dir / receipt_filename(target["target_id"]),
-                    guarded_receipt(PROBE_SCHEMA, target,
-                                    lambda t=target: probe_target(t, args.timeout, None, registry)),
-                )
+            selected = plan["selected"]
+            problems = []
+            for index, target in enumerate(selected):
+                receipt = guarded_receipt(
+                    PROBE_SCHEMA, target,
+                    lambda t=target: probe_target(t, args.timeout, None, registry))
+                problem = emit_receipt(args.out_dir, index, len(selected),
+                                       target["target_id"], receipt)
+                if problem is not None:
+                    problems.append(problem)
+            return report_write_problems(problems)
         else:
             plan = read_json(args.plan)
             if plan.get("schema") != PLAN_SCHEMA:
@@ -3806,12 +3928,18 @@ def main() -> int:
             surface = load_surface(args.surface)
             registry = load_registry(args.registry)
             args.out_dir.mkdir(parents=True, exist_ok=True)
-            for target in plan["selected"]:
+            selected = plan["selected"]
+            problems = []
+            for index, target in enumerate(selected):
                 receipt = guarded_receipt(QUALIFY_SCHEMA, target, lambda t=target: qualify_target(
                     t, surface, args.timeout, args.max_turns,
                     key_bound_sender(t["key_env"]), registry,
                 ))
-                write_json(args.out_dir / receipt_filename(target["target_id"]), receipt)
+                problem = emit_receipt(args.out_dir, index, len(selected),
+                                       target["target_id"], receipt)
+                if problem is not None:
+                    problems.append(problem)
+            return report_write_problems(problems)
     except (OSError, ValueError, json.JSONDecodeError) as exc:
         print(f"provider-matrix: {exc}", file=sys.stderr)
         return 2

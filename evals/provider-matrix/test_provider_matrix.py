@@ -1,5 +1,7 @@
 import argparse
+import builtins
 import contextlib
+import re
 import hashlib
 import http.client
 import io
@@ -490,13 +492,74 @@ class QualificationTests(unittest.TestCase):
     def test_a_model_id_with_a_slash_stays_one_receipt_file(self):
         """`openai/gpt-oss-120b` must not become a directory."""
         name = pm.receipt_filename("groq--openai/gpt-oss-120b")
-        self.assertEqual(name, "groq--openai%2Fgpt-oss-120b.json")
+        self.assertTrue(name.startswith("groq--openai%2Fgpt-oss-120b-"), name)
         self.assertNotIn("/", name)
         # And two targets differing only in slash placement stay distinct.
         self.assertNotEqual(
             pm.receipt_filename("a--b/c"),
             pm.receipt_filename("a--b%2Fc"),
         )
+
+    def test_a_hostile_model_id_still_yields_a_usable_file_name(self):
+        """The discovery source picks the model, so it picks part of the path.
+
+        A NUL raises `ValueError` from `open()` and three hundred characters
+        raise `OSError`, both from outside every receipt boundary — so one row
+        in an untrusted catalog used to end the run and deny every later target
+        its evidence. The escape set is now the complement of a declared
+        alphabet, which is total by construction rather than by enumeration.
+        """
+        for model in ("a\x00b", "a" * 400, "..", "\n", " ", "sk-live/../../etc/passwd",
+                      "\udcff", "%2F", ""):
+            with self.subTest(model=model):
+                name = pm.receipt_filename(f"groq--{model}")
+                self.assertLessEqual(len(name.encode("utf-8")), 255, name)
+                self.assertNotIn("\x00", name)
+                self.assertEqual(name, Path(name).name, "must stay a single component")
+                self.assertTrue(re.fullmatch(r"[A-Za-z0-9._%-]+", name), name)
+                with tempfile.TemporaryDirectory() as td:
+                    # The real proof: the filesystem takes it.
+                    pm.write_json(Path(td) / name, {"ok": True})
+                    self.assertEqual(len(list(Path(td).iterdir())), 1)
+
+    def test_two_hostile_ids_that_truncate_alike_stay_distinct(self):
+        """Bounding the stem is what makes a digest necessary, not optional."""
+        self.assertNotEqual(
+            pm.receipt_filename("groq--" + "m" * 400 + "one"),
+            pm.receipt_filename("groq--" + "m" * 400 + "two"),
+        )
+
+    def test_a_write_failure_costs_one_target_and_not_the_run(self):
+        """`guarded_receipt` promises this and used to stop one step short.
+
+        The write sat outside it, so a name the filesystem refuses — or a full
+        disk — ended the loop rather than being recorded against the target it
+        belongs to.
+        """
+        with tempfile.TemporaryDirectory() as td:
+            out = Path(td) / "receipts"
+            out.mkdir()
+            blocked = out / "sub"
+            blocked.write_text("not a directory", encoding="utf-8")
+            # `out/sub` is a file, so writing beneath it raises NotADirectoryError.
+            problem = pm.emit_receipt(blocked, 2, 5, "groq--m", {"ok": True})
+        self.assertIsNotNone(problem)
+        self.assertIn("3 of 5", problem)
+        # A class name, not a message: an `OSError` renders the path it failed
+        # on, and the path carries the model id. The contract is the shape.
+        named = problem.rsplit(": ", 1)[1]
+        self.assertTrue(issubclass(getattr(builtins, named), OSError), named)
+        # The line describes the failure without quoting the path, which carries
+        # a model name the discovery source chose.
+        self.assertNotIn("groq--m", problem)
+
+    def test_a_run_with_an_unwritable_receipt_reports_incomplete(self):
+        out = io.StringIO()
+        with contextlib.redirect_stderr(out):
+            code = pm.report_write_problems(["receipt 1 of 2 could not be written: OSError"])
+        self.assertEqual(code, 2)
+        self.assertIn("the matrix is incomplete", out.getvalue())
+        self.assertEqual(pm.report_write_problems([]), 0)
 
     def test_the_receipt_never_carries_the_credential(self):
         receipt, _ = self.run_qualify(OPERATION_THEN(ANSWER_REPLY))
@@ -730,6 +793,61 @@ class TrustedRegistryTests(unittest.TestCase):
                 "provider": "groq", "model": "m",
                 "api_base": "https://example/v1", "key_env": "ANTHROPIC_API_KEY",
             })
+
+    def test_a_trailing_slash_is_a_url_property_and_not_a_name_property(self):
+        """One normalisation was applied to three different kinds of string.
+
+        `claimed.strip().rstrip("/")` is right for a URL, where a trailing slash
+        is not part of the identity. `key_env` is the *name of an environment
+        variable*: `GROQ_API_KEY/` is a different name, and the run that follows
+        reads the name the plan supplied. So the check altered its input, found
+        agreement, and admitted a row that then pointed at a variable the
+        registry never named.
+        """
+        for field, value in (("key_env", "GROQ_API_KEY/"),
+                             ("key_env", " GROQ_API_KEY"),
+                             ("api_style", "openai-chat/")):
+            with self.subTest(field=field, value=value):
+                with self.assertRaisesRegex(pm.EndpointRejected, "trusted registry"):
+                    self.import_row({"provider": "groq", "model": "m", field: value})
+
+    def test_a_trailing_slash_on_the_origin_is_still_tolerated(self):
+        """The other half. Refusing this would be inventing a rule, not keeping one."""
+        catalog = self.import_row({
+            "provider": "groq", "model": "m",
+            "api_base": registry()["providers"]["groq"]["api_base"] + "/",
+        })
+        self.assertEqual(catalog["targets"][0]["api_base"],
+                         registry()["providers"]["groq"]["api_base"])
+
+    def test_every_authority_field_states_how_it_is_compared(self):
+        """An unnamed field must stop the program, not inherit a rule."""
+        self.assertEqual(set(pm.AUTHORITY_COMPARISON), set(pm.AUTHORITY_FIELDS))
+        with self.assertRaises(KeyError):
+            pm.authority_matches("invented", "a", "a")
+
+    def test_an_edited_plan_cannot_launder_a_key_name_either(self):
+        """Intake is the first gate; the plan on disk is re-checked at use."""
+        target = dict(self.import_row({"provider": "groq", "model": "m"})["targets"][0])
+        target["key_env"] = target["key_env"] + "/"
+        with self.assertRaisesRegex(pm.EndpointRejected, "does not match"):
+            pm.verify_against_registry(target, registry())
+
+    def test_a_plan_whose_authority_field_is_not_a_string_is_refused(self):
+        """The outcome, which is what this can honestly claim.
+
+        It does *not* prove the `isinstance` guard: a plan arrives from
+        `strict_json_loads`, so no JSON non-string renders as `GROQ_API_KEY`,
+        and the previous `str(claimed)` comparison refused all of these too.
+        The mutation for that guard was written, survived, and is withdrawn in
+        `mutations.py` with its reason rather than propped up here by a
+        `__str__` a plan cannot contain.
+        """
+        target = dict(self.import_row({"provider": "groq", "model": "m"})["targets"][0])
+        for hostile in (None, {"host": "steal.example"}, 7, True):
+            with self.subTest(value=repr(hostile)):
+                with self.assertRaisesRegex(pm.EndpointRejected, "does not match"):
+                    pm.verify_against_registry({**target, "key_env": hostile}, registry())
 
     def test_a_provider_outside_the_registry_never_reaches_a_plan(self):
         with self.assertRaisesRegex(pm.EndpointRejected, "not in the trusted registry"):

@@ -68,6 +68,24 @@ string, therefore no disagreement" and quietly overruled — the exact silence t
 rule exists to prevent. A provider absent from the registry never becomes a
 target at all.
 
+**"Exactly" is per field, because the three are not the same kind of string.**
+One normalisation was applied to all of them — `claimed.strip().rstrip("/")` —
+which is right for a URL, where a trailing slash is not part of the identity,
+and wrong for the other two. `key_env` is the *name of an environment
+variable*, and the run that follows reads the name the plan supplied:
+
+```json
+{"provider": "groq", "model": "m", "key_env": "GROQ_API_KEY/"}
+```
+
+compared equal to the registry, was admitted as agreeing, and then looked up a
+variable the registry never named. `api_style` had the same hole. The generous
+reading — that trailing punctuation is a typo — belongs to whoever writes the
+file, not to the gate that verifies it: **a gate that repairs its input has
+stopped comparing the input.** `AUTHORITY_COMPARISON` now names a rule for each
+field and is indexed rather than `.get()`-ed, so a field added without one stops
+the program instead of inheriting whichever rule happens to be first.
+
 A registry supplied as an object takes the same validation path as the file:
 schema, unknown fields, types, lowercase provider names, plausible `key_env` and
 URL rules. The result is a freshly built object, so nothing downstream holds a
@@ -784,6 +802,42 @@ three-valued model status, classification, and provider usage when present. A
 different reported model is `PROVIDER_SUBSTITUTED`; **no** reported model is
 `MODEL_IDENTITY_MISSING`. Neither is a pass — the exact text plus an unnamed
 model is still a response whose origin was never established.
+
+### A receipt's file name is derived from an untrusted string
+
+The model id comes from discovery, and it becomes part of a path. The first
+version escaped three characters — `%`, `/`, `\` — because model ids routinely
+carry a slash and `out_dir / f"{target_id}.json"` would turn that into a
+directory. Three is the wrong number for the same reason a list of exception
+names was: it is the set somebody thought of.
+
+```json
+{"model": "a b"}     → ValueError: embedded null byte
+{"model": "aaaa…" × 300}  → OSError: File name too long
+```
+
+Both raise from *outside* every receipt boundary, so one row in a catalog ended
+the run and denied every later target its evidence — which is precisely what
+`guarded_receipt` exists to prevent, met one step further along. Two repairs,
+because there were two defects:
+
+* The name is total by construction. Every byte outside a declared alphabet is
+  percent-escaped, `%` included, so the rule is the alphabet rather than a list
+  of dangerous characters to keep current. The stem is bounded and a
+  domain-separated digest of the whole id is appended, so truncation cannot make
+  two ids share a path. The digest is not shortened — a file name is not
+  evidence and has no budget to spend — and a gate that allows exactly two
+  constructors to shorten a digest is what said so before this one could become
+  the exception.
+* The **write** moved inside the boundary. `guarded_receipt` wrapped the run and
+  not the write, so the property it states held for everything a target could do
+  except the last thing done with it. A failed write now costs that target and
+  reports at the end; the run continues and still exits non-zero, because
+  "continued" and "succeeded" are different claims and a partial matrix must not
+  be readable as a complete one.
+
+The problem line names the position and the exception class, never the path: the
+path contains a model name the discovery source chose, and that line is printed.
 
 ## Qualification: does the target speak the C1 protocol?
 

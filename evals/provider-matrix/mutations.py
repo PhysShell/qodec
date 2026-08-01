@@ -106,6 +106,15 @@ SUITE_TIMEOUT = 600
 #     `run_gate` limit this paragraph used to disclose no longer holds.
 #     See `MUTATION_TARGETS`: a target names its oracles, and any of them
 #     may object.
+#   * `isinstance(claimed, str)` in `verify_against_registry`. A plan reaches it
+#     from `strict_json_loads`, so the value is a JSON type, and no JSON
+#     non-string renders as `"GROQ_API_KEY"` — `str(claimed)` therefore refuses
+#     exactly what the type check refuses, for every input that can arrive. It
+#     is kept because it makes the refusal type-correct rather than accidentally
+#     correct, and because intake refuses a non-string explicitly for the same
+#     reason; the mutation was written, survived, and is withdrawn here rather
+#     than propped up with a test that constructs a `__str__` a plan cannot
+#     contain. `AU1` covers the comparison that *is* reachable.
 #   * the `env` argument threaded into `dirt()` from the self-test — it matters
 #     against a developer's `core.excludesFile`, and CI runs on a machine that
 #     has none, so dropping it changes nothing observable *here*. `W1` covers
@@ -1352,6 +1361,50 @@ MUTATIONS = [
      "        problems.append(",
      "mutations.py"),
 
+    # -- FN: a file name for every id, not for the ids somebody thought of ----
+
+    ("FN1 the escape set shrinks back to the characters somebody listed",
+     "        chr(byte) if bytes([byte]) in FILENAME_ALPHABET else f\"%{byte:02X}\"",
+     "        chr(byte) if byte not in (0x2F, 0x5C) else f\"%{byte:02X}\""),
+
+    ("FN2 the stem is unbounded again",
+     "    return f\"{stem[:RECEIPT_STEM_MAX_CHARS]}-{digest}.json\"",
+     "    return f\"{stem}-{digest}.json\""),
+
+    ("FN3 truncation is left to collide",
+     "    digest = hashlib.sha256(RECEIPT_FILENAME_DOMAIN + raw).hexdigest()\n"
+     "    return f\"{stem[:RECEIPT_STEM_MAX_CHARS]}-{digest}.json\"",
+     "    return f\"{stem[:RECEIPT_STEM_MAX_CHARS]}.json\""),
+
+    # -- AU: one normalisation for three kinds of string ---------------------
+
+    ("AU1 the URL rule is applied to every authority field again",
+     "    if rule == \"url\":\n"
+     "        return claimed.strip().rstrip(\"/\") == trusted.rstrip(\"/\")\n"
+     "    return claimed == trusted",
+     "    return claimed.strip().rstrip(\"/\") == trusted.rstrip(\"/\")"),
+
+    ("AU2 an unnamed authority field quietly inherits a rule",
+     "    rule = AUTHORITY_COMPARISON[field]",
+     "    rule = AUTHORITY_COMPARISON.get(field, \"url\")"),
+
+    # -- EW: the write is inside the boundary that promises it ---------------
+
+    ("EW1 a failed write leaves the boundary again",
+     "    try:\n"
+     "        write_json(out_dir / receipt_filename(target_id), receipt)\n"
+     "    except OSError as exc:\n"
+     "        return f\"receipt {index + 1} of {total} could not be written: {type(exc).__name__}\"\n"
+     "    return None",
+     "    write_json(out_dir / receipt_filename(target_id), receipt)\n"
+     "    return None"),
+
+    ("EW2 an incomplete matrix is reported as a complete one",
+     "    if problems:\n"
+     "        print(f\"provider-matrix: {len(problems)} receipt(s) were not written; \"",
+     "    if False:\n"
+     "        print(f\"provider-matrix: {len(problems)} receipt(s) were not written; \""),
+
     ("MH5 the expected killer is no longer required at all",
      "    if expected is not None:\n"
      "        # In the failing oracle's own output",
@@ -1623,6 +1676,12 @@ EXPECTED_KILL = {
         "test_a_multi_anchor_spec_with_unequal_halves_is_refused",
     "VT3 an orphaned expectation stops being reported":
         "test_an_orphaned_expectation_is_refused",
+    # The write boundary is an ownership claim — `guarded_receipt` says one
+    # target's failure must not cost the others — so its kill is attributed.
+    "EW1 a failed write leaves the boundary again":
+        "test_a_write_failure_costs_one_target_and_not_the_run",
+    "FN1 the escape set shrinks back to the characters somebody listed":
+        "test_a_hostile_model_id_still_yields_a_usable_file_name",
     "TT1 a reset while the status line is read escapes as an internal error":
         "test_the_probe_classifies_a_reset_rather_than_blaming_itself",
     "TT2 the broad framing catch is hoisted above the narrow URLError one":
