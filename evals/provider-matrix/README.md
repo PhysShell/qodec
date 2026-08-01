@@ -812,7 +812,7 @@ directory. Three is the wrong number for the same reason a list of exception
 names was: it is the set somebody thought of.
 
 ```json
-{"model": "a b"}     → ValueError: embedded null byte
+{"model": "a\u0000b"}          → ValueError: embedded null byte
 {"model": "aaaa…" × 300}  → OSError: File name too long
 ```
 
@@ -1225,6 +1225,22 @@ same fact, the mutated behaviour is provably identical, or the difference only
 shows on a machine CI is not. Writing a mutation that can never die is a worse
 outcome than admitting the gap — it reads as coverage.
 
+The seventeenth round added one by withdrawing a mutation that had already been
+written and had already survived: the `isinstance(claimed, str)` guard in
+`verify_against_registry`. A plan reaches it from `strict_json_loads`, so the
+value is a JSON type, and no JSON non-string renders as `"GROQ_API_KEY"` — the
+guard therefore refuses exactly what the previous `str(claimed)` comparison
+refused, on every input that can arrive. The alternative was a specimen with a
+hand-written `__str__`, which is a test for a program that cannot exist.
+
+The reason is phrased as *"a plan arrives from the strict JSON reader"* rather
+than *"such an input cannot occur"*, and the difference is load-bearing. The
+first names a premise that can be checked and can later become false; the second
+is unfalsifiable, and an unfalsifiable reason in this list is how a stated gap
+turns into a forgotten one. If a path ever puts an object into a plan without
+crossing that reader, this entry is wrong — and nothing would report it, because
+there is no mutation there to die.
+
 That is also why a new rule goes into the control rather than beside it. When
 the discovery gate learned to refuse output it cannot decode, the arm that
 proves it went into `--self-test` — a synthetic case that writes a raw `\xff` to
@@ -1234,8 +1250,20 @@ the harness never runs would have been a certificate on a wall. Deleting an arm
 outright is the one thing no control can catch about itself, and it is listed
 with the others.
 
-The counts, from CI on the head this describes: **378 tests**, found identically
-by `python3 test_provider_matrix.py` and by `python3 -m unittest`; **256 of 256
+**A spec whose anchor stops matching happened twice, and stayed a build failure
+both times.** `CV2` in the sixteenth round and `E1` in the seventeenth were the
+same shape: a refactor moved the line a spec pointed at, so the substitution
+never applied. The run reported each as `anchor matched 0 times, not 1`,
+declined to count it among the killed, and exited non-zero — CI went red on
+`ed2eacd` and on `eb958e0` for exactly this. No second, earlier anchor check was
+added either time: it would read the same pristine source the run already reads
+and could differ from its absence only in how long the answer takes. What
+changed instead is how a run is started — every anchor is verified once before
+a twenty-minute run rather than after it, which is a fix to the procedure, not
+to the check.
+
+The counts, from CI on the head this describes: **387 tests**, found identically
+by `python3 test_provider_matrix.py` and by `python3 -m unittest`; **263 of 263
 mutations killed**, none of them invalid, misattributed or unanchored; **120 durable-field
 policies** with **9 defective specimens refused** and no coverage gaps in either
 direction on either receipt kind; **49 JSON admission cases** against the live
