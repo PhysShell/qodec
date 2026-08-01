@@ -51,6 +51,7 @@ specimens are all refused, 1 otherwise.
 from __future__ import annotations
 
 import ast
+import json
 import re
 import sys
 import enum
@@ -1637,19 +1638,99 @@ HOSTILE_VALUES: tuple[Any, ...] = (
     None, True, 0, -1, 3.5, "", "text", [], {}, [[]], {"k": {}}, [{"k": []}],
 )
 
+HOSTILE_CONTEXT_VALUES: tuple[Any, ...] = (None, 0, "", [], {})
 
-def malformed_specimens(receipt: dict[str, Any]):
-    """One receipt per way a single place in it can be the wrong thing.
 
-    Every member of the receipt and of each turn, deleted and then replaced by
-    every other JSON shape; every member of a list replaced in place. What the
-    auditor must do with each is the same: return findings, deterministically,
-    without raising.
+def canned_sender(replies: list):
+    replies = list(replies)
+
+    def send(_url, _body, _timeout):
+        return replies.pop(0)
+
+    return send
+
+
+def fixture_row() -> dict[str, Any]:
+    entry = pm.load_registry()["providers"]["groq"]
+    return {"target_id": "groq--m", "provider": "groq", "model": "m",
+            "api_base": entry["api_base"], "key_env": entry["key_env"],
+            "api_style": entry["api_style"]}
+
+
+def fixtures() -> list[tuple[str, dict[str, Any], dict[str, Any]]]:
+    """Real receipts of both kinds, produced by the real pipeline.
+
+    Hand-written ones were the first version's mistake in a second form: the
+    corpus claimed to mutate `turns[]` and the only specimen it was handed was
+    a flat probe receipt, so the branch existed and never ran. Fixtures are
+    produced rather than spelled, and the coverage report below counts what was
+    actually mutated rather than what the generator is capable of.
     """
+    surface = pm.load_surface(HERE / "c1-panel-surface.json")
+    registry = pm.load_registry()
+    row = fixture_row()
+    entry = registry["providers"]["groq"]
+    limit = 4096
+
+    def qualify(replies):
+        return pm.qualify_target(row, surface, 30.0, 6, canned_sender(replies),
+                                 response_limit=limit)
+
+    def context(schema):
+        return context_for(schema, row, entry, response_limit=limit, max_turns=6,
+                           declared_tools={op["name"] for op in surface["operations"]})
+
+    probe_ok = json.dumps({"model": "m", "usage": {"prompt_tokens": 7},
+                           "choices": [{"message": {"content": "QODEC_PROBE_OK"}}]}).encode()
+    probe = pm.probe_target(row, 5.0, canned_sender([(200, probe_ok, "", "completed")]),
+                            registry, response_limit=limit)
+
+    def one_call(name, arguments, call_id):
+        return {"id": call_id, "type": "function",
+                "function": {"name": name, "arguments": arguments}}
+
+    def completion(calls):
+        return json.dumps({"model": "m", "choices": [{"message": {
+            "role": "assistant", "content": None, "tool_calls": calls}}]}).encode()
+
+    operation = (200, completion([one_call(
+        "qodec_intersect", json.dumps({"index": "i", "sections": ["a"]}), "c1")]), "")
+    answer = (200, completion([one_call("qodec_answer", json.dumps({
+        "handle": pm.CANNED_HANDLE,
+        "answer": {"encoding": "base64url-nopad", "data": "YWxwaGE"},
+        "cited": [{"store": pm.CANNED_HANDLE, "section": "absent", "ordinal": 0}],
+    }), "c2")]), "")
+
+    return [
+        ("probe", probe, context(pm.PROBE_SCHEMA)),
+        # Enough replies for the whole budget: the run ends on the turn limit
+        # rather than on an empty script, so the receipt carries every turn the
+        # loop can produce.
+        ("qualification with turns", qualify([operation] * 6),
+         context(pm.QUALIFY_SCHEMA)),
+        ("qualification with canary findings", qualify([operation, answer]),
+         context(pm.QUALIFY_SCHEMA)),
+    ]
+
+
+@dataclass
+class Coverage2:
+    """What the corpus actually mutated, as opposed to what it can mutate."""
+
+    receipt_fields: set = field(default_factory=set)
+    turn_fields: set = field(default_factory=set)
+    context_keys: set = field(default_factory=set)
+    root_shapes: int = 0
+    specimens: int = 0
+
+
+def malformed_specimens(receipt: dict[str, Any], seen: "Coverage2 | None" = None):
+    """One receipt per way a single place in it can be the wrong thing."""
     import copy
 
-    def variants(node: dict[str, Any], where: str):
+    def variants(node: dict[str, Any], where: str, record: set):
         for key in list(node):
+            record.add(key)
             without = copy.deepcopy(receipt)
             target = without if where == "receipt" else without["turns"][0]
             del target[key]
@@ -1660,34 +1741,36 @@ def malformed_specimens(receipt: dict[str, Any]):
                 target[key] = copy.deepcopy(value)
                 yield f"{where}.{key} = {value!r}", swapped
 
-    yield from variants(receipt, "receipt")
+    tally = Coverage2() if seen is None else seen
+    yield from variants(receipt, "receipt", tally.receipt_fields)
     turns = receipt.get("turns")
     if isinstance(turns, list) and turns and isinstance(turns[0], dict):
-        yield from variants(turns[0], "turns[0]")
-    # And the shapes a walker meets rather than a field: a key that is not a
-    # string, a list where an object belongs, a receipt that is not one at all.
-    import copy as _copy
-    hostile_key = _copy.deepcopy(receipt)
+        yield from variants(turns[0], "turns[0]", tally.turn_fields)
+    hostile_key = copy.deepcopy(receipt)
     hostile_key[7] = "an integer key"
     yield "a key that is not a string", hostile_key
     for value in HOSTILE_VALUES:
+        tally.root_shapes += 1
         yield f"the receipt itself is {value!r}", value
 
 
-def hostile_contexts(context: dict[str, Any]):
+def hostile_contexts(context: dict[str, Any], seen: "Coverage2 | None" = None):
     """The context, with each local fact missing and each of the wrong type."""
     import copy
+    tally = Coverage2() if seen is None else seen
     for key in list(context):
+        tally.context_keys.add(key)
         without = copy.deepcopy(context)
         del without[key]
         yield f"context.{key} absent", without
-        for value in (None, 0, "", [], {}):
+        for value in HOSTILE_CONTEXT_VALUES:
             swapped = copy.deepcopy(context)
             swapped[key] = copy.deepcopy(value)
             yield f"context.{key} = {value!r}", swapped
 
 
-def totality_problems(auditor: Callable[..., list[str]] | None = None) -> list[str]:
+def totality_problems(auditor: Callable[..., list[str]] | None = None,
+                      cases: list | None = None) -> tuple[list[str], Coverage2]:
     """Run the whole malformed corpus and report anything that is not a verdict.
 
     A raise here is the finding. So is a non-deterministic answer: an auditor
@@ -1696,12 +1779,17 @@ def totality_problems(auditor: Callable[..., list[str]] | None = None) -> list[s
     without anybody noticing.
     """
     check = audit if auditor is None else auditor
+    tally = Coverage2()
+    if cases is None:
+        cases = []
+        for _name, receipt, context in fixtures():
+            cases.extend((why, bad, context)
+                         for why, bad in malformed_specimens(receipt, tally))
+            cases.extend((why, receipt, bad)
+                         for why, bad in hostile_contexts(context, tally))
     problems: list[str] = []
-    specimens = list(malformed_specimens(sound_specimen()))
-    contexts = list(hostile_contexts(SPECIMEN_CONTEXT))
-    cases = ([(name, receipt, SPECIMEN_CONTEXT) for name, receipt in specimens]
-             + [(name, sound_specimen(), context) for name, context in contexts])
     for name, receipt, context in cases:
+        tally.specimens += 1
         try:
             first = check(receipt, context)
             second = check(receipt, context)
@@ -1712,6 +1800,30 @@ def totality_problems(auditor: Callable[..., list[str]] | None = None) -> list[s
             problems.append(f"{name}: audit did not return a list of findings")
         elif first != second:
             problems.append(f"{name}: audit is not deterministic")
+    return problems, tally
+
+
+def coverage_problems(tally: Coverage2) -> list[str]:
+    """What the corpus claims to reach, checked against what it reached.
+
+    The first version said "every member of the receipt and of each turn" and
+    mutated no turn at all, because the only fixture it was handed had none. A
+    branch that exists and never runs is the defect this round is about, so the
+    reaching is counted rather than described.
+    """
+    problems = []
+    if not tally.turn_fields:
+        problems.append("no turn field was ever mutated")
+    if not tally.receipt_fields:
+        problems.append("no receipt field was ever mutated")
+    if not tally.root_shapes:
+        problems.append("the receipt was never replaced wholesale")
+    wanted = set()
+    for _name, _receipt, context in fixtures():
+        wanted |= set(context)
+    uncovered = sorted(wanted - tally.context_keys)
+    problems.extend(f"context fact {key!r} is never given a hostile value"
+                    for key in uncovered)
     return problems
 
 
@@ -1839,7 +1951,7 @@ def self_test() -> int:
     # helper while the shipped path dies on the formatter next to it — the
     # clean-tree and discovery gates each performed that trick once, and this
     # module is now a critical program in its own right.
-    fragile = totality_problems()
+    fragile, reach = totality_problems()
     if fragile:
         print("FAIL the auditor did not survive its own malformed corpus")
         for problem in fragile[:20]:
@@ -1859,11 +1971,35 @@ def self_test() -> int:
     def unstable(_receipt, _context):
         return [f"finding {next(answers)}"]
 
-    if not any("raised TypeError" in problem for problem in totality_problems(fragile)):
+    if not any("raised TypeError" in problem for problem in totality_problems(fragile)[0]):
         print("FAIL the totality corpus cannot detect an auditor that raises")
         return 1
-    if not any("not deterministic" in problem for problem in totality_problems(unstable)):
+    if not any("not deterministic" in problem for problem in totality_problems(unstable)[0]):
         print("FAIL the totality corpus cannot detect an auditor that wanders")
+        return 1
+
+    # What the corpus reached, counted rather than described. The first version
+    # claimed to mutate every member of each turn and mutated none, because the
+    # only fixture it was handed had no turns; the number it printed was true
+    # and read as wider coverage than existed.
+    unreached = coverage_problems(reach)
+    if unreached:
+        print("FAIL the malformed corpus does not reach what it claims to")
+        for problem in unreached[:20]:
+            print(f"  {problem}")
+        return 1
+    # And the two controls that matter more than another raising auditor: a
+    # corpus with no turn left, and one with a context fact never poisoned.
+    flat = Coverage2(receipt_fields={"schema"}, root_shapes=1,
+                     context_keys={key for _n, _r, ctx in fixtures() for key in ctx})
+    if not any("no turn field" in problem for problem in coverage_problems(flat)):
+        print("FAIL the coverage gate does not notice an unexercised turn")
+        return 1
+    partial = Coverage2(receipt_fields={"schema"}, turn_fields={"ordinal"}, root_shapes=1,
+                        context_keys={key for _n, _r, ctx in fixtures() for key in ctx}
+                        - {"key_env"})
+    if not any("key_env" in problem for problem in coverage_problems(partial)):
+        print("FAIL the coverage gate does not notice an uncovered context fact")
         return 1
 
     # The closure's own positive control: a bounded policy nobody enforces must
@@ -1882,8 +2018,9 @@ def self_test() -> int:
     print(f"OK {len(POLICIES)} durable-field policies, "
           f"{len(defective_specimens())} defective specimens refused, "
           f"{len(BOUND_ENFORCEMENT)} bounds owned by the producer, "
-          f"{len(list(malformed_specimens(sound_specimen()))) + len(list(hostile_contexts(SPECIMEN_CONTEXT)))} "
-          "malformed specimens survived, "
+          f"{reach.specimens} malformed specimens survived "
+          f"({len(reach.receipt_fields)} receipt fields, {len(reach.turn_fields)} turn "
+          f"fields, {len(reach.context_keys)} context facts), "
           "duplicate and undeclared-domain policies reported")
     return 0
 
