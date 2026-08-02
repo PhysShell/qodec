@@ -10,12 +10,15 @@ from __future__ import annotations
 
 import argparse
 import codecs
+import contextlib
+import datetime
 import hashlib
 import http.client
 import json
 import math
 import os
 import re
+import shutil
 import sys
 import time
 import urllib.error
@@ -1935,7 +1938,62 @@ def normalize_target(row: dict[str, Any], registry: dict[str, Any]) -> dict[str,
     return target
 
 
+# ---------------------------------------------------------------------------
+# The moment of observation is evidence, not prose
+# ---------------------------------------------------------------------------
+#
+# `observed_at` is documented as a UTC ISO-8601 timestamp and was accepted as
+# any string at all, then frozen into the catalog as provenance. An empty
+# string, `yesterday`, `2026-99-88` and `2026-08-02 10:00` all became the
+# recorded moment a snapshot was taken — which makes every downstream claim
+# about *when* a matrix describes the world unfalsifiable.
+#
+# One form is admitted, not a family of equivalent ones. `+00:00` and `Z` denote
+# the same instant and are different bytes; a catalog is compared as canonical
+# bytes, so admitting both would make two catalogs of the same observation
+# differ. Anything wider needs a normalisation step, and a normalisation step
+# that nobody wrote is a second format quietly admitted.
+OBSERVED_AT_FORMAT = "%Y-%m-%dT%H:%M:%SZ"
+OBSERVED_AT_PATTERN = re.compile(r"\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}Z\Z")
+
+
+def canonical_observed_at(value: Any) -> str:
+    """The one admitted spelling of an observation moment, or a refusal.
+
+    Three checks, none of which subsumes the others. The pattern refuses shapes
+    a parser would accept in another form. `strptime` refuses a shape the
+    pattern admits but the calendar does not — `2026-02-29` and `2026-13-01`
+    both match the pattern exactly. And formatting the parsed value back and
+    requiring the original refuses anything that survived both but is not
+    canonical.
+
+    The diagnostic names the expected form and the length of what arrived, never
+    the value: this string comes from a caller and is printed.
+    """
+    if not isinstance(value, str):
+        raise ValueError(
+            f"observed_at is a string in the form 2026-08-02T15:00:00Z, "
+            f"not {json_type_name(value)}")
+    if not OBSERVED_AT_PATTERN.fullmatch(value):
+        raise ValueError(
+            f"observed_at must be exactly 2026-08-02T15:00:00Z in form "
+            f"(UTC, trailing Z, no offset, no space); got {len(value)} character(s)")
+    try:
+        moment = datetime.datetime.strptime(value, OBSERVED_AT_FORMAT)
+    except ValueError as exc:
+        raise ValueError(
+            "observed_at is not a real UTC calendar moment") from exc
+    if moment.strftime(OBSERVED_AT_FORMAT) != value:
+        raise ValueError("observed_at is not canonical for the moment it names")
+    return value
+
+
 def import_catalog(source: Path, observed_at: str, registry: dict[str, Any] | None = None) -> dict[str, Any]:
+    # Before anything is read, and long before anything is frozen: the moment of
+    # observation is provenance, and provenance that might be prose is not
+    # provenance. Checked here rather than at the CLI so a caller reaching the
+    # function directly meets the same boundary.
+    observed_at = canonical_observed_at(observed_at)
     registry = normalize_registry(registry) if registry is not None else load_registry()
     raw_bytes = source.read_bytes()
     rows = source_rows(strict_json_loads(raw_bytes, source.name))
@@ -1967,6 +2025,162 @@ def target_allowed(target: dict[str, Any], args: argparse.Namespace) -> tuple[bo
     if args.no_training and target["training_use"] != "no":
         reasons.append(f"training_use={target['training_use']}")
     return not reasons, reasons
+
+
+# ---------------------------------------------------------------------------
+# The plan that was reviewed and the plan that is executed are one plan
+# ---------------------------------------------------------------------------
+#
+# `build_plan` writes an `identity` — the catalog digest, the filters, and the
+# ordered ids it selected — and a `plan_sha256` over it. Both commands then read
+# the plan back and checked `schema` and nothing else, so the attestation was
+# decoration: keep the identity, keep the digest, replace `selected[]` with any
+# registry-valid target, and the run produced receipts for a set nobody
+# approved. Exit zero, no diagnostic, receipts on disk under names the identity
+# never mentions.
+#
+# Two different claims are needed, and conflating them is how the first one gets
+# mistaken for proof:
+#
+#   * **Internal consistency.** The plan agrees with itself: its identity names
+#     exactly the selected set, in order, and its digest is that identity's.
+#     This is checkable from the file alone — and provable by anyone who edits
+#     the file, since they can recompute the digest too.
+#
+#   * **External binding.** The file is the plan that was *reviewed*. No
+#     self-check can establish this, because every part of the evidence lives
+#     inside the artifact being questioned. The expectation has to arrive from
+#     outside, so `--expect-plan-sha256` is required at execution and is
+#     compared against both the recorded digest and the recomputed one.
+#
+# A plan is untrusted bytes until both hold. Nothing below reads a key, builds a
+# sender, touches an output path or contacts a provider before then.
+
+PLAN_DIGEST_PATTERN = re.compile(r"[0-9a-f]{64}\Z")
+
+# The exact shape `build_plan` writes. Named here so a reader of a plan and its
+# writer cannot drift: a key added there and not here is an unattested field,
+# and a key here that vanishes there stops the gate on the commit that drops it.
+PLAN_IDENTITY_FIELDS = ("catalog_sha256", "filters", "selected_target_ids")
+PLAN_FILTER_FIELDS = ("free_only", "no_card", "no_training")
+
+
+def is_plan_digest(value: Any) -> bool:
+    """A digest of the exact local form, not merely a string.
+
+    `plan_sha256: "yes"` compared against a real digest is a mismatch and reads
+    like one. `plan_sha256: ""` compared against `""` supplied on the command
+    line is a *match*, and every check downstream would have passed.
+    """
+    return isinstance(value, str) and bool(PLAN_DIGEST_PATTERN.fullmatch(value))
+
+
+def plan_problems(plan: Any, expected_sha256: Any) -> list[str]:
+    """Everything that disqualifies a plan from being executed.
+
+    Returned rather than raised, and all of them rather than the first. Every
+    read is typed: a plan is a file from outside this program, so a `KeyError`
+    here would be this module blaming itself for somebody else's artifact.
+    """
+    problems: list[str] = []
+    if not isinstance(plan, dict):
+        return [f"a plan is an object, not {json_type_name(plan)}"]
+    if plan.get("schema") != PLAN_SCHEMA:
+        problems.append(f"expected schema {PLAN_SCHEMA}, got {json_type_name(plan.get('schema'))}")
+
+    identity = plan.get("identity")
+    if not isinstance(identity, dict):
+        problems.append(f"identity is an object, not {json_type_name(identity)}")
+        identity = None
+    else:
+        unknown = sorted(set(identity) - set(PLAN_IDENTITY_FIELDS))
+        missing = sorted(set(PLAN_IDENTITY_FIELDS) - set(identity))
+        problems.extend(f"identity carries unattested field {name!r}" for name in unknown)
+        problems.extend(f"identity is missing {name!r}" for name in missing)
+        if not is_plan_digest(identity.get("catalog_sha256")):
+            problems.append("identity.catalog_sha256 is not a sha256 digest")
+        filters = identity.get("filters")
+        if not isinstance(filters, dict):
+            problems.append(f"identity.filters is an object, not {json_type_name(filters)}")
+        else:
+            for name in PLAN_FILTER_FIELDS:
+                if not isinstance(filters.get(name), bool):
+                    problems.append(f"identity.filters.{name} is a boolean, not "
+                                    f"{json_type_name(filters.get(name))}")
+            for name in sorted(set(filters) - set(PLAN_FILTER_FIELDS)):
+                problems.append(f"identity.filters carries unattested field {name!r}")
+
+    selected = plan.get("selected")
+    if not isinstance(selected, list):
+        problems.append(f"selected is an array, not {json_type_name(selected)}")
+        selected = None
+    else:
+        problems.extend(f"selected: {line}" for line in emission_problems(selected))
+
+    rejected = plan.get("rejected")
+    if not isinstance(rejected, list):
+        problems.append(f"rejected is an array, not {json_type_name(rejected)}")
+    else:
+        for index, row in enumerate(rejected):
+            if not isinstance(row, dict):
+                problems.append(f"rejected[{index}] is an object, not {json_type_name(row)}")
+            elif not isinstance(row.get("target_id"), str):
+                problems.append(f"rejected[{index}].target_id is a string, not "
+                                f"{json_type_name(row.get('target_id'))}")
+
+    # The set equality that makes the attestation mean anything — as an *ordered*
+    # comparison. A plan is canonical bytes, and its digest covers the order, so
+    # two plans differing only in the order of their ids are two plans. Set
+    # equality here would accept a permutation the digest already refuses, which
+    # is a check disagreeing with the thing it is checking.
+    if identity is not None and selected is not None:
+        attested = identity.get("selected_target_ids")
+        if not isinstance(attested, list) or not all(isinstance(x, str) for x in attested):
+            problems.append("identity.selected_target_ids is an array of strings, not "
+                            f"{json_type_name(attested)}")
+        else:
+            actual = [row.get("target_id") for row in selected if isinstance(row, dict)]
+            if len(actual) != len(selected):
+                problems.append("a selected entry has no target_id to attest")
+            elif actual != attested:
+                # Where they part, not just that they do. The position is a
+                # local fact; the ids are not printed here because a target id
+                # carries a model name the discovery source chose, and
+                # `emission_problems` already reports on those under its own
+                # boundary.
+                if len(actual) != len(attested):
+                    problems.append(
+                        f"identity attests {len(attested)} target(s) and selected carries "
+                        f"{len(actual)}")
+                else:
+                    first = next(i for i, (a, b) in enumerate(zip(actual, attested)) if a != b)
+                    differing = sum(1 for a, b in zip(actual, attested) if a != b)
+                    problems.append(
+                        f"identity and selected disagree at position {first} and in "
+                        f"{differing} position(s) overall")
+
+    recorded = plan.get("plan_sha256")
+    if not is_plan_digest(recorded):
+        problems.append("plan_sha256 is not a sha256 digest")
+        recorded = None
+    if identity is not None:
+        recomputed = sha256_bytes(canonical_bytes(identity))
+        if recorded is not None and recorded != recomputed:
+            problems.append("plan_sha256 is not the digest of this plan's identity")
+
+    # The external half. Deliberately not read out of the plan: an expectation
+    # taken from the artifact it is meant to bind is a signature checking itself.
+    if not is_plan_digest(expected_sha256):
+        problems.append("the expected plan digest is not a sha256 digest")
+    elif recorded is not None and expected_sha256 != recorded:
+        problems.append("this plan is not the plan that was reviewed")
+    return problems
+
+
+def refuse_unreviewed_plan(plan: Any, expected_sha256: Any) -> None:
+    problems = plan_problems(plan, expected_sha256)
+    if problems:
+        raise ValueError("the plan cannot be executed: " + "; ".join(problems))
 
 
 def build_plan(catalog: dict[str, Any], args: argparse.Namespace) -> dict[str, Any]:
@@ -2032,6 +2246,12 @@ def canonical_target_id(provider: str, model: str) -> str:
 def emission_problems(selected: list) -> list[str]:
     """Everything about a plan's output that is knowable before writing it.
 
+    Reached from exactly one place: `plan_problems`. It had a second caller in
+    `main` for one commit, and that call could have been deleted without any
+    oracle noticing, because the plan boundary above it already asked the same
+    question — a check indistinguishable from its own absence, added by the
+    round that introduced the boundary. One door.
+
     Returned rather than raised, and all of them rather than the first: a caller
     that has to fix three collisions one run at a time learns them one run at a
     time. The order is stable so two runs over one plan say the same thing.
@@ -2087,12 +2307,6 @@ def emission_problems(selected: list) -> list[str]:
         else:
             pairs[pair] = index
     return problems
-
-
-def refuse_emission(selected: list) -> None:
-    problems = emission_problems(selected)
-    if problems:
-        raise ValueError("the plan cannot be emitted: " + "; ".join(problems))
 
 
 def receipt_filename(target_id: str) -> str:
@@ -4342,6 +4556,95 @@ def emit_receipt(out_dir: Path, index: int, total: int, target_id: str,
     return None
 
 
+# ---------------------------------------------------------------------------
+# A result directory is a generation, not a bag of JSON files
+# ---------------------------------------------------------------------------
+#
+# Both commands did `mkdir(parents=True, exist_ok=True)` and wrote this plan's
+# receipts into whatever was already there. A previous run selecting A, B, C
+# followed by a plan selecting A, B leaves A, B, C — and C reads as a result of
+# the second plan, in which it was never executed. R20.3 proved the map from a
+# selected target to an output path is injective; nothing proved the published
+# set is *exactly* this plan's.
+#
+# Deleting the old `*.json` first would trade one wrong state for a worse one: a
+# complete previous set removed, the new set half written, the process dead, and
+# a directory that is now neither result. So the receipts are written somewhere
+# private, the set is checked against what the plan attests, and only then does
+# the directory become visible under its final name — one rename, which the
+# filesystem makes atomic when the two paths are siblings.
+#
+# The final path must not already exist. Overwriting is not offered as a mode:
+# a second run wants a new generation, and choosing to discard the previous one
+# is the caller's decision to state, not this program's to assume.
+
+STAGING_PREFIX = ".staging-"
+
+
+def staging_beside(final: Path) -> Path:
+    """A private directory beside the final one, on the same filesystem.
+
+    Beside rather than in the system temp directory, because the publication is
+    a rename and a rename across filesystems is not atomic — it is a copy, which
+    can be interrupted halfway and leave exactly the partial result this whole
+    arrangement exists to prevent.
+
+    The name is dotted and prefixed so an interrupted run leaves something a
+    consumer reads as debris rather than as a generation.
+    """
+    return final.parent / f"{STAGING_PREFIX}{final.name}"
+
+
+def destination_problems(final: Path) -> list[str]:
+    """Whether this path is available to become a generation."""
+    problems = []
+    if final.exists():
+        problems.append(f"{final.name} already exists; a result directory is a generation, "
+                        "so publishing over one is the caller's decision to make explicitly")
+    staging = staging_beside(final)
+    if staging.exists():
+        problems.append(f"{staging.name} is left over from an interrupted run and would be "
+                        "published as this run's result")
+    return problems
+
+
+def published_set_problems(staging: Path, expected: list[str]) -> list[str]:
+    """The staged set, against the set the plan attests, exactly.
+
+    Both directions. A missing receipt is an incomplete matrix presented as a
+    complete one; an extra file is something this run did not produce being
+    published as though it had.
+    """
+    try:
+        actual = {entry.name for entry in staging.iterdir()}
+    except OSError as exc:
+        return [f"the staged result could not be read: {type(exc).__name__}"]
+    wanted = set(expected)
+    problems = []
+    problems.extend(f"the staged result is missing a receipt for {name}"
+                    for name in sorted(wanted - actual))
+    problems.extend(f"the staged result carries {name}, which this plan did not select"
+                    for name in sorted(actual - wanted))
+    if not problems and len(actual) != len(expected):
+        problems.append(f"the plan selected {len(expected)} target(s) and the staged result "
+                        f"holds {len(actual)} receipt(s)")
+    return problems
+
+
+def discard_staging(staging: Path) -> None:
+    """Best effort. A failure here is not worth losing the real diagnostic to."""
+    with contextlib.suppress(OSError):
+        shutil.rmtree(staging)
+
+
+def publish(staging: Path, final: Path) -> str | None:
+    try:
+        staging.rename(final)
+    except OSError as exc:
+        return f"the completed result could not be published: {type(exc).__name__}"
+    return None
+
+
 def report_write_problems(problems: list[str]) -> int:
     """The run continued; it did not succeed. Both halves have to be said.
 
@@ -4374,12 +4677,17 @@ def parser() -> argparse.ArgumentParser:
     probe = sub.add_parser("probe")
     probe.add_argument("--plan", type=Path, required=True)
     probe.add_argument("--out-dir", type=Path, required=True)
+    # The expectation arrives from outside the artifact it binds. Required, not
+    # defaulted: a default would be this program deciding which plan was
+    # reviewed, which is the question being asked.
+    probe.add_argument("--expect-plan-sha256", required=True)
     probe.add_argument("--timeout", type=float, default=30.0)
     add_registry_flag(probe)
     qualify = sub.add_parser("qualify")
     qualify.add_argument("--plan", type=Path, required=True)
     qualify.add_argument("--surface", type=Path, required=True)
     qualify.add_argument("--out-dir", type=Path, required=True)
+    qualify.add_argument("--expect-plan-sha256", required=True)
     qualify.add_argument("--timeout", type=float, default=60.0)
     qualify.add_argument("--max-turns", type=int, default=6)
     add_registry_flag(qualify)
@@ -4387,54 +4695,86 @@ def parser() -> argparse.ArgumentParser:
 
 
 def main() -> int:
+    """One pipeline, and no step below runs unless the one above it is proven.
+
+        untrusted plan bytes
+          -> admission and internal consistency
+          -> external binding to a reviewed digest
+          -> per-target emission preflight
+          -> the final destination is available
+          -> a private staging directory exists
+          -> the key is read and a sender is built
+          -> receipts are produced and staged
+          -> the staged set is exactly what the plan attests
+          -> one rename publishes the generation
+
+    The order is the contract. A key read before the plan is validated is a
+    credential spent on an artifact nobody vouched for, and a directory created
+    before the destination is checked is a partial result with a good name.
+    """
     args = parser().parse_args()
     try:
         if args.command == "import":
             write_json(args.out, import_catalog(args.source, args.observed_at, load_registry(args.registry)))
-        elif args.command == "plan":
+            return 0
+        if args.command == "plan":
             write_json(args.out, build_plan(read_json(args.catalog), args))
-        elif args.command == "probe":
-            plan = read_json(args.plan)
-            if plan.get("schema") != PLAN_SCHEMA:
-                raise ValueError(f"expected {PLAN_SCHEMA}")
-            registry = load_registry(args.registry)
-            refuse_emission(plan["selected"])
-            args.out_dir.mkdir(parents=True, exist_ok=True)
-            selected = plan["selected"]
+            return 0
+
+        plan = read_json(args.plan)
+        refuse_unreviewed_plan(plan, args.expect_plan_sha256)
+        selected = plan["selected"]
+
+        problems = destination_problems(args.out_dir)
+        if problems:
+            return report_write_problems(problems)
+
+        surface = load_surface(args.surface) if args.command == "qualify" else None
+        registry = load_registry(args.registry)
+
+        staging = staging_beside(args.out_dir)
+        try:
+            staging.mkdir(parents=True)
+        except OSError as exc:
+            return report_write_problems(
+                [f"the staging directory could not be created: {type(exc).__name__}"])
+
+        try:
             problems = []
             for index, target in enumerate(selected):
-                receipt = guarded_receipt(
-                    PROBE_SCHEMA, target,
-                    lambda t=target: probe_target(t, args.timeout, None, registry))
-                problem = emit_receipt(args.out_dir, index, len(selected),
+                if args.command == "probe":
+                    receipt = guarded_receipt(
+                        PROBE_SCHEMA, target,
+                        lambda t=target: probe_target(t, args.timeout, None, registry))
+                else:
+                    receipt = guarded_receipt(
+                        QUALIFY_SCHEMA, target, lambda t=target: qualify_target(
+                            t, surface, args.timeout, args.max_turns,
+                            key_bound_sender(t["key_env"]), registry))
+                problem = emit_receipt(staging, index, len(selected),
                                        target["target_id"], receipt)
                 if problem is not None:
                     problems.append(problem)
-            return report_write_problems(problems)
-        else:
-            plan = read_json(args.plan)
-            if plan.get("schema") != PLAN_SCHEMA:
-                raise ValueError(f"expected {PLAN_SCHEMA}")
-            surface = load_surface(args.surface)
-            registry = load_registry(args.registry)
-            refuse_emission(plan["selected"])
-            args.out_dir.mkdir(parents=True, exist_ok=True)
-            selected = plan["selected"]
-            problems = []
-            for index, target in enumerate(selected):
-                receipt = guarded_receipt(QUALIFY_SCHEMA, target, lambda t=target: qualify_target(
-                    t, surface, args.timeout, args.max_turns,
-                    key_bound_sender(t["key_env"]), registry,
-                ))
-                problem = emit_receipt(args.out_dir, index, len(selected),
-                                       target["target_id"], receipt)
-                if problem is not None:
-                    problems.append(problem)
-            return report_write_problems(problems)
+            problems.extend(published_set_problems(
+                staging, [receipt_filename(row["target_id"]) for row in selected]))
+            if problems:
+                # Nothing is published. A directory holding a prefix of the
+                # answer reads as the answer, and that is worse than no answer.
+                discard_staging(staging)
+                return report_write_problems(problems)
+            failure = publish(staging, args.out_dir)
+            if failure is not None:
+                discard_staging(staging)
+                return report_write_problems([failure])
+            return 0
+        except BaseException:
+            # Including KeyboardInterrupt: an interrupted run must not leave a
+            # staged prefix behind for the next one to publish.
+            discard_staging(staging)
+            raise
     except (OSError, ValueError, json.JSONDecodeError) as exc:
         print(f"provider-matrix: {exc}", file=sys.stderr)
         return 2
-    return 0
 
 
 if __name__ == "__main__":

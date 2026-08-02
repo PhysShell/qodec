@@ -6286,6 +6286,31 @@ class EmissionPreflightTests(unittest.TestCase):
         return {"target_id": pm.canonical_target_id(provider, model),
                 "provider": provider, "model": model}
 
+    def plan(self, rows):
+        """A plan that satisfies R21.1 exactly, so R20.3 is what a witness meets.
+
+        The emission preflight now sits *behind* the plan boundary, and a
+        witness that could not get past the boundary would prove the boundary
+        and say nothing about the preflight.
+        """
+        identity = {"catalog_sha256": "0" * 64,
+                    "filters": {"free_only": False, "no_card": False, "no_training": False},
+                    "selected_target_ids": [row["target_id"] for row in rows]}
+        return {"schema": pm.PLAN_SCHEMA, "identity": identity,
+                "plan_sha256": pm.sha256_bytes(pm.canonical_bytes(identity)),
+                "selected": rows, "rejected": []}
+
+    def run_cli(self, command, plan, out, extra=(), expect=None):
+        path = Path(out).parent / "plan.json"
+        path.write_text(json.dumps(plan), encoding="utf-8")
+        argv = ["provider_matrix.py", command, "--plan", str(path), "--out-dir", str(out),
+                "--expect-plan-sha256",
+                plan["plan_sha256"] if expect is None else expect, *extra]
+        with patch.object(sys, "argv", argv), \
+                contextlib.redirect_stderr(io.StringIO()) as err:
+            code = pm.main()
+        return code, err.getvalue()
+
     def test_the_separator_cannot_appear_on_the_side_that_must_not_carry_it(self):
         with self.assertRaises(ValueError) as caught:
             pm.canonical_target_id("a--b", "c")
@@ -6362,60 +6387,41 @@ class EmissionPreflightTests(unittest.TestCase):
         # The whole point of a preflight is *where* it sits in the sequence, and
         # only the sequence can show that.
         with tempfile.TemporaryDirectory() as td:
-            plan_path, out = Path(td) / "plan.json", Path(td) / "receipts"
+            out = Path(td) / "receipts"
             rows = [self.target("groq", "m"), self.target("groq", "m")]
-            plan_path.write_text(json.dumps(
-                {"schema": pm.PLAN_SCHEMA, "selected": rows, "rejected": []}), encoding="utf-8")
-            argv = ["provider_matrix.py", "probe", "--plan", str(plan_path),
-                    "--out-dir", str(out)]
-            with patch.object(sys, "argv", argv), \
-                    contextlib.redirect_stderr(io.StringIO()) as err:
-                code = pm.main()
+            code, err = self.run_cli("probe", self.plan(rows), out)
             self.assertEqual(code, 2)
-            self.assertIn("cannot be emitted", err.getvalue())
+            self.assertIn("repeats selected[0]", err)
             # Not "fewer receipts than targets" — none. A directory that exists
             # and holds a prefix of the answer reads as the answer.
-            self.assertFalse(out.exists() and any(out.iterdir()))
+            self.assertFalse(out.exists())
 
     def test_nothing_is_written_when_the_qualification_preflight_refuses(self):
         # The other loop. One end-to-end witness covered `probe` and the
-        # mutation aimed at `qualify` survived: two emission paths, one proof,
-        # and the number said both. A branch that exists and is never run is the
-        # defect this round keeps finding — here in the proofs rather than in
-        # the code they are about.
+        # mutation aimed at `qualify` was invisible: two emission paths, one
+        # proof, and the count said both.
         with tempfile.TemporaryDirectory() as td:
-            plan_path, out = Path(td) / "plan.json", Path(td) / "receipts"
+            out = Path(td) / "receipts"
             rows = [self.target("groq", "m"), self.target("groq", "m")]
-            plan_path.write_text(json.dumps(
-                {"schema": pm.PLAN_SCHEMA, "selected": rows, "rejected": []}), encoding="utf-8")
-            argv = ["provider_matrix.py", "qualify", "--plan", str(plan_path),
-                    "--surface", str(Path(__file__).resolve().parent / "c1-panel-surface.json"),
-                    "--out-dir", str(out)]
-            with patch.object(sys, "argv", argv), \
-                    contextlib.redirect_stderr(io.StringIO()) as err:
-                code = pm.main()
+            surface = str(Path(__file__).resolve().parent / "c1-panel-surface.json")
+            code, err = self.run_cli("qualify", self.plan(rows), out, ("--surface", surface))
             self.assertEqual(code, 2)
-            self.assertIn("cannot be emitted", err.getvalue())
-            self.assertFalse(out.exists() and any(out.iterdir()))
+            self.assertIn("repeats selected[0]", err)
+            self.assertFalse(out.exists())
 
     def test_a_plan_that_passes_the_preflight_still_reaches_the_writing(self):
         # The other half of the same wiring: a preflight that refused everything
-        # would satisfy the test above and emit nothing, ever. No key is present
-        # and none is asked for — `guarded_receipt` turns the missing
+        # would satisfy the tests above and emit nothing, ever. No key is
+        # present and none is asked for — `guarded_receipt` turns the missing
         # environment variable into a receipt, which is the point.
         with tempfile.TemporaryDirectory() as td:
-            plan_path, out = Path(td) / "plan.json", Path(td) / "receipts"
+            out = Path(td) / "receipts"
             rows = [self.target("groq", f"m{n}") for n in range(3)]
             for row in rows:
                 row.update(api_base="https://api.groq.com/openai/v1",
                            api_style="openai-chat", key_env="QODEC_ABSENT_KEY_FOR_TESTS")
-            plan_path.write_text(json.dumps(
-                {"schema": pm.PLAN_SCHEMA, "selected": rows, "rejected": []}), encoding="utf-8")
-            argv = ["provider_matrix.py", "probe", "--plan", str(plan_path),
-                    "--out-dir", str(out), "--timeout", "0.01"]
-            with patch.object(sys, "argv", argv), \
-                    contextlib.redirect_stderr(io.StringIO()):
-                pm.main()
+            code, _err = self.run_cli("probe", self.plan(rows), out, ("--timeout", "0.01"))
+            self.assertEqual(code, 0)
             self.assertEqual(len(list(out.iterdir())), len(rows))
 
 

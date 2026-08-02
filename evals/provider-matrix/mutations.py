@@ -1752,39 +1752,17 @@ MUTATIONS = [
      "        if False:\n"
      "            problems.append(f\"{where}: provider/model {pair!r} repeats selected[{pairs[pair]}]\")"),
 
-    ("EM6 the probe writes its first receipts before the plan is checked",
-     "            refuse_emission(plan[\"selected\"])\n"
-     "            args.out_dir.mkdir(parents=True, exist_ok=True)\n"
-     "            selected = plan[\"selected\"]\n"
-     "            problems = []\n"
-     "            for index, target in enumerate(selected):\n"
-     "                receipt = guarded_receipt(\n"
-     "                    PROBE_SCHEMA, target,",
-     "            args.out_dir.mkdir(parents=True, exist_ok=True)\n"
-     "            selected = plan[\"selected\"]\n"
-     "            problems = []\n"
-     "            for index, target in enumerate(selected):\n"
-     "                receipt = guarded_receipt(\n"
-     "                    PROBE_SCHEMA, target,"),
+    # EM6 and EM7 aimed at two emission loops that no longer exist. Round
+    # twenty-one gave `probe` and `qualify` one pipeline, because the plan
+    # boundary, the destination check and the staged publication are the same
+    # for both and duplicating them was how the second loop went unwitnessed in
+    # the first place. What the two specs were really testing — that validation
+    # precedes the first side effect — is now `PI7` and `RS1`, aimed at the one
+    # ordering that exists.
 
-    ("EM7 the qualification writes its first receipts before the plan is checked",
-     "            refuse_emission(plan[\"selected\"])\n"
-     "            args.out_dir.mkdir(parents=True, exist_ok=True)\n"
-     "            selected = plan[\"selected\"]\n"
-     "            problems = []\n"
-     "            for index, target in enumerate(selected):\n"
-     "                receipt = guarded_receipt(QUALIFY_SCHEMA, target,",
-     "            args.out_dir.mkdir(parents=True, exist_ok=True)\n"
-     "            selected = plan[\"selected\"]\n"
-     "            problems = []\n"
-     "            for index, target in enumerate(selected):\n"
-     "                receipt = guarded_receipt(QUALIFY_SCHEMA, target,"),
-
-    ("EM8 the preflight reports the first problem and stops",
-     "    problems = emission_problems(selected)\n"
-     "    if problems:",
-     "    problems = emission_problems(selected)[:0]\n"
-     "    if problems:"),
+    ("EM8 the emission preflight reports the first problem and stops",
+     "        problems.extend(f\"selected: {line}\" for line in emission_problems(selected))",
+     "        problems.extend(f\"selected: {line}\" for line in emission_problems(selected)[:1])"),
 
     ("MH5 the expected killer is no longer required at all",
      "    if expected is not None:\n"
