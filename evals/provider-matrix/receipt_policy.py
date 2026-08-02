@@ -1911,17 +1911,43 @@ def totality_problems(auditor: Callable[..., list[str]] | None = None,
 
 
 def declared_places(policies: list[DurableFieldPolicy] | None = None) -> set:
-    """Every path the policy table names, together with its containers.
+    """Every path the policy table names.
 
-    `turns[].tool_calls[]` is not a leaf any policy declares, but it is a place
-    the auditor descends through, and a corpus that never puts a hostile value
-    *there* has never asked what happens when a tool call is a string.
+    This was written as "every path, *together with its containers*", expanding
+    each policy path into all its prefixes so that `turns[].tool_calls[]` would
+    count as declared even if only its members were. The mutation aimed at that
+    expansion survived, and the reason is that it produced no path the table did
+    not already contain: `declared_places() - {p.path for p in POLICIES}` is
+    empty, exactly and always.
+
+    Which means the expansion was not a convenience — it was hiding a stronger
+    fact. The table is a closed world: every container on a declared path is
+    itself declared, by a policy that says what shape it must be. Expanding
+    prefixes here would let a leaf sit under a container nobody named and still
+    look accounted for. So the expansion is gone and the property it was
+    papering over is checked below instead.
     """
-    places = set()
-    for policy in (POLICIES if policies is None else policies):
-        for stop in range(1, len(policy.path) + 1):
-            places.add(policy.path[:stop])
-    return places
+    return {policy.path for policy in (POLICIES if policies is None else policies)}
+
+
+def unnamed_containers(policies: list[DurableFieldPolicy] | None = None) -> list[str]:
+    """Declared paths whose containers the table does not name.
+
+    A leaf under an unnamed container is a place the auditor descends through
+    with no opinion about what it is. `turns[].tool_calls[].ordinal` bounded by
+    an ordinal ceiling says nothing at all if `turns[].tool_calls[]` may be a
+    string, and every reader of the deeper path would have to re-derive the
+    shape of the shallower one for itself.
+    """
+    rows = POLICIES if policies is None else policies
+    named = {policy.path for policy in rows}
+    problems = []
+    for path in sorted(named, key=render_path):
+        for stop in range(1, len(path)):
+            if path[:stop] not in named:
+                problems.append(f"{render_path(path)} sits under {render_path(path[:stop])}, "
+                                "which no policy names")
+    return problems
 
 
 def coverage_problems(tally: Reached, required: tuple = WITNESS_REQUIRED) -> list[str]:
@@ -2186,6 +2212,23 @@ def self_test() -> int:
                       context_keys=reach.context_keys - {"key_env"})
     if not any("key_env" in problem for problem in coverage_problems(starved)):
         print("FAIL the coverage gate does not notice an uncovered context fact")
+        return 1
+
+    # The table is a closed world downward as well as outward: a leaf whose
+    # container nobody names is a place the auditor descends through with no
+    # opinion about what it is.
+    unnamed = unnamed_containers()
+    if unnamed:
+        print("FAIL a declared path sits under a container no policy names")
+        for problem in unnamed[:10]:
+            print(f"  {problem}")
+        return 1
+    orphaned_leaf = [policy for policy in POLICIES
+                     if policy.path != P("turns", EACH)] + [
+        DurableFieldPolicy(P("turns", EACH, "invented"), Shape("object"), (QUALIFICATION,))]
+    if not any("which no policy names" in problem
+               for problem in unnamed_containers(orphaned_leaf)):
+        print("FAIL a leaf under an unnamed container was not reported")
         return 1
 
     # The closure's own positive control: a bounded policy nobody enforces must

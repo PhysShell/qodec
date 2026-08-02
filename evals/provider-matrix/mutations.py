@@ -1603,11 +1603,30 @@ MUTATIONS = [
      "    fictional = []",
      "receipt_policy.py"),
 
-    ("NP6 the declared places stop including the containers walked through",
-     "        for stop in range(1, len(policy.path) + 1):\n"
-     "            places.add(policy.path[:stop])",
-     "        places.add(policy.path)",
+    # NP6 was written against a prefix expansion in `declared_places` and
+    # survived the round-twenty run — because that expansion produced no path
+    # the table did not already hold, so deleting it changed nothing. The
+    # expansion was a tautology wearing the clothes of a check, and it was
+    # hiding the property that made it a tautology: the table names every
+    # container on every declared path. The spec is retargeted onto that
+    # property, which a mutation *can* break.
+
+    ("NP6 a leaf may sit under a container no policy names",
+     "        for stop in range(1, len(path)):\n"
+     "            if path[:stop] not in named:",
+     "        for stop in range(1, 1):\n"
+     "            if path[:stop] not in named:",
      "receipt_policy.py"),
+
+    # Two more were written for this closure and are not shipped, because both
+    # would survive and I know why. Deleting the gate's *call* to
+    # `unnamed_containers` is invisible: the shipped table has no unnamed
+    # container, so the arm is silent either way — which is true of every gate
+    # arm checking a property that currently holds, and is why `BC1`/`BC2`
+    # anchor detectors rather than call sites. And restoring the prefix
+    # expansion in `declared_places` is provably an identity on a closed table,
+    # so it cannot be observed at all. A mutation known to survive proves
+    # nothing and inflates the denominator.
 
     ("NP7 only the first occurrence of an array is addressable, and it is the wrong one",
      "        for index, element in enumerate(node):\n"

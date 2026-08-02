@@ -6143,6 +6143,75 @@ class CleanTreeIsolationTests(unittest.TestCase):
         self.assertTrue(any("leftover.tmp" in line for line in found), found)
 
 
+class CertificateInputTests(unittest.TestCase):
+    """The numbers `template_max_bytes` adds up are applied where they are set.
+
+    R20.1 introduced `KEY_ENV_MAX_BYTES` and `DISCRIMINATOR_MAX_BYTES`, applied
+    each of them at its constructor, and anchored neither. Both mutations
+    survived the round-twenty run: deleting the enforcement changed nothing any
+    oracle could see. The certificate that says a `Prose` field cannot exceed
+    `DETAIL_MAX_BYTES` sums these two into every template carrying a `key-env`
+    or `discriminator` slot, so an unenforced bound does not make a line
+    slightly longer than advertised — it makes the arithmetic of the `Derive`
+    entry on `detail` false, which is the defect this round opened with.
+
+    Witnesses at the bound and one past it, in the shape `BoundClosureTests`
+    uses: the passing case is what stops the refusing case from being satisfied
+    by a constructor that refuses everything.
+    """
+
+    def registry(self, key_env):
+        return {"schema": pm.REGISTRY_SCHEMA, "providers": {"p": {
+            "api_base": "https://api.example.com/v1", "api_style": "openai-chat",
+            "key_env": key_env}}}
+
+    def test_a_key_env_at_the_bound_is_accepted(self):
+        at_bound = "A" * pm.KEY_ENV_MAX_BYTES
+        self.assertEqual(len(at_bound.encode("utf-8")), pm.KEY_ENV_MAX_BYTES)
+        normalized = pm.normalize_registry(self.registry(at_bound))
+        self.assertEqual(normalized["providers"]["p"]["key_env"], at_bound)
+
+    def test_a_key_env_one_past_the_bound_is_refused(self):
+        past = "A" * (pm.KEY_ENV_MAX_BYTES + 1)
+        with self.assertRaises(ValueError) as caught:
+            pm.normalize_registry(self.registry(past))
+        self.assertIn("implausible key_env", str(caught.exception))
+
+    def test_the_key_env_bound_is_measured_in_bytes_not_characters(self):
+        # The pattern admits only ASCII, so a multi-byte name is refused before
+        # the length check — which is why the length check must not be the
+        # thing that reads as "and it is short enough in characters".
+        self.assertEqual(pm.slot_max_bytes("key-env"), pm.KEY_ENV_MAX_BYTES)
+
+    def test_a_discriminator_word_at_the_bound_is_accepted(self):
+        # `repr` is what gets rendered, so the bound is measured on it.
+        word = "a" * (pm.DISCRIMINATOR_MAX_BYTES - 2)
+        built = pm.Discriminator(domain="json-value", known=word)
+        self.assertEqual(len(built.render().encode("utf-8")), pm.DISCRIMINATOR_MAX_BYTES)
+
+    def test_a_discriminator_word_one_past_the_bound_is_refused(self):
+        word = "a" * (pm.DISCRIMINATOR_MAX_BYTES - 1)
+        with self.assertRaises(ValueError) as caught:
+            pm.Discriminator(domain="json-value", known=word)
+        self.assertIn("longer than the local bound", str(caught.exception))
+
+    def test_the_certificate_reads_the_discriminator_bound(self):
+        self.assertEqual(pm.slot_max_bytes("discriminator"), pm.DISCRIMINATOR_MAX_BYTES)
+
+    # That the *shipped* table has no unnamed container is checked by this
+    # module's own gate, once. Asserting it here as well would be a second copy
+    # of one fact, and the copy the mutation harness cannot distinguish from
+    # its own absence. What the suite owns is the detector: a table that does
+    # have an unnamed container must be reported, or the gate arm above is a
+    # check that cannot fail.
+
+    def test_a_leaf_under_an_unnamed_container_is_reported(self):
+        rows = [policy for policy in receipt_policy.POLICIES
+                if policy.path != receipt_policy.P("turns", receipt_policy.EACH)]
+        self.assertTrue(any("which no policy names" in line
+                            for line in receipt_policy.unnamed_containers(rows)))
+
+
 class NestedCorpusTests(unittest.TestCase):
     """The malformed corpus walks structural paths, not member names.
 
