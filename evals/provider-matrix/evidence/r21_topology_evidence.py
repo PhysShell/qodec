@@ -35,7 +35,7 @@ import sys
 import tempfile
 
 HERE = pathlib.Path(__file__).resolve().parent
-MATRIX = HERE.parents[1]
+MATRIX = HERE.parent
 sys.path.insert(0, str(MATRIX))
 
 BASELINE_HEAD = "3ba3a3896dca952a76f20c6507ae654b50b6408a"
