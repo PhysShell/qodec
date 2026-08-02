@@ -80,6 +80,14 @@ jobs:
       # the step that existed to prove the harness left nothing behind would
       # have stayed green while printing the mess. This asserts on output, over
       # the whole checkout, and `--self-test` proves it can say otherwise.
+      # A README that has become false reads exactly like one that is true, so
+      # the claims it makes about the code are asked of the code. `--self-test`
+      # first: a gate whose positive controls are not run is a gate that reports
+      # OK for whatever reason it likes.
+      - name: The README gate can fail
+        run: python3 evals/provider-matrix/check_readme.py --self-test
+      - name: The README states what this code does
+        run: python3 evals/provider-matrix/check_readme.py
       - name: The clean-tree check can fail
         run: python3 evals/provider-matrix/check_clean_tree.py --self-test
       - name: The mutation harness left the tree byte-clean

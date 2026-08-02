@@ -1438,9 +1438,17 @@ direction on either receipt kind; **49 JSON admission cases** against the live
 `serde_json` oracle, one of them refused here on purpose; and a byte-clean
 checkout asserted by a check that proves it can say otherwise.
 
-Every classification above except `NO_TERMINAL_ANSWER` is reached in one table
-in `test_every_classification_is_declared`, and that one has its own
-budget-exhaustion test; the table asserts the remainder is exactly
-`{NO_TERMINAL_ANSWER}`, so adding a cause without reaching it turns the suite
-red. A qualification whose failure paths can only be exercised against a real
+Every classification above except two is reached in one table in
+`test_every_classification_is_declared`; the table asserts the remainder is
+exactly `{NO_TERMINAL_ANSWER, INTERNAL_ERROR}`, so adding a cause without
+reaching it turns the suite red. Both exceptions are reached elsewhere —
+`NO_TERMINAL_ANSWER` by the budget-exhaustion test, `INTERNAL_ERROR` by
+`MatrixIsolationTests` — because the table drives the loop with a scripted
+sender and neither cause comes from a reply.
+
+This paragraph named one of the two for several rounds while the assertion
+named both, and it read exactly like a true one. It is checked now:
+`ReadmeContractTests` compares the set spelled here against the set the suite
+asserts, and the two classification blocks above against the tuples the code
+emits from. A qualification whose failure paths can only be exercised against a real
 provider is a qualification whose failure paths are never exercised.

@@ -193,6 +193,22 @@ class ProviderMatrixTests(unittest.TestCase):
 # ---------------------------------------------------------------------------
 
 
+# The classifications this table does not reach. Imported rather than repeated:
+# the prose said `{NO_TERMINAL_ANSWER}` while the assertion said two names, and
+# both read as authoritative. `check_readme.py` owns the spelling and compares
+# the README against it.
+def _unreached_by_the_table():
+    import importlib.util
+    path = Path(__file__).resolve().parent / "check_readme.py"
+    spec = importlib.util.spec_from_file_location("check_readme_const", path)
+    module = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(module)
+    return module.UNREACHED_BY_THE_TABLE
+
+
+UNREACHED_BY_THE_TABLE = _unreached_by_the_table()
+
+
 def surface() -> dict:
     """The frozen C1 surface, read from the committed artifact.
 
@@ -532,10 +548,9 @@ class QualificationTests(unittest.TestCase):
         self.assertTrue(reached.issubset(set(pm.CLASSIFICATIONS)))
         # The two left out have their own tests: NO_TERMINAL_ANSWER in the
         # budget-exhaustion case above, INTERNAL_ERROR in MatrixIsolationTests.
-        self.assertEqual(
-            set(pm.CLASSIFICATIONS) - reached,
-            {"NO_TERMINAL_ANSWER", "INTERNAL_ERROR"},
-        )
+        # Named once, at module scope, because the README states this set too
+        # and a second spelling is a second thing to keep true.
+        self.assertEqual(set(pm.CLASSIFICATIONS) - reached, set(UNREACHED_BY_THE_TABLE))
 
     def test_a_model_id_with_a_slash_stays_one_receipt_file(self):
         """`openai/gpt-oss-120b` must not become a directory."""
@@ -6214,6 +6229,38 @@ class CleanTreeIsolationTests(unittest.TestCase):
                             and key not in {"GIT_CONFIG_GLOBAL", "GIT_CONFIG_SYSTEM",
                                             "GIT_CONFIG_NOSYSTEM", "GIT_TERMINAL_PROMPT"})
             self.assertEqual(leaked, [])
+
+
+class ReadmeContractTests(unittest.TestCase):
+    """The README gate, run as this suite runs every other gate.
+
+    The comparison itself lives in `check_readme.py` rather than here, and the
+    reason is a mutation that would have survived. A test asserting "the README
+    matches the code" cannot fail while the README matches, so deleting it
+    changes nothing any oracle sees — the exact shape this vertical spent three
+    rounds learning to refuse, and it was about to be added by the round whose
+    subject is that shape. In the gate the comparison is a function over
+    supplied text, its self-test feeds it seven deliberately wrong READMEs, and
+    breaking an arm turns a control red.
+    """
+
+    def gate(self):
+        import importlib.util
+        path = Path(__file__).resolve().parent / "check_readme.py"
+        spec = importlib.util.spec_from_file_location("check_readme", path)
+        module = importlib.util.module_from_spec(spec)
+        spec.loader.exec_module(module)
+        return module
+
+    def test_the_readme_gate_refuses_seven_wrong_readmes_and_passes_the_real_one(self):
+        with contextlib.redirect_stdout(io.StringIO()) as printed:
+            code = self.gate().self_test()
+        self.assertEqual(code, 0, printed.getvalue())
+        self.assertIn("controls refused", printed.getvalue())
+
+    def test_the_committed_readme_agrees_with_this_code(self):
+        with contextlib.redirect_stdout(io.StringIO()) as printed:
+            self.assertEqual(self.gate().main([]), 0, printed.getvalue())
 
 
 class EmissionPreflightTests(unittest.TestCase):

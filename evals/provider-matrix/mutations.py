@@ -1648,6 +1648,45 @@ MUTATIONS = [
      "            if registered not in pm.DETAIL_TEMPLATES:",
      "receipt_policy.py"),
 
+    # -- RD: the README's claims about this code are asked of this code --------
+    #
+    # Four were written against the *test* first and withdrawn: a test asserting
+    # "the README matches the code" cannot fail while it matches, so deleting it
+    # is invisible. The comparison is a function over supplied text instead, and
+    # these aim at its arms, which the gate's seven controls anchor.
+
+    ("RD1 a missing anchor reads as an empty block rather than as a finding",
+     "    if needle not in text:\n        return None",
+     "    if needle not in text:\n        return \"\"",
+     "check_readme.py"),
+
+    ("RD2 the README may list an outcome this code cannot emit",
+     "    for name in sorted(stated - emitted):\n"
+     "        problems.append(f\"{where}: the README lists {name}, which this code cannot emit\")",
+     "    for name in sorted(set()):\n"
+     "        problems.append(f\"{where}: the README lists {name}, which this code cannot emit\")",
+     "check_readme.py"),
+
+    ("RD3 the README may omit an outcome this code emits",
+     "    for name in sorted(emitted - stated):",
+     "    for name in sorted(set()):",
+     "check_readme.py"),
+
+    ("RD4 the stated remainder stops being compared to the asserted one",
+     "        problems.extend(compare(\"unreached remainder\", stated, set(UNREACHED_BY_THE_TABLE)))",
+     "        problems.extend([])",
+     "check_readme.py"),
+
+    ("RD5 the prose reader depends on where the line breaks fall",
+     "    return \" \".join(text.split())",
+     "    return text",
+     "check_readme.py"),
+
+    ("RD6 a literal NUL in the README stops being a finding",
+     "    if \"\\x00\" in text:",
+     "    if False:",
+     "check_readme.py"),
+
     # -- GE: the git environment is dropped wholesale, not by enumeration ------
     #
     # `HG1`/`HG2` prove the shipped verdict *accepts* isolation. They say
@@ -1833,6 +1872,7 @@ DISCOVERY_GATE = Oracle(
 CLEAN_TREE_GATE = Oracle(
     "clean-tree-gate", ("check_clean_tree.py", "--self-test"), GATE_ORACLE)
 POLICY_GATE = Oracle("policy-gate", ("receipt_policy.py", "--self-test"), GATE_ORACLE)
+README_GATE = Oracle("readme-gate", ("check_readme.py", "--self-test"), GATE_ORACLE)
 
 MUTATION_TARGETS: dict[str, tuple[Oracle, ...]] = {
     "provider_matrix.py": (SUITE, POLICY_GATE),
@@ -1845,6 +1885,7 @@ MUTATION_TARGETS: dict[str, tuple[Oracle, ...]] = {
     "process_boundary.py": (DISCOVERY_GATE, CLEAN_TREE_GATE, SUITE),
     "check_clean_tree.py": (CLEAN_TREE_GATE, SUITE),
     "check_test_discovery.py": (DISCOVERY_GATE, SUITE),
+    "check_readme.py": (README_GATE, SUITE),
 }
 
 RAN_TESTS = re.compile(r"^Ran (\d+) tests?", re.M)
