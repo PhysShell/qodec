@@ -3,6 +3,7 @@ import builtins
 import contextlib
 import re
 import hashlib
+import inspect
 import http.client
 import io
 import sys
@@ -6261,6 +6262,357 @@ class ReadmeContractTests(unittest.TestCase):
     def test_the_committed_readme_agrees_with_this_code(self):
         with contextlib.redirect_stdout(io.StringIO()) as printed:
             self.assertEqual(self.gate().main([]), 0, printed.getvalue())
+
+
+class PlanIdentityTests(unittest.TestCase):
+    """A plan is untrusted bytes until it agrees with itself and with a review.
+
+    `build_plan` wrote an identity and a digest over it; both commands read the
+    plan back and checked `schema` alone. Keeping the identity and the digest
+    and replacing `selected[]` produced receipts for a set nobody approved —
+    exit zero, no diagnostic, receipts under names the identity never mentions.
+
+    Two claims, and conflating them is how the first gets mistaken for proof.
+    Internal consistency is checkable from the file, and therefore forgeable by
+    whoever edits the file. External binding cannot be established by any
+    self-check, because every part of the evidence is inside the artifact being
+    questioned.
+    """
+
+    def rows(self, models):
+        entry = pm.load_registry()["providers"]["groq"]
+        return [{"target_id": pm.canonical_target_id("groq", model),
+                 "provider": "groq", "model": model, "api_base": entry["api_base"],
+                 "api_style": entry["api_style"],
+                 "key_env": "QODEC_ABSENT_KEY_FOR_TESTS"} for model in models]
+
+    def plan(self, models):
+        rows = self.rows(models)
+        identity = {"catalog_sha256": "0" * 64,
+                    "filters": {"free_only": False, "no_card": False, "no_training": False},
+                    "selected_target_ids": [row["target_id"] for row in rows]}
+        return {"schema": pm.PLAN_SCHEMA, "identity": identity,
+                "plan_sha256": pm.sha256_bytes(pm.canonical_bytes(identity)),
+                "selected": rows, "rejected": []}
+
+    def reseal(self, plan):
+        """Recompute the digest honestly, as a tamperer would."""
+        plan["plan_sha256"] = pm.sha256_bytes(pm.canonical_bytes(plan["identity"]))
+        return plan
+
+    def run_cli(self, plan, out, expect=None):
+        path = Path(out).parent / "plan.json"
+        path.write_text(json.dumps(plan), encoding="utf-8")
+        argv = ["provider_matrix.py", "probe", "--plan", str(path), "--out-dir", str(out),
+                "--expect-plan-sha256",
+                plan.get("plan_sha256") if expect is None else expect,
+                "--timeout", "0.01"]
+        with patch.object(sys, "argv", argv), \
+                contextlib.redirect_stderr(io.StringIO()) as err:
+            code = pm.main()
+        return code, err.getvalue()
+
+    def refused(self, plan, phrase, expect=None):
+        """Refused through the CLI, and nothing on disk. Both halves."""
+        with tempfile.TemporaryDirectory() as td:
+            out = Path(td) / "receipts"
+            code, err = self.run_cli(plan, out, expect)
+            self.assertEqual(code, 2, err)
+            self.assertIn(phrase, err)
+            self.assertFalse(out.exists(), "a refused plan left a result directory")
+            self.assertFalse(pm.staging_beside(out).exists(), "staging survived a refusal")
+
+    # -- the nine witnesses -------------------------------------------------
+
+    def test_selected_replaced_while_identity_and_digest_are_left_alone(self):
+        plan = self.plan(["approved-a", "approved-b"])
+        plan["selected"] = self.rows(["smuggled-x", "smuggled-y"])
+        self.refused(plan, "identity and selected disagree at position 0")
+
+    def test_the_attested_ids_are_permuted(self):
+        plan = self.plan(["a", "b"])
+        plan["identity"]["selected_target_ids"] = list(
+            reversed(plan["identity"]["selected_target_ids"]))
+        self.refused(self.reseal(plan), "disagree at position 0")
+
+    def test_one_selected_target_is_removed(self):
+        plan = self.plan(["a", "b", "c"])
+        del plan["selected"][1]
+        self.refused(plan, "identity attests 3 target(s) and selected carries 2")
+
+    def test_one_selected_target_is_added(self):
+        plan = self.plan(["a", "b"])
+        plan["selected"].extend(self.rows(["c"]))
+        self.refused(plan, "identity attests 2 target(s) and selected carries 3")
+
+    def test_the_recorded_digest_is_changed(self):
+        plan = self.plan(["a"])
+        plan["plan_sha256"] = "f" * 64
+        self.refused(plan, "not the digest of this plan's identity")
+
+    def test_an_honestly_resealed_plan_still_fails_the_reviewed_expectation(self):
+        # The witness that makes the external half load-bearing. A tamperer can
+        # rewrite the identity *and* recompute the digest; internal consistency
+        # then holds perfectly, and only an expectation from outside the file
+        # can tell that this is not the plan anyone reviewed.
+        reviewed = self.plan(["approved-a"])["plan_sha256"]
+        tampered = self.reseal(self.plan(["smuggled-x"]))
+        self.assertNotEqual(tampered["plan_sha256"], reviewed)
+        self.assertEqual(pm.plan_problems(tampered, tampered["plan_sha256"]), [])
+        self.refused(tampered, "not the plan that was reviewed", expect=reviewed)
+
+    def test_a_malformed_identity_is_a_diagnostic_not_a_traceback(self):
+        for identity in (None, 5, "text", [], {"catalog_sha256": []},
+                         {"catalog_sha256": "0" * 64, "filters": 7,
+                          "selected_target_ids": "a"},
+                         {"catalog_sha256": "0" * 64, "filters": {}, "extra": 1,
+                          "selected_target_ids": []}):
+            plan = self.plan(["a"])
+            plan["identity"] = identity
+            problems = pm.plan_problems(plan, "0" * 64)
+            self.assertTrue(problems, identity)
+            self.assertTrue(all(isinstance(line, str) for line in problems))
+
+    def test_a_malformed_selected_is_a_diagnostic_not_a_traceback(self):
+        for selected in (None, 5, "text", {}, [None], [5], [{"target_id": 7}],
+                         [{"provider": "groq"}], [[]]):
+            plan = self.plan(["a"])
+            plan["selected"] = selected
+            problems = pm.plan_problems(plan, plan["plan_sha256"])
+            self.assertTrue(problems, selected)
+            self.assertTrue(all(isinstance(line, str) for line in problems))
+
+    def test_a_reviewed_plan_reaches_execution(self):
+        # Mandatory. A boundary that refuses everything satisfies all eight
+        # tests above and proves nothing about usefulness.
+        with tempfile.TemporaryDirectory() as td:
+            out = Path(td) / "receipts"
+            plan = self.plan(["m0", "m1", "m2"])
+            code, err = self.run_cli(plan, out)
+            self.assertEqual(code, 0, err)
+            self.assertEqual(len(list(out.iterdir())), 3)
+
+    # -- the shape of the digest itself --------------------------------------
+
+    def test_a_digest_is_a_digest_and_not_merely_a_string(self):
+        # `plan_sha256: ""` against `--expect-plan-sha256 ""` is a match, and
+        # every comparison downstream would have passed.
+        for value in ("", "yes", "0" * 63, "0" * 65, "G" * 64, "0" * 64 + " ", None, 7):
+            self.assertFalse(pm.is_plan_digest(value), value)
+        self.assertTrue(pm.is_plan_digest("0" * 64))
+        self.assertTrue(pm.is_plan_digest("abcdef0123456789" * 4))
+
+    def test_an_empty_expectation_does_not_match_an_empty_recorded_digest(self):
+        plan = self.plan(["a"])
+        plan["plan_sha256"] = ""
+        self.refused(plan, "plan_sha256 is not a sha256 digest", expect="")
+
+    def test_the_expectation_is_never_read_out_of_the_plan(self):
+        # A signature that checks itself. If the expectation were sourced from
+        # the artifact, the honestly-resealed plan above would execute.
+        source = inspect.getsource(pm.main)
+        self.assertIn("args.expect_plan_sha256", source)
+        self.assertNotIn('plan["plan_sha256"]', source)
+        self.assertNotIn('plan.get("plan_sha256")', source)
+
+
+class ResultGenerationTests(unittest.TestCase):
+    """A result directory is a generation, not a bag of JSON files.
+
+    R20.3 proved the map from a selected target to an output path is injective.
+    Nothing proved the published set is exactly this plan's — so a run selecting
+    A, B into a directory left by a run selecting A, B, C published C as its own
+    result, in which it was never executed.
+    """
+
+    def rows(self, models):
+        entry = pm.load_registry()["providers"]["groq"]
+        return [{"target_id": pm.canonical_target_id("groq", model),
+                 "provider": "groq", "model": model, "api_base": entry["api_base"],
+                 "api_style": entry["api_style"],
+                 "key_env": "QODEC_ABSENT_KEY_FOR_TESTS"} for model in models]
+
+    def plan(self, models):
+        rows = self.rows(models)
+        identity = {"catalog_sha256": "0" * 64,
+                    "filters": {"free_only": False, "no_card": False, "no_training": False},
+                    "selected_target_ids": [row["target_id"] for row in rows]}
+        return {"schema": pm.PLAN_SCHEMA, "identity": identity,
+                "plan_sha256": pm.sha256_bytes(pm.canonical_bytes(identity)),
+                "selected": rows, "rejected": []}
+
+    def run_cli(self, plan, out):
+        path = Path(out).parent / "plan.json"
+        path.write_text(json.dumps(plan), encoding="utf-8")
+        argv = ["provider_matrix.py", "probe", "--plan", str(path), "--out-dir", str(out),
+                "--expect-plan-sha256", plan["plan_sha256"], "--timeout", "0.01"]
+        with patch.object(sys, "argv", argv), \
+                contextlib.redirect_stderr(io.StringIO()) as err:
+            code = pm.main()
+        return code, err.getvalue()
+
+    def test_a_directory_holding_a_stale_receipt_is_refused(self):
+        with tempfile.TemporaryDirectory() as td:
+            out = Path(td) / "receipts"
+            out.mkdir()
+            (out / "stale.json").write_text("{}", encoding="utf-8")
+            code, err = self.run_cli(self.plan(["a"]), out)
+            self.assertEqual(code, 2)
+            self.assertIn("already exists", err)
+            self.assertEqual([p.name for p in out.iterdir()], ["stale.json"])
+
+    def test_an_empty_existing_directory_is_refused(self):
+        # Empty is not the same as absent. A directory somebody created is a
+        # destination somebody may be using.
+        with tempfile.TemporaryDirectory() as td:
+            out = Path(td) / "receipts"
+            out.mkdir()
+            code, err = self.run_cli(self.plan(["a"]), out)
+            self.assertEqual(code, 2)
+            self.assertIn("already exists", err)
+
+    def test_a_second_run_with_a_smaller_set_cannot_adopt_the_first_receipts(self):
+        with tempfile.TemporaryDirectory() as td:
+            out = Path(td) / "receipts"
+            self.assertEqual(self.run_cli(self.plan(["a", "b", "c"]), out)[0], 0)
+            self.assertEqual(len(list(out.iterdir())), 3)
+            code, err = self.run_cli(self.plan(["a", "b"]), out)
+            self.assertEqual(code, 2)
+            self.assertIn("already exists", err)
+            self.assertEqual(len(list(out.iterdir())), 3)
+
+    def test_a_write_failure_leaves_no_final_directory(self):
+        with tempfile.TemporaryDirectory() as td:
+            out = Path(td) / "receipts"
+            plan = self.plan(["a", "b", "c"])
+            calls = {"n": 0}
+            real = pm.write_json
+
+            def failing(path, payload):
+                calls["n"] += 1
+                if calls["n"] == 2:
+                    raise OSError("no space left on device")
+                return real(path, payload)
+
+            with patch.object(pm, "write_json", failing):
+                code, err = self.run_cli(plan, out)
+            self.assertEqual(code, 2)
+            self.assertIn("could not be written", err)
+            self.assertFalse(out.exists(), "a partial result was published")
+            self.assertFalse(pm.staging_beside(out).exists())
+
+    def test_an_interrupted_run_leaves_no_staging_for_the_next_one(self):
+        with tempfile.TemporaryDirectory() as td:
+            out = Path(td) / "receipts"
+            plan = self.plan(["a", "b"])
+            with patch.object(pm, "guarded_receipt", side_effect=KeyboardInterrupt):
+                with self.assertRaises(KeyboardInterrupt):
+                    self.run_cli(plan, out)
+            self.assertFalse(out.exists())
+            self.assertFalse(pm.staging_beside(out).exists())
+
+    def test_a_leftover_staging_directory_is_refused_rather_than_published(self):
+        with tempfile.TemporaryDirectory() as td:
+            out = Path(td) / "receipts"
+            pm.staging_beside(out).mkdir(parents=True)
+            code, err = self.run_cli(self.plan(["a"]), out)
+            self.assertEqual(code, 2)
+            self.assertIn("left over from an interrupted run", err)
+            self.assertFalse(out.exists())
+
+    def test_an_unknown_file_in_the_staged_set_stops_publication(self):
+        expected = ["one.json", "two.json"]
+        with tempfile.TemporaryDirectory() as td:
+            staging = Path(td) / "staged"
+            staging.mkdir()
+            for name in expected + ["intruder.json"]:
+                (staging / name).write_text("{}", encoding="utf-8")
+            problems = pm.published_set_problems(staging, expected)
+            self.assertTrue(any("which this plan did not select" in line for line in problems))
+
+    def test_a_missing_receipt_stops_publication(self):
+        with tempfile.TemporaryDirectory() as td:
+            staging = Path(td) / "staged"
+            staging.mkdir()
+            (staging / "one.json").write_text("{}", encoding="utf-8")
+            problems = pm.published_set_problems(staging, ["one.json", "two.json"])
+            self.assertTrue(any("missing a receipt" in line for line in problems))
+
+    def test_a_complete_plan_publishes_exactly_n_receipts(self):
+        with tempfile.TemporaryDirectory() as td:
+            out = Path(td) / "receipts"
+            plan = self.plan([f"m{n}" for n in range(7)])
+            code, err = self.run_cli(plan, out)
+            self.assertEqual(code, 0, err)
+            names = {p.name for p in out.iterdir()}
+            self.assertEqual(names, {pm.receipt_filename(row["target_id"])
+                                     for row in plan["selected"]})
+            self.assertFalse(pm.staging_beside(out).exists())
+
+    def test_staging_is_a_sibling_so_the_publication_can_be_atomic(self):
+        # A rename across filesystems is a copy, and a copy can be interrupted
+        # halfway — which is the partial result this arrangement exists to
+        # prevent, reintroduced by the step meant to prevent it.
+        final = Path("/somewhere/deep/receipts")
+        self.assertEqual(pm.staging_beside(final).parent, final.parent)
+        self.assertNotEqual(pm.staging_beside(final).name, final.name)
+
+
+class ObservedAtTests(unittest.TestCase):
+    """The moment of observation is evidence, not prose."""
+
+    ACCEPTED = ("2026-08-02T15:00:00Z", "2024-02-29T00:00:00Z", "1970-01-01T00:00:00Z")
+    REJECTED = ("2026-02-29T00:00:00Z", "2026-13-01T00:00:00Z", "2026-08-02T24:00:00Z",
+                "2026-08-02 15:00:00Z", "2026-08-02T15:00:00+00:00",
+                "2026-08-02T15:00:00z", "2026-08-02T15:00:00", "", " ",
+                "2026-08-02T15:00:00.000Z", "yesterday", "2026-99-88",
+                "2026-08-02T15:00:00Z ")
+
+    def test_the_accepted_spellings(self):
+        for value in self.ACCEPTED:
+            self.assertEqual(pm.canonical_observed_at(value), value)
+
+    def test_the_rejected_spellings(self):
+        for value in self.REJECTED:
+            with self.assertRaises(ValueError, msg=value):
+                pm.canonical_observed_at(value)
+
+    def test_a_non_string_is_refused_at_the_helper_boundary(self):
+        for value in (None, 0, 1754146800, 3.5, [], {}, True):
+            with self.assertRaises(ValueError, msg=repr(value)):
+                pm.canonical_observed_at(value)
+
+    def test_the_diagnostic_does_not_echo_the_whole_input(self):
+        # It is a caller-supplied string and it is printed.
+        secret = "sk-live-" + "z" * 200
+        with self.assertRaises(ValueError) as caught:
+            pm.canonical_observed_at(secret)
+        self.assertNotIn(secret, str(caught.exception))
+        self.assertNotIn("sk-live", str(caught.exception))
+
+    def test_the_check_runs_before_anything_is_read_or_frozen(self):
+        with tempfile.TemporaryDirectory() as td:
+            missing = Path(td) / "absent.json"
+            # The source does not exist. A timestamp check that ran after the
+            # read would report the missing file instead.
+            with self.assertRaises(ValueError) as caught:
+                pm.import_catalog(missing, "yesterday", pm.load_registry())
+            self.assertIn("observed_at", str(caught.exception))
+
+    def test_the_cli_refuses_a_non_canonical_moment(self):
+        with tempfile.TemporaryDirectory() as td:
+            source = Path(td) / "src.json"
+            source.write_text(json.dumps({"schema": "modelhubby-export-v1", "models": []}),
+                              encoding="utf-8")
+            out = Path(td) / "catalog.json"
+            argv = ["provider_matrix.py", "import", "--source", str(source),
+                    "--observed-at", "2026-08-02 10:00", "--out", str(out)]
+            with patch.object(sys, "argv", argv), \
+                    contextlib.redirect_stderr(io.StringIO()) as err:
+                code = pm.main()
+            self.assertEqual(code, 2)
+            self.assertIn("observed_at", err.getvalue())
+            self.assertFalse(out.exists())
 
 
 class EmissionPreflightTests(unittest.TestCase):

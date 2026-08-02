@@ -1764,6 +1764,127 @@ MUTATIONS = [
      "        problems.extend(f\"selected: {line}\" for line in emission_problems(selected))",
      "        problems.extend(f\"selected: {line}\" for line in emission_problems(selected)[:1])"),
 
+    # -- PI: the reviewed plan and the executed plan are one plan --------------
+
+    ("PI1 the attested ids stop being compared to the selected set",
+     "            elif actual != attested:",
+     "            elif False:"),
+
+    ("PI2 a permutation is accepted because the comparison is by set",
+     "            actual = [row.get(\"target_id\") for row in selected if isinstance(row, dict)]",
+     "            actual = sorted(row.get(\"target_id\") for row in selected if isinstance(row, dict))"),
+
+    ("PI3 the recorded digest is trusted instead of recomputed",
+     "        recomputed = sha256_bytes(canonical_bytes(identity))",
+     "        recomputed = recorded"),
+
+    ("PI4 the external expectation is taken from the artifact it binds",
+     "    if not is_plan_digest(expected_sha256):\n"
+     "        problems.append(\"the expected plan digest is not a sha256 digest\")\n"
+     "    elif recorded is not None and expected_sha256 != recorded:",
+     "    expected_sha256 = recorded\n"
+     "    if not is_plan_digest(expected_sha256):\n"
+     "        problems.append(\"the expected plan digest is not a sha256 digest\")\n"
+     "    elif recorded is not None and expected_sha256 != recorded:"),
+
+    ("PI5 a digest need only be a string",
+     "    return isinstance(value, str) and bool(PLAN_DIGEST_PATTERN.fullmatch(value))",
+     "    return isinstance(value, str)"),
+
+    ("PI6 an unattested identity field stops being reported",
+     "        problems.extend(f\"identity carries unattested field {name!r}\" for name in unknown)",
+     "        problems.extend([])"),
+
+    ("PI7 the plan is validated after the receipts are produced",
+     "        refuse_unreviewed_plan(plan, args.expect_plan_sha256)\n"
+     "        selected = plan[\"selected\"]",
+     "        selected = plan[\"selected\"]"),
+
+    ("PI8 the selected targets stop going through the emission preflight",
+     "        problems.extend(f\"selected: {line}\" for line in emission_problems(selected))",
+     "        problems.extend([])"),
+
+    # -- RS: a result directory is a generation, not a bag of JSON files -------
+
+    ("RS1 receipts are written straight into the final directory",
+     "            problems.extend(published_set_problems(\n"
+     "                staging, [receipt_filename(row[\"target_id\"]) for row in selected]))",
+     "            staging.rename(args.out_dir)\n"
+     "            staging = args.out_dir\n"
+     "            problems.extend(published_set_problems(\n"
+     "                staging, [receipt_filename(row[\"target_id\"]) for row in selected]))"),
+
+    ("RS2 an existing final directory is reused",
+     "    if final.exists():",
+     "    if False:"),
+
+    ("RS3 a leftover staging directory is adopted",
+     "    if staging.exists():\n"
+     "        problems.append(f\"{staging.name} is left over from an interrupted run and would be \"",
+     "    if False:\n"
+     "        problems.append(f\"{staging.name} is left over from an interrupted run and would be \""),
+
+    ("RS4 a missing receipt does not stop publication",
+     "    problems.extend(f\"the staged result is missing a receipt for {name}\"\n"
+     "                    for name in sorted(wanted - actual))",
+     "    problems.extend([])"),
+
+    ("RS5 a file this plan did not select is published with it",
+     "    problems.extend(f\"the staged result carries {name}, which this plan did not select\"\n"
+     "                    for name in sorted(actual - wanted))",
+     "    problems.extend([])"),
+
+    ("RS6 a partial result is published anyway",
+     "            if problems:\n"
+     "                # Nothing is published. A directory holding a prefix of the\n"
+     "                # answer reads as the answer, and that is worse than no answer.\n"
+     "                discard_staging(staging)\n"
+     "                return report_write_problems(problems)",
+     "            if False:\n"
+     "                # Nothing is published. A directory holding a prefix of the\n"
+     "                # answer reads as the answer, and that is worse than no answer.\n"
+     "                discard_staging(staging)\n"
+     "                return report_write_problems(problems)"),
+
+    ("RS7 an interrupted run leaves its staged prefix behind",
+     "        except BaseException:",
+     "        except ValueError:"),
+
+    ("RS8 staging moves off the final directory's filesystem",
+     "    return final.parent / f\"{STAGING_PREFIX}{final.name}\"",
+     "    return Path(os.environ.get(\"TMPDIR\", \"/tmp\")) / f\"{STAGING_PREFIX}{final.name}\""),
+
+    # -- TS: the moment of observation is evidence, not prose -----------------
+
+    ("TS1 the strict pattern is dropped for a permissive parser",
+     "    if not OBSERVED_AT_PATTERN.fullmatch(value):",
+     "    if False:"),
+
+    ("TS2 an impossible calendar date is admitted",
+     "        moment = datetime.datetime.strptime(value, OBSERVED_AT_FORMAT)",
+     "        moment = datetime.datetime(1970, 1, 1)"),
+
+    ("TS3 the canonical round-trip stops being required",
+     "    if moment.strftime(OBSERVED_AT_FORMAT) != value:",
+     "    if False:"),
+
+    ("TS4 an offset spelling is admitted alongside Z",
+     "OBSERVED_AT_PATTERN = re.compile(r\"\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}Z\\Z\")",
+     "OBSERVED_AT_PATTERN = re.compile(r\"\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}(?:Z|\\+00:00)\\Z\")"),
+
+    ("TS5 a non-string moment reaches the parser",
+     "    if not isinstance(value, str):\n"
+     "        raise ValueError(\n"
+     "            f\"observed_at is a string in the form 2026-08-02T15:00:00Z, \"",
+     "    if False:\n"
+     "        raise ValueError(\n"
+     "            f\"observed_at is a string in the form 2026-08-02T15:00:00Z, \""),
+
+    ("TS6 the moment is checked after the catalog has been read",
+     "    observed_at = canonical_observed_at(observed_at)\n"
+     "    registry = normalize_registry(registry) if registry is not None else load_registry()",
+     "    registry = normalize_registry(registry) if registry is not None else load_registry()"),
+
     ("MH5 the expected killer is no longer required at all",
      "    if expected is not None:\n"
      "        # In the failing oracle's own output",
