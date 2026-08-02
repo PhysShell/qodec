@@ -1373,9 +1373,13 @@ def projected_path(path: FieldPath, policies: list[DurableFieldPolicy]) -> str:
     for step in path:
         if isinstance(step, Each):
             marker = "[]"
-            if out and not lost:
-                out[-1] = out[-1] + marker
-            elif out:
+            # One branch, not two. The first version tested `lost` here and did
+            # the same thing either way — a distinction written down and then
+            # not made, which reads as though being lost changes the rendering.
+            # It does not: `[]` is this module's own structural marker, so it
+            # renders identically wherever the walk is. `lost` still decides the
+            # descent below, where it does change the answer.
+            if out:
                 out[-1] = out[-1] + marker
             else:
                 out.append(marker)

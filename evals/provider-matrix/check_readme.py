@@ -31,6 +31,7 @@ HERE = Path(__file__).resolve().parent
 sys.path.insert(0, str(HERE))
 
 import provider_matrix as pm  # noqa: E402
+import receipt_policy  # noqa: E402
 
 # The classifications the one big table does not drive, spelled here and in the
 # suite. Two spellings of one fact is the defect this file exists to catch, so
@@ -85,6 +86,26 @@ def compare(where: str, stated: set[str], emitted: set[str]) -> list[str]:
     return problems
 
 
+def table_column(text: str, header: str) -> set[str] | None:
+    """The first back-ticked identifier in each row of a markdown table.
+
+    A table is a fenced block's cousin: it states a closed set in a place that
+    reads as prose, so it drifts the same way and needs the same check.
+    """
+    if header not in text:
+        return None
+    rest = text[text.index(header) + len(header):].lstrip("\n")
+    names = set()
+    for line in rest.splitlines():
+        if not line.startswith("|"):
+            break
+        cell = line.split("|")[1].strip()
+        found = re.match(r"`([A-Za-z_][A-Za-z0-9_]*)", cell)
+        if found:
+            names.add(found.group(1))
+    return names or None
+
+
 def readme_problems(text: str) -> list[str]:
     """Every documented fact that the code contradicts."""
     problems: list[str] = []
@@ -119,6 +140,18 @@ def readme_problems(text: str) -> list[str]:
             f"the README argues from three-digit statuses, but the code bounds them at "
             f"{pm.HTTP_STATUS_MIN}..{pm.HTTP_STATUS_MAX}")
 
+    # The policy-kind table. It was missing `Flag` and `BoundedNumber` when this
+    # arm was written — two kinds added in later rounds while the table stayed
+    # where it was. Patching the table by hand would have left the next kind to
+    # drift the same way.
+    kinds = table_column(text, "| policy kind | what it admits |")
+    if kinds is None:
+        problems.append("the README no longer carries the policy-kind table")
+    else:
+        problems.extend(compare(
+            "policy kinds", kinds,
+            {kind.__name__ for kind in receipt_policy.Kind.__subclasses__()}))
+
     # It has carried one, once, from a paragraph about NUL bytes — through two
     # heads and a green CI, because nothing looked.
     if "\x00" in text:
@@ -150,6 +183,13 @@ def self_test() -> int:
         ("the remainder paragraph deleted",
          real.replace("the table asserts the remainder is\nexactly", "it asserts something", 1),
          "no longer states the table's unreached remainder"),
+        ("a policy kind the code does not have",
+         real.replace("| `Flag()` |", "| `Invented()` | nothing |\n| `Flag()` |", 1),
+         "policy kinds"),
+        ("a policy kind the table forgot",
+         real.replace("| `BoundedNumber(low, high)` | a finite number, both ends bounded, "
+                      "`bool` refused |\n", "", 1),
+         "which the README omits"),
         ("a literal NUL", real + "\x00", "literal NUL"),
     ]
     for name, text, phrase in controls:

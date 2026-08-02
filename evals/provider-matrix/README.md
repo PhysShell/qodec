@@ -515,6 +515,8 @@ means a field added next round stops the gate on the commit that adds it.
 | `BoundedInt(low, high)` | an integer, **both** ends bounded, `bool` refused |
 | `Digest(domain)` | 64 hex under a domain declared in `EVIDENCE_DOMAINS` |
 | `Shape(kind)` | a container — an object or an array, empty or not |
+| `Flag()` | exactly `True` or `False`, never an integer wearing one |
+| `BoundedNumber(low, high)` | a finite number, both ends bounded, `bool` refused |
 | `Prose(max_bytes)` | a rendered line — as defence in depth; see §3 |
 
 Provider-chosen material crosses only as a typed projection, never as itself.

@@ -2707,7 +2707,7 @@ class JsonRecursionDepthTests(unittest.TestCase):
 
     def test_the_surrogate_walk_does_not_recurse(self):
         """A check that itself overflows has swapped one crash for another."""
-        deep: Any = "x"
+        deep: object = "x"
         for _ in range(20_000):
             deep = [deep]
         pm._refuse_lone_surrogates(deep)

@@ -1682,6 +1682,18 @@ MUTATIONS = [
      "    return text",
      "check_readme.py"),
 
+    ("RD7 the policy-kind table stops being compared to the kinds that exist",
+     "        problems.extend(compare(\n"
+     "            \"policy kinds\", kinds,\n"
+     "            {kind.__name__ for kind in receipt_policy.Kind.__subclasses__()}))",
+     "        problems.extend([])",
+     "check_readme.py"),
+
+    ("RD8 a table row that names nothing stops ending the scan",
+     "        if not line.startswith(\"|\"):\n            break",
+     "        if not line.startswith(\"|\"):\n            continue",
+     "check_readme.py"),
+
     ("RD6 a literal NUL in the README stops being a finding",
      "    if \"\\x00\" in text:",
      "    if False:",
