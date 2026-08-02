@@ -1282,6 +1282,13 @@ def normalize_registry(raw: Any) -> dict[str, Any]:
     for name, entry in providers.items():
         if not isinstance(name, str) or name != name.strip().lower() or not name:
             raise ValueError(f"provider name {name!r} must be a non-empty lowercase string")
+        # The separator that makes a target id, kept out of the half that must
+        # not contain it. Without this `("a", "b--c")` and `("a--b", "c")` are
+        # one id and one output path.
+        if TARGET_ID_SEPARATOR in name:
+            raise ValueError(
+                f"provider name {name!r} contains {TARGET_ID_SEPARATOR!r}, which would make "
+                "its target ids ambiguous")
         if not isinstance(entry, dict):
             raise ValueError(f"trusted provider {name!r} must be an object")
         extra = sorted(set(entry) - set(AUTHORITY_FIELDS))
@@ -1913,7 +1920,7 @@ def normalize_target(row: dict[str, Any], registry: dict[str, Any]) -> dict[str,
         raise EndpointRejected(exc.reason, f"{provider}/{model}: {exc}") from exc
     key_env = entry["key_env"]
     target = {
-        "target_id": f"{provider}--{model}",
+        "target_id": canonical_target_id(provider, model),
         "provider": provider,
         "model": model,
         "api_style": api_style,
@@ -1987,6 +1994,101 @@ def build_plan(catalog: dict[str, Any], args: argparse.Namespace) -> dict[str, A
         "selected": selected,
         "rejected": rejected,
     }
+
+
+# ---------------------------------------------------------------------------
+# One derivation of a target id, and one preflight before anything is written
+# ---------------------------------------------------------------------------
+#
+# `f"{provider}--{model}"` was spelled at the one place a target is built, which
+# read as canonical and is not: `("a", "b--c")` and `("a--b", "c")` produce the
+# same id, so two different targets can claim one identity and one output path.
+# The separator is unambiguous only if it cannot appear on the left of it, and
+# nothing said so.
+#
+# The second half is when the check happens. Both emission loops wrote each
+# receipt as they reached it, so a plan whose seventh target collides with its
+# second left six receipts on disk and a non-zero exit — a run that is neither
+# done nor undone, and whose directory reads as a complete result. Everything
+# knowable before the first byte is checked before the first byte.
+
+TARGET_ID_SEPARATOR = "--"
+
+def canonical_target_id(provider: str, model: str) -> str:
+    """`(provider, model)` -> id, injectively.
+
+    Injective because `provider` may not contain the separator: the first
+    occurrence then always ends the provider, so the pair is recoverable. That
+    is a property of the registry, enforced there, and named here so the reason
+    lives with the derivation rather than three screens away.
+    """
+    if TARGET_ID_SEPARATOR in provider:
+        raise ValueError(
+            f"provider {provider!r} contains {TARGET_ID_SEPARATOR!r}, which would make "
+            "its target ids ambiguous")
+    return f"{provider}{TARGET_ID_SEPARATOR}{model}"
+
+
+def emission_problems(selected: list) -> list[str]:
+    """Everything about a plan's output that is knowable before writing it.
+
+    Returned rather than raised, and all of them rather than the first: a caller
+    that has to fix three collisions one run at a time learns them one run at a
+    time. The order is stable so two runs over one plan say the same thing.
+    """
+    # Two further arms were written here and removed: a bound on the receipt
+    # name, and a case-folded check that two ids do not land on one file. Both
+    # are unreachable, and `receipt_filename` is why. It escapes every byte
+    # outside a declared alphabet, truncates the stem, and appends a
+    # domain-separated digest of the *whole* id — so the name is bounded for
+    # every id, and two distinct ids differ in the digest whatever the
+    # filesystem thinks about case. A preflight arm that cannot fire is a
+    # sentence about a property somebody else already guarantees; the property
+    # is asserted where it is produced instead.
+    problems: list[str] = []
+    ids: dict[str, int] = {}
+    pairs: dict[tuple, int] = {}
+    for index, target in enumerate(selected):
+        where = f"selected[{index}]"
+        if not isinstance(target, dict):
+            problems.append(f"{where}: a selected target is an object, not {json_type_name(target)}")
+            continue
+        provider, model = target.get("provider"), target.get("model")
+        claimed = target.get("target_id")
+        if not isinstance(provider, str) or not isinstance(model, str):
+            problems.append(f"{where}: provider and model must both be strings")
+            continue
+        if not isinstance(claimed, str):
+            problems.append(f"{where}: target_id must be a string")
+            continue
+        try:
+            derived = canonical_target_id(provider, model)
+        except ValueError as exc:
+            problems.append(f"{where}: {exc}")
+            continue
+        if claimed != derived:
+            # A plan is a file, and a file can be edited. An id that does not
+            # follow from the pair it sits next to is a receipt filed under a
+            # name its own contents contradict.
+            problems.append(f"{where}: target_id {claimed!r} is not what "
+                            f"{provider!r} and {model!r} derive")
+            continue
+        if claimed in ids:
+            problems.append(f"{where}: target_id {claimed!r} repeats selected[{ids[claimed]}]")
+        else:
+            ids[claimed] = index
+        pair = (provider, model)
+        if pair in pairs:
+            problems.append(f"{where}: provider/model {pair!r} repeats selected[{pairs[pair]}]")
+        else:
+            pairs[pair] = index
+    return problems
+
+
+def refuse_emission(selected: list) -> None:
+    problems = emission_problems(selected)
+    if problems:
+        raise ValueError("the plan cannot be emitted: " + "; ".join(problems))
 
 
 def receipt_filename(target_id: str) -> str:
@@ -4292,6 +4394,7 @@ def main() -> int:
             if plan.get("schema") != PLAN_SCHEMA:
                 raise ValueError(f"expected {PLAN_SCHEMA}")
             registry = load_registry(args.registry)
+            refuse_emission(plan["selected"])
             args.out_dir.mkdir(parents=True, exist_ok=True)
             selected = plan["selected"]
             problems = []
@@ -4310,6 +4413,7 @@ def main() -> int:
                 raise ValueError(f"expected {PLAN_SCHEMA}")
             surface = load_surface(args.surface)
             registry = load_registry(args.registry)
+            refuse_emission(plan["selected"])
             args.out_dir.mkdir(parents=True, exist_ok=True)
             selected = plan["selected"]
             problems = []

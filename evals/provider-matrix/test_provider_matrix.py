@@ -6143,6 +6143,141 @@ class CleanTreeIsolationTests(unittest.TestCase):
         self.assertTrue(any("leftover.tmp" in line for line in found), found)
 
 
+class EmissionPreflightTests(unittest.TestCase):
+    """Nothing is written until everything about the writing is decided.
+
+    Three defects, each demonstrated before a line of the preflight was written:
+
+    * `f"{provider}--{model}"` is not injective. `("a", "b--c")` and
+      `("a--b", "c")` both spell `a--b--c`, so two different targets claim one
+      identity and one output path.
+    * `p--A` and `p--a` are distinct ids and one file wherever the filesystem
+      disagrees about case.
+    * A model id long enough makes a name no filesystem will take, and the run
+      finds out after writing the receipts before it.
+
+    And the fourth, which is about *when* rather than *what*: both emission
+    loops wrote each receipt as they reached it, so a plan whose seventh target
+    collided with its second left six receipts on disk and a non-zero exit. A
+    directory that is neither the result nor nothing, and reads as the result.
+    """
+
+    def target(self, provider, model):
+        return {"target_id": pm.canonical_target_id(provider, model),
+                "provider": provider, "model": model}
+
+    def test_the_separator_cannot_appear_on_the_side_that_must_not_carry_it(self):
+        with self.assertRaises(ValueError) as caught:
+            pm.canonical_target_id("a--b", "c")
+        self.assertIn("ambiguous", str(caught.exception))
+
+    def test_the_registry_refuses_a_provider_whose_ids_would_be_ambiguous(self):
+        raw = {"schema": pm.REGISTRY_SCHEMA, "providers": {"a--b": {
+            "api_base": "https://api.example.com/v1", "api_style": "openai-chat",
+            "key_env": "K"}}}
+        with self.assertRaises(ValueError) as caught:
+            pm.normalize_registry(raw)
+        self.assertIn("ambiguous", str(caught.exception))
+
+    def test_the_pair_is_recoverable_from_the_id(self):
+        # What injectivity buys: one split, at the first separator, always right.
+        for provider, model in [("groq", "m"), ("groq", "openai/gpt-oss-120b"),
+                                ("groq", "a--b--c")]:
+            got = pm.canonical_target_id(provider, model)
+            self.assertEqual(got.split(pm.TARGET_ID_SEPARATOR, 1), [provider, model])
+
+    def test_two_selected_targets_with_one_id_are_refused(self):
+        rows = [self.target("p", "m"), self.target("p", "m")]
+        problems = pm.emission_problems(rows)
+        self.assertTrue(any("repeats selected[0]" in line for line in problems), problems)
+
+    def test_one_id_claimed_by_two_different_models_is_refused(self):
+        # The id is right for neither pair or right for one of them; either way
+        # the second receipt lands on the first one's path.
+        rows = [self.target("p", "m"), {"target_id": "p--m", "provider": "p", "model": "other"}]
+        problems = pm.emission_problems(rows)
+        self.assertTrue(any("is not what" in line for line in problems), problems)
+
+    # The next two were written as preflight witnesses and are not: the arms
+    # they aimed at cannot fire, because `receipt_filename` bounds the name and
+    # separates distinct ids by construction. So they assert the construction.
+
+    def test_distinct_ids_never_share_a_path_even_where_case_does_not_count(self):
+        ids = ["p--A", "p--a", "p--a/b", "p--a%2Fb", "p--\u0000", "p--" + "m" * 400]
+        names = {pm.receipt_filename(one).casefold() for one in ids}
+        self.assertEqual(len(names), len(ids))
+
+    def test_every_id_gets_a_name_a_filesystem_will_take(self):
+        for model in ("m", "openai/gpt-oss-120b", "a\u0000b", "m" * 400, "\ud800"):
+            name = pm.receipt_filename(pm.canonical_target_id("p", model))
+            self.assertLessEqual(len(name.encode("utf-8")), 255)
+            self.assertNotIn("/", name)
+            self.assertNotIn("\u0000", name)
+
+    def test_n_selected_targets_give_n_distinct_receipts(self):
+        rows = [self.target("p", f"m{n}") for n in range(25)]
+        self.assertEqual(pm.emission_problems(rows), [])
+        names = {pm.receipt_filename(row["target_id"]) for row in rows}
+        self.assertEqual(len(names), len(rows))
+
+    def test_a_plan_edited_to_carry_a_forged_id_is_refused(self):
+        rows = [{"target_id": "somebody--else", "provider": "p", "model": "m"}]
+        problems = pm.emission_problems(rows)
+        self.assertTrue(any("is not what" in line for line in problems), problems)
+
+    def test_the_preflight_reports_every_problem_rather_than_the_first(self):
+        rows = [self.target("p", "m"), self.target("p", "m"), self.target("q", "n"),
+                self.target("q", "n")]
+        problems = pm.emission_problems(rows)
+        self.assertGreaterEqual(len(problems), 4)
+
+    def test_a_selected_target_of_the_wrong_shape_is_a_finding_not_a_raise(self):
+        for row in (None, 5, "text", [], {"target_id": 7}, {"provider": "p"}):
+            self.assertTrue(pm.emission_problems([row]), row)
+
+    def test_nothing_is_written_when_the_preflight_refuses(self):
+        # Through `main`, not through the preflight it calls. Round sixteen
+        # taught this the expensive way: four mutations survived because the
+        # proofs tested the parts and the wiring between them was what broke.
+        # The whole point of a preflight is *where* it sits in the sequence, and
+        # only the sequence can show that.
+        with tempfile.TemporaryDirectory() as td:
+            plan_path, out = Path(td) / "plan.json", Path(td) / "receipts"
+            rows = [self.target("groq", "m"), self.target("groq", "m")]
+            plan_path.write_text(json.dumps(
+                {"schema": pm.PLAN_SCHEMA, "selected": rows, "rejected": []}), encoding="utf-8")
+            argv = ["provider_matrix.py", "probe", "--plan", str(plan_path),
+                    "--out-dir", str(out)]
+            with patch.object(sys, "argv", argv), \
+                    contextlib.redirect_stderr(io.StringIO()) as err:
+                code = pm.main()
+            self.assertEqual(code, 2)
+            self.assertIn("cannot be emitted", err.getvalue())
+            # Not "fewer receipts than targets" — none. A directory that exists
+            # and holds a prefix of the answer reads as the answer.
+            self.assertFalse(out.exists() and any(out.iterdir()))
+
+    def test_a_plan_that_passes_the_preflight_still_reaches_the_writing(self):
+        # The other half of the same wiring: a preflight that refused everything
+        # would satisfy the test above and emit nothing, ever. No key is present
+        # and none is asked for — `guarded_receipt` turns the missing
+        # environment variable into a receipt, which is the point.
+        with tempfile.TemporaryDirectory() as td:
+            plan_path, out = Path(td) / "plan.json", Path(td) / "receipts"
+            rows = [self.target("groq", f"m{n}") for n in range(3)]
+            for row in rows:
+                row.update(api_base="https://api.groq.com/openai/v1",
+                           api_style="openai-chat", key_env="QODEC_ABSENT_KEY_FOR_TESTS")
+            plan_path.write_text(json.dumps(
+                {"schema": pm.PLAN_SCHEMA, "selected": rows, "rejected": []}), encoding="utf-8")
+            argv = ["provider_matrix.py", "probe", "--plan", str(plan_path),
+                    "--out-dir", str(out), "--timeout", "0.01"]
+            with patch.object(sys, "argv", argv), \
+                    contextlib.redirect_stderr(io.StringIO()):
+                pm.main()
+            self.assertEqual(len(list(out.iterdir())), len(rows))
+
+
 class CertificateInputTests(unittest.TestCase):
     """The numbers `template_max_bytes` adds up are applied where they are set.
 

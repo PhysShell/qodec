@@ -1648,6 +1648,59 @@ MUTATIONS = [
      "            if registered not in pm.DETAIL_TEMPLATES:",
      "receipt_policy.py"),
 
+    # -- EM: nothing is written until everything about the writing is decided -
+
+    ("EM1 a target id may again be ambiguous about the pair it names",
+     "    if TARGET_ID_SEPARATOR in provider:\n"
+     "        raise ValueError(\n"
+     "            f\"provider {provider!r} contains {TARGET_ID_SEPARATOR!r}, which would make \"\n"
+     "            \"its target ids ambiguous\")",
+     "    pass"),
+
+    ("EM2 the registry stops refusing a provider whose ids would collide",
+     "        if TARGET_ID_SEPARATOR in name:",
+     "        if False:"),
+
+    ("EM3 a target id need not follow from the pair beside it",
+     "        if claimed != derived:",
+     "        if False:"),
+
+    ("EM4 two selected targets may share one id",
+     "        if claimed in ids:\n"
+     "            problems.append(f\"{where}: target_id {claimed!r} repeats selected[{ids[claimed]}]\")",
+     "        if False:\n"
+     "            problems.append(f\"{where}: target_id {claimed!r} repeats selected[{ids[claimed]}]\")"),
+
+    ("EM5 two selected targets may share one provider/model pair",
+     "        if pair in pairs:\n"
+     "            problems.append(f\"{where}: provider/model {pair!r} repeats selected[{pairs[pair]}]\")",
+     "        if False:\n"
+     "            problems.append(f\"{where}: provider/model {pair!r} repeats selected[{pairs[pair]}]\")"),
+
+    ("EM6 the probe writes its first receipts before the plan is checked",
+     "            refuse_emission(plan[\"selected\"])\n"
+     "            args.out_dir.mkdir(parents=True, exist_ok=True)\n"
+     "            for target in plan[\"selected\"]:\n"
+     "                write_json(",
+     "            args.out_dir.mkdir(parents=True, exist_ok=True)\n"
+     "            for target in plan[\"selected\"]:\n"
+     "                write_json("),
+
+    ("EM7 the qualification writes its first receipts before the plan is checked",
+     "            refuse_emission(plan[\"selected\"])\n"
+     "            args.out_dir.mkdir(parents=True, exist_ok=True)\n"
+     "            for target in plan[\"selected\"]:\n"
+     "                receipt = guarded_receipt(",
+     "            args.out_dir.mkdir(parents=True, exist_ok=True)\n"
+     "            for target in plan[\"selected\"]:\n"
+     "                receipt = guarded_receipt("),
+
+    ("EM8 the preflight reports the first problem and stops",
+     "    problems = emission_problems(selected)\n"
+     "    if problems:",
+     "    problems = emission_problems(selected)[:0]\n"
+     "    if problems:"),
+
     ("MH5 the expected killer is no longer required at all",
      "    if expected is not None:\n"
      "        # In the failing oracle's own output",
