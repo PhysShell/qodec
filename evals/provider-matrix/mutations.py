@@ -1648,6 +1648,30 @@ MUTATIONS = [
      "            if registered not in pm.DETAIL_TEMPLATES:",
      "receipt_policy.py"),
 
+    # -- GE: the git environment is dropped wholesale, not by enumeration ------
+    #
+    # `HG1`/`HG2` prove the shipped verdict *accepts* isolation. They say
+    # nothing about how wide it is, and the two witnesses that existed poisoned
+    # one variable each — so five of the variables that redirect git were never
+    # set at all, and the boundary was demonstrated for the ones somebody
+    # thought of. Same shape as an escape set of three characters.
+
+    ("GE1 the isolation enumerates the git variables it drops",
+     "    env = {key: value for key, value in os.environ.items() if not key.startswith(\"GIT_\")}",
+     "    env = {key: value for key, value in os.environ.items()\n"
+     "           if key not in (\"GIT_DIR\", \"GIT_WORK_TREE\")}",
+     "check_clean_tree.py"),
+
+    ("GE2 the isolation stops replacing HOME",
+     "    env[\"HOME\"] = str(home)",
+     "    env[\"HOME\"] = os.environ.get(\"HOME\", str(home))",
+     "check_clean_tree.py"),
+
+    ("GE3 the machine's global configuration is readable again",
+     "    env[\"GIT_CONFIG_GLOBAL\"] = str(home / \"absent-global-config\")",
+     "    env.pop(\"GIT_CONFIG_GLOBAL\", None)",
+     "check_clean_tree.py"),
+
     # -- EM: nothing is written until everything about the writing is decided -
 
     ("EM1 a target id may again be ambiguous about the pair it names",
@@ -1662,14 +1686,14 @@ MUTATIONS = [
      "        if False:"),
 
     ("EM3 a target id need not follow from the pair beside it",
-     "        if claimed != derived:",
+     "        if claimed_id != derived:",
      "        if False:"),
 
     ("EM4 two selected targets may share one id",
-     "        if claimed in ids:\n"
-     "            problems.append(f\"{where}: target_id {claimed!r} repeats selected[{ids[claimed]}]\")",
+     "        if claimed_id in ids:\n"
+     "            problems.append(f\"{where}: target_id {claimed_id!r} repeats selected[{ids[claimed_id]}]\")",
      "        if False:\n"
-     "            problems.append(f\"{where}: target_id {claimed!r} repeats selected[{ids[claimed]}]\")"),
+     "            problems.append(f\"{where}: target_id {claimed_id!r} repeats selected[{ids[claimed_id]}]\")"),
 
     ("EM5 two selected targets may share one provider/model pair",
      "        if pair in pairs:\n"
@@ -1680,20 +1704,30 @@ MUTATIONS = [
     ("EM6 the probe writes its first receipts before the plan is checked",
      "            refuse_emission(plan[\"selected\"])\n"
      "            args.out_dir.mkdir(parents=True, exist_ok=True)\n"
-     "            for target in plan[\"selected\"]:\n"
-     "                write_json(",
+     "            selected = plan[\"selected\"]\n"
+     "            problems = []\n"
+     "            for index, target in enumerate(selected):\n"
+     "                receipt = guarded_receipt(\n"
+     "                    PROBE_SCHEMA, target,",
      "            args.out_dir.mkdir(parents=True, exist_ok=True)\n"
-     "            for target in plan[\"selected\"]:\n"
-     "                write_json("),
+     "            selected = plan[\"selected\"]\n"
+     "            problems = []\n"
+     "            for index, target in enumerate(selected):\n"
+     "                receipt = guarded_receipt(\n"
+     "                    PROBE_SCHEMA, target,"),
 
     ("EM7 the qualification writes its first receipts before the plan is checked",
      "            refuse_emission(plan[\"selected\"])\n"
      "            args.out_dir.mkdir(parents=True, exist_ok=True)\n"
-     "            for target in plan[\"selected\"]:\n"
-     "                receipt = guarded_receipt(",
+     "            selected = plan[\"selected\"]\n"
+     "            problems = []\n"
+     "            for index, target in enumerate(selected):\n"
+     "                receipt = guarded_receipt(QUALIFY_SCHEMA, target,",
      "            args.out_dir.mkdir(parents=True, exist_ok=True)\n"
-     "            for target in plan[\"selected\"]:\n"
-     "                receipt = guarded_receipt("),
+     "            selected = plan[\"selected\"]\n"
+     "            problems = []\n"
+     "            for index, target in enumerate(selected):\n"
+     "                receipt = guarded_receipt(QUALIFY_SCHEMA, target,"),
 
     ("EM8 the preflight reports the first problem and stops",
      "    problems = emission_problems(selected)\n"

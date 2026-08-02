@@ -6142,6 +6142,79 @@ class CleanTreeIsolationTests(unittest.TestCase):
                 found = gate.dirt(root, env=gate.isolated_env(home))
         self.assertTrue(any("leftover.tmp" in line for line in found), found)
 
+    # The two tests above each poison one thing: `GIT_DIR`/`GIT_WORK_TREE` in
+    # one, `HOME` and a global `core.excludesFile` in the other. Between them
+    # five of the variables that can redirect git are never set at all, and a
+    # boundary demonstrated one variable at a time is a boundary demonstrated
+    # for the variables somebody thought of — the same shape as an escape set of
+    # three characters, or a list of exception names. `isolated_env` drops every
+    # `GIT_*` rather than the ones it can name, so the witness should be the
+    # same statement: all of them at once, against the invocation that ships.
+
+    HOSTILE_GIT_VARS = ("GIT_DIR", "GIT_WORK_TREE", "GIT_INDEX_FILE",
+                        "GIT_OBJECT_DIRECTORY", "GIT_COMMON_DIR", "GIT_CEILING_DIRECTORIES",
+                        "GIT_ALTERNATE_OBJECT_DIRECTORIES")
+
+    def test_no_git_variable_this_machine_carries_can_change_the_verdict(self):
+        import importlib.util
+        gate = self.gate()
+        with tempfile.TemporaryDirectory() as td:
+            home, judged, decoy = (Path(td) / name for name in ("home", "judged", "decoy"))
+            home.mkdir()
+            env = gate.isolated_env(home)
+
+            def seed(root):
+                root.mkdir()
+                gate.must_git("init", "-q", cwd=root, env=env)
+                for key, value in (("user.email", "t@example"), ("user.name", "t"),
+                                   ("commit.gpgsign", "false")):
+                    gate.must_git("config", key, value, cwd=root, env=env)
+                (root / "seed.txt").write_text("seed\n", encoding="utf-8")
+                gate.must_git("add", "seed.txt", cwd=root, env=env)
+                gate.must_git("commit", "-qm", "seed", cwd=root, env=env)
+
+            seed(judged)
+            seed(decoy)
+            # The gate judges the tree it lives in, so its own copy is the dirt.
+            copied = judged / "check_clean_tree.py"
+            copied.write_bytes(
+                (Path(__file__).resolve().parent / "check_clean_tree.py").read_bytes())
+            spec = importlib.util.spec_from_file_location("clean_tree_poisoned", copied)
+            module = importlib.util.module_from_spec(spec)
+            spec.loader.exec_module(module)
+
+            # A global config that both hides the dirt and points elsewhere.
+            hostile_home = Path(td) / "hostile-home"
+            hostile_home.mkdir()
+            (hostile_home / "excludes").write_text("*.py\n", encoding="utf-8")
+            (hostile_home / ".gitconfig").write_text(
+                f"[core]\n\texcludesFile = {hostile_home / 'excludes'}\n", encoding="utf-8")
+
+            poison = {name: str(decoy / ".git") for name in self.HOSTILE_GIT_VARS}
+            poison["GIT_WORK_TREE"] = str(decoy)
+            poison["GIT_CEILING_DIRECTORIES"] = str(td)
+            poison["HOME"] = str(hostile_home)
+            poison["XDG_CONFIG_HOME"] = str(hostile_home)
+            with patch.dict("os.environ", dict(os.environ, **poison), clear=False):
+                with contextlib.redirect_stdout(io.StringIO()) as printed:
+                    verdict = module.main([])
+            # Every one of them set hostile, and the verdict is still about the
+            # untracked copy in `judged`.
+            self.assertEqual(verdict, 1, printed.getvalue())
+            self.assertIn("check_clean_tree.py", printed.getvalue())
+
+    def test_the_isolation_drops_every_git_variable_rather_than_the_named_ones(self):
+        gate = self.gate()
+        with tempfile.TemporaryDirectory() as td:
+            invented = dict(os.environ, GIT_A_VARIABLE_NOBODY_LISTED="1",
+                            **{name: "x" for name in self.HOSTILE_GIT_VARS})
+            with patch.dict("os.environ", invented, clear=False):
+                env = gate.isolated_env(Path(td))
+            leaked = sorted(key for key in env if key.startswith("GIT_")
+                            and key not in {"GIT_CONFIG_GLOBAL", "GIT_CONFIG_SYSTEM",
+                                            "GIT_CONFIG_NOSYSTEM", "GIT_TERMINAL_PROMPT"})
+            self.assertEqual(leaked, [])
+
 
 class EmissionPreflightTests(unittest.TestCase):
     """Nothing is written until everything about the writing is decided.
@@ -6255,6 +6328,27 @@ class EmissionPreflightTests(unittest.TestCase):
             self.assertIn("cannot be emitted", err.getvalue())
             # Not "fewer receipts than targets" — none. A directory that exists
             # and holds a prefix of the answer reads as the answer.
+            self.assertFalse(out.exists() and any(out.iterdir()))
+
+    def test_nothing_is_written_when_the_qualification_preflight_refuses(self):
+        # The other loop. One end-to-end witness covered `probe` and the
+        # mutation aimed at `qualify` survived: two emission paths, one proof,
+        # and the number said both. A branch that exists and is never run is the
+        # defect this round keeps finding — here in the proofs rather than in
+        # the code they are about.
+        with tempfile.TemporaryDirectory() as td:
+            plan_path, out = Path(td) / "plan.json", Path(td) / "receipts"
+            rows = [self.target("groq", "m"), self.target("groq", "m")]
+            plan_path.write_text(json.dumps(
+                {"schema": pm.PLAN_SCHEMA, "selected": rows, "rejected": []}), encoding="utf-8")
+            argv = ["provider_matrix.py", "qualify", "--plan", str(plan_path),
+                    "--surface", str(Path(__file__).resolve().parent / "c1-panel-surface.json"),
+                    "--out-dir", str(out)]
+            with patch.object(sys, "argv", argv), \
+                    contextlib.redirect_stderr(io.StringIO()) as err:
+                code = pm.main()
+            self.assertEqual(code, 2)
+            self.assertIn("cannot be emitted", err.getvalue())
             self.assertFalse(out.exists() and any(out.iterdir()))
 
     def test_a_plan_that_passes_the_preflight_still_reaches_the_writing(self):

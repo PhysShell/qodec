@@ -2054,11 +2054,15 @@ def emission_problems(selected: list) -> list[str]:
             problems.append(f"{where}: a selected target is an object, not {json_type_name(target)}")
             continue
         provider, model = target.get("provider"), target.get("model")
-        claimed = target.get("target_id")
+        # Not `claimed`: that exact line already exists in the authority check,
+        # and a mutation anchor is a line of text. Two identical lines make one
+        # spec mutate both, and the kill is then attributed to a contract it
+        # never isolated. The harness refuses the ambiguity — this avoids it.
+        claimed_id = target.get("target_id")
         if not isinstance(provider, str) or not isinstance(model, str):
             problems.append(f"{where}: provider and model must both be strings")
             continue
-        if not isinstance(claimed, str):
+        if not isinstance(claimed_id, str):
             problems.append(f"{where}: target_id must be a string")
             continue
         try:
@@ -2066,17 +2070,17 @@ def emission_problems(selected: list) -> list[str]:
         except ValueError as exc:
             problems.append(f"{where}: {exc}")
             continue
-        if claimed != derived:
+        if claimed_id != derived:
             # A plan is a file, and a file can be edited. An id that does not
             # follow from the pair it sits next to is a receipt filed under a
             # name its own contents contradict.
-            problems.append(f"{where}: target_id {claimed!r} is not what "
+            problems.append(f"{where}: target_id {claimed_id!r} is not what "
                             f"{provider!r} and {model!r} derive")
             continue
-        if claimed in ids:
-            problems.append(f"{where}: target_id {claimed!r} repeats selected[{ids[claimed]}]")
+        if claimed_id in ids:
+            problems.append(f"{where}: target_id {claimed_id!r} repeats selected[{ids[claimed_id]}]")
         else:
-            ids[claimed] = index
+            ids[claimed_id] = index
         pair = (provider, model)
         if pair in pairs:
             problems.append(f"{where}: provider/model {pair!r} repeats selected[{pairs[pair]}]")
