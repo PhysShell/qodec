@@ -76,10 +76,6 @@ jobs:
       # the guard below then says so out loud rather than trusting it.
       - name: Provider canary mutation harness (model-free)
         run: python3 evals/provider-matrix/mutations.py
-      # Not `git status --porcelain`, which prints what it finds and exits 0 —
-      # the step that existed to prove the harness left nothing behind would
-      # have stayed green while printing the mess. This asserts on output, over
-      # the whole checkout, and `--self-test` proves it can say otherwise.
       # A README that has become false reads exactly like one that is true, so
       # the claims it makes about the code are asked of the code. `--self-test`
       # first: a gate whose positive controls are not run is a gate that reports
@@ -88,6 +84,10 @@ jobs:
         run: python3 evals/provider-matrix/check_readme.py --self-test
       - name: The README states what this code does
         run: python3 evals/provider-matrix/check_readme.py
+      # Not `git status --porcelain`, which prints what it finds and exits 0 —
+      # the step that existed to prove the harness left nothing behind would
+      # have stayed green while printing the mess. This asserts on output, over
+      # the whole checkout, and `--self-test` proves it can say otherwise.
       - name: The clean-tree check can fail
         run: python3 evals/provider-matrix/check_clean_tree.py --self-test
       - name: The mutation harness left the tree byte-clean

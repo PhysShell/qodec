@@ -1188,6 +1188,117 @@ in their existing eval harnesses and should consume only targets whose frozen
 receipts are `PASS` for **both** probes — which is exactly why neither may pass
 on an unestablished identity.
 
+## What rounds nineteen and twenty closed
+
+Six rounds running, a reviewer named a site, the site was repaired, and the next
+round found the same defect somewhere else. These are the rounds where that
+stopped: each item below is a *class* closed by something machine-checked, and
+each was found by the closure rather than by a reader.
+
+### The request is bounded before the key is read
+
+`MAX_REQUEST_BYTES` bounded the response and not the request, so a catalog row
+with a long enough model id composed a body this tool would have sent — with a
+credential attached — and only then discovered it was oversized.
+`bounded_request` sits between composition and delivery on both paths, raises
+`EndpointRejected`, and the run files `ENDPOINT_REJECTED` with the turn it
+reached. The receipt records `request_bytes`, so the bound is visible in the
+artifact rather than only in the source.
+
+### A `Derive` is a certificate, not a sentence
+
+`BOUND_ENFORCEMENT` names, for every bounded policy, the producer-side strategy
+that keeps it: `Refuse` (the producer rejects), `Project` (the producer
+truncates), `Derive` (the value cannot exceed the bound by construction).
+`Refuse` and `Project` carry witnesses at the bound and one past it. `Derive`
+carried a sentence — and the sentence on `detail` was false when it shipped:
+`undeclared-tools` joined one reference per undeclared call, and the identity
+lines one digest per substituted model, so a hundred calls rendered a line the
+policy refused. The producer had written a receipt its own audit rejected.
+
+So `Derive` is now computed. `slot_max_bytes` gives the widest a slot can
+render, `TEMPLATE_SEQUENCE_LIMITS` bounds every sequence slot, and
+`template_max_bytes` adds them up; `unbounded_templates()` lists any template
+without a certificate, and a `Prose` field may not be `Derive` while that list
+is non-empty. It immediately named `identity-substituted*` — an instance no
+reviewer had found.
+
+The certificate proves a length only while two invariants hold: every durable
+detail is built through `LocalDetail`, and every `LocalDetail` renders through
+the one permitted renderer. Both are AST-gated, and both remain part of the
+proof rather than assumptions underneath it.
+
+### The auditor is total by construction, not by catching
+
+An auditor walks artifacts that may be malformed — that is the job — so dying on
+one is the failure mode, not an edge case. Wrapping `audit()` in
+`except Exception` would make it total the way unplugging a server makes it
+secure: every programming error becomes an indistinguishable finding. Totality
+is built in three layers instead: an admission boundary (depth and node count
+bounded, going past them is a finding), typed readers (nothing calls `len`,
+`zip`, `re` or `[...]` on a value not first read as the type it should be), and
+a generated malformed corpus run by the shipped self-test.
+
+The corpus walks **normalized structural paths**, not member names. `ordinal`
+appears three times in a qualification receipt — on turns, on each turn's tool
+calls, and nowhere the two mean the same — so a tally keyed by the bare word
+said "covered" after mutating one of them. Discovery unions over every array
+element rather than the first, because the canary fields exist only on the turn
+that ends the exchange; a path the locator cannot reach is not counted as
+reached, because discovery and addressing are two walks and the tally answers
+for the second. `WITNESS_REQUIRED` is written out rather than derived from the
+fixtures: derived, deleting a fixture would delete the requirement along with
+the coverage it stopped providing.
+
+It found what it was built to find on its first deeper run — a canary template
+looked up with `in` without being read as a string, twelve lines below a comment
+explaining why the line above it does exactly that.
+
+### A target id is derived once, and nothing is written early
+
+`f"{provider}--{model}"` read as canonical and was not: `("a", "b--c")` and
+`("a--b", "c")` both spell `a--b--c`, so two different targets claimed one
+identity and one output path. `canonical_target_id` is the only derivation, the
+registry refuses a provider name carrying the separator, and the pair is
+recoverable from the id by one split.
+
+Both emission loops wrote each receipt as they reached it, so a plan whose
+seventh target collided with its second left six receipts on disk and a non-zero
+exit — a run that is neither done nor undone, in a directory that reads as a
+complete result. `refuse_emission` runs before the first byte and reports every
+problem rather than the first. A plan is a file and a file can be edited, so an
+id that does not follow from the pair beside it is refused too.
+
+### One environment boundary for every git call
+
+`isolated_env` drops every `GIT_*` variable rather than the ones it can name,
+replaces `HOME`, and points git at global and system configs that deliberately
+do not exist. The verdict that actually reports runs under it, not only the
+self-test that proves the check can fail — the asymmetry was the round-nineteen
+defect. What round twenty added is the witness: seven variables hostile at once
+against `main` rather than its parts, plus the property directly, since a
+boundary demonstrated one variable at a time is a boundary demonstrated for the
+variables somebody thought of.
+
+### The README's claims are asked of the code
+
+Documentation drifts in silence, and that is the difficulty: a paragraph that
+has become false reads exactly like one that is true. `check_readme.py` compares
+this file's probe-outcome block, qualification-cause block, policy-kind table,
+stated unreached remainder and three-digit status premise against what the code
+actually declares.
+
+It is a gate rather than a test on purpose. A test asserting "the README matches
+the code" cannot fail while the README matches, so deleting it is invisible to
+every oracle — the shape this vertical spent three rounds learning to refuse,
+and it was about to be added by the round whose subject is that shape. Here the
+comparison is a function over supplied text and the self-test feeds it nine
+deliberately wrong READMEs, so breaking an arm turns a control red.
+
+It found two false statements the moment it existed: a remainder naming one
+classification where the suite asserts two, and a policy-kind table missing
+`Flag` and `BoundedNumber`.
+
 ## Adding a provider
 
 Edit `trusted-providers.json` in a reviewed commit. Nothing else grants a
@@ -1431,14 +1542,17 @@ changed instead is how a run is started — every anchor is verified once before
 a twenty-minute run rather than after it, which is a fix to the procedure, not
 to the check.
 
-The counts, from CI on the head this describes: **413 tests**, found identically
-by `python3 test_provider_matrix.py` and by `python3 -m unittest`; **288 of 288
-mutations killed**, none of them invalid, misattributed or unanchored; **124 durable-field
-policies**, of which **36 state a quantity and every one names the producer that
-applies it** with **9 defective specimens refused** and no coverage gaps in either
-direction on either receipt kind; **49 JSON admission cases** against the live
-`serde_json` oracle, one of them refused here on purpose; and a byte-clean
-checkout asserted by a check that proves it can say otherwise.
+The counts, from CI on the head this describes: **449 tests**, found identically
+by `python3 test_provider_matrix.py` and by `python3 -m unittest`; **317 of 317
+mutations killed**, none of them invalid, misattributed or unanchored;
+**124 durable-field policies**, of which **36 state a quantity and every one
+names the producer that applies it**, with **9 defective specimens refused** and
+no coverage gaps in either direction on either receipt kind; **2130 malformed
+specimens** the auditor answered rather than raised on, over **69 structural
+paths**; **9 wrong READMEs** refused by the gate that compares this file to the
+code; **49 JSON admission cases** against the live `serde_json` oracle, one of
+them refused here on purpose; and a byte-clean checkout asserted by a check that
+proves it can say otherwise.
 
 Every classification above except two is reached in one table in
 `test_every_classification_is_declared`; the table asserts the remainder is
