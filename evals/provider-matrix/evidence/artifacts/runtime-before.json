@@ -1,0 +1,86 @@
+{
+ "derived": {
+  "share_of_saving_from_receipt_policy": 0.991,
+  "suite_saving_median_seconds": 41.296
+ },
+ "earlier_ad_hoc_observation": {
+  "check_clean_tree.py --self-test": 0.145,
+  "check_readme.py --self-test": 0.161,
+  "check_test_discovery.py --self-test": 0.185,
+  "how": "single `time` around each command, no repeats, taken before this script existed; kept because two independently taken sets that disagree by a third are more informative than one that does not",
+  "receipt_policy.py --self-test": 34.4,
+  "suite as shipped": 41.2,
+  "suite minus duplicated corpora": 3.8,
+  "why it differs": "machine load, not method: the ordering and the ratios are the same in both, and the saving is dominated by receipt-policy in both"
+ },
+ "head": "20ef6bc142b476ada09964117a18cfcf9cd8105f",
+ "not_measured": "full mutation harness runtime; only a full run settles it",
+ "platform": "Linux-6.18.5-x86_64-with-glibc2.39",
+ "python": "3.11.15",
+ "repeats_per_subject": 3,
+ "subjects": {
+  "check_clean_tree.py --self-test": {
+   "command": "python3 check_clean_tree.py --self-test",
+   "median": 0.165,
+   "repeats": [
+    0.165,
+    0.162,
+    0.168
+   ],
+   "verdict": "OK the clean-tree check reports a tracked modification, an untracked file and a "
+  },
+  "check_readme.py --self-test": {
+   "command": "python3 check_readme.py --self-test",
+   "median": 0.252,
+   "repeats": [
+    0.252,
+    0.269,
+    0.241
+   ],
+   "verdict": "OK the README agrees with the code on 15 probe outcomes, 20 qualification causes"
+  },
+  "check_test_discovery.py --self-test": {
+   "command": "python3 check_test_discovery.py --self-test",
+   "median": 0.217,
+   "repeats": [
+    0.214,
+    0.239,
+    0.217
+   ],
+   "verdict": "OK the check detects a mid-file entrypoint (the direct run misses Late.test_two)"
+  },
+  "receipt_policy.py --self-test": {
+   "command": "python3 receipt_policy.py --self-test",
+   "median": 40.935,
+   "repeats": [
+    39.909,
+    40.935,
+    41.872
+   ],
+   "verdict": "OK 124 durable-field policies, 9 defective specimens refused, 36 bounds owned by"
+  },
+  "suite as shipped": {
+   "command": "python3 _benchmark_suite.py",
+   "deselected": false,
+   "median": 46.223,
+   "repeats": [
+    46.223,
+    46.744,
+    45.027
+   ],
+   "verdict": "RESULT RED 449"
+  },
+  "suite minus duplicated corpora": {
+   "command": "python3 _benchmark_suite.py",
+   "deselected": true,
+   "median": 4.927,
+   "repeats": [
+    4.707,
+    4.927,
+    4.998
+   ],
+   "verdict": "RESULT RED 449"
+  }
+ },
+ "wall_time": "time.perf_counter around subprocess.run, seconds"
+}
