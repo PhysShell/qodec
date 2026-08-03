@@ -24,6 +24,7 @@ be invented or hidden.
 
 from __future__ import annotations
 
+import collections
 import hashlib
 import json
 import os
@@ -43,6 +44,7 @@ BASELINE_HEAD = "3ba3a3896dca952a76f20c6507ae654b50b6408a"
 
 # Every oracle label the harness can print.
 ORACLES = ("suite", "policy-gate", "clean-tree-gate", "discovery-gate", "readme-gate")
+LABEL = re.compile(r"(?:\(|; )(" + "|".join(ORACLES) + r"): ")
 
 # The five suite tests that execute a full shipped self-test corpus. All five
 # run it *in process*: a check that looked for a spawned subprocess would find
@@ -133,7 +135,7 @@ def build_baseline(log_path: pathlib.Path, out: pathlib.Path,
         by_name = {row["name"]: fp for fp, row in rows.items()}
     lines = json.loads(log_path.read_text())["logs_content"].split("\n")
     killed = re.compile(r"^  killed\s+(?P<name>.*?)\s+\((?=(?:" + "|".join(ORACLES) + r"):)")
-    label = re.compile(r"(?:\(|; )(" + "|".join(ORACLES) + r"): ")
+    label = LABEL
 
     manifest, unmatched = {}, []
     for raw in lines:
@@ -263,6 +265,109 @@ def build_allowed(baseline: pathlib.Path, measured: pathlib.Path,
             print(f"  {key}: {value}")
 
 
+VERDICT = re.compile(r"^  (?P<state>[A-Za-z]+) ")
+KILLED = re.compile(r"^  killed\s+(?P<name>.*?)\s+\((?=(?:" + "|".join(ORACLES) + r"):)")
+
+
+def build_actual(raw: pathlib.Path, out: pathlib.Path,
+                 expected_digest: str | None = None) -> None:
+    """The ownership each specification actually got, keyed by fingerprint.
+
+    Built from the frozen bytes rather than from a terminal, and the digest is
+    checked first — an artifact derived from a log nobody can identify is an
+    artifact about nothing.
+
+    This existed as an inline script once, and its output was summarised into an
+    aggregate that was committed while the derivation was not. Raw evidence
+    kept, conclusion kept, the step between them thrown away: not a lost proof,
+    but a proof nobody else can re-run, which is a distinction that only ever
+    matters later.
+    """
+    text = raw.read_text(encoding="utf-8")
+    digest = hashlib.sha256(raw.read_bytes()).hexdigest()
+    if expected_digest and digest != expected_digest:
+        raise SystemExit(f"the raw log does not match the frozen digest: "
+                         f"{digest} != {expected_digest}")
+
+    _module, rows = table()
+    by_name = {row["name"]: fp for fp, row in rows.items()}
+
+    states = collections.Counter(VERDICT.match(line).group("state")
+                                 for line in text.splitlines() if VERDICT.match(line))
+    if set(states) != {"killed"}:
+        raise SystemExit(f"the verdict census is not all killed: {dict(states)}")
+
+    actual, unknown, duplicates = {}, [], []
+    for line in text.splitlines():
+        if not line.startswith("  killed "):
+            continue
+        found = KILLED.match(line)
+        if not found or found.group("name") not in by_name:
+            unknown.append(line[:110])
+            continue
+        fingerprint = by_name[found.group("name")]
+        if fingerprint in actual:
+            duplicates.append(found.group("name"))
+        actual[fingerprint] = {**rows[fingerprint],
+                               "actual_owners": sorted(set(LABEL.findall(line)))}
+    missing = sorted(set(rows) - set(actual))
+    if unknown or duplicates or missing:
+        raise SystemExit(
+            f"{len(unknown)} unrecognised verdict row(s), {len(duplicates)} duplicate(s), "
+            f"{len(missing)} specification(s) with no verdict")
+    out.write_text(json.dumps(
+        {"raw_sha256": digest, "verdicts": dict(states), "specs": actual},
+        indent=1, sort_keys=True) + "\n")
+    print(f"actual: {len(actual)} fingerprints, verdicts {dict(states)}")
+
+
+def build_comparison(actual_path: pathlib.Path, allowed_path: pathlib.Path,
+                     out: pathlib.Path) -> None:
+    """Every fingerprint against the envelope frozen before the code existed."""
+    actual = json.loads(actual_path.read_text())["specs"]
+    frozen = json.loads(allowed_path.read_text())
+    allowed = frozen["specs"]
+
+    extra = sorted(set(actual) - set(allowed))
+    missing = sorted(set(allowed) - set(actual))
+    rows, tally = {}, collections.Counter()
+    for fingerprint, envelope in allowed.items():
+        got = actual.get(fingerprint, {}).get("actual_owners")
+        shapes = [sorted(shape) for shape in envelope["allowed_after"]]
+        fixed = len(shapes) == 1
+        if got is None:
+            result = "never-executed"
+        elif got not in shapes:
+            result = "outside-envelope"
+        elif fixed:
+            result = "fixed-preserved"
+        elif got == sorted(envelope["baseline"]):
+            result = "allowed-to-move-but-did-not"
+        else:
+            result = "moved-within-envelope"
+        tally[result] += 1
+        rows[fingerprint] = {"name": envelope["name"], "baseline": envelope["baseline"],
+                             "allowed_after": envelope["allowed_after"],
+                             "actual": got, "result": result}
+    summary = {
+        "fixed_exact": f"{tally['fixed-preserved']}/{sum(1 for e in allowed.values() if len(e['allowed_after']) == 1)}",
+        "variable_allowed": f"{tally['moved-within-envelope'] + tally['allowed-to-move-but-did-not']}/"
+                            f"{sum(1 for e in allowed.values() if len(e['allowed_after']) > 1)}",
+        "moved": tally["moved-within-envelope"],
+        "allowed_but_unchanged": tally["allowed-to-move-but-did-not"],
+        "outside_envelope": tally["outside-envelope"],
+        "never_executed": tally["never-executed"],
+        "extra_fingerprints": len(extra),
+        "missing_fingerprints": len(missing),
+    }
+    out.write_text(json.dumps({"summary": summary, "specs": rows},
+                              indent=1, sort_keys=True) + "\n")
+    for key, value in summary.items():
+        print(f"  {key}: {value}")
+    if tally["outside-envelope"] or tally["never-executed"] or extra or missing:
+        raise SystemExit("the run does not sit inside the frozen envelope")
+
+
 def main(argv: list[str]) -> int:
     if len(argv) < 2:
         print(__doc__)
@@ -273,6 +378,11 @@ def main(argv: list[str]) -> int:
         build_baseline(pathlib.Path(argv[1]), out, frozen)
     elif command == "measure":
         measure(out)
+    elif command == "actual":
+        record = json.loads((HERE / "artifacts" / "preservation-run-record.json").read_text())
+        build_actual(pathlib.Path(argv[1]), out, record.get("stdout_sha256"))
+    elif command == "compare":
+        build_comparison(pathlib.Path(argv[1]), pathlib.Path(argv[2]), out)
     elif command == "allowed":
         build_allowed(pathlib.Path(argv[1]), pathlib.Path(argv[2]), out)
     else:

@@ -1,0 +1,4968 @@
+{
+ "specs": {
+  "001efd651a9acc0241202a64531cff5f4fe32924806d929e2c0b6ffeec5ab9df": {
+   "actual": [
+    "suite"
+   ],
+   "allowed_after": [
+    [
+     "suite"
+    ]
+   ],
+   "baseline": [
+    "suite"
+   ],
+   "name": "MH3 a target may name no suite oracle to anchor coherence on",
+   "result": "fixed-preserved"
+  },
+  "00d1ddd68985e89eb351b0f28327577e5b5a129cd1b033271f5d8e11e0f9ff0c": {
+   "actual": [
+    "suite"
+   ],
+   "allowed_after": [
+    [
+     "suite"
+    ]
+   ],
+   "baseline": [
+    "suite"
+   ],
+   "name": "I7 a wrong envelope encoding tolerated",
+   "result": "fixed-preserved"
+  },
+  "015f66ed1619391e8f02cd49a8ad65ff04eab462506cef2cf8fa830d1c6bbc8d": {
+   "actual": [
+    "suite"
+   ],
+   "allowed_after": [
+    [
+     "suite"
+    ]
+   ],
+   "baseline": [
+    "suite"
+   ],
+   "name": "PB7 output is printed with nothing rendered safe",
+   "result": "fixed-preserved"
+  },
+  "018aacbe5067859bcfbcff0da784272a18dcc6a574f753c34d37341d67cd9df9": {
+   "actual": [
+    "suite"
+   ],
+   "allowed_after": [
+    [
+     "suite"
+    ]
+   ],
+   "baseline": [
+    "suite"
+   ],
+   "name": "LV1 a child inherits the terminal again",
+   "result": "fixed-preserved"
+  },
+  "02240bcb6cb87122da7c7b13a870cc9f8529c052f46e0ba2e1d2608b00d510c6": {
+   "actual": [
+    "policy-gate"
+   ],
+   "allowed_after": [
+    [
+     "policy-gate"
+    ],
+    [
+     "policy-gate",
+     "suite"
+    ]
+   ],
+   "baseline": [
+    "policy-gate",
+    "suite"
+   ],
+   "name": "NP3 the tally stops recording which places were reached",
+   "result": "moved-within-envelope"
+  },
+  "03fbca109072049685fc10f0c2f656791f0175f93e64d0f70a20ecbb49b5a73e": {
+   "actual": [
+    "suite"
+   ],
+   "allowed_after": [
+    [
+     "suite"
+    ]
+   ],
+   "baseline": [
+    "suite"
+   ],
+   "name": "AU1 the URL rule is applied to every authority field again",
+   "result": "fixed-preserved"
+  },
+  "0421f6d1a9a100f45680ff6e56d90f26783c796780f6c2a01b445d9f618bdb10": {
+   "actual": [
+    "suite"
+   ],
+   "allowed_after": [
+    [
+     "suite"
+    ]
+   ],
+   "baseline": [
+    "suite"
+   ],
+   "name": "B1 validation degraded to required-key presence",
+   "result": "fixed-preserved"
+  },
+  "0440975d816bcc87df86e6f339af636db5dadbf367173267448ddcef0e801fc5": {
+   "actual": [
+    "suite"
+   ],
+   "allowed_after": [
+    [
+     "suite"
+    ]
+   ],
+   "baseline": [
+    "suite"
+   ],
+   "name": "Y2 a framing failure reported as a retryable transport failure",
+   "result": "fixed-preserved"
+  },
+  "0545b10251683c33545865d66be2024ff55abcf7630711bef4c40bcc52ec5a03": {
+   "actual": [
+    "suite"
+   ],
+   "allowed_after": [
+    [
+     "suite"
+    ]
+   ],
+   "baseline": [
+    "suite"
+   ],
+   "name": "T3 an observed count that disagrees with the body accepted",
+   "result": "fixed-preserved"
+  },
+  "0616890415e5af0373d1a53b5ff39a1cf381306c403ba80fe824b92db034a397": {
+   "actual": [
+    "suite"
+   ],
+   "allowed_after": [
+    [
+     "suite"
+    ]
+   ],
+   "baseline": [
+    "suite"
+   ],
+   "name": "F1 a run whose model was never named still passes qualification",
+   "result": "fixed-preserved"
+  },
+  "06bc389a86c8087053caf373357709d94ef282a4a5ba879827cf7d315403059b": {
+   "actual": [
+    "suite"
+   ],
+   "allowed_after": [
+    [
+     "suite"
+    ]
+   ],
+   "baseline": [
+    "suite"
+   ],
+   "name": "CN3 the count and the kept lines describe different things",
+   "result": "fixed-preserved"
+  },
+  "083277c1053170efec4ba8f98af0803bd815f2ed9633ad6318339cb4f21bdc9e": {
+   "actual": [
+    "suite"
+   ],
+   "allowed_after": [
+    [
+     "suite"
+    ]
+   ],
+   "baseline": [
+    "suite"
+   ],
+   "name": "FN1 the escape set shrinks back to the characters somebody listed",
+   "result": "fixed-preserved"
+  },
+  "0880033867a7d6967a54e94da8e9bc8d1746a994cfec98c7202f0625f97920e4": {
+   "actual": [
+    "suite"
+   ],
+   "allowed_after": [
+    [
+     "suite"
+    ]
+   ],
+   "baseline": [
+    "suite"
+   ],
+   "name": "DP28 a non-string model hashed rather than typed",
+   "result": "fixed-preserved"
+  },
+  "08b6bee116cf5ae7529ead6f977e54b622743aeedc10bda4530904f95ce6d770": {
+   "actual": [
+    "suite"
+   ],
+   "allowed_after": [
+    [
+     "suite"
+    ]
+   ],
+   "baseline": [
+    "suite"
+   ],
+   "name": "CV4 coverage stops looking for a declaration that is simply false",
+   "result": "fixed-preserved"
+  },
+  "0937acde3222e2720dda446e462a814214ed2ff2439af47663a25ed2c3327bd7": {
+   "actual": [
+    "suite"
+   ],
+   "allowed_after": [
+    [
+     "suite"
+    ]
+   ],
+   "baseline": [
+    "suite"
+   ],
+   "name": "L4 the crash receipt keeps the exception class beside its own projection",
+   "result": "fixed-preserved"
+  },
+  "0b8699b0373d808ef902049227b99f88de0cb48f56e43e37232c398ac1ce0a6a": {
+   "actual": [
+    "suite"
+   ],
+   "allowed_after": [
+    [
+     "suite"
+    ]
+   ],
+   "baseline": [
+    "suite"
+   ],
+   "name": "R3 a decode failure escapes instead of classifying",
+   "result": "fixed-preserved"
+  },
+  "0bbf894ae0fcc21b640ec697bcee47d11ac15098b5e2a50abfaaad4ef40f953f": {
+   "actual": [
+    "suite"
+   ],
+   "allowed_after": [
+    [
+     "suite"
+    ]
+   ],
+   "baseline": [
+    "suite"
+   ],
+   "name": "DP4 a usage counter that is not a count is kept",
+   "result": "fixed-preserved"
+  },
+  "0bc981c1c5742c28059367ea228e534cca8df80702f7c747021e80e96ee00a11": {
+   "actual": [
+    "suite"
+   ],
+   "allowed_after": [
+    [
+     "suite"
+    ]
+   ],
+   "baseline": [
+    "suite"
+   ],
+   "name": "DP18 the raw assistant role written into the detail",
+   "result": "fixed-preserved"
+  },
+  "0d1d72901ac6fd1929951c006d38e70f063dc83b3ad13eecbb8d0dfe70eefe11": {
+   "actual": [
+    "suite"
+   ],
+   "allowed_after": [
+    [
+     "suite"
+    ]
+   ],
+   "baseline": [
+    "suite"
+   ],
+   "name": "RM2 a producer handing over the wrong type stops being refused",
+   "result": "fixed-preserved"
+  },
+  "0d5bdcdcd8160879fdcc98292f55e2736cf324e79fc1b3a7602ba619872a6ab4": {
+   "actual": [
+    "suite"
+   ],
+   "allowed_after": [
+    [
+     "suite"
+    ]
+   ],
+   "baseline": [
+    "suite"
+   ],
+   "name": "N3 the source export parsed leniently",
+   "result": "fixed-preserved"
+  },
+  "0d9aa2ae298f1d06f91c703d0be96f2cb01414933d3dcd4a9498fc45daaa1306": {
+   "actual": [
+    "suite"
+   ],
+   "allowed_after": [
+    [
+     "suite"
+    ]
+   ],
+   "baseline": [
+    "suite"
+   ],
+   "name": "CN1 the canary findings are unbounded again",
+   "result": "fixed-preserved"
+  },
+  "0e600da50320881b71d17f7a77306a4ea8b33724cddc5f4c1cf76e45591c6d28": {
+   "actual": [
+    "suite"
+   ],
+   "allowed_after": [
+    [
+     "suite"
+    ]
+   ],
+   "baseline": [
+    "suite"
+   ],
+   "name": "DP10 an undeclared tool name written to the turn record",
+   "result": "fixed-preserved"
+  },
+  "121a33302392b2711f869091537031518dc61b31c3de6a0b069f0bb05d79e28e": {
+   "actual": [
+    "suite"
+   ],
+   "allowed_after": [
+    [
+     "suite"
+    ]
+   ],
+   "baseline": [
+    "suite"
+   ],
+   "name": "HR4 an unusable Content-Length is taken on trust",
+   "result": "fixed-preserved"
+  },
+  "121c0acd76aa0944aafd36901c486152660b6c14231f1443b49392962c84d63d": {
+   "actual": [
+    "suite"
+   ],
+   "allowed_after": [
+    [
+     "suite"
+    ]
+   ],
+   "baseline": [
+    "suite"
+   ],
+   "name": "MH4 an expected kill may arrive from an oracle that stayed green",
+   "result": "fixed-preserved"
+  },
+  "141778d3ea7f1f124d169fc9f08e930d0c5a78204783bfda275cdae80b670061": {
+   "actual": [
+    "suite"
+   ],
+   "allowed_after": [
+    [
+     "suite"
+    ]
+   ],
+   "baseline": [
+    "suite"
+   ],
+   "name": "C1 plaintext http accepted",
+   "result": "fixed-preserved"
+  },
+  "144ae86eaa7ec93a172caac02d227b34bc9a808da217001ebaa9f7d3ed357217": {
+   "actual": [
+    "suite"
+   ],
+   "allowed_after": [
+    [
+     "suite"
+    ]
+   ],
+   "baseline": [
+    "suite"
+   ],
+   "name": "MI1 a non-string model is called missing again",
+   "result": "fixed-preserved"
+  },
+  "177d4f0bfe5ce7c6c93e29c7a0e4b5ce892c595d2e3df66701cf334349124c1d": {
+   "actual": [
+    "suite"
+   ],
+   "allowed_after": [
+    [
+     "suite"
+    ]
+   ],
+   "baseline": [
+    "suite"
+   ],
+   "name": "RQ3 an oversized body is admitted rather than refused",
+   "result": "fixed-preserved"
+  },
+  "17e8d29f5e4712363da2149aef90293e9a0f65a24143efd82dc0ae315b9b3b52": {
+   "actual": [
+    "suite"
+   ],
+   "allowed_after": [
+    [
+     "suite"
+    ]
+   ],
+   "baseline": [
+    "suite"
+   ],
+   "name": "TB9 the failure class loses its local size bound",
+   "result": "fixed-preserved"
+  },
+  "183e9732e3de53432d88624a43961399b1fa5f327f9ef0708a2f16c6a06c54ad": {
+   "actual": [
+    "suite"
+   ],
+   "allowed_after": [
+    [
+     "suite"
+    ]
+   ],
+   "baseline": [
+    "suite"
+   ],
+   "name": "H1 object arguments no longer named as a different dialect",
+   "result": "fixed-preserved"
+  },
+  "1a016264b82dc75c94c6d193c19ff584982e9ec2401bc8db2f5f1fe146019770": {
+   "actual": [
+    "suite"
+   ],
+   "allowed_after": [
+    [
+     "suite"
+    ]
+   ],
+   "baseline": [
+    "suite"
+   ],
+   "name": "TP11 the envelope's unknown field is spelled out again",
+   "result": "fixed-preserved"
+  },
+  "1a18cc08d4685bb2a86540fc25d19ff10ddc9aa9971b70e07eb494e5a4f1132e": {
+   "actual": [
+    "policy-gate",
+    "suite"
+   ],
+   "allowed_after": [
+    [
+     "policy-gate",
+     "suite"
+    ]
+   ],
+   "baseline": [
+    "policy-gate",
+    "suite"
+   ],
+   "name": "CV5 a coverage opt-out needs no stated reason",
+   "result": "fixed-preserved"
+  },
+  "1ad1617ac582aa1e81500b501f9461fd8b07218f8cbec02af744095094991714": {
+   "actual": [
+    "suite"
+   ],
+   "allowed_after": [
+    [
+     "suite"
+    ]
+   ],
+   "baseline": [
+    "suite"
+   ],
+   "name": "NP5 an object is admitted where an array belongs",
+   "result": "fixed-preserved"
+  },
+  "1c2a33ff8aeba171ef4cc16d1d5baa6093bc0dc5705a751fc795044a17096cbe": {
+   "actual": [
+    "policy-gate",
+    "suite"
+   ],
+   "allowed_after": [
+    [
+     "policy-gate",
+     "suite"
+    ]
+   ],
+   "baseline": [
+    "policy-gate",
+    "suite"
+   ],
+   "name": "DF3 a bounded integer loses its ceiling",
+   "result": "fixed-preserved"
+  },
+  "1c64717d5d20031d3ac8a05449d32b5a0110239a8b16725f0a0f1407a0434558": {
+   "actual": [
+    "suite"
+   ],
+   "allowed_after": [
+    [
+     "suite"
+    ]
+   ],
+   "baseline": [
+    "suite"
+   ],
+   "name": "TP5 a reference slot accepts a plain string",
+   "result": "fixed-preserved"
+  },
+  "1d9819ab14cae324d657e49a49d82722735f8be5579343bd932d80e95026083e": {
+   "actual": [
+    "readme-gate"
+   ],
+   "allowed_after": [
+    [
+     "readme-gate"
+    ],
+    [
+     "readme-gate",
+     "suite"
+    ]
+   ],
+   "baseline": [
+    "readme-gate",
+    "suite"
+   ],
+   "name": "RD7 the policy-kind table stops being compared to the kinds that exist",
+   "result": "moved-within-envelope"
+  },
+  "1da49321b26285da5be487a0c7e5eef199273273671808d3adb9a314f5b63b3a": {
+   "actual": [
+    "suite"
+   ],
+   "allowed_after": [
+    [
+     "suite"
+    ]
+   ],
+   "baseline": [
+    "suite"
+   ],
+   "name": "DP7 the raw request id written to the artifact",
+   "result": "fixed-preserved"
+  },
+  "1e5b7bf372d40ada17ae4ce70214895c0f4719c2a5b6ed1bfaebb27276ccc3be": {
+   "actual": [
+    "suite"
+   ],
+   "allowed_after": [
+    [
+     "suite"
+    ]
+   ],
+   "baseline": [
+    "suite"
+   ],
+   "name": "VT2 a half-list spec stops being refused",
+   "result": "fixed-preserved"
+  },
+  "1ee8dc514075253b5a5943e21d873cbc5ab7a3b31832e8e6e4ba304a5cde0dfb": {
+   "actual": [
+    "suite"
+   ],
+   "allowed_after": [
+    [
+     "suite"
+    ]
+   ],
+   "baseline": [
+    "suite"
+   ],
+   "name": "MI4 a mixed drift reports only its digests",
+   "result": "fixed-preserved"
+  },
+  "209d799a2059b5697cf44ced566ee7a2c779e4a3efa69c6dd9b911fd39c06281": {
+   "actual": [
+    "suite"
+   ],
+   "allowed_after": [
+    [
+     "suite"
+    ]
+   ],
+   "baseline": [
+    "suite"
+   ],
+   "name": "U1 a lost response body escapes the read entirely",
+   "result": "fixed-preserved"
+  },
+  "23d17c216cb0852a6239d74ef11a5819c6add00082db58f61524e0cf6172c96b": {
+   "actual": [
+    "suite"
+   ],
+   "allowed_after": [
+    [
+     "suite"
+    ]
+   ],
+   "baseline": [
+    "suite"
+   ],
+   "name": "Y3 a framing failure classified as unavailability",
+   "result": "fixed-preserved"
+  },
+  "242d16bc4ab9e06c5c07087f7d6f0d9fc233acdf4da87f58fde08c6d624f060e": {
+   "actual": [
+    "suite"
+   ],
+   "allowed_after": [
+    [
+     "suite"
+    ]
+   ],
+   "baseline": [
+    "suite"
+   ],
+   "name": "DP3 unknown usage fields kept",
+   "result": "fixed-preserved"
+  },
+  "2539ac08983f6d94c1ce465f2d28c02fc33c5d544d173a7794373325b1111a03": {
+   "actual": [
+    "suite"
+   ],
+   "allowed_after": [
+    [
+     "suite"
+    ]
+   ],
+   "baseline": [
+    "suite"
+   ],
+   "name": "E12 the recorded endpoint is taken from the plan row rather than the registry",
+   "result": "fixed-preserved"
+  },
+  "25b3f6f8d5af40c7c35d045c4b99023fcad47a5fc8d565a69f3a848b97194cb5": {
+   "actual": [
+    "suite"
+   ],
+   "allowed_after": [
+    [
+     "suite"
+    ]
+   ],
+   "baseline": [
+    "suite"
+   ],
+   "name": "S2 an overflowing literal readmitted as inf",
+   "result": "fixed-preserved"
+  },
+  "25c93216b58005c635d462dcd3892501ca8233f72417f38aef777f0492040b1c": {
+   "actual": [
+    "suite"
+   ],
+   "allowed_after": [
+    [
+     "suite"
+    ]
+   ],
+   "baseline": [
+    "suite"
+   ],
+   "name": "NP8 a non-string key is laundered through str()",
+   "result": "fixed-preserved"
+  },
+  "263eceede5e42d0007a5d99f9289d872a0c0ed6da43aa99dccbef517bb5af22d": {
+   "actual": [
+    "suite"
+   ],
+   "allowed_after": [
+    [
+     "suite"
+    ]
+   ],
+   "baseline": [
+    "suite"
+   ],
+   "name": "UC1 the usage ceilings come from the response limit again",
+   "result": "fixed-preserved"
+  },
+  "266e4d85cc3bb1ac067e23677e403711ac759cb9e3e8dceba3e8937c1fa9a49c": {
+   "actual": [
+    "suite"
+   ],
+   "allowed_after": [
+    [
+     "suite"
+    ]
+   ],
+   "baseline": [
+    "suite"
+   ],
+   "name": "EM7 the qualification writes its first receipts before the plan is checked",
+   "result": "fixed-preserved"
+  },
+  "28629c1694012a07f5a605a03b4f3f8302184c21505f9be95285a68a7c226550": {
+   "actual": [
+    "readme-gate",
+    "suite"
+   ],
+   "allowed_after": [
+    [
+     "readme-gate"
+    ],
+    [
+     "readme-gate",
+     "suite"
+    ]
+   ],
+   "baseline": [
+    "readme-gate",
+    "suite"
+   ],
+   "name": "RD3 the README may omit an outcome this code emits",
+   "result": "allowed-to-move-but-did-not"
+  },
+  "287da1d4a292b67fb006822c357f1165cf0e015d97026bae0354cc5b6cecd1a8": {
+   "actual": [
+    "suite"
+   ],
+   "allowed_after": [
+    [
+     "suite"
+    ]
+   ],
+   "baseline": [
+    "suite"
+   ],
+   "name": "I5 a disagreeing display_utf8 tolerated",
+   "result": "fixed-preserved"
+  },
+  "28db23a3d75c4f8f038bdf49e6b0196876686a74c3d02aedf4686450ebecd4a0": {
+   "actual": [
+    "suite"
+   ],
+   "allowed_after": [
+    [
+     "suite"
+    ]
+   ],
+   "baseline": [
+    "suite"
+   ],
+   "name": "Y7 the probe files a framing failure as an unreachable endpoint",
+   "result": "fixed-preserved"
+  },
+  "2913c949b49ddc8dae6fea705bc029ded5966029a2133566063b70088194630d": {
+   "actual": [
+    "clean-tree-gate",
+    "discovery-gate",
+    "suite"
+   ],
+   "allowed_after": [
+    [
+     "clean-tree-gate",
+     "discovery-gate",
+     "suite"
+    ]
+   ],
+   "baseline": [
+    "clean-tree-gate",
+    "discovery-gate",
+    "suite"
+   ],
+   "name": "PB1 the boundary lets the standard library decode",
+   "result": "fixed-preserved"
+  },
+  "2918653d011f8264a1beef793a0df7636ebe09979f1d1b3412203c79af80797c": {
+   "actual": [
+    "suite"
+   ],
+   "allowed_after": [
+    [
+     "suite"
+    ]
+   ],
+   "baseline": [
+    "suite"
+   ],
+   "name": "PBD5 truncation stops being reported",
+   "result": "fixed-preserved"
+  },
+  "2a4ee9d0fed6552fe058173679535704232a41d2119217991b9095a8ab14108d": {
+   "actual": [
+    "suite"
+   ],
+   "allowed_after": [
+    [
+     "suite"
+    ]
+   ],
+   "baseline": [
+    "suite"
+   ],
+   "name": "DP13 the schema validator's text written to the receipt",
+   "result": "fixed-preserved"
+  },
+  "2ab1c0bd0f543f1f4b5dec064df0127fd89418c4ba6d6f3f125a0dd08db78315": {
+   "actual": [
+    "suite"
+   ],
+   "allowed_after": [
+    [
+     "suite"
+    ]
+   ],
+   "baseline": [
+    "suite"
+   ],
+   "name": "GE1 the isolation enumerates the git variables it drops",
+   "result": "fixed-preserved"
+  },
+  "2b9bdc21ebf06106c243f3b4a05d6a9d3ce3de1f31693f7a64159217163f7be8": {
+   "actual": [
+    "suite"
+   ],
+   "allowed_after": [
+    [
+     "suite"
+    ]
+   ],
+   "baseline": [
+    "suite"
+   ],
+   "name": "E9 an implausible key_env accepted",
+   "result": "fixed-preserved"
+  },
+  "2d2013de6e355b9da5f01d957c992e46c884bfa97fa866afb3952bdbed88576c": {
+   "actual": [
+    "readme-gate",
+    "suite"
+   ],
+   "allowed_after": [
+    [
+     "readme-gate"
+    ],
+    [
+     "readme-gate",
+     "suite"
+    ]
+   ],
+   "baseline": [
+    "readme-gate",
+    "suite"
+   ],
+   "name": "RD5 the prose reader depends on where the line breaks fall",
+   "result": "allowed-to-move-but-did-not"
+  },
+  "2d2d7a2b5e8def4b086667c97200d27903d10f8a9717f83575317bf2cf747e32": {
+   "actual": [
+    "suite"
+   ],
+   "allowed_after": [
+    [
+     "suite"
+    ]
+   ],
+   "baseline": [
+    "suite"
+   ],
+   "name": "PBD3 the ordinal ceiling stops following the producer's bound",
+   "result": "fixed-preserved"
+  },
+  "2e1d128062ecac972574b42fe34cf49f16eb3ec9c1b11ccdae61ad83565c1a2f": {
+   "actual": [
+    "suite"
+   ],
+   "allowed_after": [
+    [
+     "suite"
+    ]
+   ],
+   "baseline": [
+    "suite"
+   ],
+   "name": "PBD2 the cardinality bound is read as an ordinal again",
+   "result": "fixed-preserved"
+  },
+  "2f947722edfa907ee99f47dcc4d6dcd54eb2d3b4413c91af31bc9d05020e5f40": {
+   "actual": [
+    "suite"
+   ],
+   "allowed_after": [
+    [
+     "suite"
+    ]
+   ],
+   "baseline": [
+    "suite"
+   ],
+   "name": "CN4 the truncated detail reports the provider's count rather than the kept one",
+   "result": "fixed-preserved"
+  },
+  "31a2d6c48b520f9d3e8f6c2c44daa0c298253ce1ab222ebf4d71fd94c61be24b": {
+   "actual": [
+    "suite"
+   ],
+   "allowed_after": [
+    [
+     "suite"
+    ]
+   ],
+   "baseline": [
+    "suite"
+   ],
+   "name": "E9b a key_env longer than the bound the certificate adds up",
+   "result": "fixed-preserved"
+  },
+  "31d3c8c720f6d6fef2b0b8b9af369e17010fc28c0997c1b50a83a90d2c90df02": {
+   "actual": [
+    "suite"
+   ],
+   "allowed_after": [
+    [
+     "suite"
+    ]
+   ],
+   "baseline": [
+    "suite"
+   ],
+   "name": "TP4 a slot stops checking what it was handed",
+   "result": "fixed-preserved"
+  },
+  "31eb5300d11b6a0747e7f2a25a3cf5a3e4a09220e44eb781838dac25b03054fc": {
+   "actual": [
+    "suite"
+   ],
+   "allowed_after": [
+    [
+     "suite"
+    ]
+   ],
+   "baseline": [
+    "suite"
+   ],
+   "name": "TB10 the failure class is no longer required to be a string",
+   "result": "fixed-preserved"
+  },
+  "3204bc2ddef0ab3f57337ee1d5323af68f15a0f37a22714cf60a4512ee5fe91a": {
+   "actual": [
+    "suite"
+   ],
+   "allowed_after": [
+    [
+     "suite"
+    ]
+   ],
+   "baseline": [
+    "suite"
+   ],
+   "name": "T1 observed bytes accepted on a stage that received nothing",
+   "result": "fixed-preserved"
+  },
+  "3244af1fadefa31a6c3da0371dadb535f38f1d664314df6ddf60657c74c8f209": {
+   "actual": [
+    "readme-gate"
+   ],
+   "allowed_after": [
+    [
+     "readme-gate"
+    ],
+    [
+     "readme-gate",
+     "suite"
+    ]
+   ],
+   "baseline": [
+    "readme-gate",
+    "suite"
+   ],
+   "name": "RD6 a literal NUL in the README stops being a finding",
+   "result": "moved-within-envelope"
+  },
+  "3316cf7bd19ec0f201d18a8d282ff30018ef1e618ae17a1635398b0929816bfe": {
+   "actual": [
+    "suite"
+   ],
+   "allowed_after": [
+    [
+     "suite"
+    ]
+   ],
+   "baseline": [
+    "suite"
+   ],
+   "name": "Q5 bytearray accepted as a body",
+   "result": "fixed-preserved"
+  },
+  "343105dde432d725ba92c0e97ee6d77ae4d693a84e20f89aae83916be9c10e36": {
+   "actual": [
+    "suite"
+   ],
+   "allowed_after": [
+    [
+     "suite"
+    ]
+   ],
+   "baseline": [
+    "suite"
+   ],
+   "name": "TB6 the receipt stops naming the limit it was actually given",
+   "result": "fixed-preserved"
+  },
+  "3491061ec7356009f332c67077dafb5da259fab22f30d751a0874449d1b55381": {
+   "actual": [
+    "policy-gate"
+   ],
+   "allowed_after": [
+    [
+     "policy-gate"
+    ],
+    [
+     "policy-gate",
+     "suite"
+    ]
+   ],
+   "baseline": [
+    "policy-gate",
+    "suite"
+   ],
+   "name": "BC1 a bounded field may again be enforced by nobody",
+   "result": "moved-within-envelope"
+  },
+  "350964bb0d77016c29a32adc56790e2e46859d8bead52d1c6f06560e7358790b": {
+   "actual": [
+    "suite"
+   ],
+   "allowed_after": [
+    [
+     "suite"
+    ]
+   ],
+   "baseline": [
+    "suite"
+   ],
+   "name": "M4 a crashing target ends the matrix",
+   "result": "fixed-preserved"
+  },
+  "35d8f69530c16d2b27ce6bb587223aecb69bf0e3cfaf1a7593c7cf46447f7e9b": {
+   "actual": [
+    "suite"
+   ],
+   "allowed_after": [
+    [
+     "suite"
+    ]
+   ],
+   "baseline": [
+    "suite"
+   ],
+   "name": "FG1 a launcher may leave the grammar unremarked",
+   "result": "fixed-preserved"
+  },
+  "368c1149cd3dcd64a99d832b5305e954631d91ce11b61b5552e83b3d9b41d1d7": {
+   "actual": [
+    "suite"
+   ],
+   "allowed_after": [
+    [
+     "suite"
+    ]
+   ],
+   "baseline": [
+    "suite"
+   ],
+   "name": "E2 an unknown provider gets a default origin instead of a refusal",
+   "result": "fixed-preserved"
+  },
+  "37b19d7faa8ea85a9256e2097f7e0673cd945d47f2cf4af9daf561fd6a84d000": {
+   "actual": [
+    "suite"
+   ],
+   "allowed_after": [
+    [
+     "suite"
+    ]
+   ],
+   "baseline": [
+    "suite"
+   ],
+   "name": "C3b a fragment accepted",
+   "result": "fixed-preserved"
+  },
+  "37b327898552709caffb673ac50ce341e734f1ed6e6fcc6e1abc633bb0fa539f": {
+   "actual": [
+    "suite"
+   ],
+   "allowed_after": [
+    [
+     "suite"
+    ]
+   ],
+   "baseline": [
+    "suite"
+   ],
+   "name": "S6 the surrogate scan skips object keys",
+   "result": "fixed-preserved"
+  },
+  "3891c343f238998a3522ee571c6656666e2f4b4dacf714c1780f01042ecfb40f": {
+   "actual": [
+    "suite"
+   ],
+   "allowed_after": [
+    [
+     "suite"
+    ]
+   ],
+   "baseline": [
+    "suite"
+   ],
+   "name": "TP10 the rejected envelope character is spelled out again",
+   "result": "fixed-preserved"
+  },
+  "3a771f9a13f3a305cdcc070be399b16b246b80a07c8fc9e3363cfe99704e6a78": {
+   "actual": [
+    "suite"
+   ],
+   "allowed_after": [
+    [
+     "suite"
+    ]
+   ],
+   "baseline": [
+    "suite"
+   ],
+   "name": "A1 terminal answer accepted without a roundtrip",
+   "result": "fixed-preserved"
+  },
+  "3a8564fc033a49e313e0aeadf88c3cf09f00f764074d79842c993815138a3b92": {
+   "actual": [
+    "policy-gate",
+    "suite"
+   ],
+   "allowed_after": [
+    [
+     "policy-gate",
+     "suite"
+    ]
+   ],
+   "baseline": [
+    "policy-gate",
+    "suite"
+   ],
+   "name": "RK2 a policy applying to no receipt kind stops being reported",
+   "result": "fixed-preserved"
+  },
+  "3c9affb2fc3e3db4bc18e08099f0041bd1aa7b342ee47e6866ee7ee3fb8437d7": {
+   "actual": [
+    "suite"
+   ],
+   "allowed_after": [
+    [
+     "suite"
+    ]
+   ],
+   "baseline": [
+    "suite"
+   ],
+   "name": "FN3 truncation is left to collide",
+   "result": "fixed-preserved"
+  },
+  "3ce329467d5578716fa3cb589ad2bae0921a74eab22e67999bc514e118672e0a": {
+   "actual": [
+    "clean-tree-gate",
+    "suite"
+   ],
+   "allowed_after": [
+    [
+     "clean-tree-gate",
+     "suite"
+    ]
+   ],
+   "baseline": [
+    "clean-tree-gate",
+    "suite"
+   ],
+   "name": "W4 a failed setup command stops being an error",
+   "result": "fixed-preserved"
+  },
+  "3cf06df756dd1ef2e92fc95874f10adbdd9094f7213e2e856cab8f5aa309af26": {
+   "actual": [
+    "suite"
+   ],
+   "allowed_after": [
+    [
+     "suite"
+    ]
+   ],
+   "baseline": [
+    "suite"
+   ],
+   "name": "MI2 the terminal answer assumes every substitution carries a digest",
+   "result": "fixed-preserved"
+  },
+  "3d068966e969d7615fa75fb6ecef277cc46ebca723eea393318c67f4de15fbf9": {
+   "actual": [
+    "suite"
+   ],
+   "allowed_after": [
+    [
+     "suite"
+    ]
+   ],
+   "baseline": [
+    "suite"
+   ],
+   "name": "DP22 the usage bound taken from the provider instead of the request",
+   "result": "fixed-preserved"
+  },
+  "3e952f0104440bc736970f9bf373015e2e21441313eede4766c6bbc3b2b8f656": {
+   "actual": [
+    "suite"
+   ],
+   "allowed_after": [
+    [
+     "suite"
+    ]
+   ],
+   "baseline": [
+    "suite"
+   ],
+   "name": "TP16 the canary's lines stop being rebuilt from their templates",
+   "result": "fixed-preserved"
+  },
+  "3ed9db0f259b74d29bf0d58cbe64f9cb11a3cdf0a49abdc5fc3848ad86f3f2f4": {
+   "actual": [
+    "policy-gate",
+    "suite"
+   ],
+   "allowed_after": [
+    [
+     "policy-gate",
+     "suite"
+    ]
+   ],
+   "baseline": [
+    "policy-gate",
+    "suite"
+   ],
+   "name": "B3 canary answer never graded",
+   "result": "fixed-preserved"
+  },
+  "3f75ed79b373b3708fe2b0ca5582e7e82dea06c600a6f059c9fc0d2b0fcf1c1d": {
+   "actual": [
+    "suite"
+   ],
+   "allowed_after": [
+    [
+     "suite"
+    ]
+   ],
+   "baseline": [
+    "suite"
+   ],
+   "name": "P4 a strictly-refused completion no longer classified",
+   "result": "fixed-preserved"
+  },
+  "408f14a171f4e7ea2fdaebf946ca906fa5d5dd1a9823453c881edf2b41ed742a": {
+   "actual": [
+    "suite"
+   ],
+   "allowed_after": [
+    [
+     "suite"
+    ]
+   ],
+   "baseline": [
+    "suite"
+   ],
+   "name": "G1 an error status is discarded when its body is lost",
+   "result": "fixed-preserved"
+  },
+  "40b81781b5ef3b725046e40d528b8c93caf38bee42f69c817b00004a9859c927": {
+   "actual": [
+    "suite"
+   ],
+   "allowed_after": [
+    [
+     "suite"
+    ]
+   ],
+   "baseline": [
+    "suite"
+   ],
+   "name": "TP7 an enum slot accepts a member of any vocabulary",
+   "result": "fixed-preserved"
+  },
+  "4474000a35059551a1c5dbb9668e2c1c6e57b9a6aba5951ce80c195233d0225d": {
+   "actual": [
+    "suite"
+   ],
+   "allowed_after": [
+    [
+     "suite"
+    ]
+   ],
+   "baseline": [
+    "suite"
+   ],
+   "name": "E5 a non-string authority claim is ignored instead of refused",
+   "result": "fixed-preserved"
+  },
+  "4538eac707fb3ec093e05adf7be80bc4b977654a5cb0c988c9bdd1540289b0f7": {
+   "actual": [
+    "suite"
+   ],
+   "allowed_after": [
+    [
+     "suite"
+    ]
+   ],
+   "baseline": [
+    "suite"
+   ],
+   "name": "Q3 a status outside the HTTP range accepted",
+   "result": "fixed-preserved"
+  },
+  "463156a0954a037721e273cc12f82556d4717e24273d747040cf64f85405639f": {
+   "actual": [
+    "suite"
+   ],
+   "allowed_after": [
+    [
+     "suite"
+    ]
+   ],
+   "baseline": [
+    "suite"
+   ],
+   "name": "G4 observed byte count not carried out of the bounded read",
+   "result": "fixed-preserved"
+  },
+  "468335d3afbf6b677f40b2addbf01f17e0b2a64cbf117b60adb121299ac50de7": {
+   "actual": [
+    "suite"
+   ],
+   "allowed_after": [
+    [
+     "suite"
+    ]
+   ],
+   "baseline": [
+    "suite"
+   ],
+   "name": "MH1 a suite that never reported a test count is accepted",
+   "result": "fixed-preserved"
+  },
+  "46ba2c09e6bfdd840a1b3476da1056502de0e3c18063710b08e272abac2dc14d": {
+   "actual": [
+    "discovery-gate"
+   ],
+   "allowed_after": [
+    [
+     "discovery-gate"
+    ],
+    [
+     "discovery-gate",
+     "suite"
+    ]
+   ],
+   "baseline": [
+    "discovery-gate",
+    "suite"
+   ],
+   "name": "DG4 the undecodable arm stops producing undecodable output",
+   "result": "moved-within-envelope"
+  },
+  "46fc1c7ada57e8f3ac18cbbaffd8e4b22b10b0e1fefc557abf1f56f571dd3171": {
+   "actual": [
+    "suite"
+   ],
+   "allowed_after": [
+    [
+     "suite"
+    ]
+   ],
+   "baseline": [
+    "suite"
+   ],
+   "name": "UC2 the three counters share one slack ceiling",
+   "result": "fixed-preserved"
+  },
+  "472ae8b22cf213f44a7ca9de933e5d8695830ff9de7358384db4b073ea6869bc": {
+   "actual": [
+    "suite"
+   ],
+   "allowed_after": [
+    [
+     "suite"
+    ]
+   ],
+   "baseline": [
+    "suite"
+   ],
+   "name": "C3a a query string accepted",
+   "result": "fixed-preserved"
+  },
+  "4748906773fc8d47a1ed78691ffbda6d86daa9b5dc1a72bc312357885cda4b40": {
+   "actual": [
+    "suite"
+   ],
+   "allowed_after": [
+    [
+     "suite"
+    ]
+   ],
+   "baseline": [
+    "suite"
+   ],
+   "name": "L3 the crash receipt repeats the exception message",
+   "result": "fixed-preserved"
+  },
+  "47e2bdc97d92c0026e405681d92c70e94f62180c8f4e7e5c0431b639e00066a1": {
+   "actual": [
+    "suite"
+   ],
+   "allowed_after": [
+    [
+     "suite"
+    ]
+   ],
+   "baseline": [
+    "suite"
+   ],
+   "name": "PBD4 the error evidence is unbounded again",
+   "result": "fixed-preserved"
+  },
+  "498cc1a166c37bfcb841b026598f91c2ec43565b7e019c4e890aa9cccfc8860c": {
+   "actual": [
+    "suite"
+   ],
+   "allowed_after": [
+    [
+     "suite"
+    ]
+   ],
+   "baseline": [
+    "suite"
+   ],
+   "name": "AU2 an unnamed authority field quietly inherits a rule",
+   "result": "fixed-preserved"
+  },
+  "4a41a65a520edde067dfab477e877a2c477e7be903c09ad4e78eac8ca9d70e40": {
+   "actual": [
+    "suite"
+   ],
+   "allowed_after": [
+    [
+     "suite"
+    ]
+   ],
+   "baseline": [
+    "suite"
+   ],
+   "name": "A4 a rejection of the results blamed on the request shape",
+   "result": "fixed-preserved"
+  },
+  "4b2cd90d6039652efbd6d730f8295fb5e2bbb80dacdc7683fa9370190f4fae44": {
+   "actual": [
+    "suite"
+   ],
+   "allowed_after": [
+    [
+     "suite"
+    ]
+   ],
+   "baseline": [
+    "suite"
+   ],
+   "name": "S4 lone surrogates readmitted",
+   "result": "fixed-preserved"
+  },
+  "4b9166a5157479d14f0419c355da6235e09a404c9b8692623bf0566aa731d8f3": {
+   "actual": [
+    "policy-gate",
+    "suite"
+   ],
+   "allowed_after": [
+    [
+     "policy-gate",
+     "suite"
+    ]
+   ],
+   "baseline": [
+    "policy-gate",
+    "suite"
+   ],
+   "name": "R1 bytes handed to json.loads to sniff",
+   "result": "fixed-preserved"
+  },
+  "4dc20ed570303136651bdc7e149be5f123c9f76b18f3fa44903b6938402305e1": {
+   "actual": [
+    "suite"
+   ],
+   "allowed_after": [
+    [
+     "suite"
+    ]
+   ],
+   "baseline": [
+    "suite"
+   ],
+   "name": "HR3 a peer that stops mid-body is a short read rather than a failure",
+   "result": "fixed-preserved"
+  },
+  "4e421e06a44540d91a8c5cd6f12cbf599210b20e2b55094f88d4fb6482b9daa2": {
+   "actual": [
+    "suite"
+   ],
+   "allowed_after": [
+    [
+     "suite"
+    ]
+   ],
+   "baseline": [
+    "suite"
+   ],
+   "name": "VD6 the transport reason falls back to the turn-outcome vocabulary",
+   "result": "fixed-preserved"
+  },
+  "4f4f446d8a36a07dfae3dbdd1409abcdce4b35c42b29c3d31b92fda0d2105a96": {
+   "actual": [
+    "policy-gate"
+   ],
+   "allowed_after": [
+    [
+     "policy-gate"
+    ],
+    [
+     "policy-gate",
+     "suite"
+    ]
+   ],
+   "baseline": [
+    "policy-gate",
+    "suite"
+   ],
+   "name": "DF2 a bounded integer accepts a bool",
+   "result": "moved-within-envelope"
+  },
+  "5043b8e810a33ffaceb7658210b9258bed8df549df84f5b90b6e61ed5b87b5ec": {
+   "actual": [
+    "suite"
+   ],
+   "allowed_after": [
+    [
+     "suite"
+    ]
+   ],
+   "baseline": [
+    "suite"
+   ],
+   "name": "PBD7 the auditor's error ceiling stops agreeing with the producer's bound",
+   "result": "fixed-preserved"
+  },
+  "5237e09a7625c6ef3cd6a594cd8647176201c4b856cb0bb21fe1c964a09478ac": {
+   "actual": [
+    "suite"
+   ],
+   "allowed_after": [
+    [
+     "suite"
+    ]
+   ],
+   "baseline": [
+    "suite"
+   ],
+   "name": "TP1 the rendered line loses the template it came from",
+   "result": "fixed-preserved"
+  },
+  "538c8222649df9c3eb0013fbad4d13f38233b7ce8694e75334f62f3a6556b9ce": {
+   "actual": [
+    "clean-tree-gate",
+    "suite"
+   ],
+   "allowed_after": [
+    [
+     "clean-tree-gate",
+     "suite"
+    ]
+   ],
+   "baseline": [
+    "clean-tree-gate",
+    "suite"
+   ],
+   "name": "W5 the setup failure stops naming the command that failed",
+   "result": "fixed-preserved"
+  },
+  "553720ea5d6af3bc9b00ca629e76c6df533665f907aa22a4eaa0c3664d0c9624": {
+   "actual": [
+    "suite"
+   ],
+   "allowed_after": [
+    [
+     "suite"
+    ]
+   ],
+   "baseline": [
+    "suite"
+   ],
+   "name": "PBD6 the digest describes more than the count does",
+   "result": "fixed-preserved"
+  },
+  "553985cf01c5589ca6c6ec3106975010b8845fbc1e36efecd9a530681ecb54f9": {
+   "actual": [
+    "suite"
+   ],
+   "allowed_after": [
+    [
+     "suite"
+    ]
+   ],
+   "baseline": [
+    "suite"
+   ],
+   "name": "DP29 the response digest stops being domain-separated",
+   "result": "fixed-preserved"
+  },
+  "562ff0631a2889addb6592777497393ff2de03c691090840b903b74acb3c42ac": {
+   "actual": [
+    "suite"
+   ],
+   "allowed_after": [
+    [
+     "suite"
+    ]
+   ],
+   "baseline": [
+    "suite"
+   ],
+   "name": "B4 wrong answer bytes tolerated",
+   "result": "fixed-preserved"
+  },
+  "5678d27cb51981412a8b840453ad58e84dfc96d22ab6016636d0567212b43185": {
+   "actual": [
+    "suite"
+   ],
+   "allowed_after": [
+    [
+     "suite"
+    ]
+   ],
+   "baseline": [
+    "suite"
+   ],
+   "name": "I6 unknown envelope fields tolerated",
+   "result": "fixed-preserved"
+  },
+  "56946cc32f84b7e14e19783c9feab966207da55e35c499a4865a5c799ef12c98": {
+   "actual": [
+    "suite"
+   ],
+   "allowed_after": [
+    [
+     "suite"
+    ]
+   ],
+   "baseline": [
+    "suite"
+   ],
+   "name": "PBD8 the policy declares its own ordinal ceiling again",
+   "result": "fixed-preserved"
+  },
+  "5786f5c42fafc69051fb8655e3156cdaa78cc3452ccecf9c4deaedad48cb79e0": {
+   "actual": [
+    "suite"
+   ],
+   "allowed_after": [
+    [
+     "suite"
+    ]
+   ],
+   "baseline": [
+    "suite"
+   ],
+   "name": "P2 the completion body parsed leniently in the probe",
+   "result": "fixed-preserved"
+  },
+  "5b8eaeadb0d6d4341601b164ac1426a64a85ea5e2b00ea25f861de7d49b99ba6": {
+   "actual": [
+    "discovery-gate",
+    "suite"
+   ],
+   "allowed_after": [
+    [
+     "discovery-gate",
+     "suite"
+    ]
+   ],
+   "baseline": [
+    "discovery-gate",
+    "suite"
+   ],
+   "name": "PB2 output that is not UTF-8 is silently repaired",
+   "result": "fixed-preserved"
+  },
+  "5da7e4d21910552603bb808b7c03cf8957a7d811d16f41e4ef30783a66b6c30b": {
+   "actual": [
+    "suite"
+   ],
+   "allowed_after": [
+    [
+     "suite"
+    ]
+   ],
+   "baseline": [
+    "suite"
+   ],
+   "name": "E4 the probe skips the registry check",
+   "result": "fixed-preserved"
+  },
+  "5e355a651304e7dca4dd91707aabca79e5031dc12248f3ea606064463c1fcc30": {
+   "actual": [
+    "suite"
+   ],
+   "allowed_after": [
+    [
+     "suite"
+    ]
+   ],
+   "baseline": [
+    "suite"
+   ],
+   "name": "Y6 the malformed status line is written into the receipt",
+   "result": "fixed-preserved"
+  },
+  "6129f86d792771900fe0e7744b8fb6bc61a33ce896b6415120e3ebc458c19107": {
+   "actual": [
+    "suite"
+   ],
+   "allowed_after": [
+    [
+     "suite"
+    ]
+   ],
+   "baseline": [
+    "suite"
+   ],
+   "name": "C6 a lost body after headers called unavailability",
+   "result": "fixed-preserved"
+  },
+  "62603555d40df0c1571e4baf52d812940f6d92e85a184a2169b5bff75ef1fac9": {
+   "actual": [
+    "suite"
+   ],
+   "allowed_after": [
+    [
+     "suite"
+    ]
+   ],
+   "baseline": [
+    "suite"
+   ],
+   "name": "DP14 the cited handle spelled out in the answer errors",
+   "result": "fixed-preserved"
+  },
+  "62c37e7783b96e46cf0343dedc4739551caa4db00e57e81a87bc01beb09fdf57": {
+   "actual": [
+    "policy-gate",
+    "suite"
+   ],
+   "allowed_after": [
+    [
+     "policy-gate",
+     "suite"
+    ]
+   ],
+   "baseline": [
+    "policy-gate",
+    "suite"
+   ],
+   "name": "DF6 prose stops checking its alphabet",
+   "result": "fixed-preserved"
+  },
+  "630b42d3848e76ff9c8148b4cbcc9ee03b055d87707957feab4350fa52e29f37": {
+   "actual": [
+    "suite"
+   ],
+   "allowed_after": [
+    [
+     "suite"
+    ]
+   ],
+   "baseline": [
+    "suite"
+   ],
+   "name": "L1 the provider's error prose written into the receipt",
+   "result": "fixed-preserved"
+  },
+  "634e29760fbb8d12263a6f4a06d98dd807f8077d74fc1abdfe77ff0ad3a29332": {
+   "actual": [
+    "suite"
+   ],
+   "allowed_after": [
+    [
+     "suite"
+    ]
+   ],
+   "baseline": [
+    "suite"
+   ],
+   "name": "DP16 an unknown transport reason accepted into a receipt",
+   "result": "fixed-preserved"
+  },
+  "638832b2d7b15a529164459467286612fb25c7d44ce475c6bf97fd2197d6e920": {
+   "actual": [
+    "suite"
+   ],
+   "allowed_after": [
+    [
+     "suite"
+    ]
+   ],
+   "baseline": [
+    "suite"
+   ],
+   "name": "EM3 a target id need not follow from the pair beside it",
+   "result": "fixed-preserved"
+  },
+  "64afe678dff6d9618cc0a9af1588503ed286d28f8c0880e3873009bbb8b69e0b": {
+   "actual": [
+    "suite"
+   ],
+   "allowed_after": [
+    [
+     "suite"
+    ]
+   ],
+   "baseline": [
+    "suite"
+   ],
+   "name": "PB4 a command line is reported as a repr of a list",
+   "result": "fixed-preserved"
+  },
+  "66d4bfa3d4979f91eef9c550172d4dc90f40e14b0c57fa85759aa4f292d5d417": {
+   "actual": [
+    "suite"
+   ],
+   "allowed_after": [
+    [
+     "suite"
+    ]
+   ],
+   "baseline": [
+    "suite"
+   ],
+   "name": "RQ4 the probe stops recording the request it sent",
+   "result": "fixed-preserved"
+  },
+  "67a133841489590a7e083b7e83cc67fc0b54722831e601e3a10276e7a372200d": {
+   "actual": [
+    "suite"
+   ],
+   "allowed_after": [
+    [
+     "suite"
+    ]
+   ],
+   "baseline": [
+    "suite"
+   ],
+   "name": "R2 a UTF-8 BOM tolerated",
+   "result": "fixed-preserved"
+  },
+  "67a15d22f5a69956d97c4b174dd3911450d6dfdfb03c845fd32d986b6ca3184d": {
+   "actual": [
+    "suite"
+   ],
+   "allowed_after": [
+    [
+     "suite"
+    ]
+   ],
+   "baseline": [
+    "suite"
+   ],
+   "name": "DP25 the total may exceed the sum of its allowed parts",
+   "result": "fixed-preserved"
+  },
+  "698bf53d91dee27bf6d97ec6f77284f1750046be7d924eb4ed662bd5179217b1": {
+   "actual": [
+    "suite"
+   ],
+   "allowed_after": [
+    [
+     "suite"
+    ]
+   ],
+   "baseline": [
+    "suite"
+   ],
+   "name": "J1 an answer may cite a handle no operation returned",
+   "result": "fixed-preserved"
+  },
+  "6a0cd616508247e7a0651daf63f0ccbccddeef3033b30b974f69d2af5bc7e169": {
+   "actual": [
+    "discovery-gate",
+    "suite"
+   ],
+   "allowed_after": [
+    [
+     "discovery-gate",
+     "suite"
+    ]
+   ],
+   "baseline": [
+    "discovery-gate",
+    "suite"
+   ],
+   "name": "DG3 unreadable output stops becoming a verdict",
+   "result": "fixed-preserved"
+  },
+  "6a4c3e2448e014aeac86d0292f8af804c308858d0a674b13e82a8440368d2c36": {
+   "actual": [
+    "suite"
+   ],
+   "allowed_after": [
+    [
+     "suite"
+    ]
+   ],
+   "baseline": [
+    "suite"
+   ],
+   "name": "D1 reported_model overwritten each turn",
+   "result": "fixed-preserved"
+  },
+  "6b3c5e840cf6315eaf1e8f38b1b6df8ce5bdf7c4559c68f12e737239b745eec9": {
+   "actual": [
+    "suite"
+   ],
+   "allowed_after": [
+    [
+     "suite"
+    ]
+   ],
+   "baseline": [
+    "suite"
+   ],
+   "name": "TB7 the failure class is copied instead of hashed",
+   "result": "fixed-preserved"
+  },
+  "6b75c297db680182b7760c6b3ac7de6128951c54e7d66463fdce26ea6047734d": {
+   "actual": [
+    "suite"
+   ],
+   "allowed_after": [
+    [
+     "suite"
+    ]
+   ],
+   "baseline": [
+    "suite"
+   ],
+   "name": "GE2 the isolation stops replacing HOME",
+   "result": "fixed-preserved"
+  },
+  "6c64718a68d81112f93fbd6df681237110be5e0b35894bb56c85235662421ff5": {
+   "actual": [
+    "suite"
+   ],
+   "allowed_after": [
+    [
+     "suite"
+    ]
+   ],
+   "baseline": [
+    "suite"
+   ],
+   "name": "NP1 an empty container disappears from the inventory",
+   "result": "fixed-preserved"
+  },
+  "6d8d6a09e2e8e104e3d715a2ef9fe419424bd856ea0d567b9097e2241fc98882": {
+   "actual": [
+    "policy-gate",
+    "suite"
+   ],
+   "allowed_after": [
+    [
+     "policy-gate",
+     "suite"
+    ]
+   ],
+   "baseline": [
+    "policy-gate",
+    "suite"
+   ],
+   "name": "NP2 the corpus walk stops descending into objects",
+   "result": "fixed-preserved"
+  },
+  "6e39ef58c3265238f73ecfb0a84670087fe38eea6ec7f1d675ee89f4be21584c": {
+   "actual": [
+    "suite"
+   ],
+   "allowed_after": [
+    [
+     "suite"
+    ]
+   ],
+   "baseline": [
+    "suite"
+   ],
+   "name": "RQ2 the qualification loop stops checking it",
+   "result": "fixed-preserved"
+  },
+  "6e6688f36747daddda5e42674e60d4b8d62c4b96868dff5d6a0caf1fe1fae3b3": {
+   "actual": [
+    "suite"
+   ],
+   "allowed_after": [
+    [
+     "suite"
+    ]
+   ],
+   "baseline": [
+    "suite"
+   ],
+   "name": "N2 nothing is ever added to the seen set",
+   "result": "fixed-preserved"
+  },
+  "6ed4e4669a29bbb6f60d83e16b83ce487d5a1a4ac50cd419b3ff96d248c64ab6": {
+   "actual": [
+    "suite"
+   ],
+   "allowed_after": [
+    [
+     "suite"
+    ]
+   ],
+   "baseline": [
+    "suite"
+   ],
+   "name": "C10 a registry file is loaded without vetting its origins",
+   "result": "fixed-preserved"
+  },
+  "6eda8eaf45ee8a71d50a81d469161194a2fa0edce9bb3e37dd6b6eed89721a5f": {
+   "actual": [
+    "suite"
+   ],
+   "allowed_after": [
+    [
+     "suite"
+    ]
+   ],
+   "baseline": [
+    "suite"
+   ],
+   "name": "DP1 the probe copies the provider's whole usage object",
+   "result": "fixed-preserved"
+  },
+  "6f350dee38c51a58716afc7c96880d4471d7ecf47998554d2e10d2d9162cbb4e": {
+   "actual": [
+    "policy-gate",
+    "suite"
+   ],
+   "allowed_after": [
+    [
+     "policy-gate",
+     "suite"
+    ]
+   ],
+   "baseline": [
+    "policy-gate",
+    "suite"
+   ],
+   "name": "NP5 a required place need not be one any policy reads",
+   "result": "fixed-preserved"
+  },
+  "70946f7398e56e90ae7db79aaeaf75f3ccbca898f6e4f42276395fc4a1ab1811": {
+   "actual": [
+    "suite"
+   ],
+   "allowed_after": [
+    [
+     "suite"
+    ]
+   ],
+   "baseline": [
+    "suite"
+   ],
+   "name": "VD4 the probe reducer puts content above identity",
+   "result": "fixed-preserved"
+  },
+  "71d47aac58c869778e3c0a4d1844ba5349795007158c8f368ab3edb78958e306": {
+   "actual": [
+    "suite"
+   ],
+   "allowed_after": [
+    [
+     "suite"
+    ]
+   ],
+   "baseline": [
+    "suite"
+   ],
+   "name": "EM8 the preflight reports the first problem and stops",
+   "result": "fixed-preserved"
+  },
+  "732db6580d4ae9dfd47ae159ca3e3821c594a3de0bd8c647d680ba84dd1cece6": {
+   "actual": [
+    "suite"
+   ],
+   "allowed_after": [
+    [
+     "suite"
+    ]
+   ],
+   "baseline": [
+    "suite"
+   ],
+   "name": "DP26 any identifier accepted as a transport failure kind",
+   "result": "fixed-preserved"
+  },
+  "763a1268bea892a005e94adff359e9360ac95441f318a2feb6b8e0854c28c2b2": {
+   "actual": [
+    "suite"
+   ],
+   "allowed_after": [
+    [
+     "suite"
+    ]
+   ],
+   "baseline": [
+    "suite"
+   ],
+   "name": "H2 tool_call.type not checked",
+   "result": "fixed-preserved"
+  },
+  "766a852d813d439a40b884d4225f84a1acc54f6de3ff5cf79be9212cc6377d8e": {
+   "actual": [
+    "policy-gate",
+    "suite"
+   ],
+   "allowed_after": [
+    [
+     "policy-gate",
+     "suite"
+    ]
+   ],
+   "baseline": [
+    "policy-gate",
+    "suite"
+   ],
+   "name": "DF9 the local facts are taken from the artifact being audited",
+   "result": "fixed-preserved"
+  },
+  "771997390151496d4f127737645cb62fc386034ce3eb79762bc33ac24e21cfd1": {
+   "actual": [
+    "suite"
+   ],
+   "allowed_after": [
+    [
+     "suite"
+    ]
+   ],
+   "baseline": [
+    "suite"
+   ],
+   "name": "A2 roundtrip claimed without the provider accepting the results",
+   "result": "fixed-preserved"
+  },
+  "77ad51f574fa8b66d59375f9fa0433dd615711a01f69e1e3790172176f79047d": {
+   "actual": [
+    "suite"
+   ],
+   "allowed_after": [
+    [
+     "suite"
+    ]
+   ],
+   "baseline": [
+    "suite"
+   ],
+   "name": "DP23 the completion bound stops following the request",
+   "result": "fixed-preserved"
+  },
+  "791ce6c04fee975c1a7eba438cf58490fa5daef50f9bb1bf69be7a88566c424e": {
+   "actual": [
+    "suite"
+   ],
+   "allowed_after": [
+    [
+     "suite"
+    ]
+   ],
+   "baseline": [
+    "suite"
+   ],
+   "name": "HG1 the real clean-tree verdict runs with the ambient environment",
+   "result": "fixed-preserved"
+  },
+  "79ba47d12137f50c1c2f3fd7816453582f0b6fdae2e97d354ab52ee9176ee673": {
+   "actual": [
+    "suite"
+   ],
+   "allowed_after": [
+    [
+     "suite"
+    ]
+   ],
+   "baseline": [
+    "suite"
+   ],
+   "name": "TP2 a turn's line loses the template it came from",
+   "result": "fixed-preserved"
+  },
+  "7b07ad77d4358c4dd607f1606e89f8ba4639e45e71482961c0263786123251a6": {
+   "actual": [
+    "suite"
+   ],
+   "allowed_after": [
+    [
+     "suite"
+    ]
+   ],
+   "baseline": [
+    "suite"
+   ],
+   "name": "E10 a non-lowercase provider name accepted",
+   "result": "fixed-preserved"
+  },
+  "7bbc6ca0674f5617ec36d78d1b4f9ba8abc5b92586f92875233422c06f793333": {
+   "actual": [
+    "policy-gate",
+    "suite"
+   ],
+   "allowed_after": [
+    [
+     "policy-gate",
+     "suite"
+    ]
+   ],
+   "baseline": [
+    "policy-gate",
+    "suite"
+   ],
+   "name": "NP8 a canary template is looked up without being read as a string",
+   "result": "fixed-preserved"
+  },
+  "7c117e3baeb8a849c70f3952d8d71a64331f43fa89977f1dc605225520245933": {
+   "actual": [
+    "policy-gate",
+    "suite"
+   ],
+   "allowed_after": [
+    [
+     "policy-gate",
+     "suite"
+    ]
+   ],
+   "baseline": [
+    "policy-gate",
+    "suite"
+   ],
+   "name": "TP12 the provenance pass stops rebuilding the line",
+   "result": "fixed-preserved"
+  },
+  "7d7b7deec1e1e6d329b29abb22d2352d384508f7bbe3af35c9a59c4f4333a10c": {
+   "actual": [
+    "suite"
+   ],
+   "allowed_after": [
+    [
+     "suite"
+    ]
+   ],
+   "baseline": [
+    "suite"
+   ],
+   "name": "TP15 the trusted key_env in a line is no longer checked against the registry",
+   "result": "fixed-preserved"
+  },
+  "7ee43f8759a4c78446b33b3afe327b1f8fbcbdf344bf6aebfeee345232d1d8f1": {
+   "actual": [
+    "suite"
+   ],
+   "allowed_after": [
+    [
+     "suite"
+    ]
+   ],
+   "baseline": [
+    "suite"
+   ],
+   "name": "H5 the replay rebuilds the tool calls instead of echoing them",
+   "result": "fixed-preserved"
+  },
+  "7ef41a02368bffab2563fe1126ca7f6a6c4d4e1d2cdfea717e281d229ea0b57e": {
+   "actual": [
+    "suite"
+   ],
+   "allowed_after": [
+    [
+     "suite"
+    ]
+   ],
+   "baseline": [
+    "suite"
+   ],
+   "name": "MI7 two turns naming the same other model become two findings",
+   "result": "fixed-preserved"
+  },
+  "7f15430bc7cd73079049291bd055a9a008d3e87e72adae008a7300fb3375d3b2": {
+   "actual": [
+    "suite"
+   ],
+   "allowed_after": [
+    [
+     "suite"
+    ]
+   ],
+   "baseline": [
+    "suite"
+   ],
+   "name": "NP3 an array node stops being a path of its own",
+   "result": "fixed-preserved"
+  },
+  "7f197a0d2c2cb5a3ad7b657a01daef7ebc6e2a31af5848ca7a6068c42e6b8a30": {
+   "actual": [
+    "suite"
+   ],
+   "allowed_after": [
+    [
+     "suite"
+    ]
+   ],
+   "baseline": [
+    "suite"
+   ],
+   "name": "NP2 an unknown path is reported with the provider's own key in it",
+   "result": "fixed-preserved"
+  },
+  "802198d1eb3eb9b6958ecd3f04627c857ff466768436bb6ac8c2b9a48947cbfd": {
+   "actual": [
+    "suite"
+   ],
+   "allowed_after": [
+    [
+     "suite"
+    ]
+   ],
+   "baseline": [
+    "suite"
+   ],
+   "name": "TB3 the completed body is not measured against the limit",
+   "result": "fixed-preserved"
+  },
+  "81cbf2a9bde1d074c6c8a2e74715ee52ebca66cf7abc9646fb07f42818b411c0": {
+   "actual": [
+    "readme-gate"
+   ],
+   "allowed_after": [
+    [
+     "readme-gate"
+    ],
+    [
+     "readme-gate",
+     "suite"
+    ]
+   ],
+   "baseline": [
+    "readme-gate",
+    "suite"
+   ],
+   "name": "RD4 the stated remainder stops being compared to the asserted one",
+   "result": "moved-within-envelope"
+  },
+  "840d3e5cce2687c19758441a199b672d9fe5fc2826c4d5966c0f9520f199767b": {
+   "actual": [
+    "policy-gate",
+    "suite"
+   ],
+   "allowed_after": [
+    [
+     "policy-gate",
+     "suite"
+    ]
+   ],
+   "baseline": [
+    "policy-gate",
+    "suite"
+   ],
+   "name": "DF7 two owners of one field stop being reported",
+   "result": "fixed-preserved"
+  },
+  "842b2f8bd115013bd3a8765feaa479815528a6b5bef2a27879b26885634cdcd0": {
+   "actual": [
+    "policy-gate",
+    "suite"
+   ],
+   "allowed_after": [
+    [
+     "policy-gate",
+     "suite"
+    ]
+   ],
+   "baseline": [
+    "policy-gate",
+    "suite"
+   ],
+   "name": "BC4 Prose stops counting as a stated quantity",
+   "result": "fixed-preserved"
+  },
+  "84fc8fe3acd87b2cf43a61bd586ff5a04f1fbd9b77696e66ee734dfe3fd0ebf8": {
+   "actual": [
+    "suite"
+   ],
+   "allowed_after": [
+    [
+     "suite"
+    ]
+   ],
+   "baseline": [
+    "suite"
+   ],
+   "name": "PB6 a path that is not UTF-8 takes the gate down",
+   "result": "fixed-preserved"
+  },
+  "8559e2446cee42a63bdcf2993fca19068b0b00601d886c6a047e714dd251601f": {
+   "actual": [
+    "policy-gate",
+    "suite"
+   ],
+   "allowed_after": [
+    [
+     "policy-gate",
+     "suite"
+    ]
+   ],
+   "baseline": [
+    "policy-gate",
+    "suite"
+   ],
+   "name": "RK1 an unknown receipt kind is swallowed by the coverage proof",
+   "result": "fixed-preserved"
+  },
+  "86ff65887bdaffcbe6021cc56fe97a84b116e3886559b79ab9a683eb2ef21b04": {
+   "actual": [
+    "suite"
+   ],
+   "allowed_after": [
+    [
+     "suite"
+    ]
+   ],
+   "baseline": [
+    "suite"
+   ],
+   "name": "M1 nothing stops a non-object probe payload from raising",
+   "result": "fixed-preserved"
+  },
+  "875d6c8f9c1b139384ff199500c040123147bdaf81c45d8c774cea1cfdb3dbec": {
+   "actual": [
+    "suite"
+   ],
+   "allowed_after": [
+    [
+     "suite"
+    ]
+   ],
+   "baseline": [
+    "suite"
+   ],
+   "name": "DP20 a non-string discriminator hashed instead of typed",
+   "result": "fixed-preserved"
+  },
+  "898efe7cd8648e52c3965180cca39a02092d19942aa83886d3653e411472dfaf": {
+   "actual": [
+    "suite"
+   ],
+   "allowed_after": [
+    [
+     "suite"
+    ]
+   ],
+   "baseline": [
+    "suite"
+   ],
+   "name": "CN2 truncation of the canary findings stops being reported",
+   "result": "fixed-preserved"
+  },
+  "8a5b9b20a714d7f0b45d41043fd17f5da87c24a5405b3fd77704de05641a7f7b": {
+   "actual": [
+    "suite"
+   ],
+   "allowed_after": [
+    [
+     "suite"
+    ]
+   ],
+   "baseline": [
+    "suite"
+   ],
+   "name": "HG2 repo_root stops accepting the isolation it is given",
+   "result": "fixed-preserved"
+  },
+  "8b0238e91d5b4642064887b76a15ed8b07c7fe22e38dddd749baee86ec13f731": {
+   "actual": [
+    "suite"
+   ],
+   "allowed_after": [
+    [
+     "suite"
+    ]
+   ],
+   "baseline": [
+    "suite"
+   ],
+   "name": "UC3 the completion ceiling stops following the generation asked for",
+   "result": "fixed-preserved"
+  },
+  "8b9df17ee8b029388bc22e36c909f7928e13f0f12ca7e2fb4f63ce55d6727ba8": {
+   "actual": [
+    "clean-tree-gate",
+    "suite"
+   ],
+   "allowed_after": [
+    [
+     "clean-tree-gate",
+     "suite"
+    ]
+   ],
+   "baseline": [
+    "clean-tree-gate",
+    "suite"
+   ],
+   "name": "V1 the clean-tree check stops asserting on output",
+   "result": "fixed-preserved"
+  },
+  "8bb20a68aa0d9e58c2d6d8fed80d4545d676c768e08e69f9af38fa520a618933": {
+   "actual": [
+    "suite"
+   ],
+   "allowed_after": [
+    [
+     "suite"
+    ]
+   ],
+   "baseline": [
+    "suite"
+   ],
+   "name": "P1 the completion body parsed leniently in qualify",
+   "result": "fixed-preserved"
+  },
+  "8c13c4e016c77b9201fd2d5c082a1c43e5ab62cf95d4e8c377f6cfcb937a041e": {
+   "actual": [
+    "suite"
+   ],
+   "allowed_after": [
+    [
+     "suite"
+    ]
+   ],
+   "baseline": [
+    "suite"
+   ],
+   "name": "G2 a success status is discarded when its body is lost",
+   "result": "fixed-preserved"
+  },
+  "8ceecc995ecf7feea8cacd37d0ca70dc7123747b5de21fbf45ec6e799255f6a8": {
+   "actual": [
+    "suite"
+   ],
+   "allowed_after": [
+    [
+     "suite"
+    ]
+   ],
+   "baseline": [
+    "suite"
+   ],
+   "name": "Q7 a non-string request id accepted",
+   "result": "fixed-preserved"
+  },
+  "8df7b617630071eda3808ef213d282e9a1a40374ddc933609d98d388cf735a61": {
+   "actual": [
+    "suite"
+   ],
+   "allowed_after": [
+    [
+     "suite"
+    ]
+   ],
+   "baseline": [
+    "suite"
+   ],
+   "name": "EM6 the probe writes its first receipts before the plan is checked",
+   "result": "fixed-preserved"
+  },
+  "8e384f6ae9996fdbe016ae05f166540016caa497f559b3314de7d18db0466be3": {
+   "actual": [
+    "suite"
+   ],
+   "allowed_after": [
+    [
+     "suite"
+    ]
+   ],
+   "baseline": [
+    "suite"
+   ],
+   "name": "O1 an explicit stage is taken on trust",
+   "result": "fixed-preserved"
+  },
+  "8f40800dd187d92b5305c756415e6f0be2232bb96940c90a50fa17a100244bcc": {
+   "actual": [
+    "suite"
+   ],
+   "allowed_after": [
+    [
+     "suite"
+    ]
+   ],
+   "baseline": [
+    "suite"
+   ],
+   "name": "TP6 a count slot loses its bound",
+   "result": "fixed-preserved"
+  },
+  "8f7c660f34c76ac1e5d795422475f89c401fd85dfcc18aa03978d1732df6f548": {
+   "actual": [
+    "policy-gate",
+    "suite"
+   ],
+   "allowed_after": [
+    [
+     "policy-gate",
+     "suite"
+    ]
+   ],
+   "baseline": [
+    "policy-gate",
+    "suite"
+   ],
+   "name": "DP9 the raw tool call id written to the turn record",
+   "result": "fixed-preserved"
+  },
+  "90074a95b3178beec029260324a921ed5b4a39bd9f47906f2f9d9dde2ebf30f8": {
+   "actual": [
+    "clean-tree-gate",
+    "suite"
+   ],
+   "allowed_after": [
+    [
+     "clean-tree-gate",
+     "suite"
+    ]
+   ],
+   "baseline": [
+    "clean-tree-gate",
+    "suite"
+   ],
+   "name": "V2 the clean-tree check looks at one directory again",
+   "result": "fixed-preserved"
+  },
+  "9012b3e3a1b18d8509bbef8cb782b522f0b9f48d47858b7bc3e49bba4b060fc3": {
+   "actual": [
+    "suite"
+   ],
+   "allowed_after": [
+    [
+     "suite"
+    ]
+   ],
+   "baseline": [
+    "suite"
+   ],
+   "name": "O3 the stage/status shape not enforced",
+   "result": "fixed-preserved"
+  },
+  "90aac5816f7152b24eb4bbb73bf30099f98d103b7ee27684f8b4bbe79e83d7ec": {
+   "actual": [
+    "suite"
+   ],
+   "allowed_after": [
+    [
+     "suite"
+    ]
+   ],
+   "baseline": [
+    "suite"
+   ],
+   "name": "S9 depth measured after parsing, too late to help",
+   "result": "fixed-preserved"
+  },
+  "90d7d13281c2076287ba62aa731e1ad29ea958a05a22abacf85e5b1937f8336d": {
+   "actual": [
+    "clean-tree-gate",
+    "suite"
+   ],
+   "allowed_after": [
+    [
+     "clean-tree-gate",
+     "suite"
+    ]
+   ],
+   "baseline": [
+    "clean-tree-gate",
+    "suite"
+   ],
+   "name": "W3 the self-test stops neutralising the ambient hooks path",
+   "result": "fixed-preserved"
+  },
+  "90f91c29f55e5c5c62c54afb43d819899206dfeea07d30efae7021a16fbae871": {
+   "actual": [
+    "policy-gate",
+    "suite"
+   ],
+   "allowed_after": [
+    [
+     "policy-gate",
+     "suite"
+    ]
+   ],
+   "baseline": [
+    "policy-gate",
+    "suite"
+   ],
+   "name": "A3 operations never arm the roundtrip",
+   "result": "fixed-preserved"
+  },
+  "91d6cf1db13f3395af664a761498031b1da7abed69a2fe3d3fee094fc0e52f14": {
+   "actual": [
+    "suite"
+   ],
+   "allowed_after": [
+    [
+     "suite"
+    ]
+   ],
+   "baseline": [
+    "suite"
+   ],
+   "name": "DP11 a substituted model kept as the provider spelled it",
+   "result": "fixed-preserved"
+  },
+  "953b2070a1b2b42b3b957de3e9fb64a914ba32ed787dc733285b7ea44e552ab6": {
+   "actual": [
+    "suite"
+   ],
+   "allowed_after": [
+    [
+     "suite"
+    ]
+   ],
+   "baseline": [
+    "suite"
+   ],
+   "name": "E6 a caller-supplied registry skips normalization",
+   "result": "fixed-preserved"
+  },
+  "95523a62ef1bc6eb0e5766a92e5e1a33ca0cfda01a6bf773ab2329128cb6da3b": {
+   "actual": [
+    "suite"
+   ],
+   "allowed_after": [
+    [
+     "suite"
+    ]
+   ],
+   "baseline": [
+    "suite"
+   ],
+   "name": "O2 a SendResult passed straight through unvalidated",
+   "result": "fixed-preserved"
+  },
+  "96d6fb49ace9d6fa66fa30c69a94c550554bafa24fd277c771e45778747194b7": {
+   "actual": [
+    "suite"
+   ],
+   "allowed_after": [
+    [
+     "suite"
+    ]
+   ],
+   "baseline": [
+    "suite"
+   ],
+   "name": "DP15 the transport's own prose written to the receipt",
+   "result": "fixed-preserved"
+  },
+  "970cd3aa8fb9feb621c50d7e71467f6fbfc074baceccd37f71145809b43460a4": {
+   "actual": [
+    "suite"
+   ],
+   "allowed_after": [
+    [
+     "suite"
+    ]
+   ],
+   "baseline": [
+    "suite"
+   ],
+   "name": "NP4 a container is admitted wherever a scalar belongs",
+   "result": "fixed-preserved"
+  },
+  "973d679348982f567db6018a5afc096b5b6051b5b0e43eda8e8796d68a44a95e": {
+   "actual": [
+    "suite"
+   ],
+   "allowed_after": [
+    [
+     "suite"
+    ]
+   ],
+   "baseline": [
+    "suite"
+   ],
+   "name": "TP8 the trusted local value becomes any local value",
+   "result": "fixed-preserved"
+  },
+  "9754d5c635aaad35d607a87906924d5140df4debc8336da7f171a68b27673e8c": {
+   "actual": [
+    "suite"
+   ],
+   "allowed_after": [
+    [
+     "suite"
+    ]
+   ],
+   "baseline": [
+    "suite"
+   ],
+   "name": "DP24 the prompt bound stops following the request",
+   "result": "fixed-preserved"
+  },
+  "9780a12049086af7fcf95263c35a7169cb3e25a70b20b74eaf8a340871989dba": {
+   "actual": [
+    "suite"
+   ],
+   "allowed_after": [
+    [
+     "suite"
+    ]
+   ],
+   "baseline": [
+    "suite"
+   ],
+   "name": "H4 tool calls accepted under any role",
+   "result": "fixed-preserved"
+  },
+  "97b7b8412299684ab4e485a618b0a40d699cf7f49045b0e626f08ba47173f7dd": {
+   "actual": [
+    "suite"
+   ],
+   "allowed_after": [
+    [
+     "suite"
+    ]
+   ],
+   "baseline": [
+    "suite"
+   ],
+   "name": "TB5 qualification validates against the module constant, not its own limit",
+   "result": "fixed-preserved"
+  },
+  "988f9052a16e914e284383af331c0b5b7c0e69f658b53956a403ac000384aa91": {
+   "actual": [
+    "suite"
+   ],
+   "allowed_after": [
+    [
+     "suite"
+    ]
+   ],
+   "baseline": [
+    "suite"
+   ],
+   "name": "F2 a probe whose model was never named still passes",
+   "result": "fixed-preserved"
+  },
+  "98bb4f621e06e72ab8de3d9494c07e0fcdbdabd9eed172e86d9525ef8b9aaf01": {
+   "actual": [
+    "suite"
+   ],
+   "allowed_after": [
+    [
+     "suite"
+    ]
+   ],
+   "baseline": [
+    "suite"
+   ],
+   "name": "I2 non-zero trailing bits tolerated",
+   "result": "fixed-preserved"
+  },
+  "9902b24202bd792b6bc188233da02f41397910441b8091475e4f721523202a7b": {
+   "actual": [
+    "suite"
+   ],
+   "allowed_after": [
+    [
+     "suite"
+    ]
+   ],
+   "baseline": [
+    "suite"
+   ],
+   "name": "Q6 a negative observed byte count accepted",
+   "result": "fixed-preserved"
+  },
+  "9b266f5a99d9fb1ff8b50f46aacfebd18c52d88b1a5e1e3a19531cc5ec9a48ea": {
+   "actual": [
+    "readme-gate",
+    "suite"
+   ],
+   "allowed_after": [
+    [
+     "readme-gate"
+    ],
+    [
+     "readme-gate",
+     "suite"
+    ]
+   ],
+   "baseline": [
+    "readme-gate",
+    "suite"
+   ],
+   "name": "RD8 a table row that names nothing stops ending the scan",
+   "result": "allowed-to-move-but-did-not"
+  },
+  "9c3983ef38ce04a90a8cb7457e030af26cc5d512af0f1c1e384a80ceb46abb29": {
+   "actual": [
+    "suite"
+   ],
+   "allowed_after": [
+    [
+     "suite"
+    ]
+   ],
+   "baseline": [
+    "suite"
+   ],
+   "name": "T2 a request id accepted on a stage where no headers arrived",
+   "result": "fixed-preserved"
+  },
+  "9dd0bed95d433af9e7fb52fef3517f196882800ae27fe46a051faa1f63af22af": {
+   "actual": [
+    "suite"
+   ],
+   "allowed_after": [
+    [
+     "suite"
+    ]
+   ],
+   "baseline": [
+    "suite"
+   ],
+   "name": "FG2 the alias rule widens to any assignment target",
+   "result": "fixed-preserved"
+  },
+  "9e13efc4ef869f18ac0e33b071b08667ab62de9bea318f4d0dabc9a2503f9cf7": {
+   "actual": [
+    "suite"
+   ],
+   "allowed_after": [
+    [
+     "suite"
+    ]
+   ],
+   "baseline": [
+    "suite"
+   ],
+   "name": "J2 a run that returned no handle still admits a cited one",
+   "result": "fixed-preserved"
+  },
+  "9e4fb97dc54ec467231869bfaed10848ed5c147484374634ea18fb088fec972d": {
+   "actual": [
+    "suite"
+   ],
+   "allowed_after": [
+    [
+     "suite"
+    ]
+   ],
+   "baseline": [
+    "suite"
+   ],
+   "name": "PB5 a stalled child is no longer caught",
+   "result": "fixed-preserved"
+  },
+  "9e9f758afe05298cbccdf03e0ab510ca407cc4f40a71470707dac36dc8c3a21f": {
+   "actual": [
+    "suite"
+   ],
+   "allowed_after": [
+    [
+     "suite"
+    ]
+   ],
+   "baseline": [
+    "suite"
+   ],
+   "name": "TP13 the provenance pass admits a line with no template",
+   "result": "fixed-preserved"
+  },
+  "9f720d6a0588f124850feef8245a9366cd593046647fe5eb46976ddad49b87f7": {
+   "actual": [
+    "suite"
+   ],
+   "allowed_after": [
+    [
+     "suite"
+    ]
+   ],
+   "baseline": [
+    "suite"
+   ],
+   "name": "VD8 the recorded latency loses its clamp",
+   "result": "fixed-preserved"
+  },
+  "a082dcb932a0e59e561a4be9e33354f2a7e0151c66f124f6a9e56264287f3f2b": {
+   "actual": [
+    "suite"
+   ],
+   "allowed_after": [
+    [
+     "suite"
+    ]
+   ],
+   "baseline": [
+    "suite"
+   ],
+   "name": "S5 the surrogate scan never fires",
+   "result": "fixed-preserved"
+  },
+  "a16ce4211a762f74ba2fa859875f5bc56401a5d482cb04d1ab9da5cefecbc4d1": {
+   "actual": [
+    "suite"
+   ],
+   "allowed_after": [
+    [
+     "suite"
+    ]
+   ],
+   "baseline": [
+    "suite"
+   ],
+   "name": "E1 a catalog row's api_base and key_env regain authority",
+   "result": "fixed-preserved"
+  },
+  "a1816a955a3502a2b23bf3780c56db82fb35f3df7141e59bc4369694aaff7ad4": {
+   "actual": [
+    "suite"
+   ],
+   "allowed_after": [
+    [
+     "suite"
+    ]
+   ],
+   "baseline": [
+    "suite"
+   ],
+   "name": "C5 response body unbounded",
+   "result": "fixed-preserved"
+  },
+  "a190ac721c6033c1dda9c7af6417eef48a31bd94414e60dbbcb84684805cfb6e": {
+   "actual": [
+    "suite"
+   ],
+   "allowed_after": [
+    [
+     "suite"
+    ]
+   ],
+   "baseline": [
+    "suite"
+   ],
+   "name": "TB8 an unknown failure kind accepted",
+   "result": "fixed-preserved"
+  },
+  "a25c6f381dac01add76ef02218a13815f1b1ba2a474473c6cea555b12d45b082": {
+   "actual": [
+    "suite"
+   ],
+   "allowed_after": [
+    [
+     "suite"
+    ]
+   ],
+   "baseline": [
+    "suite"
+   ],
+   "name": "TB11 the transport hashes the class itself instead of reporting it",
+   "result": "fixed-preserved"
+  },
+  "a263add4514b0c9b7852d420b2c9d92d327487c30d605ee92b2e8f230c2297ff": {
+   "actual": [
+    "suite"
+   ],
+   "allowed_after": [
+    [
+     "suite"
+    ]
+   ],
+   "baseline": [
+    "suite"
+   ],
+   "name": "DF4 a digest field accepts any string",
+   "result": "fixed-preserved"
+  },
+  "a29c75bc2bccb48fba2beefcb60798b1504c8742bbbf1131ac357ec5ba307f14": {
+   "actual": [
+    "suite"
+   ],
+   "allowed_after": [
+    [
+     "suite"
+    ]
+   ],
+   "baseline": [
+    "suite"
+   ],
+   "name": "K1 a status without a body promoted to completed",
+   "result": "fixed-preserved"
+  },
+  "a3149eebfc904972d8fab5cc6207d88c51cd31ddc176432e2197f651bbb701f8": {
+   "actual": [
+    "suite"
+   ],
+   "allowed_after": [
+    [
+     "suite"
+    ]
+   ],
+   "baseline": [
+    "suite"
+   ],
+   "name": "TB4 the probe validates against the module constant, not its own limit",
+   "result": "fixed-preserved"
+  },
+  "a35d27bfdc629072c86929ae0a0b4cefd5d83953c81efff7aad4a79dbfd28288": {
+   "actual": [
+    "suite"
+   ],
+   "allowed_after": [
+    [
+     "suite"
+    ]
+   ],
+   "baseline": [
+    "suite"
+   ],
+   "name": "TT1 a reset while the status line is read escapes as an internal error",
+   "result": "fixed-preserved"
+  },
+  "a4aef53f706da8e75c99608300250ccc7e2928bbfd13ae7ba79c769f6ece6df1": {
+   "actual": [
+    "readme-gate"
+   ],
+   "allowed_after": [
+    [
+     "readme-gate"
+    ],
+    [
+     "readme-gate",
+     "suite"
+    ]
+   ],
+   "baseline": [
+    "readme-gate",
+    "suite"
+   ],
+   "name": "RD1 a missing anchor reads as an empty block rather than as a finding",
+   "result": "moved-within-envelope"
+  },
+  "a4b9f71dad6f3b3a22ac242d67a9f0c3c1519b8f9e7a16e4a233a5b7b3188bb4": {
+   "actual": [
+    "policy-gate",
+    "suite"
+   ],
+   "allowed_after": [
+    [
+     "policy-gate",
+     "suite"
+    ]
+   ],
+   "baseline": [
+    "policy-gate",
+    "suite"
+   ],
+   "name": "DF8 a digest policy may name an undeclared domain",
+   "result": "fixed-preserved"
+  },
+  "a4f164741ecf8bee5e85757eeafac1385e0d1de78bc6e911ee1092fa49bd3907": {
+   "actual": [
+    "discovery-gate",
+    "suite"
+   ],
+   "allowed_after": [
+    [
+     "discovery-gate",
+     "suite"
+    ]
+   ],
+   "baseline": [
+    "discovery-gate",
+    "suite"
+   ],
+   "name": "Z1 the discovery verdict indexes an empty list again",
+   "result": "fixed-preserved"
+  },
+  "a50d15912c941609b82083a2d43daefbc4917b01271103693ae20b8e10399854": {
+   "actual": [
+    "suite"
+   ],
+   "allowed_after": [
+    [
+     "suite"
+    ]
+   ],
+   "baseline": [
+    "suite"
+   ],
+   "name": "PB3 a failure message repeats the child's stderr",
+   "result": "fixed-preserved"
+  },
+  "a5428f9604af3b9639777c5d6ece141361a5261372ad514fc6eb79c29eeb5110": {
+   "actual": [
+    "policy-gate"
+   ],
+   "allowed_after": [
+    [
+     "policy-gate"
+    ],
+    [
+     "policy-gate",
+     "suite"
+    ]
+   ],
+   "baseline": [
+    "policy-gate",
+    "suite"
+   ],
+   "name": "BC2 an enforcement entry may name a field with no bound",
+   "result": "moved-within-envelope"
+  },
+  "a5ea4d87223b455f608a434a777d3e32a23b0431909dce01734a920396b3fdad": {
+   "actual": [
+    "suite"
+   ],
+   "allowed_after": [
+    [
+     "suite"
+    ]
+   ],
+   "baseline": [
+    "suite"
+   ],
+   "name": "S1 NaN and the infinities readmitted",
+   "result": "fixed-preserved"
+  },
+  "a759841fd70b2b5095bfb4f938d1788c65fb6362cf078cde70334fc8e167b93f": {
+   "actual": [
+    "suite"
+   ],
+   "allowed_after": [
+    [
+     "suite"
+    ]
+   ],
+   "baseline": [
+    "suite"
+   ],
+   "name": "E3 the plan is not re-checked against the registry before send",
+   "result": "fixed-preserved"
+  },
+  "a7ad9a48290e55a46ee3c9346129d838e1934a8f317ca3117fd98db66269e25c": {
+   "actual": [
+    "suite"
+   ],
+   "allowed_after": [
+    [
+     "suite"
+    ]
+   ],
+   "baseline": [
+    "suite"
+   ],
+   "name": "J3 returned results never enter the observable set",
+   "result": "fixed-preserved"
+  },
+  "a7b9d504e8b3057ab0785db5d030cdcacd46d9a54590f4ba0a78357270c3aefe": {
+   "actual": [
+    "suite"
+   ],
+   "allowed_after": [
+    [
+     "suite"
+    ]
+   ],
+   "baseline": [
+    "suite"
+   ],
+   "name": "N4 files read leniently",
+   "result": "fixed-preserved"
+  },
+  "a7e9bb598f71e339c8a42be68fed42487741372b503ee1364f701b07f94901c1": {
+   "actual": [
+    "suite"
+   ],
+   "allowed_after": [
+    [
+     "suite"
+    ]
+   ],
+   "baseline": [
+    "suite"
+   ],
+   "name": "S3 the non-finite float check removed",
+   "result": "fixed-preserved"
+  },
+  "a7ec245b8a9d639e0e475821f3521e1e60434c06dd7e99a33fa9509761cdde27": {
+   "actual": [
+    "suite"
+   ],
+   "allowed_after": [
+    [
+     "suite"
+    ]
+   ],
+   "baseline": [
+    "suite"
+   ],
+   "name": "MI6 the status stops being a projection of the identity",
+   "result": "fixed-preserved"
+  },
+  "a924ec945c195b7940beccca26d4fb619b07e5fff108e802d7be62c5f83d072b": {
+   "actual": [
+    "suite"
+   ],
+   "allowed_after": [
+    [
+     "suite"
+    ]
+   ],
+   "baseline": [
+    "suite"
+   ],
+   "name": "C2 userinfo accepted",
+   "result": "fixed-preserved"
+  },
+  "a9d8ac8d0b8a10e1b9be5e39bb85188f559800ed773adc2ddbc5ba34c8d782e6": {
+   "actual": [
+    "suite"
+   ],
+   "allowed_after": [
+    [
+     "suite"
+    ]
+   ],
+   "baseline": [
+    "suite"
+   ],
+   "name": "TP3 a detail may be built from an unregistered template",
+   "result": "fixed-preserved"
+  },
+  "ab0406d2b8c6b1de22c0b9b7d7c4a3469860330b25d8cbb6e551fbf29cb7e1aa": {
+   "actual": [
+    "suite"
+   ],
+   "allowed_after": [
+    [
+     "suite"
+    ]
+   ],
+   "baseline": [
+    "suite"
+   ],
+   "name": "FN2 the stem is unbounded again",
+   "result": "fixed-preserved"
+  },
+  "ac97066dc27febf261362d3c6d724c4326cbf8cc34f48160999aca6e14a8322d": {
+   "actual": [
+    "suite"
+   ],
+   "allowed_after": [
+    [
+     "suite"
+    ]
+   ],
+   "baseline": [
+    "suite"
+   ],
+   "name": "DP6 a negative counter recorded",
+   "result": "fixed-preserved"
+  },
+  "ad1152e15dd067549dae1362513b290a4c58a32381c11a4c1a1b52ee2c489a22": {
+   "actual": [
+    "suite"
+   ],
+   "allowed_after": [
+    [
+     "suite"
+    ]
+   ],
+   "baseline": [
+    "suite"
+   ],
+   "name": "VD3 a missing credential is filed as a transport failure",
+   "result": "fixed-preserved"
+  },
+  "ad56e4f1851ba2cb59b72bb85f06c38948247661c1f8cc3af67936e66c2008d0": {
+   "actual": [
+    "suite"
+   ],
+   "allowed_after": [
+    [
+     "suite"
+    ]
+   ],
+   "baseline": [
+    "suite"
+   ],
+   "name": "I1 the lenient stdlib decoder restored",
+   "result": "fixed-preserved"
+  },
+  "ae75d7c62a6cee3b6503e387233cdd91c2c47fe23bc8e6654050e0b908a8ed52": {
+   "actual": [
+    "suite"
+   ],
+   "allowed_after": [
+    [
+     "suite"
+    ]
+   ],
+   "baseline": [
+    "suite"
+   ],
+   "name": "B2 arguments never validated at all",
+   "result": "fixed-preserved"
+  },
+  "ae980864fecf2b68392931d5f9c6ce97df01ecee2a98e361a99f402e5228ac13": {
+   "actual": [
+    "suite"
+   ],
+   "allowed_after": [
+    [
+     "suite"
+    ]
+   ],
+   "baseline": [
+    "suite"
+   ],
+   "name": "CK1 a plain string reaches the coverage queries again",
+   "result": "fixed-preserved"
+  },
+  "af338e37c86c9fd5747c17d4fb491b5613ed0b1427050e0abe96f485d8687fa0": {
+   "actual": [
+    "suite"
+   ],
+   "allowed_after": [
+    [
+     "suite"
+    ]
+   ],
+   "baseline": [
+    "suite"
+   ],
+   "name": "O3b the stage/body shape not enforced",
+   "result": "fixed-preserved"
+  },
+  "af4abfa8d55723259c310fb65923547d51c60b001f7f0f1c010f235fd67bc69b": {
+   "actual": [
+    "suite"
+   ],
+   "allowed_after": [
+    [
+     "suite"
+    ]
+   ],
+   "baseline": [
+    "suite"
+   ],
+   "name": "K2 a body without a status silently accepted",
+   "result": "fixed-preserved"
+  },
+  "af8d4fb3a9fa095e25fb5ec4d37a226c56916dc2fd5736e04fec0b1c28961dce": {
+   "actual": [
+    "suite"
+   ],
+   "allowed_after": [
+    [
+     "suite"
+    ]
+   ],
+   "baseline": [
+    "suite"
+   ],
+   "name": "EM1 a target id may again be ambiguous about the pair it names",
+   "result": "fixed-preserved"
+  },
+  "b0d5863571ebb85e8511cb29e23e59caf68576ab66a4b53f8a3b1f62540f0a04": {
+   "actual": [
+    "suite"
+   ],
+   "allowed_after": [
+    [
+     "suite"
+    ]
+   ],
+   "baseline": [
+    "suite"
+   ],
+   "name": "S13 the integer fallback overflow check removed",
+   "result": "fixed-preserved"
+  },
+  "b4020ff7ea2647f71319b773d79d91bcaafbfa03078ee6fe7645174ccc2d45a9": {
+   "actual": [
+    "suite"
+   ],
+   "allowed_after": [
+    [
+     "suite"
+    ]
+   ],
+   "baseline": [
+    "suite"
+   ],
+   "name": "U4 the lenient reader loses its depth pre-scan",
+   "result": "fixed-preserved"
+  },
+  "b4957e953cf660f5af2d0da650358d5affab7bdc6c71dac230dbc2cb6e67f234": {
+   "actual": [
+    "clean-tree-gate",
+    "suite"
+   ],
+   "allowed_after": [
+    [
+     "clean-tree-gate",
+     "suite"
+    ]
+   ],
+   "baseline": [
+    "clean-tree-gate",
+    "suite"
+   ],
+   "name": "GE3 the machine's global configuration is readable again",
+   "result": "fixed-preserved"
+  },
+  "b4e9d7dd01f1c461b31f21415daa1cf7cf576f0236ef608ee83cc34a0dea337c": {
+   "actual": [
+    "suite"
+   ],
+   "allowed_after": [
+    [
+     "suite"
+    ]
+   ],
+   "baseline": [
+    "suite"
+   ],
+   "name": "VD1 apply_decision stops checking the schema's vocabulary",
+   "result": "fixed-preserved"
+  },
+  "b5059e17d77d2aac6c76a80c9f6b4f52b5d4a8937859cb4dc5d039146465eb1c": {
+   "actual": [
+    "suite"
+   ],
+   "allowed_after": [
+    [
+     "suite"
+    ]
+   ],
+   "baseline": [
+    "suite"
+   ],
+   "name": "VT1 zip truncates a lopsided multi-anchor spec in silence",
+   "result": "fixed-preserved"
+  },
+  "b5a6f6bfc6170d7db8e96ca67f3ca6e500325186ab8fd5f0d846abef23eea693": {
+   "actual": [
+    "suite"
+   ],
+   "allowed_after": [
+    [
+     "suite"
+    ]
+   ],
+   "baseline": [
+    "suite"
+   ],
+   "name": "CV2 coverage is asked over the union of both receipt kinds",
+   "result": "fixed-preserved"
+  },
+  "b751c5c330f11b8331d99f48a087413c9e74f3a5524a5565fb36b12b781ed370": {
+   "actual": [
+    "suite"
+   ],
+   "allowed_after": [
+    [
+     "suite"
+    ]
+   ],
+   "baseline": [
+    "suite"
+   ],
+   "name": "H3 duplicate tool_call ids accepted",
+   "result": "fixed-preserved"
+  },
+  "ba751381369ea9a46af540a5c7c0dc8890e35480361fb9336e51d17881cbd767": {
+   "actual": [
+    "suite"
+   ],
+   "allowed_after": [
+    [
+     "suite"
+    ]
+   ],
+   "baseline": [
+    "suite"
+   ],
+   "name": "TB2 the limit+1 allowance becomes unbounded",
+   "result": "fixed-preserved"
+  },
+  "bb407255404f3f8dc295efeb98454a5af0e581774f21c4baf4fbc268af1f0d18": {
+   "actual": [
+    "discovery-gate",
+    "suite"
+   ],
+   "allowed_after": [
+    [
+     "discovery-gate",
+     "suite"
+    ]
+   ],
+   "baseline": [
+    "discovery-gate",
+    "suite"
+   ],
+   "name": "V3 the discovery check stops comparing the two runs",
+   "result": "fixed-preserved"
+  },
+  "bb71a04eea5172b53e38ceee7519537c11f5fbccb3a4d81e5ff5047890eeb322": {
+   "actual": [
+    "suite"
+   ],
+   "allowed_after": [
+    [
+     "suite"
+    ]
+   ],
+   "baseline": [
+    "suite"
+   ],
+   "name": "S11 brackets inside strings counted as nesting",
+   "result": "fixed-preserved"
+  },
+  "bb7fdda736b319eb57f8bfc9188c9f4d54492d99b12e64e2d4d5d7fef26197e0": {
+   "actual": [
+    "suite"
+   ],
+   "allowed_after": [
+    [
+     "suite"
+    ]
+   ],
+   "baseline": [
+    "suite"
+   ],
+   "name": "S7 the surrogate scan skips nested values",
+   "result": "fixed-preserved"
+  },
+  "bb83266905007e8fdc0af26d58143a887ece06bc29463de585c88e45484818b3": {
+   "actual": [
+    "suite"
+   ],
+   "allowed_after": [
+    [
+     "suite"
+    ]
+   ],
+   "baseline": [
+    "suite"
+   ],
+   "name": "S12 integer literals handed to Python's unbounded int",
+   "result": "fixed-preserved"
+  },
+  "bd6fe7282a628fbf366a7170bd98e7e0839f2c9f67e8e315abf119c36aed9e03": {
+   "actual": [
+    "policy-gate",
+    "suite"
+   ],
+   "allowed_after": [
+    [
+     "policy-gate",
+     "suite"
+    ]
+   ],
+   "baseline": [
+    "policy-gate",
+    "suite"
+   ],
+   "name": "NP4 a required place may go without a hostile value",
+   "result": "fixed-preserved"
+  },
+  "be50fa163d94b49e59da482ef001e686e390b21a2f99a6ee2e49a1c5618e3e36": {
+   "actual": [
+    "suite"
+   ],
+   "allowed_after": [
+    [
+     "suite"
+    ]
+   ],
+   "baseline": [
+    "suite"
+   ],
+   "name": "U5 the lenient reader stops catching decoder limits",
+   "result": "fixed-preserved"
+  },
+  "beeb2f332bc490700e949c56d4c734511374da1a51776724cd57d18fa40473e1": {
+   "actual": [
+    "suite"
+   ],
+   "allowed_after": [
+    [
+     "suite"
+    ]
+   ],
+   "baseline": [
+    "suite"
+   ],
+   "name": "B6 the envelope oracle never reaches tool arguments",
+   "result": "fixed-preserved"
+  },
+  "bf049eb6f4c41a0dda442778a54988dc7f7d46c80830d20b26f65105775d38fe": {
+   "actual": [
+    "suite"
+   ],
+   "allowed_after": [
+    [
+     "suite"
+    ]
+   ],
+   "baseline": [
+    "suite"
+   ],
+   "name": "MI5 model_evidence stops agreeing with the identity it projects",
+   "result": "fixed-preserved"
+  },
+  "c0ea728b12633ca469a5a9ba29c1cf8498d4938fcbb39ca51265822a0219b25d": {
+   "actual": [
+    "discovery-gate",
+    "suite"
+   ],
+   "allowed_after": [
+    [
+     "discovery-gate",
+     "suite"
+    ]
+   ],
+   "baseline": [
+    "discovery-gate",
+    "suite"
+   ],
+   "name": "DG2 undecodable output is silently replaced",
+   "result": "fixed-preserved"
+  },
+  "c1584b4e938fa705741e1e964b6e6ebdd4461ce606f440c93fa12adbf9651ee6": {
+   "actual": [
+    "suite"
+   ],
+   "allowed_after": [
+    [
+     "suite"
+    ]
+   ],
+   "baseline": [
+    "suite"
+   ],
+   "name": "EW2 an incomplete matrix is reported as a complete one",
+   "result": "fixed-preserved"
+  },
+  "c175513ac41a1fcc7db65af352972ebee1a02a543e7948021e58080a15d3ccad": {
+   "actual": [
+    "suite"
+   ],
+   "allowed_after": [
+    [
+     "suite"
+    ]
+   ],
+   "baseline": [
+    "suite"
+   ],
+   "name": "Y4 the response read narrows back to the one exception already fixed",
+   "result": "fixed-preserved"
+  },
+  "c28e57b68ed0a5e9bafc74e95c10b2f7e73d1314a32afa4351d8050b7071327b": {
+   "actual": [
+    "suite"
+   ],
+   "allowed_after": [
+    [
+     "suite"
+    ]
+   ],
+   "baseline": [
+    "suite"
+   ],
+   "name": "TT2 the broad framing catch is hoisted above the narrow URLError one",
+   "result": "fixed-preserved"
+  },
+  "c32eed4a2040d45bf8112fbebcab3b9f0bcfb9a27d4000ffe9c89dc48ef7d98d": {
+   "actual": [
+    "suite"
+   ],
+   "allowed_after": [
+    [
+     "suite"
+    ]
+   ],
+   "baseline": [
+    "suite"
+   ],
+   "name": "X1 the assistant content type guard removed",
+   "result": "fixed-preserved"
+  },
+  "c3df1058fcea79796c2be8f7cf833f8ca0bb9733a76b6b399effc8e6a1892db1": {
+   "actual": [
+    "suite"
+   ],
+   "allowed_after": [
+    [
+     "suite"
+    ]
+   ],
+   "baseline": [
+    "suite"
+   ],
+   "name": "Q1 a non-integer status accepted",
+   "result": "fixed-preserved"
+  },
+  "c4fd45a86299f59afbd063ed2ce341444854a0755c045ff6c2cd26e6704c0435": {
+   "actual": [
+    "policy-gate",
+    "suite"
+   ],
+   "allowed_after": [
+    [
+     "policy-gate",
+     "suite"
+    ]
+   ],
+   "baseline": [
+    "policy-gate",
+    "suite"
+   ],
+   "name": "NP7 only the first occurrence of an array is addressable, and it is the wrong one",
+   "result": "fixed-preserved"
+  },
+  "c5890613952cf5fd3d176348644e89376523a7d931093693c8facca598437fd0": {
+   "actual": [
+    "suite"
+   ],
+   "allowed_after": [
+    [
+     "suite"
+    ]
+   ],
+   "baseline": [
+    "suite"
+   ],
+   "name": "V5 the mutation list stops noticing duplicate names",
+   "result": "fixed-preserved"
+  },
+  "c698aaee5c6685d5aac085bb8f252a7d21e5ad45c0525ec3dec7ba2ce6940c99": {
+   "actual": [
+    "clean-tree-gate",
+    "suite"
+   ],
+   "allowed_after": [
+    [
+     "clean-tree-gate",
+     "suite"
+    ]
+   ],
+   "baseline": [
+    "clean-tree-gate",
+    "suite"
+   ],
+   "name": "W2 the self-test stops pinning commit signing off",
+   "result": "fixed-preserved"
+  },
+  "c7cab9736eaef53fb0cccb8cfc66db3c42f5617f717465a348972eef5a438997": {
+   "actual": [
+    "suite"
+   ],
+   "allowed_after": [
+    [
+     "suite"
+    ]
+   ],
+   "baseline": [
+    "suite"
+   ],
+   "name": "MH5 the expected killer is no longer required at all",
+   "result": "fixed-preserved"
+  },
+  "c9721028139b4bd98ded980d918d1679b4c54a105b120888561fbfa211615e20": {
+   "actual": [
+    "suite"
+   ],
+   "allowed_after": [
+    [
+     "suite"
+    ]
+   ],
+   "baseline": [
+    "suite"
+   ],
+   "name": "C4 redirects followed",
+   "result": "fixed-preserved"
+  },
+  "c9d3fc9f26a9e1634b735fc48d59fe740da0401561cec60bc8d13d1f07689049": {
+   "actual": [
+    "suite"
+   ],
+   "allowed_after": [
+    [
+     "suite"
+    ]
+   ],
+   "baseline": [
+    "suite"
+   ],
+   "name": "U2 a lost error body escapes the read entirely",
+   "result": "fixed-preserved"
+  },
+  "cad5ed15427c759245ab127c562ec28d237b36e552d6320f211d3bf751390616": {
+   "actual": [
+    "suite"
+   ],
+   "allowed_after": [
+    [
+     "suite"
+    ]
+   ],
+   "baseline": [
+    "suite"
+   ],
+   "name": "CK3 applicable_paths selects without going through the checked door",
+   "result": "fixed-preserved"
+  },
+  "cb5118c459c19d165c4ed884cf24a5cc9588987bfe39b7ecb7d1c42d5e3673ed": {
+   "actual": [
+    "suite"
+   ],
+   "allowed_after": [
+    [
+     "suite"
+    ]
+   ],
+   "baseline": [
+    "suite"
+   ],
+   "name": "TT3 an OSError framing failure repeats the message it was raised with",
+   "result": "fixed-preserved"
+  },
+  "cbb6b2447e81b74bafe2550ca20c68ee77a482dbea9cc849ea5369773277ecf6": {
+   "actual": [
+    "suite"
+   ],
+   "allowed_after": [
+    [
+     "suite"
+    ]
+   ],
+   "baseline": [
+    "suite"
+   ],
+   "name": "M3 an unmappable 2xx filed as a refusal",
+   "result": "fixed-preserved"
+  },
+  "cd37ffba79a4072e2fe6b5fb028b9a76e1a16768dae4bb1307d08e3d398a7f99": {
+   "actual": [
+    "suite"
+   ],
+   "allowed_after": [
+    [
+     "suite"
+    ]
+   ],
+   "baseline": [
+    "suite"
+   ],
+   "name": "DP17 evidence digests stop being domain-separated",
+   "result": "fixed-preserved"
+  },
+  "cdeba280b917ba0118e6c681d36bef64f8b0d04a6f193d63881a55abff15ab6a": {
+   "actual": [
+    "suite"
+   ],
+   "allowed_after": [
+    [
+     "suite"
+    ]
+   ],
+   "baseline": [
+    "suite"
+   ],
+   "name": "Q2 bool accepted as a status",
+   "result": "fixed-preserved"
+  },
+  "ce1da4053985eaef7bff01e426a25eccaf09717d56a2b7d7213ca9fe2acd7c47": {
+   "actual": [
+    "suite"
+   ],
+   "allowed_after": [
+    [
+     "suite"
+    ]
+   ],
+   "baseline": [
+    "suite"
+   ],
+   "name": "HR1 the listener answers before the body has arrived",
+   "result": "fixed-preserved"
+  },
+  "ced5a8c11f16f7404a2c3924e8062f5cf048a02213675918e65c5590b82ffcd2": {
+   "actual": [
+    "suite"
+   ],
+   "allowed_after": [
+    [
+     "suite"
+    ]
+   ],
+   "baseline": [
+    "suite"
+   ],
+   "name": "EW1 a failed write leaves the boundary again",
+   "result": "fixed-preserved"
+  },
+  "d064cece2e4628bb88d696e8c49c709ab42d8af9ac373fa403baf61bde2cd81b": {
+   "actual": [
+    "suite"
+   ],
+   "allowed_after": [
+    [
+     "suite"
+    ]
+   ],
+   "baseline": [
+    "suite"
+   ],
+   "name": "BC3 a strategy may be declared without an argument",
+   "result": "fixed-preserved"
+  },
+  "d0dcdd19d6fcf86917b11763205ef19dea40875106869ab7a704ba16f98c1870": {
+   "actual": [
+    "suite"
+   ],
+   "allowed_after": [
+    [
+     "suite"
+    ]
+   ],
+   "baseline": [
+    "suite"
+   ],
+   "name": "E7 duplicate provider keys resolved by document order",
+   "result": "fixed-preserved"
+  },
+  "d0df1ec862c2b1d6378062a54deb2937a995a6b89a2a2d118ebe51f7cdd69285": {
+   "actual": [
+    "suite"
+   ],
+   "allowed_after": [
+    [
+     "suite"
+    ]
+   ],
+   "baseline": [
+    "suite"
+   ],
+   "name": "S14 int() called before the overflow check, so long literals crash",
+   "result": "fixed-preserved"
+  },
+  "d1fb4695885f271117ef8a3893f6a87f02a1aafbb08e24f2189200f51aab7171": {
+   "actual": [
+    "suite"
+   ],
+   "allowed_after": [
+    [
+     "suite"
+    ]
+   ],
+   "baseline": [
+    "suite"
+   ],
+   "name": "E8 unknown fields allowed on a registry entry",
+   "result": "fixed-preserved"
+  },
+  "d2c68addf69447f67213add69d329493c60ce56be39b8acb9d7944c08d81a21d": {
+   "actual": [
+    "suite"
+   ],
+   "allowed_after": [
+    [
+     "suite"
+    ]
+   ],
+   "baseline": [
+    "suite"
+   ],
+   "name": "L2 a malformed credential reaches the header builder",
+   "result": "fixed-preserved"
+  },
+  "d30df01adda75e4f1f1b22916a3ac5189b05fec58b39f3e2ed8d1ef621591e11": {
+   "actual": [
+    "suite"
+   ],
+   "allowed_after": [
+    [
+     "suite"
+    ]
+   ],
+   "baseline": [
+    "suite"
+   ],
+   "name": "RQ5 a three-digit status nobody assigned is refused again",
+   "result": "fixed-preserved"
+  },
+  "d3c98824cfb5bff81c6d34ed09c5acb09c4446eb98e6a4f68688f0d0f82a81e3": {
+   "actual": [
+    "suite"
+   ],
+   "allowed_after": [
+    [
+     "suite"
+    ]
+   ],
+   "baseline": [
+    "suite"
+   ],
+   "name": "DB1 a discriminator's word is no longer bounded where it is built",
+   "result": "fixed-preserved"
+  },
+  "d424821ded3d1194ea576a48f31b2a04e820f5acee1b48ef6f4c1adc7e55fd51": {
+   "actual": [
+    "suite"
+   ],
+   "allowed_after": [
+    [
+     "suite"
+    ]
+   ],
+   "baseline": [
+    "suite"
+   ],
+   "name": "DP21 usage counters lose their upper bound",
+   "result": "fixed-preserved"
+  },
+  "d45ce3d037d07c0283e209e9a5321370c6467409ce19b2c12dc93ca917d6874e": {
+   "actual": [
+    "suite"
+   ],
+   "allowed_after": [
+    [
+     "suite"
+    ]
+   ],
+   "baseline": [
+    "suite"
+   ],
+   "name": "NP7 the projection asks whether a word is known anywhere",
+   "result": "fixed-preserved"
+  },
+  "d6a7f18df4a3cb1c56c1b80e60e7218caa837c50ab44718f040b8deec36f78a5": {
+   "actual": [
+    "suite"
+   ],
+   "allowed_after": [
+    [
+     "suite"
+    ]
+   ],
+   "baseline": [
+    "suite"
+   ],
+   "name": "RQ1 the probe stops checking the size of what it is about to send",
+   "result": "fixed-preserved"
+  },
+  "d8424a18586caf542f41d1ef122ba6b2d10252e9dce9c2cb927206dee686ad1f": {
+   "actual": [
+    "suite"
+   ],
+   "allowed_after": [
+    [
+     "suite"
+    ]
+   ],
+   "baseline": [
+    "suite"
+   ],
+   "name": "VD7 the recorded timeout is whatever was passed in",
+   "result": "fixed-preserved"
+  },
+  "daba298a9cbb49bdbb85133e5692cb24022c97b7a619abc5e48570d5804f4bd7": {
+   "actual": [
+    "suite"
+   ],
+   "allowed_after": [
+    [
+     "suite"
+    ]
+   ],
+   "baseline": [
+    "suite"
+   ],
+   "name": "Y5 the error-body read narrows back to the one exception already fixed",
+   "result": "fixed-preserved"
+  },
+  "db10131d45e28253b65e2ddf89ec00de8b1da4dbd501a22f67eb76b0f3c1c38b": {
+   "actual": [
+    "suite"
+   ],
+   "allowed_after": [
+    [
+     "suite"
+    ]
+   ],
+   "baseline": [
+    "suite"
+   ],
+   "name": "S8 the recursion-depth guard removed",
+   "result": "fixed-preserved"
+  },
+  "dc7ebb4c4b7775e16075100695e9be9ed9eb5474d809ecd088013c0e4e9b11c7": {
+   "actual": [
+    "suite"
+   ],
+   "allowed_after": [
+    [
+     "suite"
+    ]
+   ],
+   "baseline": [
+    "suite"
+   ],
+   "name": "NP6 a path is a string again, so a key can impersonate a structure",
+   "result": "fixed-preserved"
+  },
+  "e0611edc14743297e32392b8aaa2f9dd6b201354e5341b6f2c091d09546ebcfb": {
+   "actual": [
+    "suite"
+   ],
+   "allowed_after": [
+    [
+     "suite"
+    ]
+   ],
+   "baseline": [
+    "suite"
+   ],
+   "name": "S10 the depth limit raised past what the consumer accepts",
+   "result": "fixed-preserved"
+  },
+  "e0846cb45d30207f93446f62b171e3326f5201db49f6614eac784570c6ffb0d6": {
+   "actual": [
+    "suite"
+   ],
+   "allowed_after": [
+    [
+     "suite"
+    ]
+   ],
+   "baseline": [
+    "suite"
+   ],
+   "name": "VD2 apply_decision stops checking the reason vocabulary",
+   "result": "fixed-preserved"
+  },
+  "e1634ed155462a052a97d7d1034199f419adc1e69edbf115e2e3e03882cebbf7": {
+   "actual": [
+    "suite"
+   ],
+   "allowed_after": [
+    [
+     "suite"
+    ]
+   ],
+   "baseline": [
+    "suite"
+   ],
+   "name": "CV1 the coverage gate stops asking for the paths a run must produce",
+   "result": "fixed-preserved"
+  },
+  "e23252d96c78b6327cc6330e8926407c65c0f992e8fb2f05ff83e50539941ba9": {
+   "actual": [
+    "suite"
+   ],
+   "allowed_after": [
+    [
+     "suite"
+    ]
+   ],
+   "baseline": [
+    "suite"
+   ],
+   "name": "R4 sniffing restored by decoding with the wrong strictness",
+   "result": "fixed-preserved"
+  },
+  "e2ed0f163cf705977181d9a11c7dc40a95d6384638bb912331fc1063ffb2e8c4": {
+   "actual": [
+    "suite"
+   ],
+   "allowed_after": [
+    [
+     "suite"
+    ]
+   ],
+   "baseline": [
+    "suite"
+   ],
+   "name": "DP2 qualification copies the provider's whole usage object",
+   "result": "fixed-preserved"
+  },
+  "e3c1d66cb740896cca190b91f37746bc91295dc44d22926813c658ad968d8231": {
+   "actual": [
+    "suite"
+   ],
+   "allowed_after": [
+    [
+     "suite"
+    ]
+   ],
+   "baseline": [
+    "suite"
+   ],
+   "name": "DP19 an unknown discriminator reported as a known one",
+   "result": "fixed-preserved"
+  },
+  "e5aae4805cb1c40287d899555b558b2388c6d16c93f047364bc74ae38a25155c": {
+   "actual": [
+    "suite"
+   ],
+   "allowed_after": [
+    [
+     "suite"
+    ]
+   ],
+   "baseline": [
+    "suite"
+   ],
+   "name": "DP8 the raw request id written to the turn record",
+   "result": "fixed-preserved"
+  },
+  "e5b45a623c29f9375886c764993612a9620c0f83f6d1baf68558915f0cc3bd7a": {
+   "actual": [
+    "policy-gate",
+    "suite"
+   ],
+   "allowed_after": [
+    [
+     "policy-gate",
+     "suite"
+    ]
+   ],
+   "baseline": [
+    "policy-gate",
+    "suite"
+   ],
+   "name": "B5 citations outside the support tolerated",
+   "result": "fixed-preserved"
+  },
+  "e5e47819682d116b838ffaf275eaa4724c80da029a8a8fdceb2396b627aedcab": {
+   "actual": [
+    "readme-gate"
+   ],
+   "allowed_after": [
+    [
+     "readme-gate"
+    ],
+    [
+     "readme-gate",
+     "suite"
+    ]
+   ],
+   "baseline": [
+    "readme-gate",
+    "suite"
+   ],
+   "name": "RD2 the README may list an outcome this code cannot emit",
+   "result": "moved-within-envelope"
+  },
+  "e6143ca754602de8247f617888508a9e43b0e877099a3211521d4600ab15db34": {
+   "actual": [
+    "suite"
+   ],
+   "allowed_after": [
+    [
+     "suite"
+    ]
+   ],
+   "baseline": [
+    "suite"
+   ],
+   "name": "HR2 a short read of the headers is taken for the whole request",
+   "result": "fixed-preserved"
+  },
+  "e6eac7e0f1f89adb9b8ff7bfecd5e5e35e80682cc438179a9e470a15bf02b4c9": {
+   "actual": [
+    "suite"
+   ],
+   "allowed_after": [
+    [
+     "suite"
+    ]
+   ],
+   "baseline": [
+    "suite"
+   ],
+   "name": "PBD1 a response may carry more tool calls than the producer admits",
+   "result": "fixed-preserved"
+  },
+  "e860f52da4cbfa1aa17d738b2ccb314573bb6698686a0c84e9444d038478e101": {
+   "actual": [
+    "suite"
+   ],
+   "allowed_after": [
+    [
+     "suite"
+    ]
+   ],
+   "baseline": [
+    "suite"
+   ],
+   "name": "MI3 a non-text drift is rendered with the text-only template",
+   "result": "fixed-preserved"
+  },
+  "e92de2227763f9b4f2a8c3043017f577b25098c30b2b1de500d9993a8edc2fc7": {
+   "actual": [
+    "clean-tree-gate",
+    "suite"
+   ],
+   "allowed_after": [
+    [
+     "clean-tree-gate",
+     "suite"
+    ]
+   ],
+   "baseline": [
+    "clean-tree-gate",
+    "suite"
+   ],
+   "name": "W1 the self-test reads the machine's global git configuration",
+   "result": "fixed-preserved"
+  },
+  "e9853b437accbd0651402f97faa75a2537f2fda7da7d42dcaff8d70524bd78ef": {
+   "actual": [
+    "suite"
+   ],
+   "allowed_after": [
+    [
+     "suite"
+    ]
+   ],
+   "baseline": [
+    "suite"
+   ],
+   "name": "DP12 the undeclared tool names spelled out in the detail",
+   "result": "fixed-preserved"
+  },
+  "e9bcf94764bddd924defe06e17a535ad8b44e97473fd46da72049d21f9988ffb": {
+   "actual": [
+    "suite"
+   ],
+   "allowed_after": [
+    [
+     "suite"
+    ]
+   ],
+   "baseline": [
+    "suite"
+   ],
+   "name": "P3 tool-call arguments parsed leniently",
+   "result": "fixed-preserved"
+  },
+  "eadc6a4233739b5047c16377470af64073f4191ee7faf9e0294122f4473c074c": {
+   "actual": [
+    "suite"
+   ],
+   "allowed_after": [
+    [
+     "suite"
+    ]
+   ],
+   "baseline": [
+    "suite"
+   ],
+   "name": "V4 the mutation list stops noticing duplicate specs",
+   "result": "fixed-preserved"
+  },
+  "eb09d9df7ca7384470125761336b43e2f8a17d3e935a715938e2ad7bddb8e277": {
+   "actual": [
+    "suite"
+   ],
+   "allowed_after": [
+    [
+     "suite"
+    ]
+   ],
+   "baseline": [
+    "suite"
+   ],
+   "name": "TP9 a digest may be shortened from anything",
+   "result": "fixed-preserved"
+  },
+  "eb2be761eaf9bde45f4e5467ff618810ac7bd398dc467e6c59ab1ffa34e84b62": {
+   "actual": [
+    "suite"
+   ],
+   "allowed_after": [
+    [
+     "suite"
+    ]
+   ],
+   "baseline": [
+    "suite"
+   ],
+   "name": "EM5 two selected targets may share one provider/model pair",
+   "result": "fixed-preserved"
+  },
+  "ebb5d7e37a9f07334a5cbf43d7af0fe180d2b5f0e9635fc008e73e1a47e050fc": {
+   "actual": [
+    "suite"
+   ],
+   "allowed_after": [
+    [
+     "suite"
+    ]
+   ],
+   "baseline": [
+    "suite"
+   ],
+   "name": "MH2 a suite that discovered a different number of tests is accepted",
+   "result": "fixed-preserved"
+  },
+  "ebfb3aa24de26b5370a35eb73f4149d7693a32941fc2729c656eccaa48fcd058": {
+   "actual": [
+    "suite"
+   ],
+   "allowed_after": [
+    [
+     "suite"
+    ]
+   ],
+   "baseline": [
+    "suite"
+   ],
+   "name": "TB1 the observed byte count loses its upper bound",
+   "result": "fixed-preserved"
+  },
+  "ec236fa3d05eca8cff263ecbc758250fc632da9d17e7188752ce29007500a90d": {
+   "actual": [
+    "suite"
+   ],
+   "allowed_after": [
+    [
+     "suite"
+    ]
+   ],
+   "baseline": [
+    "suite"
+   ],
+   "name": "RM1 an oversized request id is refused instead of projected",
+   "result": "fixed-preserved"
+  },
+  "ede5f848e67920287a32cc96ae8dc1be9ba1e9027afc55b8bb42409d8189021b": {
+   "actual": [
+    "suite"
+   ],
+   "allowed_after": [
+    [
+     "suite"
+    ]
+   ],
+   "baseline": [
+    "suite"
+   ],
+   "name": "G3 the receipt drops a status it was handed",
+   "result": "fixed-preserved"
+  },
+  "ededdecd6701bbf444d8987edc4a4385d619eed3a3e00ad8d636c9c36a326d62": {
+   "actual": [
+    "discovery-gate"
+   ],
+   "allowed_after": [
+    [
+     "discovery-gate"
+    ],
+    [
+     "discovery-gate",
+     "suite"
+    ]
+   ],
+   "baseline": [
+    "discovery-gate",
+    "suite"
+   ],
+   "name": "DG1 the gate reads only one of the child's two streams",
+   "result": "moved-within-envelope"
+  },
+  "eed86d8a15ed98283287dbf2d00e2b4c0a7dae197c14eb4741f3893f7b467228": {
+   "actual": [
+    "suite"
+   ],
+   "allowed_after": [
+    [
+     "suite"
+    ]
+   ],
+   "baseline": [
+    "suite"
+   ],
+   "name": "I3 a dangling character tolerated",
+   "result": "fixed-preserved"
+  },
+  "f0d67ec36683261c46ec1f602e02f710868e6ee0e44a222e305adddbb329fda2": {
+   "actual": [
+    "policy-gate",
+    "suite"
+   ],
+   "allowed_after": [
+    [
+     "policy-gate",
+     "suite"
+    ]
+   ],
+   "baseline": [
+    "policy-gate",
+    "suite"
+   ],
+   "name": "DF5 prose stops checking its vocabulary",
+   "result": "fixed-preserved"
+  },
+  "f111a8f0a9a6e1d7e262b9551068f8188dc32356a3262dd1b467d9ccca912c2d": {
+   "actual": [
+    "suite"
+   ],
+   "allowed_after": [
+    [
+     "suite"
+    ]
+   ],
+   "baseline": [
+    "suite"
+   ],
+   "name": "U3 the partial length of a truncated body is lost",
+   "result": "fixed-preserved"
+  },
+  "f1a0314f48cdb50feaf0b2486e8313113ec07ee39f0b3566fda92a1dfc54328c": {
+   "actual": [
+    "suite"
+   ],
+   "allowed_after": [
+    [
+     "suite"
+    ]
+   ],
+   "baseline": [
+    "suite"
+   ],
+   "name": "Q4 a non-bytes body accepted",
+   "result": "fixed-preserved"
+  },
+  "f1ad516e17397170b65d47171a848a583b951a246dc509ec332430e7f2f81594": {
+   "actual": [
+    "suite"
+   ],
+   "allowed_after": [
+    [
+     "suite"
+    ]
+   ],
+   "baseline": [
+    "suite"
+   ],
+   "name": "N1 the strict loader replaced by plain json.loads",
+   "result": "fixed-preserved"
+  },
+  "f34132780bd581c0a7c3c7d2d33eece7a7fd157fa302e4180551e3ad8f372cbe": {
+   "actual": [
+    "policy-gate",
+    "suite"
+   ],
+   "allowed_after": [
+    [
+     "policy-gate",
+     "suite"
+    ]
+   ],
+   "baseline": [
+    "policy-gate",
+    "suite"
+   ],
+   "name": "CV3 every policy is excused from coverage by default",
+   "result": "fixed-preserved"
+  },
+  "f4b721294808880e1b06885b964f8aacadfd9361bfb443b3673c936077f48f38": {
+   "actual": [
+    "policy-gate",
+    "suite"
+   ],
+   "allowed_after": [
+    [
+     "policy-gate",
+     "suite"
+    ]
+   ],
+   "baseline": [
+    "policy-gate",
+    "suite"
+   ],
+   "name": "DF1 audit skips a leaf no policy names",
+   "result": "fixed-preserved"
+  },
+  "f51f20a82042a36f3e15a41b79b5cb342c4f0b8d491c91080367d6838b19458f": {
+   "actual": [
+    "suite"
+   ],
+   "allowed_after": [
+    [
+     "suite"
+    ]
+   ],
+   "baseline": [
+    "suite"
+   ],
+   "name": "DP5 a boolean counter recorded as a token count",
+   "result": "fixed-preserved"
+  },
+  "f693db3d951262f27c47ffdffd7f77b925a4cabf0ea6a14f58fe80d8221119c2": {
+   "actual": [
+    "suite"
+   ],
+   "allowed_after": [
+    [
+     "suite"
+    ]
+   ],
+   "baseline": [
+    "suite"
+   ],
+   "name": "TP14 a slot pattern widens to anything",
+   "result": "fixed-preserved"
+  },
+  "f7ba27abf20f3f38da6ceefb731151c3ae28b0f0aeba1d5388cbb3c67132a004": {
+   "actual": [
+    "suite"
+   ],
+   "allowed_after": [
+    [
+     "suite"
+    ]
+   ],
+   "baseline": [
+    "suite"
+   ],
+   "name": "D3 drift detail names the substituted model instead of digesting it",
+   "result": "fixed-preserved"
+  },
+  "f95df5605c53b7464777700bf259759aca34ad1722342db64157f38b0b0c14d7": {
+   "actual": [
+    "policy-gate",
+    "suite"
+   ],
+   "allowed_after": [
+    [
+     "policy-gate",
+     "suite"
+    ]
+   ],
+   "baseline": [
+    "policy-gate",
+    "suite"
+   ],
+   "name": "NP6 a leaf may sit under a container no policy names",
+   "result": "fixed-preserved"
+  },
+  "fc64fca174e9ebbc90969a4d195497c434bb2946e6ad28d16d3b4f75766e720e": {
+   "actual": [
+    "suite"
+   ],
+   "allowed_after": [
+    [
+     "suite"
+    ]
+   ],
+   "baseline": [
+    "suite"
+   ],
+   "name": "VD5 a canary mismatch outranks an unestablished identity",
+   "result": "fixed-preserved"
+  },
+  "fc86d7ee6f349d4c0e1744fc8f4630df11fa36029c7a4c41e8ce21e4b35140dd": {
+   "actual": [
+    "suite"
+   ],
+   "allowed_after": [
+    [
+     "suite"
+    ]
+   ],
+   "baseline": [
+    "suite"
+   ],
+   "name": "CK2 declared_paths selects without going through the checked door",
+   "result": "fixed-preserved"
+  },
+  "fd8aa69233fc0f948f96302e00034666315fb002e56d10c87bdd921a62c3195b": {
+   "actual": [
+    "policy-gate",
+    "suite"
+   ],
+   "allowed_after": [
+    [
+     "policy-gate",
+     "suite"
+    ]
+   ],
+   "baseline": [
+    "policy-gate",
+    "suite"
+   ],
+   "name": "D2 per-turn model evidence dropped",
+   "result": "fixed-preserved"
+  },
+  "fe45066f9b5a0c2824f305ff4b899f302ea6c37302b546f7c0b1c6fc291625ad": {
+   "actual": [
+    "suite"
+   ],
+   "allowed_after": [
+    [
+     "suite"
+    ]
+   ],
+   "baseline": [
+    "suite"
+   ],
+   "name": "EM4 two selected targets may share one id",
+   "result": "fixed-preserved"
+  },
+  "feb9be4f4a76bb8f78645167528f66d849165decea395137159fac8a333f5e4b": {
+   "actual": [
+    "suite"
+   ],
+   "allowed_after": [
+    [
+     "suite"
+    ]
+   ],
+   "baseline": [
+    "suite"
+   ],
+   "name": "EM2 the registry stops refusing a provider whose ids would collide",
+   "result": "fixed-preserved"
+  },
+  "fefade675ec91cdbce78a93dbfc6860587dc1d3e0a357de4edb549ce4082a5a5": {
+   "actual": [
+    "policy-gate",
+    "suite"
+   ],
+   "allowed_after": [
+    [
+     "policy-gate",
+     "suite"
+    ]
+   ],
+   "baseline": [
+    "policy-gate",
+    "suite"
+   ],
+   "name": "DF10 a local field accepts a value that is not the local one",
+   "result": "fixed-preserved"
+  },
+  "ff818186f5b892254dfbef97836eec33d59581c7f3290026cddf61726969dfd5": {
+   "actual": [
+    "suite"
+   ],
+   "allowed_after": [
+    [
+     "suite"
+    ]
+   ],
+   "baseline": [
+    "suite"
+   ],
+   "name": "E11 normalization aliases the caller's mutable entry",
+   "result": "fixed-preserved"
+  },
+  "ff8f979adb441478d60e525bdaef60c861abcd6156016e7dba0d40bb393514f2": {
+   "actual": [
+    "suite"
+   ],
+   "allowed_after": [
+    [
+     "suite"
+    ]
+   ],
+   "baseline": [
+    "suite"
+   ],
+   "name": "Y1 framing failures at open escape the transport",
+   "result": "fixed-preserved"
+  },
+  "ffc5427751b073ad5693124e1253607584dbdbc84cd90f4566f8b4baa7958528": {
+   "actual": [
+    "suite"
+   ],
+   "allowed_after": [
+    [
+     "suite"
+    ]
+   ],
+   "baseline": [
+    "suite"
+   ],
+   "name": "VT3 an orphaned expectation stops being reported",
+   "result": "fixed-preserved"
+  },
+  "fffbb4c33ee6055e4d51b47237557dae729a206220be98ef96ed8d986a8320cf": {
+   "actual": [
+    "policy-gate",
+    "suite"
+   ],
+   "allowed_after": [
+    [
+     "policy-gate",
+     "suite"
+    ]
+   ],
+   "baseline": [
+    "policy-gate",
+    "suite"
+   ],
+   "name": "NP1 the corpus walk stops at the first element of an array",
+   "result": "fixed-preserved"
+  }
+ },
+ "summary": {
+  "allowed_but_unchanged": 3,
+  "extra_fingerprints": 0,
+  "fixed_exact": "303/303",
+  "missing_fingerprints": 0,
+  "moved": 11,
+  "never_executed": 0,
+  "outside_envelope": 0,
+  "variable_allowed": "14/14"
+ }
+}
