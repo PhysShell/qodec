@@ -100,20 +100,36 @@ def record(oracle_id: str) -> None:
     if not scopes:
         return
 
-    try:
-        for scope in scopes:
-            folder = pathlib.Path(scope) / oracle_id
+    # Each write independently, and the tamper marker before the optional local
+    # label. One `try` around all of them let a broken *local* path abort the
+    # tamper record: the run scope had already taken the invocation, the local
+    # write raised, and control left before the interference was written down.
+    # No false green — the registration failure is still reported — but the
+    # separation of diagnoses was the point, and one infrastructure fault was
+    # hiding a different one.
+    def put(folder: pathlib.Path) -> str | None:
+        try:
             folder.mkdir(parents=True, exist_ok=True)
             (folder / stamp).write_text("", encoding="utf-8")
-        if tampered and _RUN_SCOPE:
-            marker = pathlib.Path(os.path.realpath(_RUN_SCOPE)) / TAMPER_MARKER
-            marker.mkdir(parents=True, exist_ok=True)
-            (marker / stamp).write_text("", encoding="utf-8")
-    except OSError as exc:
+        except OSError as exc:
+            return type(exc).__name__
+        return None
+
+    faults = []
+    if _RUN_SCOPE:
+        run = pathlib.Path(os.path.realpath(_RUN_SCOPE))
+        faults.append(put(run / oracle_id))
+        if tampered:
+            faults.append(put(run / TAMPER_MARKER))
+    for scope in scopes:
+        if _RUN_SCOPE and scope == os.path.realpath(_RUN_SCOPE):
+            continue
+        faults.append(put(pathlib.Path(scope) / oracle_id))
+    for fault in [f for f in faults if f]:
         # A ledger that cannot be written must not take the run down with it —
         # and must not become indistinguishable from an oracle that never ran.
         # The marker goes to stderr, which the harness already captures.
-        print(f"{FAILURE_MARKER} {oracle_id} {type(exc).__name__}", file=sys.stderr)
+        print(f"{FAILURE_MARKER} {oracle_id} {fault}", file=sys.stderr)
 
 
 class LedgerUnavailable(RuntimeError):
@@ -207,14 +223,23 @@ def snapshot(context: pathlib.Path | str) -> Snapshot:
     return Snapshot(True, counts, unknown, trouble, unreadable, tampered)
 
 
-def read(context: pathlib.Path | str) -> dict[str, int]:
-    """Counts alone. A verifier should ask `judge`."""
+def counts(context: pathlib.Path | str) -> dict[str, int]:
+    """The counts, or a refusal. Never a zero standing in for a shrug.
+
+    `read` and `unknown_records` used to sit here, each folding an unusable
+    context into four zeroes and an empty list — the exact semantics this module
+    was written to remove, preserved beside the correct API with a docstring
+    recommending the other one. A note next to a door is not a lock, and one
+    caller was already walking through it: the suite's own `ledger_silent`
+    asserted every count was zero, which an unreadable context satisfies
+    perfectly.
+    """
     taken = snapshot(context)
-    return {oracle: taken.counts.get(oracle, 0) for oracle in ORACLE_IDS}
-
-
-def unknown_records(context: pathlib.Path | str) -> list[str]:
-    return snapshot(context).unknown
+    if not taken.usable or taken.infrastructure or taken.unreadable:
+        raise LedgerUnavailable("; ".join(
+            taken.infrastructure or [f"{len(taken.unreadable)} oracle record(s) "
+                                     "could not be read"]))
+    return dict(taken.counts)
 
 
 def problems(counts: dict[str, int], assigned: set[str],

@@ -3271,9 +3271,11 @@ class GatesCanFailTests(unittest.TestCase):
     # thing it replaced after the next refactor.
 
     def ledger_silent(self, context):
-        counts = oracle_ledger.read(context)
-        self.assertEqual({name: n for name, n in counts.items() if n}, {},
-                         "a cheap control ran a full shipped corpus")
+        # `counts` refuses an unusable context rather than answering zero, so a
+        # control cannot pass because the ledger was broken.
+        self.assertEqual(
+            {name: n for name, n in oracle_ledger.counts(context).items() if n}, {},
+            "a cheap control ran a full shipped corpus")
 
     def test_the_clean_tree_detector_separates_a_dirty_tree_from_a_clean_one(self):
         gate = self.helper("check_clean_tree.py")
@@ -4090,9 +4092,9 @@ class DurableFieldInventoryTests(unittest.TestCase):
                 for _name, defective, phrase in receipt_policy.defective_specimens()[:2]:
                     found = receipt_policy.audit(defective, receipt_policy.SPECIMEN_CONTEXT)
                     self.assertTrue(any(phrase in line for line in found), found)
-            counts = oracle_ledger.read(context)
-            self.assertEqual({k: v for k, v in counts.items() if v}, {},
-                             "a cheap control ran the full policy corpus")
+            self.assertEqual(
+                {k: v for k, v in oracle_ledger.counts(context).items() if v}, {},
+                "a cheap control ran the full policy corpus")
 
     def test_a_reference_is_prose_and_a_bare_secret_is_not(self):
         """The one rule that lets a detail line mention foreign material at all."""
@@ -6462,6 +6464,42 @@ class OracleLedgerTests(unittest.TestCase):
             self.assertTrue(any("says nothing" in line for line in verdict), verdict)
             self.assertFalse(any("never ran" in line for line in verdict), verdict)
 
+    def test_a_broken_ledger_cannot_satisfy_a_cheap_control(self):
+        # The door I left open and put a note beside. `read` folded an unusable
+        # context into four zeroes, and `ledger_silent` asserted every count was
+        # zero — which an unreadable ledger satisfies perfectly.
+        with tempfile.TemporaryDirectory() as td:
+            with self.assertRaises(oracle_ledger.LedgerUnavailable):
+                oracle_ledger.counts(Path(td) / "never-made")
+            run = Path(td) / "run"
+            run.mkdir()
+            (run / oracle_ledger.POLICY).write_text("", encoding="utf-8")
+            with self.assertRaises(oracle_ledger.LedgerUnavailable):
+                oracle_ledger.counts(run)
+
+    def test_a_broken_local_label_does_not_swallow_the_tamper_record(self):
+        # One `try` around every write let a broken *local* path abort the
+        # tamper marker: the run scope had already taken the invocation, the
+        # local write raised, and control left before the interference was
+        # written down. No false green — but one infrastructure fault was
+        # hiding a different one, and telling them apart was the point.
+        with tempfile.TemporaryDirectory() as td:
+            run, blocked = Path(td) / "run", Path(td) / "blocked"
+            run.mkdir()
+            blocked.write_text("", encoding="utf-8")   # a file where a dir belongs
+            result = self.probe_in_a_child(
+                run, 'import os, sys\n'
+                     'sys.path.insert(0, ".")\n'
+                     'import oracle_ledger as L\n'
+                     'del os.environ[L.GLOBAL_ENV]\n'
+                     'L.record(L.POLICY)\n',
+                extra={oracle_ledger.LEDGER_ENV: str(blocked)})
+            taken = oracle_ledger.snapshot(run)
+            self.assertEqual(taken.counts[oracle_ledger.POLICY], 1)
+            self.assertEqual(taken.tampered, 1, "the tamper record was swallowed")
+            self.assertIn(oracle_ledger.FAILURE_MARKER,
+                          process_boundary.decode_output(result.stderr))
+
     def test_the_four_diagnoses_are_told_apart(self):
         policy = oracle_ledger.POLICY
         missing = oracle_ledger.problems({policy: 0}, {policy})
@@ -6524,9 +6562,9 @@ class ReadmeContractTests(unittest.TestCase):
                 self.assertNotEqual(lying, real)
                 self.assertTrue(any("which the README omits" in line
                                     for line in gate.readme_problems(lying)))
-            counts = oracle_ledger.read(context)
-            self.assertEqual({k: v for k, v in counts.items() if v}, {},
-                             "a cheap control ran the full readme corpus")
+            self.assertEqual(
+                {k: v for k, v in oracle_ledger.counts(context).items() if v}, {},
+                "a cheap control ran the full readme corpus")
 
     def test_the_suite_and_the_gate_spell_the_unreached_set_once(self):
         self.assertEqual(set(UNREACHED_BY_THE_TABLE),
