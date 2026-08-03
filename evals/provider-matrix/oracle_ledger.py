@@ -13,25 +13,36 @@ spawned child would have found none of them and reported a clean bill. Nor can
 it look at call graphs: a transitive import three layers down is exactly the
 shape that reappears after the next refactor.
 
-So the count is taken where the corpus begins. Each gate's `self_test` — the
-function that runs the full hostile corpus, not the CLI wrapper around it —
-records one invocation. A direct call, a `--self-test` command line, an assigned
-gate and any future wrapper all arrive at the same place and are all counted.
+So the count is taken where the corpus begins — at the top of each gate's
+`self_test`, before the first specimen and not after the last. A run that dies
+on specimen one still ran, and a ledger that recorded completions would file it
+as an oracle that never executed, which is a different finding entirely.
 
-Scope is one *execution context*, named by the harness for one mutant. A CI step
-running a gate, and a developer running it by hand, are different contexts and
-do not interact: the invariant is that within one mutant's evaluation an
-assigned oracle runs once and an unassigned one does not run at all.
+Five properties this shape is chosen for:
 
-Silent when `QODEC_ORACLE_LEDGER` is unset, which is every ordinary run.
+  * **The ledger lives outside the checkout.** The harness copies the tree for
+    each mutant and then asserts the tree is byte-clean; a ledger written inside
+    it would be dirt of the verifier's own making, and would survive into the
+    next specification.
+  * **One invocation is one file.** A shared counter read and rewritten by two
+    processes lets both read zero and both write one, turning a duplicate into a
+    flawless single.
+  * **A context must be named.** Without one nothing is recorded, so a CI step
+    or a developer's hand run cannot leak into a mutant's tally.
+  * **Registration precedes execution**, per the first paragraph.
+  * **Nothing here can take a run down.** A ledger that cannot be written is
+    reported by the verifier as a missing count, which is a finding rather than
+    a crash.
 """
 
 from __future__ import annotations
 
-import json
 import os
 import pathlib
+import uuid
 
+# Points at one execution context: a directory the harness makes *outside* the
+# mutant checkout, conventionally <root>/<run id>/<mutation fingerprint>.
 LEDGER_ENV = "QODEC_ORACLE_LEDGER"
 
 # The semantic oracles. An id names a *corpus*, not a file and not a command:
@@ -47,36 +58,32 @@ ORACLE_IDS = (POLICY, CLEAN_TREE, DISCOVERY, README)
 def record(oracle_id: str) -> None:
     """Note that a full shipped corpus is about to run.
 
-    Appended rather than counted in memory: the corpora run in different
-    processes — the suite's copy in one, the assigned gate's in another — and a
-    counter in either would only ever see its own.
+    One invocation, one file, created and never read back — so two concurrent
+    invocations cannot merge into one the way a read-modify-write counter lets
+    them.
     """
-    path = os.environ.get(LEDGER_ENV)
-    if not path:
+    context = os.environ.get(LEDGER_ENV)
+    if not context:
         return
     try:
-        with open(path, "a", encoding="utf-8") as ledger:
-            ledger.write(json.dumps({"oracle": oracle_id, "pid": os.getpid()}) + "\n")
+        folder = pathlib.Path(context) / oracle_id
+        folder.mkdir(parents=True, exist_ok=True)
+        (folder / f"{os.getpid()}-{uuid.uuid4().hex}.record").write_text(
+            "", encoding="utf-8")
     except OSError:
         # A ledger that cannot be written must not take the run down with it.
-        # The verifier reports a missing count as a finding of its own.
         pass
 
 
-def read(path: pathlib.Path | str) -> dict[str, int]:
-    counts = {oracle: 0 for oracle in ORACLE_IDS}
-    try:
-        text = pathlib.Path(path).read_text(encoding="utf-8")
-    except OSError:
-        return counts
-    for line in text.splitlines():
+def read(context: pathlib.Path | str) -> dict[str, int]:
+    counts = {}
+    for oracle in ORACLE_IDS:
+        folder = pathlib.Path(context) / oracle
         try:
-            entry = json.loads(line)
-        except ValueError:
-            continue
-        name = entry.get("oracle")
-        if name in counts:
-            counts[name] += 1
+            counts[oracle] = sum(1 for entry in folder.iterdir()
+                                 if entry.suffix == ".record")
+        except OSError:
+            counts[oracle] = 0
     return counts
 
 
