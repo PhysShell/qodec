@@ -29,6 +29,7 @@ for it. The tree is therefore byte-clean by construction, and CI still runs
 import ast
 import hashlib
 import json
+import oracle_ledger
 import os
 import re
 import shutil
@@ -1933,19 +1934,104 @@ CLEAN_TREE_GATE = Oracle(
 POLICY_GATE = Oracle("policy-gate", ("receipt_policy.py", "--self-test"), GATE_ORACLE)
 README_GATE = Oracle("readme-gate", ("check_readme.py", "--self-test"), GATE_ORACLE)
 
-MUTATION_TARGETS: dict[str, tuple[Oracle, ...]] = {
-    "provider_matrix.py": (SUITE, POLICY_GATE),
-    "test_provider_matrix.py": (SUITE,),
-    "mutations.py": (SUITE,),
-    "receipt_policy.py": (POLICY_GATE, SUITE),
-    # Both gates and the suite depend on it, so all three may object. Before
-    # this table it had one oracle, chosen by nothing but which `if` its
-    # filename fell into.
-    "process_boundary.py": (DISCOVERY_GATE, CLEAN_TREE_GATE, SUITE),
-    "check_clean_tree.py": (CLEAN_TREE_GATE, SUITE),
-    "check_test_discovery.py": (DISCOVERY_GATE, SUITE),
-    "check_readme.py": (README_GATE, SUITE),
+# ---------------------------------------------------------------------------
+# One declaration, two projections
+# ---------------------------------------------------------------------------
+#
+# A file is routed to a gate because that gate's corpus depends on it. Writing
+# the assignment and the dependency separately would give two tables that agree
+# ceremonially until somebody edits one of them; so the dependency closure is
+# declared once and the assignment is derived from it.
+#
+# The empty set is allowed and must be written down. A target with no gates
+# because nobody thought about it and a target with no gates because none of
+# them read it are the same table entry and completely different facts.
+SEMANTIC_CLOSURE: dict[str, tuple[str, ...]] = {
+    oracle_ledger.POLICY: ("receipt_policy.py", "provider_matrix.py"),
+    oracle_ledger.CLEAN_TREE: ("check_clean_tree.py", "process_boundary.py"),
+    oracle_ledger.DISCOVERY: ("check_test_discovery.py", "process_boundary.py"),
+    oracle_ledger.README: ("check_readme.py",),
 }
+
+# Which `Oracle` runs each semantic corpus. Separate from the closure because
+# one is *what depends on what* and the other is *how it is invoked*.
+GATE_FOR_ORACLE: dict[str, Oracle] = {
+    oracle_ledger.POLICY: POLICY_GATE,
+    oracle_ledger.CLEAN_TREE: CLEAN_TREE_GATE,
+    oracle_ledger.DISCOVERY: DISCOVERY_GATE,
+    oracle_ledger.README: README_GATE,
+}
+
+# Every file a mutation may target. Listed explicitly: a name that appears in
+# the spec table and not here is a typo routed to nothing, and a typo that
+# routes to nothing is a mutation nobody asks about.
+MUTABLE_FILES: tuple[str, ...] = (
+    "provider_matrix.py",
+    "test_provider_matrix.py",
+    "mutations.py",
+    "receipt_policy.py",
+    "process_boundary.py",
+    "check_clean_tree.py",
+    "check_test_discovery.py",
+    "check_readme.py",
+    "oracle_ledger.py",
+)
+
+
+def assigned_oracles(filename: str) -> tuple[str, ...]:
+    """The semantic oracles that depend on this file, derived not restated."""
+    return tuple(sorted(oracle for oracle, closure in SEMANTIC_CLOSURE.items()
+                        if filename in closure))
+
+
+MUTATION_TARGETS: dict[str, tuple[Oracle, ...]] = {
+    filename: (SUITE,) + tuple(GATE_FOR_ORACLE[oracle]
+                               for oracle in assigned_oracles(filename))
+    for filename in MUTABLE_FILES
+}
+
+
+def routing_problems(specs: list | None = None) -> list[str]:
+    """The closure and the assignment, checked against each other both ways."""
+    problems = []
+    known = set(MUTABLE_FILES)
+    for oracle, closure in sorted(SEMANTIC_CLOSURE.items()):
+        if oracle not in oracle_ledger.ORACLE_IDS:
+            problems.append(f"{oracle!r} is not a declared semantic oracle")
+        if oracle not in GATE_FOR_ORACLE:
+            problems.append(f"{oracle!r} has a dependency closure and no gate to run it")
+        for filename in closure:
+            if filename not in known:
+                problems.append(f"{oracle!r} depends on {filename!r}, which is not a "
+                                "file any mutation may target")
+    for oracle in oracle_ledger.ORACLE_IDS:
+        if oracle not in SEMANTIC_CLOSURE:
+            problems.append(f"{oracle!r} is a semantic oracle with no declared closure")
+
+    # Both directions, per file: a gate is assigned exactly when the file is in
+    # its closure. Derived as it is, this cannot currently fail — which is the
+    # point of deriving it, and the reason the check is here rather than a
+    # comment saying the two agree.
+    for filename in MUTABLE_FILES:
+        routed = {oracle for oracle, gate in GATE_FOR_ORACLE.items()
+                  if gate in MUTATION_TARGETS.get(filename, ())}
+        declared = set(assigned_oracles(filename))
+        for oracle in sorted(routed - declared):
+            problems.append(f"{filename}: {oracle!r} is assigned but does not "
+                            "declare a dependency on it")
+        for oracle in sorted(declared - routed):
+            problems.append(f"{filename}: {oracle!r} declares a dependency and "
+                            "is not assigned")
+        if SUITE not in MUTATION_TARGETS.get(filename, ()):
+            problems.append(f"{filename}: no suite oracle to anchor coherence on")
+
+    for spec in (specs or []):
+        target = spec[3] if len(spec) > 3 else DEFAULT_TARGET
+        if target not in known:
+            problems.append(f"{spec[0]}: targets {target!r}, which is not a "
+                            "file any mutation may target")
+    return problems
+
 
 RAN_TESTS = re.compile(r"^Ran (\d+) tests?", re.M)
 
@@ -1999,8 +2085,14 @@ def discovered(output: str) -> int | None:
 # itself used to be the last direct `subprocess` caller outside the boundary,
 # which made "one module starts processes" true only if you did not count this
 # one.
-def run_oracle(workdir: Path, oracle: Oracle) -> OracleResult:
+def run_oracle(workdir: Path, oracle: Oracle,
+               ledger: Path | None = None) -> OracleResult:
     env = dict(os.environ, PYTHONPATH=str(CORPUS_TOOLS), PYTHONDONTWRITEBYTECODE="1")
+    if ledger is not None:
+        # The run scope, set before the child starts. `oracle_ledger` captures
+        # it at import, so a child cannot be handed one later and cannot lose
+        # the one it was given.
+        env[oracle_ledger.GLOBAL_ENV] = str(ledger)
     try:
         proc = run_bytes(
             [sys.executable, *oracle.argv], cwd=workdir, env=env, timeout=SUITE_TIMEOUT)
@@ -2013,7 +2105,28 @@ def run_oracle(workdir: Path, oracle: Oracle) -> OracleResult:
         oracle.label, oracle.kind, proc.returncode == 0, output, discovered(output))
 
 
-def run_gate(workdir: Path, filename: str) -> list[OracleResult]:
+def ledger_problems(context: Path, filename: str,
+                    results: list[OracleResult]) -> list[str]:
+    """What the ledger says about one mutant, asked in full.
+
+    Through `snapshot`/`judge` rather than through the counts alone: a context
+    holding zero known invocations *and* one unknown record is not silence, and
+    a verifier that only looked at the numbers would call it that.
+
+    Asked whatever the oracles said. A mutant the suite already killed can still
+    have run a semantic corpus twice, and a topology finding that only surfaces
+    when everything else is green is a topology finding nobody will ever see.
+    """
+    assigned = set(assigned_oracles(filename))
+    found = oracle_ledger.judge(context, assigned)
+    registration = [line for result in results for line in result.output.splitlines()
+                    if oracle_ledger.FAILURE_MARKER in line]
+    found.extend(f"an oracle could not register its invocation: {line.strip()}"
+                 for line in registration)
+    return found
+
+
+def run_gate(workdir: Path, filename: str, ledger: Path | None = None) -> list[OracleResult]:
     """Ask **every** oracle this target names, and keep each answer separate.
 
     Stopping at the first red one was cheaper and quietly weaker: for a file
@@ -2022,7 +2135,8 @@ def run_gate(workdir: Path, filename: str) -> list[OracleResult]:
     afterwards was weaker again — an expected test id could then be matched
     against a run that did not fail at all.
     """
-    return [run_oracle(workdir, oracle) for oracle in MUTATION_TARGETS.get(filename, ())]
+    return [run_oracle(workdir, oracle, ledger)
+            for oracle in MUTATION_TARGETS.get(filename, ())]
 
 
 def run_suite(workdir: Path) -> OracleResult:
@@ -2155,8 +2269,18 @@ def main() -> int:
         for line in unanchored:
             print(f"FAIL {line}")
         return 2
+    problems = routing_problems(MUTATIONS)
+    if problems:
+        for line in problems:
+            print(f"FAIL {line}")
+        return 2
     failures: list[str] = []
     with tempfile.TemporaryDirectory() as tmp:
+        # Outside the copied tree on purpose: a ledger written inside it would
+        # be dirt of the verifier's own making, reported by the clean-tree gate
+        # standing next to it.
+        ledger_root = Path(tmp) / "ledger"
+        ledger_root.mkdir()
         work = Path(tmp) / "provider-matrix"
         shutil.copytree(HERE, work, ignore=shutil.ignore_patterns("__pycache__"))
 
@@ -2172,7 +2296,12 @@ def main() -> int:
             return 2
         print(f"baseline: {baseline_tests} tests discovered")
 
-        for spec in MUTATIONS:
+        chosen = MUTATIONS
+        only = os.environ.get("QODEC_MUTATION_ONLY")
+        if only:
+            wanted = set(only.split(","))
+            chosen = [s for s in MUTATIONS if s[0].split()[0] in wanted]
+        for spec in chosen:
             name, old, new = spec[0], spec[1], spec[2]
             filename = spec[3] if len(spec) > 3 else DEFAULT_TARGET
             source = (HERE / filename).read_text(encoding="utf-8")
@@ -2202,8 +2331,29 @@ def main() -> int:
                 continue
             victim = work / filename
             victim.write_text(mutated, encoding="utf-8")
-            results = run_gate(work, filename)
+            # A fresh context per specification, outside the mutant checkout —
+            # which the clean-tree gate asserts is byte-clean — and refused
+            # rather than reused if it somehow exists, because a stale record
+            # turns one invocation into two.
+            try:
+                context = oracle_ledger.ensure_context(
+                    ledger_root / spec_fingerprint(spec))
+            except oracle_ledger.LedgerUnavailable as exc:
+                print(f"  INVALID  {name}: the ledger context is unusable ({exc})")
+                failures.append(name)
+                victim.write_text(source, encoding="utf-8")
+                continue
+            results = run_gate(work, filename, context)
             victim.write_text(source, encoding="utf-8")
+            # Before the verdict, and whatever the verdict would be. A mutant
+            # the suite already killed can still have run a semantic corpus
+            # twice, and a topology finding that only surfaces when everything
+            # else is green is one nobody will ever see.
+            topology = ledger_problems(context, filename, results)
+            if topology:
+                print(f"  TOPOLOGY {name}: {'; '.join(topology[:3])}")
+                failures.append(name)
+                continue
             state, why = verdict_for(name, results, baseline_tests)
             if state == "killed":
                 print(f"  killed   {name}  ({why})")
@@ -2216,9 +2366,15 @@ def main() -> int:
 
     print()
     if failures:
-        print(f"{len(failures)} of {len(MUTATIONS)} mutations unaccounted for:")
+        print(f"{len(failures)} of {len(chosen)} mutations unaccounted for:")
         for name in failures:
             print(f"  - {name}")
+        return 1
+    # `len(chosen)`, not `len(MUTATIONS)`. The narrow-run switch made this line
+    # announce 317 kills after three, which is precisely the sentence this
+    # harness exists to stop other people writing.
+    if len(chosen) != len(MUTATIONS):
+        print(f"all {len(chosen)} of a selected subset killed; this is NOT a full run")
         return 1
     print(f"all {len(MUTATIONS)} mutations killed")
     return 0
