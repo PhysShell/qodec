@@ -6328,37 +6328,38 @@ class OracleLedgerTests(unittest.TestCase):
     again.
     """
 
-    def test_a_redirected_context_does_not_hide_an_invocation_from_the_run(self):
-        gate = check_readme_module()
+    def test_a_redirected_local_label_does_not_hide_an_invocation_from_the_run(self):
+        # Through a child, because the run scope is captured at import and there
+        # is deliberately no setter — which is the property, arriving as a
+        # constraint on the witness that proves it.
         with tempfile.TemporaryDirectory() as td:
             run, local = Path(td) / "run", Path(td) / "elsewhere"
             run.mkdir()
             local.mkdir()
-            with patch.dict("os.environ", {oracle_ledger.GLOBAL_ENV: str(run),
-                                           oracle_ledger.LEDGER_ENV: str(local)}):
-                with contextlib.redirect_stdout(io.StringIO()):
-                    gate.self_test()
-            # The redirect worked, and it changed nothing about the tally.
-            self.assertEqual(oracle_ledger.read(local)[oracle_ledger.README], 1)
-            self.assertEqual(oracle_ledger.read(run)[oracle_ledger.README], 1)
+            self.probe_in_a_child(run, 'import sys\n'
+                                       'sys.path.insert(0, ".")\n'
+                                       'import oracle_ledger as L\n'
+                                       'L.record(L.README)\n',
+                                  extra={oracle_ledger.LEDGER_ENV: str(local)})
+            self.assertEqual(oracle_ledger.snapshot(local).counts[oracle_ledger.README], 1)
+            self.assertEqual(oracle_ledger.snapshot(run).counts[oracle_ledger.README], 1)
 
-    def test_a_second_invocation_under_a_different_label_is_still_a_duplicate(self):
-        gate = check_readme_module()
+    def test_two_invocations_under_two_labels_are_still_a_duplicate(self):
         with tempfile.TemporaryDirectory() as td:
             run = Path(td) / "run"
             run.mkdir()
             for label in ("first", "second"):
                 place = Path(td) / label
                 place.mkdir()
-                with patch.dict("os.environ", {oracle_ledger.GLOBAL_ENV: str(run),
-                                               oracle_ledger.LEDGER_ENV: str(place)}):
-                    with contextlib.redirect_stdout(io.StringIO()):
-                        gate.self_test()
-            counts = oracle_ledger.read(run)
+                self.probe_in_a_child(run, 'import sys\n'
+                                           'sys.path.insert(0, ".")\n'
+                                           'import oracle_ledger as L\n'
+                                           'L.record(L.README)\n',
+                                      extra={oracle_ledger.LEDGER_ENV: str(place)})
+            counts = oracle_ledger.snapshot(run).counts
             self.assertEqual(counts[oracle_ledger.README], 2)
-            found = oracle_ledger.problems(counts, {oracle_ledger.README})
-            self.assertTrue(any("duplicate semantic invocation" in line for line in found),
-                            found)
+            self.assertTrue(any("duplicate semantic invocation" in line for line in
+                                oracle_ledger.judge(run, {oracle_ledger.README})))
 
     def test_a_context_belongs_to_one_specification_of_one_run(self):
         with tempfile.TemporaryDirectory() as td:
@@ -6366,6 +6367,100 @@ class OracleLedgerTests(unittest.TestCase):
             oracle_ledger.ensure_context(place)
             with self.assertRaises(oracle_ledger.LedgerUnavailable):
                 oracle_ledger.ensure_context(place)
+
+    def probe_in_a_child(self, run, source, extra=None):
+        """Run a snippet with the run scope set from the very start.
+
+        In process the scope is already captured, and there is deliberately no
+        setter — so a witness that needs a different one starts a child, which
+        is what the harness does anyway.
+        """
+        here = Path(__file__).resolve().parent
+        script = here / "_ledger_probe.py"
+        script.write_text(source, encoding="utf-8")
+        try:
+            env = dict(os.environ, **{oracle_ledger.GLOBAL_ENV: str(run)}, **(extra or {}))
+            return process_boundary.run_bytes(
+                [sys.executable, script.name], cwd=here, env=env, timeout=120)
+        finally:
+            script.unlink(missing_ok=True)
+
+    def test_erasing_the_run_scope_after_import_does_not_hide_an_invocation(self):
+        # The door the first version left open: a local label could no longer
+        # launder a call, but the run scope itself was read fresh on every one.
+        with tempfile.TemporaryDirectory() as td:
+            run = Path(td) / "run"
+            run.mkdir()
+            self.probe_in_a_child(run, 'import os, sys\n'
+                                       'sys.path.insert(0, ".")\n'
+                                       'import oracle_ledger as L\n'
+                                       'del os.environ[L.GLOBAL_ENV]\n'
+                                       'L.record(L.POLICY)\n')
+            taken = oracle_ledger.snapshot(run)
+            self.assertEqual(taken.counts[oracle_ledger.POLICY], 1)
+            self.assertTrue(any("interfered with" in line for line in
+                                oracle_ledger.judge(run, {oracle_ledger.POLICY})))
+
+    def test_redirecting_the_run_scope_after_import_does_not_move_an_invocation(self):
+        with tempfile.TemporaryDirectory() as td:
+            run, elsewhere = Path(td) / "run", Path(td) / "elsewhere"
+            run.mkdir()
+            elsewhere.mkdir()
+            self.probe_in_a_child(run, 'import os, sys\n'
+                                       'sys.path.insert(0, ".")\n'
+                                       'import oracle_ledger as L\n'
+                                       f'os.environ[L.GLOBAL_ENV] = {str(elsewhere)!r}\n'
+                                       'L.record(L.POLICY)\n')
+            self.assertEqual(oracle_ledger.snapshot(run).counts[oracle_ledger.POLICY], 1)
+            self.assertEqual(oracle_ledger.snapshot(elsewhere).counts.get(
+                oracle_ledger.POLICY, 0), 0)
+
+    def test_clearing_the_whole_environment_does_not_hide_an_invocation(self):
+        # `patch.dict(..., clear=True)` already appears in this file for other
+        # contracts. Nothing sits next to a corpus today, and "today" is not a
+        # property.
+        with tempfile.TemporaryDirectory() as td:
+            run = Path(td) / "run"
+            run.mkdir()
+            self.probe_in_a_child(run, 'import os, sys\n'
+                                       'sys.path.insert(0, ".")\n'
+                                       'import oracle_ledger as L\n'
+                                       'os.environ.clear()\n'
+                                       'L.record(L.POLICY)\n')
+            self.assertEqual(oracle_ledger.snapshot(run).counts[oracle_ledger.POLICY], 1)
+
+    def test_one_invocation_stays_one_when_both_scopes_name_one_place(self):
+        with tempfile.TemporaryDirectory() as td:
+            run = Path(td) / "run"
+            run.mkdir()
+            self.probe_in_a_child(run, 'import sys\n'
+                                       'sys.path.insert(0, ".")\n'
+                                       'import oracle_ledger as L\n'
+                                       'L.record(L.POLICY)\n',
+                                  extra={oracle_ledger.LEDGER_ENV: str(run)})
+            self.assertEqual(oracle_ledger.snapshot(run).counts[oracle_ledger.POLICY], 1)
+
+    def test_a_context_that_cannot_be_read_is_not_an_oracle_that_stayed_home(self):
+        with tempfile.TemporaryDirectory() as td:
+            absent = Path(td) / "never-made"
+            taken = oracle_ledger.snapshot(absent)
+            self.assertEqual(taken.counts, {})
+            self.assertTrue(taken.infrastructure)
+            verdict = oracle_ledger.judge(absent, {oracle_ledger.POLICY})
+            self.assertFalse(any("never ran" in line for line in verdict), verdict)
+
+    def test_an_unreadable_oracle_directory_is_named_as_its_own_kind(self):
+        with tempfile.TemporaryDirectory() as td:
+            run = Path(td) / "run"
+            run.mkdir()
+            # A file where a directory belongs: `exists()` is true and
+            # `iterdir()` is not, whoever is running. `chmod 000` proves nothing
+            # under root, which is exactly the sort of control that passes
+            # without ever exercising its subject.
+            (run / oracle_ledger.POLICY).write_text("", encoding="utf-8")
+            verdict = oracle_ledger.judge(run, {oracle_ledger.POLICY})
+            self.assertTrue(any("says nothing" in line for line in verdict), verdict)
+            self.assertFalse(any("never ran" in line for line in verdict), verdict)
 
     def test_the_four_diagnoses_are_told_apart(self):
         policy = oracle_ledger.POLICY
