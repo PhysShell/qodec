@@ -117,11 +117,17 @@ def build_baseline(log_path: pathlib.Path, out: pathlib.Path,
     _module, rows = table()
     if frozen is not None:
         previous = json.loads(frozen.read_text())
+        # Set equality, both directions. Checking only for disappearance would
+        # one day accept an *added* operation without comment, and the
+        # preservation run would silently stop being a comparison of the same
+        # 317 — the denominator changing while the numerator still reads 100%.
         gone = sorted(set(previous) - set(rows))
-        if gone:
-            raise SystemExit(f"{len(gone)} fingerprint(s) in the frozen baseline no "
-                             "longer exist in the table; a mutation operation was "
-                             "changed, not merely renamed")
+        extra = sorted(set(rows) - set(previous))
+        if gone or extra:
+            raise SystemExit(
+                f"the table is no longer the baseline's: {len(gone)} fingerprint(s) "
+                f"gone, {len(extra)} added. A preservation run compares the same "
+                "operations or it compares nothing.")
         by_name = {row["name"]: fp for fp, row in previous.items()}
     else:
         by_name = {row["name"]: fp for fp, row in rows.items()}

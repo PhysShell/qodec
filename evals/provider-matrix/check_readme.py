@@ -32,6 +32,7 @@ sys.path.insert(0, str(HERE))
 
 import provider_matrix as pm  # noqa: E402
 import receipt_policy  # noqa: E402
+import oracle_ledger
 
 # The classifications the one big table does not drive, spelled here and in the
 # suite. Two spellings of one fact is the defect this file exists to catch, so
@@ -161,6 +162,7 @@ def readme_problems(text: str) -> list[str]:
 
 def self_test() -> int:
     """Each arm, shown refusing a README that is wrong in exactly its way."""
+    oracle_ledger.record(oracle_ledger.README)
     real = (HERE / "README.md").read_text(encoding="utf-8")
     controls = [
         ("an outcome the code cannot emit",

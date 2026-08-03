@@ -25,6 +25,7 @@ Exit 0 when clean, 1 when dirty or when a self-test fails.
 
 from __future__ import annotations
 
+import oracle_ledger
 import os
 import sys
 import tempfile
@@ -230,6 +231,7 @@ def self_test() -> int:
     broken preparation must be reported as a broken preparation and never as a
     finding about the tree.
     """
+    oracle_ledger.record(oracle_ledger.CLEAN_TREE)
     failures = []
     with tempfile.TemporaryDirectory() as tmp:
         home = hostile_home(Path(tmp))

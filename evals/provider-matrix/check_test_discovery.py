@@ -24,6 +24,7 @@ Exit 0 when both runs report the same test ids, 1 otherwise.
 
 from __future__ import annotations
 
+import oracle_ledger
 import re
 import sys
 import tempfile
@@ -112,6 +113,7 @@ def self_test() -> int:
     `Early` only, `-m unittest` finds both. If this check cannot tell those
     apart it is decoration, and "it passed" would mean nothing.
     """
+    oracle_ledger.record(oracle_ledger.DISCOVERY)
     with tempfile.TemporaryDirectory() as tmp:
         work = Path(tmp)
         (work / "synthetic_case.py").write_text(SYNTHETIC, encoding="utf-8")

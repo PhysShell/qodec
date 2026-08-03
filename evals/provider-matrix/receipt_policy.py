@@ -60,6 +60,7 @@ from pathlib import Path
 from typing import Any, Callable, Iterator
 
 import provider_matrix as pm
+import oracle_ledger
 
 HERE = Path(__file__).resolve().parent
 
@@ -2062,6 +2063,7 @@ def defective_specimens() -> list[tuple[str, dict[str, Any], str]]:
 
 
 def self_test() -> int:
+    oracle_ledger.record(oracle_ledger.POLICY)
     problems = policy_problems(POLICIES)
     if problems:
         print("FAIL the policy table is not internally consistent")
