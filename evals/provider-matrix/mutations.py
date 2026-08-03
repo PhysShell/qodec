@@ -1962,9 +1962,17 @@ GATE_FOR_ORACLE: dict[str, Oracle] = {
     oracle_ledger.README: README_GATE,
 }
 
-# Every file a mutation may target. Listed explicitly: a name that appears in
-# the spec table and not here is a typo routed to nothing, and a typo that
-# routes to nothing is a mutation nobody asks about.
+# Every file a mutation *does* target — not every file one may. The difference
+# looked like nothing and was not: the first version checked closure entries
+# against this list and called that "no closure names a file nothing targets",
+# which is a different sentence. `oracle_ledger.py` sat here on the strength of
+# specifications that do not exist yet, and any closure could have claimed it
+# cleanly. A set of the present has no room reserved for the future, however
+# much everyone likes an empty parking space.
+#
+# Exact equality with the targets of the shipped table is checked below, so
+# adding a file here without a specification is a finding, and so is the
+# reverse.
 MUTABLE_FILES: tuple[str, ...] = (
     "provider_matrix.py",
     "test_provider_matrix.py",
@@ -1974,7 +1982,6 @@ MUTABLE_FILES: tuple[str, ...] = (
     "check_clean_tree.py",
     "check_test_discovery.py",
     "check_readme.py",
-    "oracle_ledger.py",
 )
 
 
@@ -1991,10 +1998,31 @@ MUTATION_TARGETS: dict[str, tuple[Oracle, ...]] = {
 }
 
 
+def target_of(spec) -> str:
+    return spec[3] if len(spec) > 3 else DEFAULT_TARGET
+
+
 def routing_problems(specs: list | None = None) -> list[str]:
-    """The closure and the assignment, checked against each other both ways."""
+    """The closure and the assignment, checked against each other both ways.
+
+    Against the files the table *actually* targets, not against a list of ones
+    it is allowed to. The claim being made is that every routed file
+    participates and every participating file is routed; checking membership in
+    an allowlist proves the weaker thing and reads like the stronger one.
+    """
     problems = []
-    known = set(MUTABLE_FILES)
+    declared = set(MUTABLE_FILES)
+    if specs is not None:
+        actual = {target_of(spec) for spec in specs}
+        for filename in sorted(declared - actual):
+            problems.append(f"{filename!r} is declared mutable and no specification "
+                            "targets it")
+        for filename in sorted(actual - declared):
+            problems.append(f"{filename!r} is targeted by a specification and is not "
+                            "declared mutable")
+        known = actual & declared
+    else:
+        known = declared
     for oracle, closure in sorted(SEMANTIC_CLOSURE.items()):
         if oracle not in oracle_ledger.ORACLE_IDS:
             problems.append(f"{oracle!r} is not a declared semantic oracle")
@@ -2002,11 +2030,16 @@ def routing_problems(specs: list | None = None) -> list[str]:
             problems.append(f"{oracle!r} has a dependency closure and no gate to run it")
         for filename in closure:
             if filename not in known:
-                problems.append(f"{oracle!r} depends on {filename!r}, which is not a "
-                                "file any mutation may target")
-    for oracle in oracle_ledger.ORACLE_IDS:
-        if oracle not in SEMANTIC_CLOSURE:
-            problems.append(f"{oracle!r} is a semantic oracle with no declared closure")
+                problems.append(f"{oracle!r} depends on {filename!r}, which no "
+                                "specification in this table targets")
+    # Three sets, and all three must be the same set. Two of them agreeing is
+    # how a third quietly stops existing.
+    if set(SEMANTIC_CLOSURE) != set(oracle_ledger.ORACLE_IDS):
+        problems.append("the declared closures and the semantic oracles are not "
+                        "the same set")
+    if set(GATE_FOR_ORACLE) != set(oracle_ledger.ORACLE_IDS):
+        problems.append("the gate mapping and the semantic oracles are not the "
+                        "same set")
 
     # Both directions, per file: a gate is assigned exactly when the file is in
     # its closure. Derived as it is, this cannot currently fail — which is the
@@ -2025,11 +2058,6 @@ def routing_problems(specs: list | None = None) -> list[str]:
         if SUITE not in MUTATION_TARGETS.get(filename, ()):
             problems.append(f"{filename}: no suite oracle to anchor coherence on")
 
-    for spec in (specs or []):
-        target = spec[3] if len(spec) > 3 else DEFAULT_TARGET
-        if target not in known:
-            problems.append(f"{spec[0]}: targets {target!r}, which is not a "
-                            "file any mutation may target")
     return problems
 
 
@@ -2299,8 +2327,20 @@ def main() -> int:
         chosen = MUTATIONS
         only = os.environ.get("QODEC_MUTATION_ONLY")
         if only:
-            wanted = set(only.split(","))
+            wanted = {piece.strip() for piece in only.split(",") if piece.strip()}
+            known_ids = {spec[0].split()[0] for spec in MUTATIONS}
+            unknown = sorted(wanted - known_ids)
+            if not wanted or unknown:
+                # A witness that was asked for and does not exist is a subject
+                # quietly removed from the examination — the junior relative of
+                # announcing 317 kills after three.
+                print(f"FAIL requested mutation id(s) do not exist: "
+                      f"{', '.join(unknown) or '(none requested)'}")
+                return 2
             chosen = [s for s in MUTATIONS if s[0].split()[0] in wanted]
+            if {s[0].split()[0] for s in chosen} != wanted:
+                print("FAIL the selected specifications are not the ones requested")
+                return 2
         for spec in chosen:
             name, old, new = spec[0], spec[1], spec[2]
             filename = spec[3] if len(spec) > 3 else DEFAULT_TARGET
