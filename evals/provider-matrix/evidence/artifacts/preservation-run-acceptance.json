@@ -1,0 +1,40 @@
+{
+ "fingerprints_executed": 317,
+ "fixed_fingerprints_preserved": 303,
+ "invalid": 0,
+ "joined_to_frozen_baseline": "317/317",
+ "killed": 317,
+ "note_on_invalid": "the word appears once, as the classification name INVALID_OUTPUT inside a readme-gate diagnostic. A substring search counted it as a verdict; the census of verdict lines is the instrument that does not.",
+ "outcomes_outside_envelope": 0,
+ "ownership_actually_moved": [
+  "BC1 a bounded field may again be enforced by nobody",
+  "BC2 an enforcement entry may name a field with no bound",
+  "DF2 a bounded integer accepts a bool",
+  "DG1 the gate reads only one of the child's two streams",
+  "DG4 the undecodable arm stops producing undecodable output",
+  "NP3 the tally stops recording which places were reached",
+  "RD1 a missing anchor reads as an empty block rather than as a finding",
+  "RD2 the README may list an outcome this code cannot emit",
+  "RD4 the stated remainder stops being compared to the asserted one",
+  "RD6 a literal NUL in the README stops being a finding",
+  "RD7 the policy-kind table stops being compared to the kinds that exist"
+ ],
+ "ownership_stayed_though_allowed_to_move": 3,
+ "registration_failures": 0,
+ "routing_findings": 0,
+ "seconds_per_specification": 31.4,
+ "skipped": 0,
+ "speedup_claim": "none. The suite median is measured: 46.223s -> ~4s. A full-harness speedup is NOT claimed: the only prior full-run timing comes from CI on a different head, machine and invocation, and two numbers of different provenance do not make a ratio.",
+ "stale_or_ambiguous_anchors": 0,
+ "survived": 0,
+ "tamper_findings": 0,
+ "topology_findings": 0,
+ "unaccounted": 0,
+ "unknown_ledger_records": 0,
+ "unreadable_contexts": 0,
+ "variable_within_envelope": 14,
+ "verdict_census": {
+  "killed": 317
+ },
+ "wall_clock": "2h 46m"
+}
