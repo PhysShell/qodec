@@ -1,0 +1,43 @@
+{
+ "active_target_files": [
+  "check_clean_tree.py",
+  "check_readme.py",
+  "check_test_discovery.py",
+  "mutations.py",
+  "process_boundary.py",
+  "provider_matrix.py",
+  "receipt_policy.py",
+  "test_provider_matrix.py"
+ ],
+ "baseline_join": "317/317",
+ "baseline_product_head": "3ba3a3896dca952a76f20c6507ae654b50b6408a",
+ "command": "python3 mutations.py",
+ "envelope_fixed": 303,
+ "envelope_variable": 14,
+ "evidence_head": "991216926af01c018156fe033ace723f85eb6bd2",
+ "exit_code": 0,
+ "finished_at": "2026-08-03T15:23:00+00:00",
+ "platform": "Linux-6.18.5-x86_64-with-glibc2.39",
+ "python": "3.11.15",
+ "routing_problems": [],
+ "semantic_oracles": [
+  "clean-tree-self-test",
+  "discovery-self-test",
+  "readme-self-test",
+  "receipt-policy-self-test"
+ ],
+ "spec_table_problems": [],
+ "specifications": 317,
+ "started_at": "2026-08-03T12:36:20+00:00",
+ "stderr_bytes": 0,
+ "stderr_path": "evidence/artifacts/preservation-run.stderr.txt",
+ "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+ "stdout_bytes": 33880,
+ "stdout_path": "evidence/artifacts/preservation-run.stdout.txt",
+ "stdout_sha256": "658ed98be7650af9486b1be1c6b376e73c7323dda8110cba6525c6e7c9cc6b8b",
+ "subset_selector": "unset",
+ "unique_fingerprints": 317,
+ "unique_human_ids": 317,
+ "wall_clock": "2h 46m (12:36:38 -> 15:23)",
+ "working_tree_clean": true
+}
