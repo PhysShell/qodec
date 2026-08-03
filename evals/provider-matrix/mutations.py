@@ -27,6 +27,8 @@ for it. The tree is therefore byte-clean by construction, and CI still runs
 `git diff --exit-code` afterwards to say so out loud.
 """
 import ast
+import hashlib
+import json
 import os
 import re
 import shutil
@@ -1564,14 +1566,14 @@ MUTATIONS = [
      "        if self.known is not None and len(repr(self.known).encode(\"utf-8\")) > DISCRIMINATOR_MAX_BYTES:",
      "        if False:"),
 
-    # -- NP: the totality corpus reaches nested places, not top-level names ---
+    # -- CW: the corpus walk reaches nested places, not top-level names -------
     #
     # Every one of these leaves the auditor untouched and narrows the *corpus*.
     # A mutation that survives here would mean the coverage report is decorative
     # — which is what it was two heads ago, when it counted member names and a
     # tool call's `ordinal` was covered by a claim about a turn's.
 
-    ("NP1 the corpus walk stops at the first element of an array",
+    ("CW1 the corpus walk stops at the first element of an array",
      "    elif isinstance(node, list):\n"
      "        for element in node:\n"
      "            found |= fixture_paths(element, prefix + (EACH,))",
@@ -1579,7 +1581,7 @@ MUTATIONS = [
      "        found |= fixture_paths(node[0], prefix + (EACH,))",
      "receipt_policy.py"),
 
-    ("NP2 the corpus walk stops descending into objects",
+    ("CW2 the corpus walk stops descending into objects",
      "        for key, value in node.items():\n"
      "            if isinstance(key, str):\n"
      "                found |= fixture_paths(value, prefix + (Key(key),))",
@@ -1588,17 +1590,17 @@ MUTATIONS = [
      "                found.add(prefix + (Key(key),))",
      "receipt_policy.py"),
 
-    ("NP3 the tally stops recording which places were reached",
+    ("CW3 the tally stops recording which places were reached",
      "        tally.paths.add(path)",
      "        pass",
      "receipt_policy.py"),
 
-    ("NP4 a required place may go without a hostile value",
+    ("CW4 a required place may go without a hostile value",
      "    unwitnessed = sorted(set(required) - tally.paths, key=render_path)",
      "    unwitnessed = []",
      "receipt_policy.py"),
 
-    ("NP5 a required place need not be one any policy reads",
+    ("CW5 a required place need not be one any policy reads",
      "    fictional = sorted(set(required) - declared, key=render_path)",
      "    fictional = []",
      "receipt_policy.py"),
@@ -1611,7 +1613,7 @@ MUTATIONS = [
     # container on every declared path. The spec is retargeted onto that
     # property, which a mutation *can* break.
 
-    ("NP6 a leaf may sit under a container no policy names",
+    ("CW6 a leaf may sit under a container no policy names",
      "        for stop in range(1, len(path)):\n"
      "            if path[:stop] not in named:",
      "        for stop in range(1, 1):\n"
@@ -1628,7 +1630,7 @@ MUTATIONS = [
     # so it cannot be observed at all. A mutation known to survive proves
     # nothing and inflates the denominator.
 
-    ("NP7 only the first occurrence of an array is addressable, and it is the wrong one",
+    ("CW7 only the first occurrence of an array is addressable, and it is the wrong one",
      "        for index, element in enumerate(node):\n"
      "            if not rest:\n"
      "                return node, index\n"
@@ -1641,7 +1643,7 @@ MUTATIONS = [
      "        return (node, 0) if not rest else locate(node[0], rest)",
      "receipt_policy.py"),
 
-    ("NP8 a canary template is looked up without being read as a string",
+    ("CW8 a canary template is looked up without being read as a string",
      "            registered = read_str(name)\n"
      "            if registered is None or registered not in pm.DETAIL_TEMPLATES:",
      "            registered = name\n"
@@ -1810,6 +1812,22 @@ def target_problems(targets: dict) -> list[str]:
     return problems
 
 
+def spec_fingerprint(spec) -> str:
+    """The machine identity of a mutation operation.
+
+    Target path, anchors, replacements — and deliberately not the display name.
+    A rename must leave this unchanged, or a baseline taken before the rename
+    cannot be compared with a run taken after it, and the attribution evidence
+    dies of its own housekeeping.
+    """
+    old, new = spec[1], spec[2]
+    target = spec[3] if len(spec) > 3 else DEFAULT_TARGET
+    edits = list(zip(old, new)) if isinstance(old, list) else [(old, new)]
+    payload = json.dumps([target, edits], ensure_ascii=False, sort_keys=True,
+                         separators=(",", ":"))
+    return hashlib.sha256(payload.encode("utf-8")).hexdigest()
+
+
 def spec_problems(specs: list, expectations: dict | None = None) -> list[str]:
     """Refuse a mutation list that flatters itself.
 
@@ -1817,14 +1835,35 @@ def spec_problems(specs: list, expectations: dict | None = None) -> list[str]:
     replacement. "96 mutations killed" was therefore 95 mutations killed and one
     counted twice, and one of the two names claimed coverage it did not add —
     the same self-flattery the anchor check exists to prevent, one level up.
+
+    Two identities, and this function once checked only the first of them.
+
+    A specification is referred to by its **id** — the leading token of its
+    name — in the harness output, in `EXPECTED_KILL`, in commit messages and in
+    review. Full names were required to be unique and ids were not, so eight
+    specifications ended up sharing four... no: eight specifications shared the
+    ids of eight others, and 317 rows carried 309 distinct ids. Every one of
+    those pairs reads as one specification anywhere an id is the reference,
+    which is everywhere a human looks. It survived a full green run because the
+    only uniqueness anybody asked for was of a string nobody quotes.
+
+    And a specification *is* a mutation operation — a file, an anchor, a
+    replacement. Two rows describing the same operation are one contract counted
+    twice, which `by_edit` already refused; the fingerprint below states the
+    same thing as an identity rather than as a pairwise comparison, so an
+    attribution manifest can be keyed by it across a rename.
     """
     problems = []
     by_name: dict[str, int] = {}
+    by_id: dict[str, list[str]] = {}
+    by_fingerprint: dict[str, list[str]] = {}
     by_edit: dict[tuple, list[str]] = {}
     for spec in specs:
         name, old, new = spec[0], spec[1], spec[2]
         target = spec[3] if len(spec) > 3 else DEFAULT_TARGET
         by_name[name] = by_name.get(name, 0) + 1
+        by_id.setdefault(name.split()[0], []).append(name)
+        by_fingerprint.setdefault(spec_fingerprint(spec), []).append(name)
         if isinstance(old, list) != isinstance(new, list):
             problems.append(f"{name}: one half of a multi-anchor edit is a list and the other is not")
             continue
@@ -1843,6 +1882,14 @@ def spec_problems(specs: list, expectations: dict | None = None) -> list[str]:
     for name, count in by_name.items():
         if count > 1:
             problems.append(f"the name {name!r} is used {count} times")
+    for spec_id, names in sorted(by_id.items()):
+        if len(names) > 1:
+            problems.append(f"the id {spec_id!r} names {len(names)} different "
+                            f"specifications: {', '.join(sorted(names))}")
+    for names in sorted(by_fingerprint.values()):
+        if len(names) > 1:
+            problems.append("one mutation operation under several names: "
+                            + ", ".join(sorted(names)))
     for names in by_edit.values():
         if len(names) > 1:
             problems.append(f"identical anchor and replacement: {', '.join(names)}")

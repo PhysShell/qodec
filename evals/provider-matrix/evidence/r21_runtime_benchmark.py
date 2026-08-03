@@ -28,13 +28,14 @@ import os
 import pathlib
 import platform
 import statistics
-import subprocess
 import sys
 import time
 
 HERE = pathlib.Path(__file__).resolve().parent
 MATRIX = HERE.parent
 sys.path.insert(0, str(MATRIX))
+
+from process_boundary import ProcessFailure, decode_output, run_bytes  # noqa: E402
 
 REPEATS = 3
 
@@ -66,19 +67,21 @@ def timed(argv: list[str], env: dict, cwd: pathlib.Path) -> tuple[float, str]:
     in child interpreters rather than in this one.
     """
     start = time.perf_counter()
-    proc = subprocess.run(argv, cwd=cwd, capture_output=True, text=True,
-                          env=env, timeout=1800)
-    elapsed = time.perf_counter() - start
-    said = [ln for ln in (proc.stdout + proc.stderr).splitlines()
-            if ln.startswith(("RESULT ", "OK "))]
-    return elapsed, (said[-1] if said else f"exit={proc.returncode}")
+    try:
+        proc = run_bytes(argv, cwd=cwd, env=env, timeout=1800)
+        elapsed = time.perf_counter() - start
+        output, code = decode_output(proc.stdout + proc.stderr), proc.returncode
+    except ProcessFailure as exc:
+        return time.perf_counter() - start, f"failed: {exc}"
+    said = [ln for ln in output.splitlines() if ln.startswith(("RESULT ", "OK "))]
+    return elapsed, (said[-1] if said else f"exit={code}")
 
 
 def main() -> int:
     import mutations as m
     env = dict(os.environ, PYTHONPATH=str(m.CORPUS_TOOLS), PYTHONDONTWRITEBYTECODE="1")
-    head = subprocess.run(["git", "rev-parse", "HEAD"], cwd=MATRIX,
-                          capture_output=True, text=True).stdout.strip()
+    head = decode_output(run_bytes(["git", "rev-parse", "HEAD"], cwd=MATRIX,
+                                   timeout=60).stdout).strip()
 
     subjects = {}
     for label, deselect in (("suite as shipped", False),

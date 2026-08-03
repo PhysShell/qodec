@@ -30,13 +30,14 @@ import os
 import pathlib
 import re
 import shutil
-import subprocess
 import sys
 import tempfile
 
 HERE = pathlib.Path(__file__).resolve().parent
 MATRIX = HERE.parent
 sys.path.insert(0, str(MATRIX))
+
+from process_boundary import ProcessFailure, decode_output, run_bytes  # noqa: E402
 
 BASELINE_HEAD = "3ba3a3896dca952a76f20c6507ae654b50b6408a"
 
@@ -97,10 +98,33 @@ def table():
     return m, rows
 
 
-def build_baseline(log_path: pathlib.Path, out: pathlib.Path) -> None:
-    """Join the CI log of `BASELINE_HEAD` to the table of that same head."""
+def build_baseline(log_path: pathlib.Path, out: pathlib.Path,
+                   frozen: pathlib.Path | None = None) -> None:
+    """Join the CI log of `BASELINE_HEAD` to the table of that same head.
+
+    The log names specifications the only way a log can: by the name they had
+    when it was written. So a rename breaks the join, and the first rename did
+    — which means a tool that reads names out of the *current* table can build
+    this artifact exactly once, before any housekeeping, and afterwards can only
+    be trusted to have done so.
+
+    `frozen` closes that: the names come from a previously written baseline,
+    the fingerprints come from the current table, and every fingerprint in the
+    frozen artifact must still exist. Re-joining then proves two things at once
+    — that the log still maps onto the table, and that no mutation operation
+    disappeared while its name was being changed.
+    """
     _module, rows = table()
-    by_name = {row["name"]: fp for fp, row in rows.items()}
+    if frozen is not None:
+        previous = json.loads(frozen.read_text())
+        gone = sorted(set(previous) - set(rows))
+        if gone:
+            raise SystemExit(f"{len(gone)} fingerprint(s) in the frozen baseline no "
+                             "longer exist in the table; a mutation operation was "
+                             "changed, not merely renamed")
+        by_name = {row["name"]: fp for fp, row in previous.items()}
+    else:
+        by_name = {row["name"]: fp for fp, row in rows.items()}
     lines = json.loads(log_path.read_text())["logs_content"].split("\n")
     killed = re.compile(r"^  killed\s+(?P<name>.*?)\s+\((?=(?:" + "|".join(ORACLES) + r"):)")
     label = re.compile(r"(?:\(|; )(" + "|".join(ORACLES) + r"): ")
@@ -159,10 +183,18 @@ def measure(out: pathlib.Path) -> None:
                 continue
             victim.write_text(mutated, encoding="utf-8")
             (work / "_measure.py").write_text(RUNNER, encoding="utf-8")
-            proc = subprocess.run([sys.executable, "_measure.py"], cwd=work,
-                                  capture_output=True, text=True, env=env, timeout=900)
-            said = [ln for ln in (proc.stdout + proc.stderr).splitlines()
-                    if ln.startswith("SUITE ")]
+            # Through the vertical's one process owner rather than around it.
+            # `ProcessBoundaryOwnershipTests` caught this file starting children
+            # of its own, and it was right to: evidence tooling that carves an
+            # exception out of a closed-world check is the shape this round
+            # exists to refuse, arriving in the scaffolding.
+            try:
+                proc = run_bytes([sys.executable, "_measure.py"], cwd=work,
+                                 env=env, timeout=900)
+                output = decode_output(proc.stdout + proc.stderr)
+            except ProcessFailure as exc:
+                output = f"SUITE CRASH - - -  ({exc})"
+            said = [ln for ln in output.splitlines() if ln.startswith("SUITE ")]
             verdict = said[-1].split() if said else ["SUITE", "CRASH", "-", "-", "-"]
             results[fp] = {**rows[fp], "suite_without_duplicates": verdict[1],
                            "failures": verdict[2], "errors": verdict[3],
@@ -231,7 +263,8 @@ def main(argv: list[str]) -> int:
         return 2
     command, out = argv[0], pathlib.Path(argv[-1])
     if command == "baseline":
-        build_baseline(pathlib.Path(argv[1]), out)
+        frozen = pathlib.Path(argv[2]) if len(argv) > 3 else None
+        build_baseline(pathlib.Path(argv[1]), out, frozen)
     elif command == "measure":
         measure(out)
     elif command == "allowed":
