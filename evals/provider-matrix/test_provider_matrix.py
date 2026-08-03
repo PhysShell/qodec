@@ -8,6 +8,7 @@ import io
 import sys
 import json
 import os
+import pathlib
 import tempfile
 import unittest
 import urllib.error
@@ -17,6 +18,7 @@ from unittest.mock import patch
 import mutations
 import process_boundary
 import provider_matrix as pm
+import oracle_ledger
 import receipt_policy
 
 
@@ -3257,11 +3259,57 @@ class GatesCanFailTests(unittest.TestCase):
         spec.loader.exec_module(module)
         return module
 
-    def test_the_clean_tree_check_detects_all_three_kinds_of_dirt(self):
-        self.assertEqual(self.helper("check_clean_tree.py").self_test(), 0)
+    # These two called `self_test()` — the full shipped corpus — while the
+    # mutation harness ran the very same corpus again as an assigned gate. Two
+    # executions of one oracle on one mutant checkout, and the expensive one of
+    # the four cost about forty seconds of every specification.
+    #
+    # What replaces them is not nothing. A gate's corpus is its own to own; what
+    # the suite owns is that the detector underneath it can tell a good specimen
+    # from a bad one, cheaply and directly. Each control below asserts that the
+    # full corpus did not run — otherwise a replacement could quietly become the
+    # thing it replaced after the next refactor.
 
-    def test_the_discovery_check_detects_a_mid_file_entrypoint(self):
-        self.assertEqual(self.helper("check_test_discovery.py").self_test(), 0)
+    def ledger_silent(self, context):
+        counts = oracle_ledger.read(context)
+        self.assertEqual({name: n for name, n in counts.items() if n}, {},
+                         "a cheap control ran a full shipped corpus")
+
+    def test_the_clean_tree_detector_separates_a_dirty_tree_from_a_clean_one(self):
+        gate = self.helper("check_clean_tree.py")
+        with tempfile.TemporaryDirectory() as td:
+            context = Path(td) / "ledger"
+            context.mkdir()
+            home, root = Path(td) / "home", Path(td) / "repo"
+            home.mkdir()
+            root.mkdir()
+            env = gate.isolated_env(home)
+            with patch.dict("os.environ", {oracle_ledger.LEDGER_ENV: str(context)}):
+                gate.must_git("init", "-q", cwd=root, env=env)
+                for key, value in (("user.email", "t@example"), ("user.name", "t"),
+                                   ("commit.gpgsign", "false")):
+                    gate.must_git("config", key, value, cwd=root, env=env)
+                (root / "seed.txt").write_text("seed\n", encoding="utf-8")
+                gate.must_git("add", "seed.txt", cwd=root, env=env)
+                gate.must_git("commit", "-qm", "seed", cwd=root, env=env)
+                # One good specimen and one bad one. `git diff HEAD` needs a
+                # HEAD, which is why the seed commit is part of the specimen
+                # rather than ceremony around it.
+                self.assertEqual(gate.dirt(root, env=env), [])
+                (root / "leftover.txt").write_text("x", encoding="utf-8")
+                self.assertTrue(any("leftover.txt" in line
+                                    for line in gate.dirt(root, env=env)))
+            self.ledger_silent(context)
+
+    def test_the_discovery_detector_separates_matching_test_sets(self):
+        gate = self.helper("check_test_discovery.py")
+        with tempfile.TemporaryDirectory() as td:
+            context = Path(td) / "ledger"
+            context.mkdir()
+            with patch.dict("os.environ", {oracle_ledger.LEDGER_ENV: str(context)}):
+                self.assertEqual(gate.disagreements({"a", "b"}, {"a", "b"}), ([], []))
+                self.assertNotEqual(gate.disagreements({"a", "b"}, {"a"}), ([], []))
+            self.ledger_silent(context)
 
     # `check_test_discovery.main()` is deliberately *not* called from here: it
     # runs this suite twice as subprocesses, and this suite would then run it
@@ -3307,13 +3355,18 @@ class GatesCanFailTests(unittest.TestCase):
             self.assertEqual(gate.main([]), 1)
         self.assertNotIn("byte-clean", out.getvalue())
 
-    def test_the_clean_tree_self_test_reports_a_stall_rather_than_raising(self):
-        """The positive control is the one place that must not die silently."""
+    def test_a_stalled_git_is_reported_by_the_verdict_that_ships(self):
+        """`main([])`, not `main(["--self-test"])`.
+
+        The contract is that a stall becomes a report rather than a traceback,
+        and the path that ships is the one that produces the verdict. Driving
+        the self-test to observe it ran a full corpus to watch git hang once.
+        """
         import subprocess
 
         gate, stall, out, capture = self.stalled("check_clean_tree.py", ["git", "init"])
         with patch.object(subprocess, "run", side_effect=stall), capture:
-            self.assertEqual(gate.main(["--self-test"]), 1)
+            self.assertEqual(gate.main([]), 1)
         self.assertIn("FAIL", out.getvalue())
 
     def test_the_clean_tree_check_reports_a_missing_git(self):
@@ -3330,16 +3383,15 @@ class GatesCanFailTests(unittest.TestCase):
                 self.assertEqual(gate.main([]), 1)
         self.assertIn("could not run", out.getvalue())
 
-    def test_the_discovery_self_test_reports_a_stall_rather_than_raising(self):
-        """`self_test()` used to be dispatched above the handler, so the two
-        synthetic runs it drives could stall straight through it."""
+    def test_a_stalled_child_is_reported_by_the_discovery_verdict(self):
+        """The shipping path again, and it is the one that spawns children."""
         import subprocess
 
         gate, stall, out, capture = self.stalled(
             "check_test_discovery.py", [sys.executable, "synthetic_case.py", "-v"]
         )
         with patch.object(subprocess, "run", side_effect=stall):
-            with patch.object(sys, "argv", ["check_test_discovery.py", "--self-test"]):
+            with patch.object(sys, "argv", ["check_test_discovery.py"]):
                 with capture:
                     self.assertEqual(gate.main(), 1)
         self.assertIn("FAIL", out.getvalue())
@@ -3431,25 +3483,18 @@ class GatesCanFailTests(unittest.TestCase):
         self.assertNotIn("UnicodeDecodeError", printed)
         self.assertNotIn("0xff", printed)
 
-    def test_the_self_test_proves_the_decoding_contract(self):
-        """The control must exercise the rule, not merely coexist with it.
+    def test_undecodable_child_output_is_a_named_verdict_not_a_traceback(self):
+        """The rule, and the line it produces, without the corpus around them.
 
-        A mutated gate is qualified by its own `--self-test`, so a decoding
-        rule the control never runs could not be killed by any mutation. Make
-        the decode lenient and the control has to notice.
+        `verdict_for` exists precisely so this branch is reachable without
+        driving the whole gate — the gate's own docstring says a branch its
+        control cannot reach cannot be killed by any mutation. Asking it here
+        costs nothing; asking it through `self_test()` cost a full corpus.
         """
         gate = self.helper("check_test_discovery.py")
-        import contextlib
-        import io as _io
-
-        out = _io.StringIO()
-        with patch.object(gate, "decode_test_output",
-                          lambda o, e: (o + e).decode("utf-8", "replace")):
-            with contextlib.redirect_stdout(out):
-                self.assertEqual(gate.self_test(), 1)
-        self.assertIn("unreadable", out.getvalue())
-
-    # -- the clean-tree self-test is hermetic, and says so when it is not --
+        with self.assertRaises(gate.UndecodableOutput):
+            gate.decode_test_output(b"\xff\xfe", b"")
+        self.assertIn("not valid UTF-8", gate.verdict_for(gate.UndecodableOutput("x")))
 
     def test_the_isolated_environment_admits_nothing_from_the_machine(self):
         gate = self.helper("check_clean_tree.py")
@@ -3498,18 +3543,25 @@ class GatesCanFailTests(unittest.TestCase):
         return patch.object(subprocess, "run", side_effect=fake)
 
     def assert_setup_failure_named(self, subcommand: str):
-        import contextlib
-        import io as _io
+        """The contract, asked of the function that owns it.
 
+        This drove the whole shipped `--self-test` to observe one typed error,
+        which meant the suite ran a full corpus per assertion — and the ledger
+        showed it doing so four more times than the five I had found by reading.
+        `must_git` is where a failed setup becomes a report rather than an
+        unborn HEAD misdiagnosed as a dirty tree, so that is where it is asked.
+        """
         gate = self.helper("check_clean_tree.py")
-        out = _io.StringIO()
-        with self.failing_git(subcommand):
-            with contextlib.redirect_stdout(out):
-                self.assertEqual(gate.main(["--self-test"]), 1)
-        printed = out.getvalue()
+        with tempfile.TemporaryDirectory() as td:
+            root = Path(td)
+            with self.failing_git(subcommand):
+                with self.assertRaises(gate.GitUnavailable) as caught:
+                    gate.must_git(subcommand, cwd=root, env=gate.isolated_env(root))
+        printed = str(caught.exception)
         self.assertIn("self-test setup", printed)
         self.assertIn(f"`git {subcommand}", printed)
-        self.assertNotIn("freshly committed tree was reported dirty", printed)
+        # The size of stderr, never its bytes: this string is printed.
+        self.assertNotIn("stderr:", printed)
         return printed
 
     def test_a_failed_seed_commit_is_reported_as_a_failed_setup(self):
@@ -4019,8 +4071,28 @@ class DurableFieldInventoryTests(unittest.TestCase):
             if not policy.coverage_required:
                 self.assertTrue(policy.why, policy.named())
 
-    def test_the_policy_modules_own_self_test_passes(self):
-        self.assertEqual(receipt_policy.self_test(), 0)
+    def test_the_policy_detector_separates_a_sound_receipt_from_a_defective_one(self):
+        """The detector, directly. The corpus belongs to the gate.
+
+        This called `receipt_policy.self_test()` — 2130 malformed specimens,
+        each audited twice — while the harness ran the identical corpus again as
+        the assigned policy gate. Forty of the forty-six seconds this suite took
+        were that, paid once per specification for a second opinion identical to
+        the first.
+        """
+        with tempfile.TemporaryDirectory() as td:
+            context = Path(td) / "ledger"
+            context.mkdir()
+            with patch.dict("os.environ", {oracle_ledger.LEDGER_ENV: str(context)}):
+                sound = receipt_policy.sound_specimen()
+                self.assertEqual(
+                    receipt_policy.audit(sound, receipt_policy.SPECIMEN_CONTEXT), [])
+                for _name, defective, phrase in receipt_policy.defective_specimens()[:2]:
+                    found = receipt_policy.audit(defective, receipt_policy.SPECIMEN_CONTEXT)
+                    self.assertTrue(any(phrase in line for line in found), found)
+            counts = oracle_ledger.read(context)
+            self.assertEqual({k: v for k, v in counts.items() if v}, {},
+                             "a cheap control ran the full policy corpus")
 
     def test_a_reference_is_prose_and_a_bare_secret_is_not(self):
         """The one rule that lets a detail line mention foreign material at all."""
@@ -6231,6 +6303,89 @@ class CleanTreeIsolationTests(unittest.TestCase):
             self.assertEqual(leaked, [])
 
 
+def check_readme_module():
+    """The README gate as a module, loaded once per call.
+
+    A fresh module each time, so a test that drives it under a patched
+    environment cannot leave state behind for the next one.
+    """
+    import importlib.util
+    path = Path(__file__).resolve().parent / "check_readme.py"
+    spec = importlib.util.spec_from_file_location("check_readme_probe", path)
+    module = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(module)
+    return module
+
+
+class OracleLedgerTests(unittest.TestCase):
+    """A local label may say where an invocation came from, never whether it counted.
+
+    The first version of this had one scope, and a test could point it at a
+    directory of its own, run the real corpus, and leave the verifier reporting
+    a flawless single while one semantic entrypoint executed twice on one
+    checkout. That the redirected call was cheap proved it was cheap — not that
+    the topology was closed, and the next refactor is free to make it expensive
+    again.
+    """
+
+    def test_a_redirected_context_does_not_hide_an_invocation_from_the_run(self):
+        gate = check_readme_module()
+        with tempfile.TemporaryDirectory() as td:
+            run, local = Path(td) / "run", Path(td) / "elsewhere"
+            run.mkdir()
+            local.mkdir()
+            with patch.dict("os.environ", {oracle_ledger.GLOBAL_ENV: str(run),
+                                           oracle_ledger.LEDGER_ENV: str(local)}):
+                with contextlib.redirect_stdout(io.StringIO()):
+                    gate.self_test()
+            # The redirect worked, and it changed nothing about the tally.
+            self.assertEqual(oracle_ledger.read(local)[oracle_ledger.README], 1)
+            self.assertEqual(oracle_ledger.read(run)[oracle_ledger.README], 1)
+
+    def test_a_second_invocation_under_a_different_label_is_still_a_duplicate(self):
+        gate = check_readme_module()
+        with tempfile.TemporaryDirectory() as td:
+            run = Path(td) / "run"
+            run.mkdir()
+            for label in ("first", "second"):
+                place = Path(td) / label
+                place.mkdir()
+                with patch.dict("os.environ", {oracle_ledger.GLOBAL_ENV: str(run),
+                                               oracle_ledger.LEDGER_ENV: str(place)}):
+                    with contextlib.redirect_stdout(io.StringIO()):
+                        gate.self_test()
+            counts = oracle_ledger.read(run)
+            self.assertEqual(counts[oracle_ledger.README], 2)
+            found = oracle_ledger.problems(counts, {oracle_ledger.README})
+            self.assertTrue(any("duplicate semantic invocation" in line for line in found),
+                            found)
+
+    def test_a_context_belongs_to_one_specification_of_one_run(self):
+        with tempfile.TemporaryDirectory() as td:
+            place = Path(td) / "run" / "fingerprint"
+            oracle_ledger.ensure_context(place)
+            with self.assertRaises(oracle_ledger.LedgerUnavailable):
+                oracle_ledger.ensure_context(place)
+
+    def test_the_four_diagnoses_are_told_apart(self):
+        policy = oracle_ledger.POLICY
+        missing = oracle_ledger.problems({policy: 0}, {policy})
+        duplicate = oracle_ledger.problems({policy: 2}, {policy})
+        failed = oracle_ledger.problems({policy: 0}, {policy}, failed=[policy])
+        unknown = oracle_ledger.problems({policy: 1}, {policy}, unknown=["ghost"])
+        self.assertIn("never ran", missing[0])
+        self.assertIn("duplicate semantic invocation", duplicate[0])
+        self.assertIn("registration failed", failed[0])
+        self.assertIn("names no", unknown[0])
+        # A broken ledger must not be reported as a topology defect, so the
+        # count it could not take is not also announced as an absence.
+        self.assertEqual(len(failed), 1)
+
+    def test_an_unassigned_oracle_that_runs_is_reported(self):
+        found = oracle_ledger.problems({oracle_ledger.README: 1}, {oracle_ledger.POLICY})
+        self.assertTrue(any("not assigned and ran" in line for line in found), found)
+
+
 class ReadmeContractTests(unittest.TestCase):
     """The README gate, run as this suite runs every other gate.
 
@@ -6252,16 +6407,35 @@ class ReadmeContractTests(unittest.TestCase):
         spec.loader.exec_module(module)
         return module
 
-    def test_the_readme_gate_refuses_seven_wrong_readmes_and_passes_the_real_one(self):
-        with contextlib.redirect_stdout(io.StringIO()) as printed:
-            code = self.gate().self_test()
-        self.assertEqual(code, 0, printed.getvalue())
-        self.assertIn("controls refused", printed.getvalue())
+    def test_the_readme_detector_separates_a_true_claim_from_a_false_one(self):
+        """The detector, directly. The nine controls belong to the gate.
 
-    def test_the_committed_readme_agrees_with_this_code(self):
-        with contextlib.redirect_stdout(io.StringIO()) as printed:
-            self.assertEqual(self.gate().main([]), 0, printed.getvalue())
+        Two tests here ran the README gate's whole corpus — once as
+        `self_test()` with its nine deliberately wrong READMEs, once as the real
+        comparison — while the harness ran the same corpus again as the assigned
+        readme gate. Three executions of one oracle for one question.
+        """
+        gate = self.gate()
+        with tempfile.TemporaryDirectory() as td:
+            context = Path(td) / "ledger"
+            context.mkdir()
+            real = (Path(__file__).resolve().parent / "README.md").read_text(encoding="utf-8")
+            with patch.dict("os.environ", {oracle_ledger.LEDGER_ENV: str(context)}):
+                self.assertEqual(gate.readme_problems(real), [])
+                # One minimal falsehood, not nine: the corpus of nine is the
+                # gate's own positive control and runs once, where it is owned.
+                lying = real.replace("PROVIDER_5XX / HTTP_FAILURE / ",
+                                     "PROVIDER_5XX / ", 1)
+                self.assertNotEqual(lying, real)
+                self.assertTrue(any("which the README omits" in line
+                                    for line in gate.readme_problems(lying)))
+            counts = oracle_ledger.read(context)
+            self.assertEqual({k: v for k, v in counts.items() if v}, {},
+                             "a cheap control ran the full readme corpus")
 
+    def test_the_suite_and_the_gate_spell_the_unreached_set_once(self):
+        self.assertEqual(set(UNREACHED_BY_THE_TABLE),
+                         set(self.gate().UNREACHED_BY_THE_TABLE))
 
 class EmissionPreflightTests(unittest.TestCase):
     """Nothing is written until everything about the writing is decided.
