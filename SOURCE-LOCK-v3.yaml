@@ -1,0 +1,549 @@
+---
+# case-0002 source lock, revision 3
+#
+# Rev 3 exists because two different documents were both called revision 2.
+# It does not replace them quietly. Both are carried in this branch under
+# history/ and both are bound by digest below.
+
+meta:
+  revision: 3
+  produced_at: "2026-08-05T03:00:00Z"
+  status: working artifact, not a fixture and not an implementation prompt
+  measurement_rule: >-
+    A number may appear in this document only if a frozen tool produced it, or
+    if it is attributed to whoever did produce it. Numbers taken on someone
+    else's authority say so and name them.
+
+supersession:
+  reason: >-
+    Two non-identical revision-2 documents existed at the same time. One was
+    delivered as an attachment; the other was committed to this branch after a
+    container reset, reconstructed from context and shorter by 2198 bytes. The
+    committed one silently lost whole_file_at_cutoff, the source provenance
+    path, part of the measurement notes and the operational warning. Neither is
+    wrong; they are simply not the same document, and a source lock that is
+    both 13470 and 15668 bytes until observed is not a lock.
+  supersedes:
+    - id: attached-v2
+      path: history/SOURCE-LOCK-v2-attached.yaml
+      bytes: 15668
+      sha256: 1f9e24c13987de7ea9d4cbdec3b1b75723b1c1430a97814eb9b87fe78bae9af4
+      git_blob_sha1: 6e204bc74985dd733bd645a8211cba9fa77fb209
+      recovery_note: >-
+        Lost with the scratchpad, reconstructed, and confirmed byte-exact
+        against the reviewer's independently recorded digest and blob id before
+        being carried here.
+    - id: committed-v2
+      path: history/SOURCE-LOCK-v2-committed.yaml
+      bytes: 13470
+      sha256: 3e07a9d8fafc2c73fd2509da72096e75ab8c54b05197ab2941701cdb715192e0
+      git_blob_sha1: 83c46fd5f3284c4f1c6ffd387c78a11600815cb4
+      first_committed_in: d4decebd5cebaf04920f9bd6f2a5eba26866a1ed
+    - id: rev-1
+      name: case-0002-source-candidates.yaml
+      status: not preserved in this branch
+      retracted_for: invalid YAML, and an overclaim about mechanical derivation
+
+# ---------------------------------------------------------------------------
+# Identity. A branch name is a locator, not an identity.
+# ---------------------------------------------------------------------------
+identity:
+  repository: PhysShell/qodec
+  branch_as_locator: case-0002/sources-r21
+  branch_is_mutable: true
+  bind_to:
+    first_commit: d4decebd5cebaf04920f9bd6f2a5eba26866a1ed
+    first_tree: 7fbe15bdad41843b3f6a7647ecba4c8612ac02dc
+  git_blobs:
+    prefix_gz: 6d8a09a7012a0d0aada905967fcd146dc10c445e
+    window_gz: 58e3875d10d2e647333f0652c260f7bbb8cae59e
+  rule: >-
+    Round 0 binds commit, tree and blob ids. The branch ref may move; the
+    objects cannot. Any lock that names only the branch is naming something a
+    push can change.
+
+# ---------------------------------------------------------------------------
+source_planes:
+
+  - id: plane-coder
+    name: Claude Code coder session
+    provenance: /root/.claude/projects/-home-user-qodec/7e07d6be-b5fc-53d1-9dbd-3a72cdd573d7.jsonl
+    freeze_method: record-prefix
+    prefix:
+      blob: claude-session.prefix-r21.jsonl
+      through_record_index: 17111
+      records: 17112
+      bytes: 87564394
+      sha256: 8392de803d600b19ac8273a43b2b766951d2eaf9a9197e1d8d43e97f541fca1c
+      gz_bytes: 21239298
+      gz_sha256: 950dcd4af8c43f478aa92b32d58974289eb00a23e8b051ae441a33655893cb5d
+    window:
+      blob: claude-session.window-r21.jsonl
+      records: 527
+      bytes: 1873570
+      sha256: 7b74dd3a521b7e999ef794450f1b0e15d563421a03cfa1ad499f8c7600adc023
+      gz_bytes: 526718
+      gz_sha256: 132c359fb9cc0de7c19f58a223d1f01309bb0a9235ab29d1ceccb64a77e59381
+    whole_file_at_cutoff:
+      bytes: 87858714
+      sha256: 62435ad5203a93bf63c193e7673ba6e664cfe6c43ce26bdcafbabb53f81d0ccb
+      records: 17190
+      binding: informational only, never bind to this
+    live_file_warning: >-
+      The whole-file digest is not stable. The session was appending while the
+      blobs were cut: 87629277 bytes early on, 87795276 shortly before the
+      freeze, 87858714 at the freeze, 88002155 half an hour later. Append-only
+      makes a prefix digest stable and a whole-file digest worthless.
+    append_only_evidence: >-
+      The prefix was frozen at 02:07 UTC and recomputed at 02:34 UTC across a
+      container reset and 31 further appended records; length and digest
+      reproduced exactly.
+
+  - id: plane-reviewer
+    name: ChatGPT reviewer conversation
+    blob: chatgpt-export.json
+    bytes: 5963644
+    sha256: ed518b334485ef5421aab0229a4e4a0dc9bc489cb78d1eba00b5eb50d286e7e8
+    conversation_id: 6a6e220a-a154-83eb-9917-54e9a3cac8e5
+    title_as_exported: "Branch · Ресурсы для LLM"
+    mapping_nodes_whole_file: 2790
+    present_in_this_branch: false
+    availability_note: >-
+      The export was supplied as an attachment and was lost with the container's
+      upload directory. Its digest is recorded, so a re-supplied copy can be
+      bound rather than trusted. Until it is re-supplied, every reviewer-plane
+      number in this document that is not attributed to the reviewer is stale.
+    title_note: >-
+      The exported title names the conversation's first topic, not its content.
+      This is why the window is bound by node id and not by conversation.
+
+  - id: plane-record
+    name: repository, CI and evidence artifacts
+    status: NOT YET FROZEN
+    blocking: true
+
+# ---------------------------------------------------------------------------
+# Windows
+# ---------------------------------------------------------------------------
+windows:
+
+  coder:
+    path_policy: linear record order, no branching present
+    start_record:
+      index: 16585
+      uuid: 3a0760a5-e751-4ece-81e8-c9aea36a4ad4
+      timestamp: "2026-08-02T16:06:26.130Z"
+      authorship: human, authored
+    end_record:
+      index: 17111
+      uuid: 3794550b-a82a-4f52-a785-9a599894d6ea
+      timestamp: "2026-08-03T18:00:08.189Z"
+      authorship: assistant
+    anchors_are_uuids: >-
+      Indices are derived and may be recomputed; uuids are not. The invariant
+      below re-derives the indices from the uuids on every run.
+    symmetry: >-
+      The coder window ends on the report of 04108e7; the reviewer window ends
+      on the acceptance of 04108e7.
+
+  reviewer:
+    path_policy: active-parent-chain only
+    start_node:
+      id: 264366ab-a59c-45e2-96e3-00b032cedeb1
+      meaning: review results at accepted head 3ba3a38, discovery that R21 is needed
+    end_node:
+      id: d5b0a463-8a20-463d-9f3f-db9356710012
+      meaning: exact-head acceptance of evidence head 04108e7
+    verification: >-
+      Both anchors present. Parent chain from end to root is 2723 nodes and the
+      start anchor lies on it. Window is the inclusive tail from the start
+      anchor: 258 nodes. Reproduced independently by both parties.
+
+# ---------------------------------------------------------------------------
+# Executable relation between the two coder blobs
+# ---------------------------------------------------------------------------
+window_invariant:
+  statement: >-
+    The window blob is exactly the anchored slice of the prefix blob. Two blobs
+    that are each individually well-formed do not establish the relation claimed
+    between them, so the relation is computed rather than asserted.
+  tool:
+    id: o7.case0002.window-invariant/v0
+    path: window_invariant.py
+    bytes: 5323
+    sha256: 009484934a021420dca748701e0ce1735f1fbba730a285ca0f62d01c2f362109
+  runtime: "CPython 3.11.15"
+  command: >-
+    python3 window_invariant.py
+    --prefix claude-session.prefix-r21.jsonl
+    --window claude-session.window-r21.jsonl
+    --start-uuid 3a0760a5-e751-4ece-81e8-c9aea36a4ad4
+    --end-uuid 3794550b-a82a-4f52-a785-9a599894d6ea
+    --expect-records 527
+    --expect-window-sha256
+    7b74dd3a521b7e999ef794450f1b0e15d563421a03cfa1ad499f8c7600adc023
+  command_note: >-
+    The tool echoes the anchors it was given into window-invariant.json, so the
+    invocation recorded there is the authoritative one and this line can be
+    checked against it.
+  checks:
+    - each anchor uuid occurs exactly once in the prefix
+    - the start anchor precedes the end anchor
+    - the extracted slice contains exactly 527 records
+    - the window blob's own digest matches the declared digest
+    - the extracted slice is byte-identical to the window blob
+  result:
+    exit_code: 0
+    problems: []
+    byte_identical: true
+    output: window-invariant.json
+    output_sha256: 881f1b3b52a29bec58f03ba3d063e56608262b58b47b7cd83f5f7eba7fd0125b
+  negative_controls:
+    - altered expected digest, exit 1
+    - record count off by one, exit 1
+    - anchors swapped, exit 1
+  negative_control_rationale: >-
+    A check indistinguishable from its own absence is not a check.
+
+# ---------------------------------------------------------------------------
+# Frozen measurement filter
+# ---------------------------------------------------------------------------
+measurement_tool:
+  id: o7.case0002.source-profiler/v0
+  path: source_profiler.py
+  bytes: 11508
+  sha256: 594695a59bbeaa24585a540194827738a88509638ef6cb2ca8931cb6bf22366c
+  runtime: "CPython 3.11.15"
+  output_is_canonical: sorted keys, two-space indent, one trailing newline
+  coder_run:
+    command: >-
+      python3 source_profiler.py --coder-window claude-session.window-r21.jsonl
+    output: coder-profile.json
+    output_sha256: 39fc8c24e340b57bcdff8f395a5c3002bd7f8e754ca05c43595b47c85e45e31c
+    determinism: rerun produced the identical digest
+  reviewer_run:
+    status: NOT RUN
+    reason: the export is not present in this container
+    command: >-
+      python3 source_profiler.py --reviewer-export chatgpt-export.json
+      --reviewer-start 264366ab-a59c-45e2-96e3-00b032cedeb1
+      --reviewer-end d5b0a463-8a20-463d-9f3f-db9356710012
+  relay_classifier_note: >-
+    The relay rule is a heuristic: a task-notification prefix, then the anchor
+    directive by uuid, then the reviewer plane's own "Worked for " rendering
+    prefix, then a size threshold. Over a corpus this small a heuristic must be
+    auditable, so the tool emits the per-turn table beside the totals and the
+    classification can be re-checked line by line. It is not yet a reviewed
+    mapping and must not be treated as one.
+
+# ---------------------------------------------------------------------------
+# Measured, coder window
+# ---------------------------------------------------------------------------
+coder_window_profile:
+  produced_by: o7.case0002.source-profiler/v0
+  records: 527
+  record_types:
+    assistant: 312
+    attachment: 32
+    system: 16
+    user: 167
+  user_role_turns: 22
+  user_role_bytes: 113868
+  user_role_classification:
+    system_notification: 4
+    relayed: 14
+    authored_directive: 1
+    authored_ping: 3
+  assistant_text_messages: 112
+  assistant_text_bytes: 106245
+  tool_use: 145
+  tool_result: 145
+  tool_result_bytes: 69529
+  tools:
+    Bash: 135
+    Write: 7
+    mcp__github__get_job_logs: 2
+    Read: 1
+
+# ---------------------------------------------------------------------------
+# Corrected extraction ladder, reviewer window
+# ---------------------------------------------------------------------------
+reviewer_extraction_ladder:
+  correction: >-
+    Rev 2 reported assistant_nodes_kept 76 under the heading "after extractor
+    policy". That number is only what remains after hidden reasoning is
+    removed. The policy also excludes tool invocation JSON, and every one of the
+    42 remaining code nodes is a tool invocation. The rev-2 figure therefore
+    described a different filter from the one the policy declares, and
+    overstated the extractable surface by more than a factor of two.
+  ladder:
+    all_assistant_nodes:
+      value: 139
+      authority: measured by both parties
+    after_hidden_reasoning_filter:
+      value: 76
+      removed:
+        thoughts: 44
+        reasoning_recap: 19
+      authority: measured by both parties
+    after_tool_plumbing_filter:
+      value: 34
+      removed:
+        tool_invocation_code_nodes: 42
+      recipients_of_removed_nodes:
+        api_tool.call_tool: 19
+        api_tool.list_resources: 14
+        api_tool.find_in_resource: 5
+        container.exec: 2
+        api_tool.read_resource: 2
+      authority: >-
+        The 34/42 split was measured in this session before the export was lost.
+        The recipient breakdown is the reviewer's measurement, recorded on their
+        authority and not re-derived here.
+    after_final_text_filter:
+      value: 20
+      preamble_nodes: 14
+      preamble_bytes: 5536
+      text_bytes_before_preamble_filter: 170546
+      authority: reviewer's measurement
+      verified_by_this_agent: false
+      note: >-
+        Not recomputed here because the export is absent. The profiler
+        implements this rung as "a visible text node is a preamble unless it is
+        the last assistant node before the next user node"; that rule must be
+        confirmed to reproduce 20 and 14 when the export is re-supplied, and if
+        it does not, the rule is wrong rather than the count.
+  bytes_retracted:
+    field: after_extractor_policy.assistant_bytes_kept
+    rev2_value: 176276
+    status: withdrawn
+    reason: it totals text and tool-invocation nodes together
+
+# ---------------------------------------------------------------------------
+# Authority. The closed vocabulary is not extended.
+# ---------------------------------------------------------------------------
+authority_vocabulary:
+  closed: true
+  values:
+    - platform_capture
+    - deterministic_derivative
+    - human_confirmed
+    - controller_or_repo_record
+    - agent_claim
+  rev2_retraction:
+    - id: human_relayed
+      status: WITHDRAWN
+      reason: >-
+        Rev 2 proposed human_relayed as a new authority value. The selector
+        makes an observation ineligible when authority equals agent_claim, so a
+        new value sitting outside that test would have let relayed agent text
+        into projection. That is precisely the laundering the finding was raised
+        to prevent. The finding stands; the remedy was wrong.
+    - id: platform_capture_or_corroborating_evidence
+      status: WITHDRAWN
+      reason: >-
+        Not a member of the vocabulary, and it fused a captured occurrence with
+        a corroborated fact. Decomposed below.
+
+authority_rules:
+  human_authored_turn:
+    authority: human_confirmed
+    condition: >-
+      Platform-captured node, exact source pointer, body not attributable to
+      either agent plane.
+  relayed_agent_text:
+    authority: agent_claim
+    original_author: coder_agent | reviewer_agent
+    transport:
+      actor: human
+      action: forwarded
+      endorsement: not_implied
+    note: >-
+      Pasting is transport, not authorship. Text does not gain truth by passing
+      through a clipboard.
+  act_of_forwarding:
+    modelled_as: a separate observation
+    kind: evidence
+    statement_shape: "Human forwarded claim X from plane A into plane B."
+    authority: human_confirmed
+    scope: >-
+      human_confirmed attaches to the fact of forwarding and to nothing inside
+      the forwarded text. An explicit written endorsement is a different
+      observation, authored, and carries its own authority.
+  claude_code_assistant_statement:
+    authority: agent_claim
+  chatgpt_assistant_statement:
+    authority: agent_claim
+  embedded_tool_call:
+    selected_into_state: false
+    note: plumbing, never state
+  captured_occurrence_of_tool_output:
+    authority: platform_capture
+  deterministic_parse_of_tool_output:
+    authority: deterministic_derivative
+  truncated_embedded_tool_result:
+    authority: platform_capture
+    claim_scope: only_the_captured_bytes
+    cannot_establish: complete_external_state
+  direct_frozen_git_or_pr_record:
+    authority: controller_or_repo_record
+  deterministically_computed_digest_or_comparison:
+    authority: deterministic_derivative
+
+extractor_policy:
+  include:
+    - visible user text
+    - visible assistant final text
+    - user-visible tool results, separately typed
+  exclude:
+    - thoughts
+    - reasoning_recap
+    - hidden messages
+    - tool invocation JSON
+    - search plumbing
+    - widget state
+    - system messages
+    - assistant preambles carrying no project state
+  rule: >-
+    Visible assistant conclusions are kept as agent_claim even where later
+    confirmed. Being right does not raise authority after the fact.
+
+# ---------------------------------------------------------------------------
+finding_relay_coupling:
+  id: user-role-is-not-human-authorship
+  severity: high
+  status: stands, remedy corrected in rev 3
+  statement: >-
+    In both windows the user role is mostly a transport channel. A rule that
+    granted human_confirmed by role would grant it to agent text.
+  measured_coder_window:
+    source: coder-profile.json
+    user_role_turns: 22
+    system_notification: 4
+    relayed: 14
+    authored_directive: 1
+    authored_ping: 3
+  measured_reviewer_window:
+    authority: reviewer's measurement, not re-derived here
+    user_role_turns: 20
+    relayed_coder_report: 16
+    authored_directive: 1
+    authored_ping: 2
+    empty: 1
+  consequences:
+    - >-
+      Agreement between the two chat planes is not independent corroboration.
+      It is the same text, relayed. Only plane-record breaks the loop.
+    - >-
+      Genuine unmediated human authorship in the R21.0 arc is thin. Any oracle
+      whose human_confirmed set is much larger is counting relays.
+    - >-
+      Selection is still signal, and it is modelled as act_of_forwarding above,
+      never as an authority on the forwarded content.
+
+# ---------------------------------------------------------------------------
+# Unresolved: publication of unredacted logs
+# ---------------------------------------------------------------------------
+open_decision_privacy:
+  id: public-unredacted-blobs
+  status: OPEN, controller decision
+  facts:
+    - PhysShell/qodec is a public repository
+    - the blobs are unredacted session logs, published byte-exact
+    - they contain correspondence and one personal email address
+    - >-
+      a pattern scan for credentials found no matches (sk-, sk-ant-, ghp_,
+      gho_, github_pat_, AKIA, xox*, PEM private key headers, and
+      api_key-style assignments); the OAuth and proxy strings present are
+      environment variable names without values
+  scan_limits: >-
+    A pattern scan proves the absence of the patterns it looked for and nothing
+    else. It cannot establish that the logs contain no sensitive content, and it
+    was run by the agent whose own output is in the logs. The reviewer could not
+    replay it and does not confirm the no-secrets claim; the reviewer confirms
+    only that GitHub stores immutable blobs of the stated sizes.
+  reviewer_position: >-
+    Prefer a private CAS holding the bytes with only the digest manifest public.
+    A digest binds a private blob exactly as well as a public one, so
+    publication is not required by the freeze design.
+  controller_position: >-
+    Publish byte-exact, decided after being shown the repository's public
+    visibility, the personal address, and the fact that redaction voids every
+    digest.
+  note_on_reversal: >-
+    Deleting the branch would not unpublish what has been fetched, and the
+    objects may persist server-side. Reversal is a mitigation, not an undo, and
+    it is the controller's call rather than the agent's.
+
+# ---------------------------------------------------------------------------
+required_freeze_plane_record:
+  items:
+    - commit records for 3ba3a38, 940c762, and every evidence head through 04108e7
+    - topology evidence artifacts
+    - baseline manifest
+    - allowed-outcomes envelope
+    - raw preservation stdout and stderr, with the digest record
+    - actual and comparison JSON
+    - associated CI runs, or a frozen query that returned empty
+    - PR 16 metadata at cutoff
+  request_envelope_required: true
+  request_envelope:
+    - endpoint
+    - parameters
+    - pagination
+    - accept_header
+    - api_version
+    - retrieved_at
+  response_envelope:
+    - status
+    - body_sha256
+    - byte_length
+    - page_count
+  absence_rule: >-
+    An absence is only evidence if the question that produced it is frozen too.
+    "No CI on the evidence heads" must be stored as the exact query, its
+    pagination, and an empty result with a digest. Absence without a recorded
+    question is atmosphere.
+  storage: >-
+    Canonical responses in CAS. Live API calls during replay are not
+    acceptable; the answers drift and a fixture that depends on them stops
+    being a fixture.
+
+# ---------------------------------------------------------------------------
+round_0_status: BLOCKED
+blocking:
+  - id: plane-record-not-frozen
+    owner: open
+  - id: reviewer-export-absent-from-cas
+    owner: controller re-supply, digest already recorded
+  - id: privacy-decision-open
+    owner: controller
+  - id: preamble-rung-unverified
+    owner: agent, on export re-supply
+
+not_blocking_but_recorded:
+  - id: verified-message-edit-topology-absent
+    detail: >-
+      69 fork points exist in the coder transcript, 31 of them user and
+      assistant sharing a parent. None is verified as a user editing a message.
+  - id: single-domain-vocabulary
+    detail: >-
+      Both chat planes are about proof infrastructure. At least one adversarial
+      task from another domain before any generalisation claim.
+  - id: no-independent-human-record
+    detail: >-
+      No design document or tracker exists to cross-check human intent against.
+
+decision:
+  candidate: cand-A
+  subject: qodec-pr16-r21-oracle-topology
+  verdict: ACCEPTED as the case-0002 development challenge
+  holdout: false
+  schema_frozen: false
+  selector_frozen: false
+  evaluation_frozen: false
+
+gold_state_statement: >-
+  gold-state-v0 is constructed from digest-bound extracted records under
+  explicit authority and adjudication rules; every observation and relation is
+  traceable to source records; independently reviewed before fixture lock.

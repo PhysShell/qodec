@@ -1,0 +1,384 @@
+---
+# case-0002 source lock, revision 2
+# Supersedes case-0002-source-candidates.yaml (rev 1).
+# Rev 1 is retracted on two counts, both raised by the reviewer and both correct:
+#   1. it was not valid YAML;
+#   2. it claimed the gold state would be "derived mechanically", which overstates
+#      what extraction can do.
+# This revision parses, and states the weaker, true claim.
+
+meta:
+  revision: 2
+  supersedes: case-0002-source-candidates.yaml
+  produced_at: "2026-08-05T02:07:20Z"
+  produced_by: coding agent session 7e07d6be
+  status: working artifact, not a fixture and not an implementation prompt
+  measurement_rule: >-
+    Every count in this file was computed from the frozen blobs named in
+    source_planes, by a script, in this session. Numbers that were not
+    recomputed here are marked UNVERIFIED. Where a rev-1 number disagrees with a
+    rev-2 number, rev 2 wins and the disagreement is recorded rather than edited
+    away.
+
+# ---------------------------------------------------------------------------
+decision:
+  candidate: cand-A
+  subject: qodec-pr16-r21-oracle-topology
+  role: case-0002-development-challenge
+  verdict: ACCEPT_FOR_ROUND_0_SCOPING
+  holdout: false
+  schema_frozen: false
+  selector_frozen: false
+  evaluation_frozen: false
+  cand_c_merge_reversal: >-
+    Deferred, not merged in. R21.0 already carries enough conflict chains.
+    Keep it as a separate adversarial micro-fixture.
+
+# ---------------------------------------------------------------------------
+# The conflict of interest, stated before anything it could contaminate
+# ---------------------------------------------------------------------------
+standing_risk:
+  id: agent-is-the-subject
+  severity: high
+  statement: >-
+    This agent is a participant in one of the three source planes. Several of
+    its claims were false when made and were corrected later. If the same agent
+    builds the gold state from its own account, the oracle becomes an agent
+    reconstruction, which case-0002 forbids by name.
+  required_mitigation:
+    - >-
+      Gold state built only from digest-bound extracted records, never from the
+      agent's summaries.
+    - >-
+      Agent narration carries authority=agent_claim on both planes, including
+      when it later turned out to be right. Correctness does not raise authority
+      retroactively.
+    - >-
+      Every "current" claim traceable to a repository or controller record, or
+      to an authored human turn, never to an assistant message.
+    - >-
+      A second party reviews the oracle before fixture lock.
+  what_this_does_not_excuse: >-
+    A fixture chosen because the agent looks good in it. Rev 1 rated two
+    candidates down for exactly that reason and rev 2 keeps those ratings.
+
+# ---------------------------------------------------------------------------
+# Three planes. Two agents nodding at each other are not a notary.
+# ---------------------------------------------------------------------------
+source_planes:
+
+  - id: plane-coder
+    name: Claude Code coder session
+    blob: claude-session.prefix-r21.jsonl
+    provenance: /root/.claude/projects/-home-user-qodec/7e07d6be-b5fc-53d1-9dbd-3a72cdd573d7.jsonl
+    freeze_method: record-prefix
+    prefix_through_record_index: 17111
+    prefix_bytes: 87564394
+    prefix_sha256: 8392de803d600b19ac8273a43b2b766951d2eaf9a9197e1d8d43e97f541fca1c
+    whole_file_at_cutoff:
+      bytes: 87858714
+      sha256: 62435ad5203a93bf63c193e7673ba6e664cfe6c43ce26bdcafbabb53f81d0ccb
+      records: 17190
+    live_file_warning: >-
+      The whole-file digest is NOT stable. This session is still appending to
+      the file; it measured 87629277 bytes earlier in the conversation,
+      87795276 a minute before the freeze, and 87858714 at the freeze. The file
+      is append-only, so a digest over a record prefix is stable and a digest
+      over the whole file is not. Bind the prefix, never the file.
+    rev1_disagreement:
+      field: genuine_human_turns
+      rev1_value: 494
+      rev2_value: 387
+      cause: >-
+        Rev 1 used a looser filter. Rev 2 excludes records carrying tool_result
+        blocks, records flagged isMeta, and records opening with a
+        system-reminder. The filter, not the number, is the thing that must be
+        frozen.
+
+  - id: plane-reviewer
+    name: ChatGPT reviewer conversation
+    blob: chatgpt-export.json
+    sha256: ed518b334485ef5421aab0229a4e4a0dc9bc489cb78d1eba00b5eb50d286e7e8
+    bytes: 5963644
+    conversation_id: 6a6e220a-a154-83eb-9917-54e9a3cac8e5
+    title_as_exported: "Branch · Ресурсы для LLM"
+    mapping_nodes_whole_file: 2790
+    title_note: >-
+      The exported title names the conversation's first topic, not its content.
+      Twenty subjects in one cupboard, labelled by whichever went in first. This
+      is why the window is bound by node id and not by conversation.
+
+  - id: plane-record
+    name: repository, CI and evidence artifacts
+    status: NOT YET FROZEN
+    blocking: true
+    note: >-
+      Neither chat plane substitutes for this one. GitHub connector output
+      inside the ChatGPT export can be truncated, so it shows what the reviewer
+      relied on, not what existed.
+
+# ---------------------------------------------------------------------------
+# Windows, verified independently in this session
+# ---------------------------------------------------------------------------
+windows:
+
+  reviewer:
+    path_policy: active-parent-chain only
+    start_node:
+      id: 264366ab-a59c-45e2-96e3-00b032cedeb1
+      role: assistant
+      meaning: review results at accepted head 3ba3a38, discovery that R21 is needed
+    end_node:
+      id: d5b0a463-8a20-463d-9f3f-db9356710012
+      role: assistant
+      meaning: exact-head acceptance of evidence head 04108e7
+    verification: >-
+      Both anchors present in mapping. Walking parents from end to root gives a
+      chain of 2723 nodes; the start anchor lies on it. Window is the tail from
+      the start anchor, inclusive.
+    measured:
+      window_nodes: 258
+      user_nodes: 20
+      assistant_nodes: 139
+      tool_nodes: 99
+      visible_user_assistant_bytes: 250832
+      other_role_text_bytes: 391593
+    reviewer_figures_reproduced: >-
+      Node, user, assistant and tool counts reproduce exactly. Visible-byte
+      count reproduces exactly. Tool-text bytes differ by about 1600, which is a
+      difference in whether the content.text fallback field is counted, not a
+      disagreement about the window.
+    after_extractor_policy:
+      assistant_nodes_kept: 76
+      assistant_bytes_kept: 176276
+      user_nodes_kept: 20
+      user_bytes_kept: 74556
+      dropped:
+        assistant_thoughts: 44
+        assistant_reasoning_recap: 19
+      note: >-
+        Roughly 45 percent of assistant nodes in this window are hidden
+        reasoning. Counting assistant nodes without applying the policy
+        overstates the extractable surface by nearly a factor of two.
+
+  coder:
+    path_policy: linear record order, no branching present
+    start_record:
+      index: 16585
+      uuid: 3a0760a5-e751-4ece-81e8-c9aea36a4ad4
+      timestamp: "2026-08-02T16:06:26.130Z"
+      role: human, authored
+      meaning: >-
+        The controller states that R21.0 was skipped and must come first,
+        reversing an already-executed plan.
+    end_record:
+      index: 17111
+      uuid: 3794550b-a82a-4f52-a785-9a599894d6ea
+      timestamp: "2026-08-03T18:00:08.189Z"
+      role: assistant
+      meaning: >-
+        04108e7 supplies the missing middle between raw stdout and aggregate,
+        without rewriting earlier commits.
+    symmetry: >-
+      The coder window ends on the report of 04108e7; the reviewer window ends
+      on the acceptance of 04108e7. The two windows close on the same object
+      from opposite sides.
+    measured:
+      records: 527
+      record_types:
+        user: 167
+        assistant: 312
+        system: 16
+        attachment: 32
+      user_role_turns: 22
+      user_role_bytes: 113868
+      assistant_text_messages: 112
+      assistant_text_bytes: 106245
+      tool_use: 145
+      tool_result: 145
+      tool_result_bytes: 69529
+      tools:
+        Bash: 135
+        Write: 7
+        mcp__github__get_job_logs: 2
+        Read: 1
+
+# ---------------------------------------------------------------------------
+# The finding that changes the authority rules
+# ---------------------------------------------------------------------------
+finding_relay_coupling:
+  id: user-role-is-not-human-authorship
+  severity: high
+  statement: >-
+    In both windows the user role is mostly a transport channel. The human
+    pastes the reviewer's text into the coder session and the coder's report
+    into the reviewer session. A rule that grants human_confirmed by role would
+    grant it to agent text.
+  measured_coder_window:
+    user_role_turns: 22
+    system_notifications: 4
+    relayed_reviewer_text: 14
+    authored_directive: 1
+    authored_ping: 3
+  measured_reviewer_window:
+    user_role_turns: 20
+    relayed_coder_report: 16
+    authored_directive: 1
+    authored_ping: 2
+    empty: 1
+  consequences:
+    - >-
+      Authority must be assigned by authorship, not by role. A user-role turn
+      whose body is pasted agent output is agent_claim from the other plane.
+    - >-
+      Agreement between the two chat planes is not independent corroboration.
+      It is the same text, relayed. Only plane-record breaks the loop, which
+      makes freezing it a precondition and not a nicety.
+    - >-
+      Genuine unmediated human authorship in the R21.0 arc is thin: one
+      substantial directive and three status pings on the coder side, one
+      directive and two pings on the reviewer side. Any oracle whose
+      human_confirmed set is much larger than that is counting relays.
+    - >-
+      Selection is still signal. The human chose what to forward and what to
+      drop, and the drops are visible as gaps between the planes. Model it as
+      an authority of its own, weaker than authorship.
+  suggested_authority_value: human_relayed
+
+# ---------------------------------------------------------------------------
+# Authority rules, adopted from the reviewer with one addition
+# ---------------------------------------------------------------------------
+authority_rules:
+  human_authored_turn:
+    authority: human_confirmed
+    condition: >-
+      Platform-captured node, exact source pointer, and body not attributable to
+      either agent plane.
+  human_relayed_turn:
+    authority: human_relayed
+    note: >-
+      Added in rev 2 on the strength of finding_relay_coupling. Records that a
+      human chose to forward this text without asserting that a human wrote it.
+  claude_code_assistant_statement:
+    authority: agent_claim
+  chatgpt_assistant_statement:
+    authority: agent_claim
+  embedded_tool_call:
+    authority: tool_plumbing
+    selected_into_state: false
+  embedded_user_visible_tool_result:
+    authority: platform_capture_or_corroborating_evidence
+    caveat: may be truncated
+  direct_git_commit_ci_log_json_artifact:
+    authority: controller_or_repo_record
+  deterministically_computed_digest_or_comparison:
+    authority: deterministic_derivative
+
+extractor_policy:
+  include:
+    - visible user text
+    - visible assistant final text
+    - user-visible tool results, separately typed
+  exclude:
+    - thoughts
+    - reasoning_recap
+    - hidden messages
+    - tool invocation JSON
+    - search plumbing
+    - widget state
+    - system messages
+    - assistant preambles carrying no project state
+  rule: >-
+    Visible assistant conclusions are kept as agent_claim even where later
+    confirmed. Being right does not raise authority after the fact.
+
+# ---------------------------------------------------------------------------
+# What plane-record must contain before Round 0 opens
+# ---------------------------------------------------------------------------
+required_freeze_plane_record:
+  items:
+    - commit records for 3ba3a38, 940c762, and every evidence head through 04108e7
+    - topology evidence artifacts
+    - baseline manifest
+    - allowed-outcomes envelope
+    - raw preservation stdout and stderr, with the digest record
+    - actual and comparison JSON
+    - associated CI runs, or an explicit recorded absence of CI on evidence heads
+    - PR 16 metadata at cutoff
+  storage: >-
+    Canonical API responses stored in CAS. Live GitHub calls during replay are
+    not acceptable: the API's answers drift, and a fixture that depends on them
+    stops being a fixture.
+
+# ---------------------------------------------------------------------------
+# Corrected wording, replacing the rev-1 overclaim
+# ---------------------------------------------------------------------------
+gold_state_statement: >-
+  gold-state-v0 is constructed from digest-bound extracted records under
+  explicit authority and adjudication rules; every observation and relation is
+  traceable to source records; independently reviewed before fixture lock.
+rev1_retraction: >-
+  Rev 1 said "derived mechanically from transcript + GitHub API". Extraction is
+  mechanical. Deciding which claim is current, which is superseded, what
+  relation binds two observations, and what counts as one atomic proposition is
+  adjudication. The rev-1 phrasing would have let an adjudicated judgement enter
+  the oracle wearing the authority of a computation.
+
+# ---------------------------------------------------------------------------
+expected_challenges:
+  - superseded plans
+  - agent claims contradicted by records
+  - evidence branch versus product branch
+  - relation closure
+  - user-visible tool evidence
+  - budget pressure
+  - relay coupling between two agent planes
+
+explicitly_absent:
+  - id: verified-message-edit-topology
+    detail: >-
+      69 fork points exist in the coder transcript, 31 of them user and
+      assistant sharing a parent. None is verified as a user editing a message.
+      Interruption and queued input explain them equally well. If case-0002 must
+      cover edit topology, neither plane supplies it.
+  - id: cross-domain-generalization
+    detail: >-
+      Both chat planes are about proof infrastructure. A selector tuned here may
+      look better than it is. At least one adversarial task from another domain
+      before any generalisation claim.
+  - id: holdout-authority
+  - id: independent-human-record
+    detail: >-
+      No design document or issue tracker exists to cross-check human intent
+      against. Combined with finding_relay_coupling, human_confirmed rests on a
+      handful of authored turns.
+
+tasks:
+  - resume-product-integration
+  - audit-r21-evidence-provenance
+  - assess-change-impact-on-oracle-topology
+
+# ---------------------------------------------------------------------------
+next_step:
+  artifact: round-0 fixture lock
+  blocked_on: plane-record freeze
+  contents:
+    - source manifest with digests, sizes and window anchors for all three planes
+    - cutoff timestamp
+    - authority and adjudication rules, written before extraction
+    - gold-state-v0 per gold_state_statement above
+    - tasks-v0
+    - questions-v0 with required_relation_paths and forbidden_current_claim_ids
+    - readout-oracle-v0
+    - budget-v0, frozen before the first projection run
+  explicitly_not_yet:
+    - schema changes
+    - selector changes
+    - qodec arm
+    - any holdout or generalisation claim
+
+operational_warning: >-
+  The frozen blobs currently sit in this container's scratchpad, which has been
+  wiped roughly sixteen times during this session. They are not safe where they
+  are. Move them to durable storage before Round 0 begins, and verify against
+  the digests above after the move.

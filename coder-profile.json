@@ -1,0 +1,188 @@
+{
+  "coder": {
+    "assistant_text_bytes": 106245,
+    "assistant_text_messages": 112,
+    "blob": "claude-session.window-r21.jsonl",
+    "record_types": {
+      "assistant": 312,
+      "attachment": 32,
+      "system": 16,
+      "user": 167
+    },
+    "records": 527,
+    "tool_result": 145,
+    "tool_result_bytes": 69529,
+    "tool_use": 145,
+    "tools": {
+      "Bash": 135,
+      "Read": 1,
+      "Write": 7,
+      "mcp__github__get_job_logs": 2
+    },
+    "user_role_bytes": 113868,
+    "user_role_classification": {
+      "authored_directive": 1,
+      "authored_ping": 3,
+      "relayed": 14,
+      "system_notification": 4
+    },
+    "user_role_table": [
+      {
+        "bytes": 7554,
+        "classification": "authored_directive",
+        "opening": "блин, тут мы лоханулись слегка вот в этом плане: мы в первую",
+        "timestamp": "2026-08-02T16:06:26.130Z",
+        "uuid": "3a0760a5-e751-4ece-81e8-c9aea36a4ad4"
+      },
+      {
+        "bytes": 13559,
+        "classification": "relayed",
+        "opening": "Worked for 57s\n\nАгент в целом прав. Откатывать 940c762 было ",
+        "timestamp": "2026-08-02T16:31:43.968Z",
+        "uuid": "a5e893a1-a2e6-49e0-aecf-cf7173a794e7"
+      },
+      {
+        "bytes": 12510,
+        "classification": "relayed",
+        "opening": "Worked for 45s\n\nАгент рассуждает правильно, а требование per",
+        "timestamp": "2026-08-02T16:40:42.642Z",
+        "uuid": "7a64914d-c205-447b-8312-80299c631603"
+      },
+      {
+        "bytes": 15,
+        "classification": "authored_ping",
+        "opening": "как дела",
+        "timestamp": "2026-08-02T17:10:23.636Z",
+        "uuid": "1e841444-ea91-44da-961f-de85855ab7a9"
+      },
+      {
+        "bytes": 6434,
+        "classification": "relayed",
+        "opening": "Это ровно правильное промежуточное состояние. Замеры уже опр",
+        "timestamp": "2026-08-02T17:45:38.016Z",
+        "uuid": "110d650f-d69b-430e-b0a2-265b26fa0f08"
+      },
+      {
+        "bytes": 7203,
+        "classification": "relayed",
+        "opening": "Worked for 35s\n\nТеперь порядок доказательств восстановлен. К",
+        "timestamp": "2026-08-02T18:03:07.551Z",
+        "uuid": "6ce1f448-7616-46c6-b2ad-87d5538b5943"
+      },
+      {
+        "bytes": 371,
+        "classification": "system_notification",
+        "opening": "<task-notification>\n<task-id>bo2i24j1u</task-id>\n<tool-use-i",
+        "timestamp": "2026-08-02T18:15:30.289Z",
+        "uuid": "5d2cad53-dfa1-4028-9ef8-19df376645e1"
+      },
+      {
+        "bytes": 378,
+        "classification": "system_notification",
+        "opening": "<task-notification>\n<task-id>b1iacchj8</task-id>\n<tool-use-i",
+        "timestamp": "2026-08-02T18:21:13.618Z",
+        "uuid": "85f14b21-c65f-4d8b-8580-905455351506"
+      },
+      {
+        "bytes": 57,
+        "classification": "authored_ping",
+        "opening": "дарова как дела\nдарова как дела",
+        "timestamp": "2026-08-03T07:50:26.242Z",
+        "uuid": "647109ab-ae49-402a-898a-c37e61f976f3"
+      },
+      {
+        "bytes": 6864,
+        "classification": "relayed",
+        "opening": "Дарова. На этот раз контейнер устроил пожар, а архив уже леж",
+        "timestamp": "2026-08-03T08:23:42.464Z",
+        "uuid": "199990d2-8713-4683-a1bc-bfb01fdba3c5"
+      },
+      {
+        "bytes": 7131,
+        "classification": "relayed",
+        "opening": "Дарова. Состояние хорошее. ee8c681 выглядит как правильный п",
+        "timestamp": "2026-08-03T08:35:43.276Z",
+        "uuid": "ab894b58-6014-40a7-9b57-622011c96a61"
+      },
+      {
+        "bytes": 5233,
+        "classification": "relayed",
+        "opening": "Это уже нормальный доказательный ledger, а не декоративный с",
+        "timestamp": "2026-08-03T08:41:26.752Z",
+        "uuid": "176a3eef-52b5-41bb-b525-fa059070334c"
+      },
+      {
+        "bytes": 6941,
+        "classification": "relayed",
+        "opening": "Worked for 1m 25s\n\nДарова. Ledger сделал ровно то, ради чего",
+        "timestamp": "2026-08-03T09:04:36.232Z",
+        "uuid": "37ad89dd-d17f-40b0-8022-70214cbb2204"
+      },
+      {
+        "bytes": 6705,
+        "classification": "relayed",
+        "opening": "Worked for 3m 19s\n\nДарова. Проверил exact head: evidence-вет",
+        "timestamp": "2026-08-03T09:37:08.426Z",
+        "uuid": "50746a22-6cae-44fe-9ccb-46de0e517b58"
+      },
+      {
+        "bytes": 6389,
+        "classification": "relayed",
+        "opening": "Worked for 5m 25s\n\nДарова. Exact head подтверждён:\n\nevidence",
+        "timestamp": "2026-08-03T09:54:15.819Z",
+        "uuid": "34555d28-71eb-4395-bc46-ab77f607a6f6"
+      },
+      {
+        "bytes": 6094,
+        "classification": "relayed",
+        "opening": "Worked for 1m 40s\n\nДарова. Проверил exact head: evidence-вет",
+        "timestamp": "2026-08-03T10:19:55.673Z",
+        "uuid": "1d7903c3-61a8-420c-8bae-fdc6191132b9"
+      },
+      {
+        "bytes": 8853,
+        "classification": "relayed",
+        "opening": "Worked for 4m 35s\n\nДарова. Exact head подтверждён:\n\nevidence",
+        "timestamp": "2026-08-03T10:49:28.696Z",
+        "uuid": "2a8be5a5-383d-437d-bd83-acb5cf255f43"
+      },
+      {
+        "bytes": 5178,
+        "classification": "relayed",
+        "opening": "Worked for 1m 46s\n\nДарова. Проверил 9912169. Evidence-ветка ",
+        "timestamp": "2026-08-03T12:34:55.255Z",
+        "uuid": "fa690e0a-d440-46e1-bfec-ca82289a1afc"
+      },
+      {
+        "bytes": 363,
+        "classification": "system_notification",
+        "opening": "<task-notification>\n<task-id>bke2ru8x2</task-id>\n<tool-use-i",
+        "timestamp": "2026-08-03T12:37:35.073Z",
+        "uuid": "94c35507-63c1-46fc-8a3e-f6dde5cb24f8"
+      },
+      {
+        "bytes": 23,
+        "classification": "authored_ping",
+        "opening": "что там у нас",
+        "timestamp": "2026-08-03T14:57:51.071Z",
+        "uuid": "fe016b8f-6afb-4e83-af0f-9e217e6b86a5"
+      },
+      {
+        "bytes": 365,
+        "classification": "system_notification",
+        "opening": "<task-notification>\n<task-id>blsa40egn</task-id>\n<tool-use-i",
+        "timestamp": "2026-08-03T15:23:18.428Z",
+        "uuid": "e349bdc3-79be-484c-b0a8-e7bcd5f86536"
+      },
+      {
+        "bytes": 5648,
+        "classification": "relayed",
+        "opening": "Worked for 2m 43s\n\nДарова. Сам preservation-run прошёл убеди",
+        "timestamp": "2026-08-03T17:57:38.393Z",
+        "uuid": "669627be-ca8a-4cc7-a3cd-f46f6f7459b4"
+      }
+    ],
+    "user_role_turns": 22
+  },
+  "tool": "o7.case0002.source-profiler/v0"
+}

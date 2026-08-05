@@ -1,0 +1,16 @@
+{
+  "byte_identical": true,
+  "end_line_offset": 17111,
+  "end_occurrences": 1,
+  "end_uuid": "3794550b-a82a-4f52-a785-9a599894d6ea",
+  "extracted_bytes": 1873570,
+  "extracted_records": 527,
+  "prefix": "claude-session.prefix-r21.jsonl",
+  "problems": [],
+  "start_line_offset": 16585,
+  "start_occurrences": 1,
+  "start_uuid": "3a0760a5-e751-4ece-81e8-c9aea36a4ad4",
+  "window": "claude-session.window-r21.jsonl",
+  "window_bytes": 1873570,
+  "window_sha256": "7b74dd3a521b7e999ef794450f1b0e15d563421a03cfa1ad499f8c7600adc023"
+}
