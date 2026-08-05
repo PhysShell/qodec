@@ -1,7 +1,13 @@
 # case-0002 :: source blobs and the tools that bind them
 # Every digest below was computed on the bytes shipped, in this branch.
 
-authoritative_lock: SOURCE-LOCK-v3.yaml
+authoritative_lock: SOURCE-LOCK-v4.yaml
+
+counting_rule: >-
+  No unattributed count enters the lock. A generated count names the frozen
+  tool that produced it. An externally reproduced count names its producer and
+  its verification status. Reviewer-plane counts are currently of the second
+  kind and are labelled as such in the lock.
 
 blobs:
 
@@ -51,21 +57,38 @@ tools:
     id: o7.case0002.window-invariant/v0
     proves: >-
       The window blob is byte-for-byte the anchored slice of the prefix blob.
-    bytes: 5323
-    sha256: 009484934a021420dca748701e0ce1735f1fbba730a285ca0f62d01c2f362109
+    bytes: 6688
+    sha256: f1239b36225784410e3f550d08052e341545412626a8b614544566fda8ffbe1d
+    supersedes_implementation_sha256: 009484934a021420dca748701e0ce1735f1fbba730a285ca0f62d01c2f362109
     output: window-invariant.json
     output_sha256: 881f1b3b52a29bec58f03ba3d063e56608262b58b47b7cd83f5f7eba7fd0125b
     exit_code: 0
-    negative_controls: altered digest, off-by-one record count, swapped anchors; each exits 1
+    fails_closed: >-
+      Every non-blank line of both blobs must parse as a JSON object; the
+      first that does not is refused with its line number.
+    negative_controls: >-
+      Altered digest, off-by-one record count, swapped anchors, malformed
+      JSONL line, JSON scalar in place of a record. Each exits 1.
 
   - name: source_profiler.py
     id: o7.case0002.source-profiler/v0
-    is: the frozen measurement filter; no count enters a lock unless it produced it
-    bytes: 11508
-    sha256: 594695a59bbeaa24585a540194827738a88509638ef6cb2ca8931cb6bf22366c
+    is: >-
+      The frozen measurement filter. Counts it produced name it; counts it did
+      not produce name whoever did.
+    bytes: 13070
+    sha256: 2ca7a124a04a56d4d82c9d9e3e7015e28e884ab694d05cb3d8c3ac828ba75c77
+    supersedes_implementation_sha256: 594695a59bbeaa24585a540194827738a88509638ef6cb2ca8931cb6bf22366c
     output: coder-profile.json
     output_sha256: 39fc8c24e340b57bcdff8f395a5c3002bd7f8e754ca05c43595b47c85e45e31c
-    reviewer_run: not run, the export is absent
+    fails_closed: >-
+      Refuses the first non-blank line that is not a JSON object, naming it.
+    reviewer_run: >-
+      Not run; the export is absent. Expected canonical output digest
+      c46343a3dd9a82ec85b65df4b49ed45932cb8b9e7fe44155cfc6e95016c17dda, on the
+      reviewer's authority, to be replayed when the export enters the CAS.
+    contract_unchanged_by_hardening: >-
+      Both hardened tools reproduced the recorded outputs byte for byte over
+      the well-formed blobs, so no published count moved.
 
 history:
   documents:
@@ -77,14 +100,29 @@ history:
       bytes: 13470
       sha256: 3e07a9d8fafc2c73fd2509da72096e75ab8c54b05197ab2941701cdb715192e0
       git_blob_sha1: 83c46fd5f3284c4f1c6ffd387c78a11600815cb4
+    - name: history/SOURCE-LOCK-v3.yaml
+      bytes: 22099
+      sha256: 553e5badedc14350eb131895ddbb33be2abc3791525555ba35fc87ba4c229a32
+      git_blob_sha1: bebf2f8578abee6120aec791968fc36e98769e9f
   note: >-
-    Two non-identical documents were both called revision 2. Both are kept.
-    SOURCE-LOCK-v3.yaml supersedes both and records why.
+    Two non-identical documents were both called revision 2. Both are kept,
+    with SOURCE-LOCK-v3.yaml beside them. SOURCE-LOCK-v4.yaml supersedes all
+    three and records why.
 
 identity:
   bind_to_objects_not_to_the_branch: true
-  first_commit: d4decebd5cebaf04920f9bd6f2a5eba26866a1ed
-  first_tree: 7fbe15bdad41843b3f6a7647ecba4c8612ac02dc
+  source_data_origin:
+    commit: d4decebd5cebaf04920f9bd6f2a5eba26866a1ed
+    tree: 7fbe15bdad41843b3f6a7647ecba4c8612ac02dc
+    covers: the two gzip source blobs and nothing else
+  metadata_bundle:
+    covers: the authoritative lock, the tools, their outputs, the superseded locks
+    binding: external_exact_head
+    note: >-
+      Naming the first commit binds the data and not the metadata. The exact
+      metadata head must be recorded by the Round 0 manifest, outside these
+      files, because a document cannot contain the hash of the commit that
+      contains it.
   note: >-
     The branch ref is a locator and can move. Commit, tree and blob ids cannot.
 

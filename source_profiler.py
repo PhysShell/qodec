@@ -32,6 +32,19 @@ REVIEWER PLANE, extraction ladder
     after_final_text_filter        minus preambles: a visible text node is a
                                    preamble unless it is the last assistant
                                    node before the next user node
+
+FAILING CLOSED
+    Every non-blank JSONL line must parse as a JSON object. The first line that
+    does not is a refusal naming its line number. A profiler that skips what it
+    cannot read is measuring a universe it silently edited, and reporting the
+    result as if it had measured the one it was given.
+
+    The measurement contract is the output, and it is versioned by the "tool"
+    field. This file is its implementation, versioned by its own digest. The
+    strictness added in the hardening pass alters behaviour only on input the
+    earlier implementation should never have accepted, so the contract is
+    unchanged and a run over well-formed input reproduces the earlier output
+    byte for byte.
 """
 
 from __future__ import annotations
@@ -40,6 +53,11 @@ import argparse
 import json
 import re
 import sys
+
+
+class MalformedBlob(Exception):
+    """Raised on the first unreadable line. There is no second one."""
+
 
 PING_BYTES = 200
 RELAY_BYTES = 2000
@@ -99,17 +117,31 @@ def classify_user_turn(body, anchor_uuid, uuid):
     return "authored_directive"
 
 
-def profile_coder(path, anchor_uuid):
+def read_jsonl(path):
+    """Every non-blank line, parsed. The first unreadable one is fatal."""
     records = []
     with open(path, encoding="utf-8") as handle:
-        for line in handle:
+        for number, line in enumerate(handle, start=1):
             line = line.strip()
             if not line:
                 continue
             try:
-                records.append(json.loads(line))
-            except ValueError:
-                continue
+                record = json.loads(line)
+            except ValueError as exc:
+                raise MalformedBlob(
+                    "%s line %d does not parse as JSON: %s" % (path, number, exc)
+                )
+            if not isinstance(record, dict):
+                raise MalformedBlob(
+                    "%s line %d parses as %s, expected a JSON object"
+                    % (path, number, type(record).__name__)
+                )
+            records.append(record)
+    return records
+
+
+def profile_coder(path, anchor_uuid):
+    records = read_jsonl(path)
 
     kinds = {}
     tools = {}
@@ -313,14 +345,20 @@ def main(argv=None):
     args = parser.parse_args(argv)
 
     report = {"tool": "o7.case0002.source-profiler/v0"}
-    if args.coder_window:
-        report["coder"] = profile_coder(args.coder_window, args.coder_anchor_uuid)
-    if args.reviewer_export:
-        if not (args.reviewer_start and args.reviewer_end):
-            parser.error("--reviewer-export requires --reviewer-start and --reviewer-end")
-        report["reviewer"] = profile_reviewer(
-            args.reviewer_export, args.reviewer_start, args.reviewer_end
-        )
+    try:
+        if args.coder_window:
+            report["coder"] = profile_coder(args.coder_window, args.coder_anchor_uuid)
+        if args.reviewer_export:
+            if not (args.reviewer_start and args.reviewer_end):
+                parser.error(
+                    "--reviewer-export requires --reviewer-start and --reviewer-end"
+                )
+            report["reviewer"] = profile_reviewer(
+                args.reviewer_export, args.reviewer_start, args.reviewer_end
+            )
+    except MalformedBlob as exc:
+        sys.stderr.write("refusing to profile: %s\n" % exc)
+        return 1
     if len(report) == 1:
         parser.error("nothing to profile")
 

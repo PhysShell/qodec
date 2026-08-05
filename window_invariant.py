@@ -13,6 +13,16 @@ claimed between them. This tool computes the relation and fails closed.
 
 Exit 0 only if every check passes. Any failure prints the failures and exits 1.
 Nothing is repaired, nothing is warned about and continued past.
+
+Both blobs are scanned strictly and separately. A non-blank line that does not
+parse, or that parses to anything other than a JSON object, is a refusal naming
+its line number, not a line quietly dropped from the count. A parser that skips
+what it cannot read reports a record count for a universe it silently edited.
+
+The measurement contract is the output. This file is its implementation. The
+strictness added in the hardening pass changes behaviour only on input the
+earlier implementation should never have accepted, so a run over well-formed
+input reproduces the earlier output byte for byte.
 """
 
 from __future__ import annotations
@@ -23,43 +33,41 @@ import json
 import sys
 
 
-def load_lines(path):
+class MalformedBlob(Exception):
+    """Raised on the first unreadable line. There is no second one."""
+
+
+def read_blob(path):
     with open(path, "rb") as handle:
         raw = handle.read()
-    if not raw.endswith(b"\n"):
-        return raw.split(b"\n"), False
-    return raw[:-1].split(b"\n"), True
+    newline_terminated = raw.endswith(b"\n")
+    body = raw[:-1] if newline_terminated else raw
+    return body.split(b"\n"), newline_terminated
 
 
-def record_uuids(lines):
-    """Map uuid -> list of line offsets. A uuid seen twice keeps both."""
-    seen = {}
+def scan(lines, label):
+    """Parse every non-blank line. Return [(line_offset, record)].
+
+    Raises MalformedBlob on the first line that is not a JSON object.
+    """
+    parsed = []
     for offset, line in enumerate(lines):
         stripped = line.strip()
         if not stripped:
             continue
         try:
             record = json.loads(stripped)
-        except ValueError:
-            continue
-        uuid = record.get("uuid")
-        if uuid:
-            seen.setdefault(uuid, []).append(offset)
-    return seen
-
-
-def count_records(chunk_lines):
-    total = 0
-    for line in chunk_lines:
-        stripped = line.strip()
-        if not stripped:
-            continue
-        try:
-            json.loads(stripped)
-        except ValueError:
-            continue
-        total += 1
-    return total
+        except ValueError as exc:
+            raise MalformedBlob(
+                "%s line %d does not parse as JSON: %s" % (label, offset + 1, exc)
+            )
+        if not isinstance(record, dict):
+            raise MalformedBlob(
+                "%s line %d parses as %s, expected a JSON object"
+                % (label, offset + 1, type(record).__name__)
+            )
+        parsed.append((offset, record))
+    return parsed
 
 
 def main(argv=None):
@@ -74,11 +82,28 @@ def main(argv=None):
 
     problems = []
 
-    prefix_lines, prefix_newline_terminated = load_lines(args.prefix)
+    prefix_lines, prefix_newline_terminated = read_blob(args.prefix)
     if not prefix_newline_terminated:
         problems.append("prefix blob does not end with a newline")
 
-    index = record_uuids(prefix_lines)
+    with open(args.window, "rb") as handle:
+        window_bytes = handle.read()
+    window_lines, window_newline_terminated = read_blob(args.window)
+    if not window_newline_terminated:
+        problems.append("window blob does not end with a newline")
+
+    try:
+        prefix_records = scan(prefix_lines, "prefix")
+        window_records = scan(window_lines, "window")
+    except MalformedBlob as exc:
+        print(json.dumps({"problems": [str(exc)]}, indent=2, sort_keys=True))
+        return 1
+
+    index = {}
+    for offset, record in prefix_records:
+        uuid = record.get("uuid")
+        if uuid:
+            index.setdefault(uuid, []).append(offset)
 
     start_hits = index.get(args.start_uuid, [])
     end_hits = index.get(args.end_uuid, [])
@@ -94,20 +119,27 @@ def main(argv=None):
         )
 
     extracted = None
+    extracted_records = None
     if len(start_hits) == 1 and len(end_hits) == 1:
         lo, hi = start_hits[0], end_hits[0]
         if lo > hi:
             problems.append("start uuid appears after end uuid in the prefix")
         else:
             extracted = b"\n".join(prefix_lines[lo : hi + 1]) + b"\n"
-            found = count_records(prefix_lines[lo : hi + 1])
-            if found != args.expect_records:
+            extracted_records = sum(
+                1 for offset, _ in prefix_records if lo <= offset <= hi
+            )
+            if extracted_records != args.expect_records:
                 problems.append(
-                    "extracted %d records, expected %d" % (found, args.expect_records)
+                    "extracted %d records, expected %d"
+                    % (extracted_records, args.expect_records)
                 )
 
-    with open(args.window, "rb") as handle:
-        window_bytes = handle.read()
+    if len(window_records) != args.expect_records:
+        problems.append(
+            "window blob holds %d records, expected %d"
+            % (len(window_records), args.expect_records)
+        )
 
     window_digest = hashlib.sha256(window_bytes).hexdigest()
     if window_digest != args.expect_window_sha256:
@@ -118,19 +150,17 @@ def main(argv=None):
 
     if extracted is None:
         problems.append("extraction did not run, so the relation is unproven")
-    else:
-        extracted_digest = hashlib.sha256(extracted).hexdigest()
-        if extracted != window_bytes:
-            problems.append(
-                "extracted slice differs from the window blob "
-                "(%d bytes / %s versus %d bytes / %s)"
-                % (
-                    len(extracted),
-                    extracted_digest,
-                    len(window_bytes),
-                    window_digest,
-                )
+    elif extracted != window_bytes:
+        problems.append(
+            "extracted slice differs from the window blob "
+            "(%d bytes / %s versus %d bytes / %s)"
+            % (
+                len(extracted),
+                hashlib.sha256(extracted).hexdigest(),
+                len(window_bytes),
+                window_digest,
             )
+        )
 
     report = {
         "prefix": args.prefix,
@@ -142,13 +172,7 @@ def main(argv=None):
         "start_line_offset": start_hits[0] if len(start_hits) == 1 else None,
         "end_line_offset": end_hits[0] if len(end_hits) == 1 else None,
         "extracted_bytes": len(extracted) if extracted is not None else None,
-        "extracted_records": (
-            count_records(
-                prefix_lines[start_hits[0] : end_hits[0] + 1]
-            )
-            if len(start_hits) == 1 and len(end_hits) == 1 and start_hits[0] <= end_hits[0]
-            else None
-        ),
+        "extracted_records": extracted_records,
         "window_bytes": len(window_bytes),
         "window_sha256": window_digest,
         "byte_identical": extracted == window_bytes if extracted is not None else False,
