@@ -1,13 +1,24 @@
 # case-0002 :: source blobs and the tools that bind them
 # Every digest below was computed on the bytes shipped, in this branch.
 
-authoritative_lock: SOURCE-LOCK-v5.yaml
+authoritative_lock: SOURCE-LOCK-v6.yaml
 
 counting_rule: >-
   No unattributed count enters the lock. A generated count names the frozen
   tool that produced it. An externally reproduced count names its producer and
-  its verification status. Reviewer-plane counts are currently of the second
-  kind and are labelled as such in the lock.
+  its verification status.
+
+reviewer_counts:
+  produced_by: o7.case0002.source-profiler/v0
+  authority: deterministic_derivative
+  independently_corroborated: true
+  corroborated_by: reviewer, replaying the published algorithm
+  note: >-
+    Until commit 3973192 these were externally attributed counts. The frozen
+    tool has since been run against the digest-checked export, so they are
+    generated here and the reviewer's replay is corroboration rather than
+    provenance. The committed reviewer-profile.json is byte-identical to that
+    replay once the input path argument matches.
 
 blobs:
 
@@ -88,10 +99,14 @@ tools:
     reviewer_run: >-
       Performed, exit 0, against an export whose digest was checked first.
       Output reviewer-profile.json, sha256
-      a770c3e63b7c7aff729c8c519ca6e3c2a3398402ed5357e952bf649c04b26289. Every
-      measured value agrees with the reviewer's independent replay; the digest
-      they expected belongs to a different report envelope and the disagreement
-      is recorded in the lock rather than settled by editing either number.
+      a770c3e63b7c7aff729c8c519ca6e3c2a3398402ed5357e952bf649c04b26289, 1148
+      bytes, byte-identical to the reviewer's independent replay. The digest
+      they first expected, c46343a3..., came from the same corpus profiled
+      through /tmp/, and the reports differ in the blob field alone.
+    output_identity_includes_input_path: >-
+      The report records the literal path it was given, so an expectation must
+      name the path argument as well as the corpus. Canonical arguments:
+      chatgpt-export.json and claude-session.window-r21.jsonl.
     contract_unchanged_by_hardening: >-
       Both hardened tools reproduced the recorded outputs byte for byte over
       the well-formed blobs, so no published count moved.
@@ -114,10 +129,14 @@ history:
       bytes: 22201
       sha256: a9b0e21baaf489078e563e37fc8d231537dc37abad2a37df615faf7ce99a17d2
       git_blob_sha1: cb814954ad55eae44038d6c94e4ac45342fe922e
+    - name: history/SOURCE-LOCK-v5.yaml
+      bytes: 25754
+      sha256: fcb87ac37765da6568aa32e0b0cc09a3da2c4002ddbb888a287a80df7820e56d
+      git_blob_sha1: f04a272424b23b9733997e1c912980595284e7b8
   note: >-
     Two non-identical documents were both called revision 2. Both are kept,
-    with revisions 3 and 4 beside them. SOURCE-LOCK-v5.yaml supersedes all four
-    and records why each was superseded.
+    with revisions 3, 4 and 5 beside them. SOURCE-LOCK-v6.yaml supersedes all
+    five and records why each was superseded.
 
 identity:
   bind_to_objects_not_to_the_branch: true
@@ -166,7 +185,9 @@ not_included:
       blocking precondition for Round 0. Neither chat plane substitutes for it,
       and the two chat planes corroborate each other only because a human
       relayed the same text between them.
-  - id: privacy-decision
+  - id: reviewer-export-corpus
     detail: >-
-      Whether unredacted logs belong in a public repository is recorded as an
-      open controller decision in SOURCE-LOCK-v3.yaml, not as settled.
+      Verified and profiled, and its profile is committed, but the corpus is not
+      published here and has no durable store. See plane-reviewer.durability in
+      the lock: reviewer-plane measurement is complete, reviewer-plane storage
+      is not.

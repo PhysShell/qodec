@@ -4,7 +4,7 @@ This branch carries data, not code. Its first commit has no parent and shares no
 history with `main`. Nothing here is built, imported, or tested; it exists so
 that a fixture can be bound to bytes instead of to a container's mood.
 
-`SOURCE-LOCK-v5.yaml` is the authoritative document. `MANIFEST.yaml` lists every
+`SOURCE-LOCK-v6.yaml` is the authoritative document. `MANIFEST.yaml` lists every
 digest. Read those two; this file is the map.
 
 ## Contents
@@ -13,14 +13,14 @@ digest. Read those two; this file is the map.
 |---|---|
 | `claude-session.window-r21.jsonl.gz` | the R21.0 arc of the coder session, 527 records |
 | `claude-session.prefix-r21.jsonl.gz` | the whole coder session through record 17111 |
-| `SOURCE-LOCK-v5.yaml` | windows, authority rules, corrections, what is still missing |
+| `SOURCE-LOCK-v6.yaml` | windows, authority rules, corrections, what is still missing |
 | `reviewer-profile.json` | the reviewer plane's extraction ladder, as measured |
 | `MANIFEST.yaml` | digests, sizes, anchors, verification commands |
 | `window_invariant.py` | proves the window is the anchored slice of the prefix |
 | `source_profiler.py` | the frozen measurement filter |
 | `window-invariant.json` | that proof's output |
 | `coder-profile.json` | that filter's output |
-| `history/` | both documents called revision 2, and revisions 3 and 4 |
+| `history/` | both documents called revision 2, and revisions 3, 4 and 5 |
 
 Digests of the uncompressed blobs, which are the ones a fixture should bind:
 
@@ -112,7 +112,7 @@ shown the repository's public visibility, the personal address, the limits of
 the scan, and the fact that redaction voids every digest. The reviewer's
 contrary position — that a digest binds a private blob exactly as well as a
 public one, so publication is not required by the freeze design — is recorded
-alongside it in `SOURCE-LOCK-v5.yaml`, because a decision taken against a stated
+alongside it in `SOURCE-LOCK-v6.yaml`, because a decision taken against a stated
 objection should carry the objection with it.
 
 ## What is not here
@@ -120,12 +120,19 @@ objection should carry the objection with it.
 The third source plane. Repository, CI and evidence artifacts for the R21.0 arc
 are not frozen, and until they are, the two chat planes corroborate each other
 only because a human relayed the same text between them. See
-`finding_relay_coupling` in `SOURCE-LOCK-v5.yaml`.
+`finding_relay_coupling` in `SOURCE-LOCK-v6.yaml`.
 
-The reviewer plane's own export. It has been re-supplied and verified against
-its recorded digest, and the frozen profiler was run against it — the resulting
-`reviewer-profile.json` is here. The export itself is deliberately not: the
-controller's publication decision covered the coder-session blobs, and the
-export is a different corpus carrying unrelated conversations. Publishing it is
-a separate decision that has not been taken. The profile carries counts, node
-identifiers and role tallies only, and no message text.
+The reviewer plane's own export. It was re-supplied, verified against its
+recorded digest, and profiled by the frozen tool; the resulting
+`reviewer-profile.json` is here, and it is byte-identical to an independent
+replay. The corpus itself is deliberately not here — the controller's
+publication decision covered the coder-session blobs, and this is a different
+corpus carrying unrelated conversations — and publishing it is not a Round 0
+requirement.
+
+That leaves the reviewer plane measured but not stored. The export has already
+vanished twice from the ephemeral container that held it. The coder blobs
+survive those resets only because they are committed here; the export is not,
+and has no durable object id. A digest attests a future copy without producing
+one, so reviewer-plane durability has to be settled before a fixture is locked,
+even though nothing in Round 0 waits on it.
