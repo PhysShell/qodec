@@ -1,0 +1,87 @@
+# case-0002 :: transcript blobs, manifest
+# Produced 2026-08-05, session 7e07d6be, PhysShell/qodec.
+# Every digest below was computed on the bytes shipped, not on an earlier copy.
+
+blobs:
+
+  - name: claude-session.window-r21.jsonl
+    what: >-
+      The R21.0 arc only. Records 16585 through 17111 of the coder session,
+      inclusive, in original order and original bytes. This is the slice
+      case-0002 actually needs.
+    bytes: 1873570
+    records: 527
+    sha256: 7b74dd3a521b7e999ef794450f1b0e15d563421a03cfa1ad499f8c7600adc023
+    gzip:
+      name: claude-session.window-r21.jsonl.gz
+      bytes: 526718
+      sha256: 132c359fb9cc0de7c19f58a223d1f01309bb0a9235ab29d1ceccb64a77e59381
+    start_record:
+      index: 16585
+      uuid: 3a0760a5-e751-4ece-81e8-c9aea36a4ad4
+      timestamp: "2026-08-02T16:06:26.130Z"
+      role: human, authored
+    end_record:
+      index: 17111
+      uuid: 3794550b-a82a-4f52-a785-9a599894d6ea
+      timestamp: "2026-08-03T18:00:08.189Z"
+      role: assistant
+
+  - name: claude-session.prefix-r21.jsonl
+    what: >-
+      The whole session from its first record through record 17111. Superset of
+      the window. Carries every earlier round, including Round 20 and the merge
+      reversal, so cand-B and cand-C stay reachable without a second export.
+    bytes: 87564394
+    sha256: 8392de803d600b19ac8273a43b2b766951d2eaf9a9197e1d8d43e97f541fca1c
+    gzip:
+      name: claude-session.prefix-r21.jsonl.gz
+      bytes: 21239298
+      sha256: 950dcd4af8c43f478aa92b32d58974289eb00a23e8b051ae441a33655893cb5d
+
+  - name: chatgpt-export.json
+    what: reviewer plane, as supplied
+    bytes: 5963644
+    sha256: ed518b334485ef5421aab0229a4e4a0dc9bc489cb78d1eba00b5eb50d286e7e8
+    conversation_id: 6a6e220a-a154-83eb-9917-54e9a3cac8e5
+    shipped_here: false
+    reason: supplied by the controller; digest recorded for binding only
+
+# ---------------------------------------------------------------------------
+append_only_property:
+  claim: >-
+    A digest over a record prefix of the coder session is stable; a digest over
+    the whole file is not, because the session is still appending to it.
+  evidence: >-
+    The prefix through record 17111 was frozen at 02:07 UTC and recomputed at
+    02:34 UTC, after a container reset and after 31 further records had been
+    appended to the source file. Byte length 87564394 and sha256
+    8392de803d600b19ac8273a43b2b766951d2eaf9a9197e1d8d43e97f541fca1c reproduced
+    exactly. Over the same interval the whole file moved from 87858714 bytes to
+    88002155.
+  consequence: >-
+    Bind the prefix. Anchors are uuids, not indices, so the binding survives any
+    re-derivation of the index.
+
+verify:
+  window: >-
+    sha256sum claude-session.window-r21.jsonl
+    then confirm the first and last non-blank lines carry the uuids above.
+  prefix: >-
+    gunzip -c claude-session.prefix-r21.jsonl.gz | sha256sum
+    must equal the prefix sha256 above.
+
+not_included:
+  - id: plane-record
+    detail: >-
+      Repository, CI and evidence artifacts are still unfrozen and remain the
+      blocking precondition for Round 0. Neither chat plane substitutes for it,
+      and the two chat planes corroborate each other only because a human
+      relayed the same text between them.
+
+operational_note: >-
+  The scratchpad holding these blobs was wiped again between the previous
+  message and this one, taking the rev-2 lock file and the first CAS copy with
+  it. The blobs were regenerated from the live session file and verified against
+  the recorded digests. This is the seventeenth such reset in this session and
+  it is the reason the digests, not the file locations, are the artifact.
