@@ -1,0 +1,43 @@
+{
+  "reviewer": {
+    "blob": "chatgpt-export.json",
+    "content_types": {
+      "code": 69,
+      "execution_output": 3,
+      "multimodal_text": 55,
+      "reasoning_recap": 19,
+      "text": 68,
+      "thoughts": 44
+    },
+    "end_node": "d5b0a463-8a20-463d-9f3f-db9356710012",
+    "ladder": {
+      "after_final_text_filter": 20,
+      "after_hidden_reasoning_filter": 76,
+      "after_tool_plumbing_filter": 34,
+      "all_assistant_nodes": 139
+    },
+    "ladder_bytes": {
+      "after_final_text_filter": 165010,
+      "after_hidden_reasoning_filter": 176276,
+      "after_tool_plumbing_filter": 170546,
+      "preambles": 5536
+    },
+    "preamble_nodes": 14,
+    "problems": [],
+    "roles": {
+      "assistant": 139,
+      "tool:api_tool": 14,
+      "tool:api_tool.call_tool": 65,
+      "tool:api_tool.find_in_resource": 15,
+      "tool:api_tool.read_resource": 2,
+      "tool:container.download": 1,
+      "tool:container.exec": 2,
+      "user": 20
+    },
+    "start_node": "264366ab-a59c-45e2-96e3-00b032cedeb1",
+    "user_bytes": 74556,
+    "user_nodes": 20,
+    "window_nodes": 258
+  },
+  "tool": "o7.case0002.source-profiler/v0"
+}

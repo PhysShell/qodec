@@ -1,7 +1,7 @@
 # case-0002 :: source blobs and the tools that bind them
 # Every digest below was computed on the bytes shipped, in this branch.
 
-authoritative_lock: SOURCE-LOCK-v4.yaml
+authoritative_lock: SOURCE-LOCK-v5.yaml
 
 counting_rule: >-
   No unattributed count enters the lock. A generated count names the frozen
@@ -47,9 +47,12 @@ blobs:
     sha256: ed518b334485ef5421aab0229a4e4a0dc9bc489cb78d1eba00b5eb50d286e7e8
     conversation_id: 6a6e220a-a154-83eb-9917-54e9a3cac8e5
     shipped_here: false
+    digest_verified_on_receipt: true
     reason: >-
-      Supplied as an attachment and lost with the container's upload directory.
-      Digest recorded so a re-supplied copy can be bound rather than trusted.
+      Re-supplied and verified against this digest before use, then profiled
+      from a working CAS. Not committed here: the controller's publication
+      decision covered the coder-session blobs, and this is a different corpus.
+      Its profile is committed; the corpus is not.
 
 tools:
 
@@ -83,9 +86,12 @@ tools:
     fails_closed: >-
       Refuses the first non-blank line that is not a JSON object, naming it.
     reviewer_run: >-
-      Not run; the export is absent. Expected canonical output digest
-      c46343a3dd9a82ec85b65df4b49ed45932cb8b9e7fe44155cfc6e95016c17dda, on the
-      reviewer's authority, to be replayed when the export enters the CAS.
+      Performed, exit 0, against an export whose digest was checked first.
+      Output reviewer-profile.json, sha256
+      a770c3e63b7c7aff729c8c519ca6e3c2a3398402ed5357e952bf649c04b26289. Every
+      measured value agrees with the reviewer's independent replay; the digest
+      they expected belongs to a different report envelope and the disagreement
+      is recorded in the lock rather than settled by editing either number.
     contract_unchanged_by_hardening: >-
       Both hardened tools reproduced the recorded outputs byte for byte over
       the well-formed blobs, so no published count moved.
@@ -104,10 +110,14 @@ history:
       bytes: 22099
       sha256: 553e5badedc14350eb131895ddbb33be2abc3791525555ba35fc87ba4c229a32
       git_blob_sha1: bebf2f8578abee6120aec791968fc36e98769e9f
+    - name: history/SOURCE-LOCK-v4.yaml
+      bytes: 22201
+      sha256: a9b0e21baaf489078e563e37fc8d231537dc37abad2a37df615faf7ce99a17d2
+      git_blob_sha1: cb814954ad55eae44038d6c94e4ac45342fe922e
   note: >-
     Two non-identical documents were both called revision 2. Both are kept,
-    with SOURCE-LOCK-v3.yaml beside them. SOURCE-LOCK-v4.yaml supersedes all
-    three and records why.
+    with revisions 3 and 4 beside them. SOURCE-LOCK-v5.yaml supersedes all four
+    and records why each was superseded.
 
 identity:
   bind_to_objects_not_to_the_branch: true
