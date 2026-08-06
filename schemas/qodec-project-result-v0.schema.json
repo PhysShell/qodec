@@ -1,0 +1,80 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://physshell.dev/qodec/schemas/qodec-project-result-v0.schema.json",
+  "title": "qodec-project-result-v0",
+  "description": "Result of a generic relation-aware projection. Every identity is recomputed by qodec from the request bytes. Reason codes are closed enums; human prose (detail) may supplement but never replace a code.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema", "request_id", "request_canonical_sha256", "producer", "selected", "relations", "omitted", "budget", "requirements", "result_canonical_sha256"],
+  "properties": {
+    "schema": {"const": "qodec-project-result-v0"},
+    "request_id": {"type": "string"},
+    "request_canonical_sha256": {"$ref": "#/$defs/sha256"},
+    "producer": {
+      "type": "object", "additionalProperties": false,
+      "required": ["version", "implementation_sha256", "execution_commit", "execution_tree"],
+      "properties": {
+        "version": {"const": "qodec.project/v0"},
+        "implementation_sha256": {"$ref": "#/$defs/sha256"},
+        "execution_commit": {"type": "string"},
+        "execution_tree": {"type": "string"}
+      }
+    },
+    "selected": {
+      "type": "array",
+      "items": {
+        "type": "object", "additionalProperties": false,
+        "required": ["id", "payload", "canonical_bytes", "selection_reason_codes"],
+        "properties": {
+          "id": {"type": "string"},
+          "payload": {},
+          "canonical_bytes": {"type": "integer", "minimum": 0},
+          "selection_reason_codes": {"type": "array", "items": {"$ref": "#/$defs/selection_reason_code"}, "minItems": 1}
+        }
+      }
+    },
+    "relations": {
+      "type": "array",
+      "items": {"type": "object", "additionalProperties": false, "required": ["from", "kind", "to"],
+        "properties": {"from": {"type": "string"}, "kind": {"type": "string"}, "to": {"type": "string"}}}
+    },
+    "omitted": {
+      "type": "array",
+      "items": {"type": "object", "additionalProperties": false, "required": ["id", "reason_code", "detail"],
+        "properties": {"id": {"type": "string"}, "reason_code": {"$ref": "#/$defs/omission_reason_code"},
+          "detail": {"type": ["string", "null"]}}}
+    },
+    "budget": {
+      "type": "object", "additionalProperties": false,
+      "required": ["semantic_bytes_used", "selected_records", "semantic_byte_limit", "record_limit", "within_budget"],
+      "properties": {
+        "semantic_bytes_used": {"type": "integer", "minimum": 0},
+        "selected_records": {"type": "integer", "minimum": 0},
+        "semantic_byte_limit": {"type": "integer", "minimum": 0},
+        "record_limit": {"type": "integer", "minimum": 0},
+        "within_budget": {"type": "boolean"}
+      }
+    },
+    "requirements": {
+      "type": "array",
+      "items": {
+        "type": "object", "additionalProperties": false,
+        "required": ["requirement_id", "expected_targets", "present_targets", "materialized_targets", "relation_only_targets", "satisfied"],
+        "properties": {
+          "requirement_id": {"type": "string"},
+          "expected_targets": {"type": "array", "items": {"type": "string"}},
+          "present_targets": {"type": "array", "items": {"type": "string"}},
+          "materialized_targets": {"type": "array", "items": {"type": "string"}},
+          "relation_only_targets": {"type": "array", "items": {"type": "string"}},
+          "satisfied": {"type": "boolean"}
+        }
+      }
+    },
+    "result_canonical_sha256": {"$ref": "#/$defs/sha256"}
+  },
+  "$defs": {
+    "sha256": {"type": "string", "pattern": "^sha256:[0-9a-f]{64}$"},
+    "selection_reason_code": {"enum": ["base_selected", "required_record", "edge_witness_source", "edge_witness_target", "all_current_source", "all_current_target"]},
+    "omission_reason_code": {"enum": ["not_selected", "relation_only_target", "ineligible"]}
+  }
+}

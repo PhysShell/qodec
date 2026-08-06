@@ -1,0 +1,63 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://physshell.dev/qodec/schemas/qodec-project-request-v0.schema.json",
+  "title": "qodec-project-request-v0",
+  "description": "Generic relation-aware projection request. Carries NO domain meaning: eligibility, staleness, authority and topics are decided by the caller and arrive as `eligible` + opaque `caller_evidence`. qodec enforces the supplied admission decision and recomputes all identities; it never redefines domain semantics. The caller-supplied `input_digest` is a claim and is excluded from the recomputed request canonical digest.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema", "request_id", "budget", "records", "relations", "relation_requirements", "required_record_ids"],
+  "properties": {
+    "schema": {"const": "qodec-project-request-v0"},
+    "request_id": {"type": "string", "minLength": 1},
+    "input_digest": {"type": "string", "description": "caller claim; excluded from the recomputed request canonical digest"},
+    "budget": {
+      "type": "object", "additionalProperties": false,
+      "required": ["semantic_byte_limit", "record_limit"],
+      "properties": {
+        "semantic_byte_limit": {"type": "integer", "minimum": 0},
+        "record_limit": {"type": "integer", "minimum": 0}
+      }
+    },
+    "records": {
+      "type": "array",
+      "items": {
+        "type": "object", "additionalProperties": false,
+        "required": ["id", "payload", "eligible", "base_selected", "caller_evidence"],
+        "properties": {
+          "id": {"type": "string", "minLength": 1},
+          "payload": {"description": "opaque JSON value; preserved byte-exact; canonical bytes recomputed"},
+          "eligible": {"type": "boolean", "description": "caller's admission decision; enforced, never redefined"},
+          "base_selected": {"type": "boolean", "description": "in the caller's baseline projection"},
+          "relevance_score": {"type": "number", "description": "informational in v0 (closure, not optimizer)"},
+          "caller_evidence": {"description": "opaque; validated-present, never interpreted"}
+        }
+      }
+    },
+    "relations": {
+      "type": "array",
+      "items": {
+        "type": "object", "additionalProperties": false,
+        "required": ["from", "kind", "to"],
+        "properties": {"from": {"type": "string"}, "kind": {"type": "string"}, "to": {"type": "string"}}
+      }
+    },
+    "relation_requirements": {
+      "type": "array",
+      "items": {
+        "type": "object", "additionalProperties": false,
+        "required": ["requirement_id", "from", "kind", "direction", "depth", "match", "endpoint_policy", "expected_targets"],
+        "properties": {
+          "requirement_id": {"type": "string", "minLength": 1},
+          "from": {"type": "string"},
+          "kind": {"type": "string"},
+          "direction": {"const": "outgoing"},
+          "depth": {"const": 1},
+          "match": {"const": "all"},
+          "endpoint_policy": {"enum": ["edge_witness", "all_current_targets_materialized"]},
+          "expected_targets": {"type": "array", "items": {"type": "string"}}
+        }
+      }
+    },
+    "required_record_ids": {"type": "array", "items": {"type": "string"}}
+  }
+}

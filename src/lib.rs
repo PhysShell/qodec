@@ -21,6 +21,7 @@ pub mod panel;
 pub mod paper;
 pub mod ppl;
 pub mod profile;
+pub mod project;
 pub mod provider;
 pub mod query;
 pub mod rank;
