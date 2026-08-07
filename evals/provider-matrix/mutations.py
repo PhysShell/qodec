@@ -1864,9 +1864,11 @@ MUTATIONS = [
      "        moment = datetime.datetime.strptime(value, OBSERVED_AT_FORMAT)",
      "        moment = datetime.datetime(1970, 1, 1)"),
 
-    ("TS3 the canonical round-trip stops being required",
-     "    if moment.strftime(OBSERVED_AT_FORMAT) != value:",
-     "    if False:"),
+    # TS3 (the canonical round-trip) is withdrawn, not listed: it is provably
+    # unobservable on the platform this suite runs on. See `WITHDRAWN` below and
+    # its machine-checked record; the round-trip stays in production as portable
+    # defence for a libc whose `strftime('%Y')` under-pads, which the glibc
+    # contract runner is not.
 
     ("TS4 an offset spelling is admitted alongside Z",
      "OBSERVED_AT_PATTERN = re.compile(r\"\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}Z\\Z\")",
@@ -2188,6 +2190,91 @@ EXPECTED_KILL = {
 }
 
 
+# Withdrawn, not deleted. A withdrawal is a claim that a specific edit cannot be
+# *observed* through any oracle on the platform the suite runs on -- not licence
+# to forget the edit. Each entry keeps the exact anchor and replacement it
+# withdraws, plus a machine-readable class and a technically justified reason, so
+# the record is data a check can read rather than prose a reader must trust.
+# `withdrawal_problems` proves every entry is still a real, applicable mutation:
+# an anchor that stopped matching is a withdrawal about a line that moved, and
+# nobody would notice the day the edit became killable. A withdrawn name may not
+# also be a live `MUTATIONS` entry, so the file cannot both count and excuse the
+# same edit.
+WITHDRAWN = [
+    {
+        "name": "TS3 the canonical round-trip stops being required",
+        "target": "provider_matrix.py",
+        "anchor": "    if moment.strftime(OBSERVED_AT_FORMAT) != value:",
+        "replacement": "    if False:",
+        "class": "unobservable-on-cpython-glibc",
+        "reason": (
+            "In `canonical_observed_at` the round-trip runs only after "
+            "`OBSERVED_AT_PATTERN.fullmatch(value)` and "
+            "`datetime.strptime(value, OBSERVED_AT_FORMAT)` have both accepted "
+            "`value`. Every field but the year is fixed to a constant width by "
+            "the pattern and reproduced at that width by `strftime`; the year is "
+            "the only variable-width field, and on CPython+glibc `strftime('%Y')` "
+            "zero-pads it to four digits, which the pattern's `\\d{4}` already "
+            "required. So for every input that reaches the round-trip, "
+            "`strftime(strptime(value)) == value` holds by construction: the "
+            "check can never reject and emits no diagnostic, so removing it "
+            "changes no accept/reject decision and no message. Retargeting has no "
+            "observable to move to; killing it would require asserting a platform "
+            "the oracle is not. The only inputs it could catch -- a libc whose "
+            "`strftime` under-pads years < 1000 so `'0033'` round-trips to "
+            "`'33'` -- do not arise on the glibc contract runner. Verified "
+            "empirically: two-digit-year, `+00:00` offset, and "
+            "Arabic/Devanagari/fullwidth-digit spellings are all refused by the "
+            "pattern or `strptime` before the round-trip is reached."
+        ),
+        "kept_because": (
+            "The round-trip stays in production as portable defence for a "
+            "non-glibc libc; only the mutation -- the claim that this suite can "
+            "observe its removal -- is withdrawn. The sibling shape checks TS1 "
+            "(pattern) and TS4 (offset) remain live and are killed by "
+            "`test_an_offset_is_refused_by_its_form_and_not_the_calendar`."
+        ),
+    },
+]
+
+
+def withdrawal_problems(withdrawn: list, mutations: list) -> list[str]:
+    """Refuse a withdrawal that has rotted or that excuses a live mutation.
+
+    A withdrawn edit must still apply exactly once to the source it names: an
+    anchor that no longer matches is a claim about a line that moved, and the
+    day the edit becomes killable nothing would go red. A withdrawn name that is
+    also a live `MUTATIONS` entry is the file counting and excusing one edit at
+    once. Both are the same self-flattery `spec_problems` refuses, on the other
+    side of the ledger.
+    """
+    problems = []
+    live = {spec[0] for spec in mutations}
+    seen: set[str] = set()
+    for entry in withdrawn:
+        name = entry["name"]
+        if name in seen:
+            problems.append(f"withdrawn {name!r} is listed twice")
+        seen.add(name)
+        if name in live:
+            problems.append(f"withdrawn {name!r} is also a live mutation")
+        if not entry.get("reason"):
+            problems.append(f"withdrawn {name!r} records no reason")
+        if not entry.get("class"):
+            problems.append(f"withdrawn {name!r} records no class")
+        anchor, replacement = entry["anchor"], entry["replacement"]
+        if anchor == replacement:
+            problems.append(f"withdrawn {name!r}: anchor and replacement are equal; nothing is withdrawn")
+        target = entry.get("target", DEFAULT_TARGET)
+        source = (HERE / target).read_text(encoding="utf-8")
+        count = source.count(anchor)
+        if count != 1:
+            problems.append(
+                f"withdrawn {name!r}: anchor matched {count} time(s) in {target}, not 1; "
+                "the withdrawal is stale")
+    return problems
+
+
 def main() -> int:
     original = SRC.read_text(encoding="utf-8")
     problems = spec_problems(MUTATIONS, EXPECTED_KILL)
@@ -2207,6 +2294,14 @@ def main() -> int:
         for line in unanchored:
             print(f"FAIL {line}")
         return 2
+    withdrawn_bad = withdrawal_problems(WITHDRAWN, MUTATIONS)
+    if withdrawn_bad:
+        print("FAIL a withdrawal has rotted or excuses a live mutation:")
+        for line in withdrawn_bad:
+            print(f"  {line}")
+        return 2
+    for entry in WITHDRAWN:
+        print(f"  withdrawn {entry['name']}  ({entry['class']}: unobservable, not deleted)")
     failures: list[str] = []
     with tempfile.TemporaryDirectory() as tmp:
         work = Path(tmp) / "provider-matrix"

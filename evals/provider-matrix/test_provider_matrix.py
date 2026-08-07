@@ -6415,6 +6415,42 @@ class PlanIdentityTests(unittest.TestCase):
         self.assertNotIn('plan["plan_sha256"]', source)
         self.assertNotIn('plan.get("plan_sha256")', source)
 
+    def test_the_plan_boundary_reports_every_emission_problem_not_just_the_first(self):
+        # `plan_problems` consumes `emission_problems(selected)`. A slice to the
+        # first line would report one collision per run, so a caller with three
+        # learns them one run at a time. `EmissionPreflightTests` proves
+        # `emission_problems` returns all of them; this proves the plan boundary
+        # above it does not throw the rest away, which is a different line.
+        plan = self.plan(["a", "b"])
+        plan["selected"] = [{"provider": 1, "model": "m", "target_id": "x"},
+                            {"provider": 2, "model": "m", "target_id": "y"}]
+        problems = pm.plan_problems(plan, plan["plan_sha256"])
+        emitted = [line for line in problems if line.startswith("selected: selected[")]
+        self.assertGreaterEqual(len(emitted), 2, problems)
+
+    def test_a_permutation_is_refused_by_an_ordered_comparison_not_a_set(self):
+        # The plan digest covers the order of the ids, so two plans differing
+        # only in that order are two plans. A set (or sorted) comparison would
+        # accept a permutation the digest already refuses. Selected is placed in
+        # an order that differs from the sorted attestation, so only an ordered
+        # comparison can tell them apart; a sorted one would call them equal.
+        plan = self.plan(["a", "b"])
+        ids = [row["target_id"] for row in plan["selected"]]
+        plan["identity"]["selected_target_ids"] = sorted(ids)
+        if ids == sorted(ids):
+            plan["selected"] = list(reversed(plan["selected"]))
+        self.refused(self.reseal(plan), "disagree")
+
+    def test_an_unattested_identity_field_is_named(self):
+        # An identity carrying a field the schema does not attest is a plan
+        # saying more than it was reviewed to say. Resealed so the recomputed
+        # digest is not what fails instead.
+        plan = self.plan(["a"])
+        plan["identity"]["souvenir"] = "smuggled"
+        plan = self.reseal(plan)
+        problems = pm.plan_problems(plan, plan["plan_sha256"])
+        self.assertIn("identity carries unattested field 'souvenir'", problems)
+
 
 class ResultGenerationTests(unittest.TestCase):
     """A result directory is a generation, not a bag of JSON files.
@@ -6557,6 +6593,35 @@ class ResultGenerationTests(unittest.TestCase):
         self.assertEqual(pm.staging_beside(final).parent, final.parent)
         self.assertNotEqual(pm.staging_beside(final).name, final.name)
 
+    def test_a_staged_set_problem_is_not_published_even_when_cleanup_fails(self):
+        # The staged set is validated *before* the rename that publishes it, so a
+        # wrong set never reaches the final name. Move the validation after the
+        # rename and the wrong set is already published under that name; only
+        # `discard_staging` can take it back, and it is best-effort. Force a
+        # staged-set problem and let the cleanup fail: validated-before leaves
+        # nothing under the final name, validated-after leaves the wrong result
+        # wearing it -- the partial result with a good name this class exists to
+        # prevent.
+        with tempfile.TemporaryDirectory() as td:
+            out = Path(td) / "receipts"
+            plan = self.plan(["a", "b"])
+            real_emit = pm.emit_receipt
+
+            def emit_then_intrude(o, index, total, target_id, receipt):
+                written = real_emit(o, index, total, target_id, receipt)
+                if index == 0:
+                    (Path(o) / "intruder.json").write_text("{}", encoding="utf-8")
+                return written
+
+            with patch.object(pm, "emit_receipt", emit_then_intrude), \
+                    patch.object(pm.shutil, "rmtree", lambda *a, **k: None):
+                code, err = self.run_cli(plan, out)
+            self.assertEqual(code, 2, err)
+            self.assertIn("did not select", err)
+            published = {p.name for p in out.iterdir()} if out.exists() else set()
+            self.assertNotIn("intruder.json", published,
+                             "a set the plan never attested was published under the final name")
+
 
 class ObservedAtTests(unittest.TestCase):
     """The moment of observation is evidence, not prose."""
@@ -6576,6 +6641,21 @@ class ObservedAtTests(unittest.TestCase):
         for value in self.REJECTED:
             with self.assertRaises(ValueError, msg=value):
                 pm.canonical_observed_at(value)
+
+    def test_an_offset_is_refused_by_its_form_and_not_the_calendar(self):
+        # Three independent checks guard this value and an offset spelling like
+        # `+00:00` is refused by the first of them -- the pattern -- with a
+        # diagnostic that names the form. Drop the pattern and the offset falls
+        # through to `strptime`, which refuses it as a calendar; widen the
+        # pattern to admit the offset and it falls through the same way. Either
+        # way the moment is still refused, so a test that only checked *that* it
+        # was refused (as `test_the_rejected_spellings` does) would not notice.
+        # This checks *which* boundary refused it, by its diagnostic.
+        with self.assertRaises(ValueError) as caught:
+            pm.canonical_observed_at("2026-08-02T15:00:00+00:00")
+        message = str(caught.exception)
+        self.assertIn("no offset", message)
+        self.assertNotIn("not a real UTC calendar moment", message)
 
     def test_a_non_string_is_refused_at_the_helper_boundary(self):
         for value in (None, 0, 1754146800, 3.5, [], {}, True):
