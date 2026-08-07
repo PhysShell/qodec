@@ -27,6 +27,10 @@ enum Cmd {
     Encode(EncodeArgs),
     /// Decode a %q1 container back (unwraps pipelines).
     Decode(DecodeArgs),
+    /// Relation-aware projection (v0): read one `qodec-project-request-v0` JSON
+    /// request, emit one `qodec-project-result-v0` JSON result. Generic — no
+    /// domain semantics; the caller supplies eligibility, qodec enforces it.
+    Project(ProjectArgs),
     /// Freeze the heaviest profile phrases into an extern legend file — a
     /// stable dictionary for a cached prompt prefix (CLAUDE.md / system
     /// prompt). Artifacts pin its checksum; decode fails closed on drift.
@@ -276,6 +280,16 @@ struct DecodeArgs {
 }
 
 #[derive(Args)]
+struct ProjectArgs {
+    /// Input request file (qodec-project-request-v0 JSON). stdin when omitted.
+    #[arg(long)]
+    request: Option<PathBuf>,
+    /// Output result file (qodec-project-result-v0 JSON). stdout when omitted.
+    #[arg(long)]
+    out: Option<PathBuf>,
+}
+
+#[derive(Args)]
 struct LegendArgs {
     /// Profile from `qodec learn`.
     #[arg(long)]
@@ -419,6 +433,7 @@ struct PplArgs {
 fn main() -> Result<()> {
     match Cli::parse().cmd {
         Cmd::Encode(a) => cmd_encode(&a, false),
+        Cmd::Project(a) => cmd_project(&a),
         Cmd::Probe(a) => cmd_encode(&a, true),
         Cmd::Notation => {
             print!("{}", qodec::ab::notation_brief());
@@ -1270,6 +1285,35 @@ fn cmd_cost_bench(a: &CostBenchArgs) -> Result<()> {
         );
     } else {
         println!("\ndrift: no predicted paths ran ({skipped} skipped)");
+    }
+    Ok(())
+}
+
+fn cmd_project(a: &ProjectArgs) -> Result<()> {
+    let request_text = match &a.request {
+        Some(path) => {
+            fs::read_to_string(path).with_context(|| format!("reading {}", path.display()))?
+        }
+        None => {
+            let mut buf = String::new();
+            std::io::stdin()
+                .read_to_string(&mut buf)
+                .context("reading request from stdin")?;
+            buf
+        }
+    };
+    // Compute the entire result in memory first; on any error nothing is written
+    // (atomic-output refusal, no partial result).
+    let result = qodec::project::project_json(&request_text)?;
+    match &a.out {
+        Some(path) => {
+            // atomic publish: write a sibling temp then rename.
+            let tmp = path.with_extension("qodec-project.tmp");
+            fs::write(&tmp, result.as_bytes())
+                .with_context(|| format!("writing {}", tmp.display()))?;
+            fs::rename(&tmp, path).with_context(|| format!("renaming into {}", path.display()))?;
+        }
+        None => print!("{result}"),
     }
     Ok(())
 }
